@@ -18,7 +18,7 @@
             <etrxEntitySearch id="7E8B17A798E44B248C41F8A6FA084E93" entity-name="ETRX_Entity_Search" identifier="searchByUsername"/>
             <name>username</name>
             <type>java.lang.String</type>
-            <line>10</line>
+            <line>0</line>
           </ETRX_Search_Param>
           <ETRX_Search_Param id="C20A1E03A783442584F69D1E4BEC17FD" identifier="active">
             <id>C20A1E03A783442584F69D1E4BEC17FD</id>
@@ -26,7 +26,7 @@
             <etrxEntitySearch id="7E8B17A798E44B248C41F8A6FA084E93" entity-name="ETRX_Entity_Search" identifier="searchByUsername"/>
             <name>active</name>
             <type>java.lang.Boolean</type>
-            <line>20</line>
+            <line>0</line>
           </ETRX_Search_Param>
         </eTRXSearchParamList>
       </ETRX_Entity_Search>
@@ -46,53 +46,61 @@
         <tableEntity id="114" entity-name="ADTable" identifier="AD_User"/>
         <identity>false</identity>
         <eTRXEntityFieldList>
-          <ETRX_Entity_Field id="2C7F7987E2B6492196DE6F1A1D9EE09B" identifier="organization">
+          <ETRX_Entity_Field id="2C7F7987E2B6492196DE6F1A1D9EE09B" identifier="organization - organization">
             <id>2C7F7987E2B6492196DE6F1A1D9EE09B</id>
             <active>true</active>
             <etrxProjectionEntity id="929A729126144CB19FD68FA45AD0D56C" entity-name="ETRX_Projection_Entity" identifier="AD_User"/>
             <property>organization</property>
+            <name>organization</name>
           </ETRX_Entity_Field>
-          <ETRX_Entity_Field id="2E3060C91A9E4C4D8855EFB419F4EB4D" identifier="defaultOrganization">
+          <ETRX_Entity_Field id="2E3060C91A9E4C4D8855EFB419F4EB4D" identifier="defaultOrganization - defaultOrganization">
             <id>2E3060C91A9E4C4D8855EFB419F4EB4D</id>
             <active>true</active>
             <etrxProjectionEntity id="929A729126144CB19FD68FA45AD0D56C" entity-name="ETRX_Projection_Entity" identifier="AD_User"/>
             <property>defaultOrganization</property>
+            <name>defaultOrganization</name>
           </ETRX_Entity_Field>
-          <ETRX_Entity_Field id="409069683F2D426F831DBA8EBBBEAE0B" identifier="password">
+          <ETRX_Entity_Field id="409069683F2D426F831DBA8EBBBEAE0B" identifier="password - password">
             <id>409069683F2D426F831DBA8EBBBEAE0B</id>
             <active>true</active>
             <etrxProjectionEntity id="929A729126144CB19FD68FA45AD0D56C" entity-name="ETRX_Projection_Entity" identifier="AD_User"/>
             <property>password</property>
+            <name>password</name>
           </ETRX_Entity_Field>
-          <ETRX_Entity_Field id="553C56ADCD4146458C9A543380037BC9" identifier="active">
+          <ETRX_Entity_Field id="553C56ADCD4146458C9A543380037BC9" identifier="active - active">
             <id>553C56ADCD4146458C9A543380037BC9</id>
             <active>true</active>
             <etrxProjectionEntity id="929A729126144CB19FD68FA45AD0D56C" entity-name="ETRX_Projection_Entity" identifier="AD_User"/>
             <property>active</property>
+            <name>active</name>
           </ETRX_Entity_Field>
-          <ETRX_Entity_Field id="8C3AC52AEA0441AFA781E52A02686139" identifier="client">
+          <ETRX_Entity_Field id="8C3AC52AEA0441AFA781E52A02686139" identifier="client - client">
             <id>8C3AC52AEA0441AFA781E52A02686139</id>
             <active>true</active>
             <etrxProjectionEntity id="929A729126144CB19FD68FA45AD0D56C" entity-name="ETRX_Projection_Entity" identifier="AD_User"/>
             <property>client</property>
+            <name>client</name>
           </ETRX_Entity_Field>
-          <ETRX_Entity_Field id="A1771833DEC0403EA8DCB2E119B5D14D" identifier="id">
+          <ETRX_Entity_Field id="A1771833DEC0403EA8DCB2E119B5D14D" identifier="id - id">
             <id>A1771833DEC0403EA8DCB2E119B5D14D</id>
             <active>true</active>
             <etrxProjectionEntity id="929A729126144CB19FD68FA45AD0D56C" entity-name="ETRX_Projection_Entity" identifier="AD_User"/>
             <property>id</property>
+            <name>id</name>
           </ETRX_Entity_Field>
-          <ETRX_Entity_Field id="E552E98280764728A3E0C47D65ACF7F4" identifier="defaultClient">
+          <ETRX_Entity_Field id="E552E98280764728A3E0C47D65ACF7F4" identifier="defaultClient - defaultClient">
             <id>E552E98280764728A3E0C47D65ACF7F4</id>
             <active>true</active>
             <etrxProjectionEntity id="929A729126144CB19FD68FA45AD0D56C" entity-name="ETRX_Projection_Entity" identifier="AD_User"/>
             <property>defaultClient</property>
+            <name>defaultClient</name>
           </ETRX_Entity_Field>
-          <ETRX_Entity_Field id="FC9988401CF849D4B677A7552EAFDF3D" identifier="username">
+          <ETRX_Entity_Field id="FC9988401CF849D4B677A7552EAFDF3D" identifier="username - username">
             <id>FC9988401CF849D4B677A7552EAFDF3D</id>
             <active>true</active>
             <etrxProjectionEntity id="929A729126144CB19FD68FA45AD0D56C" entity-name="ETRX_Projection_Entity" identifier="AD_User"/>
             <property>username</property>
+            <name>username</name>
           </ETRX_Entity_Field>
         </eTRXEntityFieldList>
       </ETRX_Projection_Entity>
