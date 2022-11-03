@@ -7,7 +7,7 @@
 */
 
 group          = "com.etendoerp"
-version        = "1.0.1"
+version        = "1.0.2"
 description    = "Integration with Etendo RX"
 ext.artifact   = "etendorx"
 ext.repository = "https://repo.futit.cloud/repository/maven-releases"
@@ -51,4 +51,12 @@ repositories {
 */
 dependencies {
    implementation('com.etendoerp.platform:etendo-core:[21.4.0,22.4.0)')
+}
+
+sourceSets {
+    main {
+        resources {
+            srcDirs("etendo-resources")
+        }
+    }
 }
