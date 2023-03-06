@@ -68,9 +68,6 @@ public class ETRXSelectorFieldPropertyDataSource extends ModelDataSourceService 
         final List<Property> entityProperties = super.getEntityProperties(entity);
         final List<Property> toRemove = new ArrayList<Property>();
         for (Property prop : entityProperties) {
-            if (prop.isOneToMany()) {
-                toRemove.add(prop);
-            }
             // Blob columns have been disabled because they are not supported by the new selectors
             // See issue https://issues.openbravo.com/view.php?id=13147
             if (prop.getReferencedProperty() != null) {
