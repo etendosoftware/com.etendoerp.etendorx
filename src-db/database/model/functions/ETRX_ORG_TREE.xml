@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION ETRX_ORG_TREE">
+    <function name="ETRX_ORG_TREE" type="VARCHAR">
+      <parameter name="ad_org_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[result varchar[];
+BEGIN
+   -- function logic here
+   result := ARRAY[ad_org_id];
+   RETURN result;
+END ETRX_ORG_TREE
+]]></body>
+    </function>
+  </database>
