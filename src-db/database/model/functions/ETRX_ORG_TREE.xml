@@ -1,14 +1,59 @@
 <?xml version="1.0"?>
   <database name="FUNCTION ETRX_ORG_TREE">
-    <function name="ETRX_ORG_TREE" type="VARCHAR">
-      <parameter name="ad_org_id" type="VARCHAR" mode="in">
+    <function name="ETRX_ORG_TREE" type="NULL">
+      <parameter name="org_id" type="VARCHAR" mode="in">
         <default/>
       </parameter>
-      <body><![CDATA[result varchar[];
-BEGIN
-   -- function logic here
-   result := ARRAY[ad_org_id];
-   RETURN result;
+      <parameter name="type" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="org_tree_list" type="VARCHAR" mode="out">
+        <default/>
+      </parameter>
+      <body><![CDATA[BEGIN
+    IF type = -1 THEN
+        -- lógica para tipo -1 (padres)
+        RETURN QUERY
+        (SELECT ad_parent_org_id FROM ad_org_tree WHERE ad_org_id=org_id);
+        
+    ELSIF type = 0 THEN
+        -- lógica para tipo 0 (hijas y padres)
+        RETURN QUERY
+            WITH RECURSIVE org_tree(ad_org_id, ad_parent_org_id) AS (
+                SELECT ad_org_id, ad_parent_org_id
+                FROM ad_org_tree
+                WHERE ad_parent_org_id = org_id
+                  UNION ALL
+                SELECT a.ad_org_id, a.ad_parent_org_id
+                FROM ad_org_tree a
+                JOIN org_tree b ON a.ad_parent_org_id = b.ad_parent_org_id
+                WHERE a.ad_parent_org_id <> org_id
+            )
+        SELECT ad_org_id::VARCHAR
+        FROM org_tree
+        WHERE ad_org_id <> org_id
+        UNION ALL 
+        SELECT ad_parent_org_id 
+        FROM ad_org_tree 
+        WHERE ad_org_id=org_id;
+    ELSIF type = 1 THEN
+        -- lógica para tipo 1 (hijas)
+        RETURN QUERY
+            WITH RECURSIVE org_tree(ad_org_id, ad_parent_org_id) AS (
+                SELECT ad_org_id, ad_parent_org_id
+                FROM ad_org_tree
+                WHERE ad_parent_org_id = org_id
+                  UNION ALL
+                SELECT a.ad_org_id, a.ad_parent_org_id
+                FROM ad_org_tree a
+                JOIN org_tree b ON a.ad_parent_org_id = b.ad_parent_org_id
+                WHERE a.ad_parent_org_id <> org_id
+            )
+        SELECT ad_org_id::VARCHAR
+        FROM org_tree
+        WHERE ad_org_id <> org_id
+        ORDER BY ad_org_id;
+    END IF;
 END ETRX_ORG_TREE
 ]]></body>
     </function>
