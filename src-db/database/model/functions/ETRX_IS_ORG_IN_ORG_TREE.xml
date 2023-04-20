@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
-  <database name="FUNCTION ETRX_ORG_TREE">
-    <function name="ETRX_ORG_TREE" type="NUMERIC">
+  <database name="FUNCTION ETRX_IS_ORG_IN_ORG_TREE">
+    <function name="ETRX_IS_ORG_IN_ORG_TREE" type="NUMERIC">
       <parameter name="p_org_id_to_check" type="VARCHAR" mode="in">
         <default/>
       </parameter>
@@ -18,7 +18,7 @@ BEGIN
 		RETURN 1;
 	END IF;
 	
-	-- get parents
+	-- search in ancestors
     IF p_org_tree_direcction <= 0 THEN
         SELECT ad_parent_org_id INTO v_asc_ad_org_tree 
 		FROM ad_org_tree 
@@ -28,7 +28,7 @@ BEGIN
 		END IF;
 	END IF;
         
-	-- get childrens
+	-- search in descendants
 	IF p_org_tree_direcction >= 0 THEN
 		WITH RECURSIVE org_tree(ad_org_id, ad_parent_org_id) AS (
             SELECT ad_org_id, ad_parent_org_id
@@ -49,7 +49,7 @@ BEGIN
 	END IF;
 	
 	RETURN 0;
-END ETRX_ORG_TREE
+END ETRX_IS_ORG_IN_ORG_TREE
 ]]></body>
     </function>
   </database>
