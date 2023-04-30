@@ -1,72 +1,72 @@
 <?xml version="1.0"?>
-<database name="TABLE ETRX_RX_SERVICES_ACCESS">
-  <table name="ETRX_RX_SERVICES_ACCESS" primaryKey="ETRX_RX_SERVICES_ACCESS_KEY">
-    <column name="ETRX_RX_SERVICES_ACCESS_ID" primaryKey="true" required="true" type="VARCHAR" size="32" autoIncrement="false">
-      <default/>
-      <onCreateDefault/>
-    </column>
-    <column name="AD_CLIENT_ID" primaryKey="false" required="true" type="VARCHAR" size="32" autoIncrement="false">
-      <default/>
-      <onCreateDefault/>
-    </column>
-    <column name="AD_ORG_ID" primaryKey="false" required="true" type="VARCHAR" size="32" autoIncrement="false">
-      <default/>
-      <onCreateDefault/>
-    </column>
-    <column name="ISACTIVE" primaryKey="false" required="true" type="CHAR" size="1" autoIncrement="false">
-      <default><![CDATA[Y]]></default>
-      <onCreateDefault/>
-    </column>
-    <column name="CREATED" primaryKey="false" required="true" type="TIMESTAMP" size="7" autoIncrement="false">
-      <default><![CDATA[SYSDATE]]></default>
-      <onCreateDefault/>
-    </column>
-    <column name="CREATEDBY" primaryKey="false" required="true" type="VARCHAR" size="32" autoIncrement="false">
-      <default/>
-      <onCreateDefault/>
-    </column>
-    <column name="UPDATED" primaryKey="false" required="true" type="TIMESTAMP" size="7" autoIncrement="false">
-      <default><![CDATA[SYSDATE]]></default>
-      <onCreateDefault/>
-    </column>
-    <column name="UPDATEDBY" primaryKey="false" required="true" type="VARCHAR" size="32" autoIncrement="false">
-      <default/>
-      <onCreateDefault/>
-    </column>
-    <column name="ETRX_RX_SERVICES_ID" primaryKey="false" required="true" type="VARCHAR" size="32" autoIncrement="false">
-      <default/>
-      <onCreateDefault/>
-    </column>
-    <column name="DEFAULTORG" primaryKey="false" required="true" type="VARCHAR" size="32" autoIncrement="false">
-      <default/>
-      <onCreateDefault/>
-    </column>
-    <column name="DEFAULTROLE" primaryKey="false" required="true" type="VARCHAR" size="32" autoIncrement="false">
-      <default/>
-      <onCreateDefault/>
-    </column>
-    <column name="AD_USER_ID" primaryKey="false" required="true" type="VARCHAR" size="32" autoIncrement="false">
-      <default/>
-      <onCreateDefault/>
-    </column>
-    <foreign-key foreignTable="AD_USER" name="ETRX_RX_S_ACCESS_AD_USER_ID">
-      <reference local="AD_USER_ID" foreign="AD_USER_ID"/>
-    </foreign-key>
-    <foreign-key foreignTable="AD_ORG" name="ETRX_RX_S_ACCESS_DEF_ORG">
-      <reference local="DEFAULTORG" foreign="AD_ORG_ID"/>
-    </foreign-key>
-    <foreign-key foreignTable="AD_ROLE" name="ETRX_RX_S_ACCESS_DEF_ROLE">
-      <reference local="DEFAULTROLE" foreign="AD_ROLE_ID"/>
-    </foreign-key>
-    <foreign-key foreignTable="AD_CLIENT" name="ETRX_RX_SERVICES_ACCESS_ADCLI">
-      <reference local="AD_CLIENT_ID" foreign="AD_CLIENT_ID"/>
-    </foreign-key>
-    <foreign-key foreignTable="AD_ORG" name="ETRX_RX_SERVICES_ACCESS_ADORG">
-      <reference local="AD_ORG_ID" foreign="AD_ORG_ID"/>
-    </foreign-key>
-    <foreign-key foreignTable="ETRX_RX_SERVICES" name="ETRX_RX_SERVICES_ACCESS_SERV">
-      <reference local="ETRX_RX_SERVICES_ID" foreign="ETRX_RX_SERVICES_ID"/>
-    </foreign-key>
-    <check name="ETRX_RX_SER_ACC_ISACTIVE_CHECK"><![CDATA[ISACTIVE IN ('Y', 'N')]]></check>
-  </table>
-</database>
+  <database name="TABLE ETRX_RX_SERVICES_ACCESS">
+    <table name="ETRX_RX_SERVICES_ACCESS" primaryKey="ETRX_RX_SERVICES_ACCESS_KEY">
+      <column name="ETRX_RX_SERVICES_ACCESS_ID" primaryKey="true" required="true" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="AD_CLIENT_ID" primaryKey="false" required="true" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="AD_ORG_ID" primaryKey="false" required="true" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="ISACTIVE" primaryKey="false" required="true" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[Y]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="CREATED" primaryKey="false" required="true" type="TIMESTAMP" size="7" autoIncrement="false">
+        <default><![CDATA[SYSDATE]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="CREATEDBY" primaryKey="false" required="true" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="UPDATED" primaryKey="false" required="true" type="TIMESTAMP" size="7" autoIncrement="false">
+        <default><![CDATA[SYSDATE]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="UPDATEDBY" primaryKey="false" required="true" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="ETRX_RX_SERVICES_ID" primaryKey="false" required="true" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="DEFAULTORG" primaryKey="false" required="true" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="DEFAULTROLE" primaryKey="false" required="true" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="AD_USER_ID" primaryKey="false" required="true" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <foreign-key foreignTable="AD_USER" name="ETRX_RX_S_ACCESS_AD_USER_ID">
+        <reference local="AD_USER_ID" foreign="AD_USER_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="AD_ORG" name="ETRX_RX_S_ACCESS_DEF_ORG">
+        <reference local="DEFAULTORG" foreign="AD_ORG_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="AD_ROLE" name="ETRX_RX_S_ACCESS_DEF_ROLE">
+        <reference local="DEFAULTROLE" foreign="AD_ROLE_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="AD_CLIENT" name="ETRX_RX_SERVICES_ACCESS_ADCLI">
+        <reference local="AD_CLIENT_ID" foreign="AD_CLIENT_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="AD_ORG" name="ETRX_RX_SERVICES_ACCESS_ADORG">
+        <reference local="AD_ORG_ID" foreign="AD_ORG_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="ETRX_RX_SERVICES" name="ETRX_RX_SERVICES_ACCESS_SERV">
+        <reference local="ETRX_RX_SERVICES_ID" foreign="ETRX_RX_SERVICES_ID"/>
+      </foreign-key>
+      <check name="ETRX_RX_SER_ACC_ISACTIVE_CHECK"><![CDATA[ISACTIVE IN ('Y', 'N')]]></check>
+    </table>
+  </database>
