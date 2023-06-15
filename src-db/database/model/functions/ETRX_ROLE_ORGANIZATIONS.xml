@@ -1,0 +1,47 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION ETRX_ROLE_ORGANIZATIONS">
+    <function name="ETRX_ROLE_ORGANIZATIONS" type="VARCHAR">
+      <parameter name="p_ad_client_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_ad_role_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_mode" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[org_ids varchar(32)[];
+	aux_new_ids varchar(32)[];
+BEGIN
+    -- Get active organizations for a given role
+	SELECT array_agg(t.ad_org_id) INTO org_ids
+    FROM ad_org_tree t
+    WHERE t.isactive = 'Y'
+	AND t.ad_client_id = p_ad_client_id 
+	AND t.ad_org_id in (select ad_org_id from ad_role_orgaccess where ad_role_id = p_ad_role_id);
+	
+	raise info '%', org_ids;
+    -- If "0" is in the list, fetch all organizations
+    IF org_ids is null THEN
+        SELECT array_agg(o.ad_org_id) INTO org_ids
+        FROM ad_org o
+        WHERE o.isactive = 'Y'
+		AND o.ad_client_id = p_ad_client_id ;
+    ELSE
+        -- Fetch organizations under each organization in org_ids
+        FOR i IN 1 .. array_length(org_ids, 1)
+        LOOP
+            -- Call a function get_natural_tree which returns a list of all orgs under a certain org
+            aux_new_ids := array(select distinct unnest(org_ids || get_natural_tree_loop(org_ids[i], p_ad_client_id)));
+			raise info 'org_ids %', org_ids;
+        END LOOP;
+    END IF;
+	org_ids := org_ids || aux_new_ids;
+    -- Add "0" to the list
+    org_ids := array_append(org_ids, '0');
+
+    RETURN array(select distinct unnest(org_ids));
+END ETRX_ROLE_ORGANIZATIONS
+]]></body>
+    </function>
+  </database>
