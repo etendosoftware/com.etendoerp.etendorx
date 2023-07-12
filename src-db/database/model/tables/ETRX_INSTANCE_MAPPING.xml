@@ -1,0 +1,58 @@
+<?xml version="1.0"?>
+  <database name="TABLE ETRX_INSTANCE_MAPPING">
+    <table name="ETRX_INSTANCE_MAPPING" primaryKey="ETRX_INSTANCE_MAPPING_KEY">
+      <column name="ETRX_INSTANCE_MAPPING_ID" primaryKey="true" required="true" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="AD_CLIENT_ID" primaryKey="false" required="true" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="AD_ORG_ID" primaryKey="false" required="true" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="ISACTIVE" primaryKey="false" required="true" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[Y]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="CREATED" primaryKey="false" required="true" type="TIMESTAMP" size="7" autoIncrement="false">
+        <default><![CDATA[SYSDATE]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="CREATEDBY" primaryKey="false" required="true" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="UPDATED" primaryKey="false" required="true" type="TIMESTAMP" size="7" autoIncrement="false">
+        <default><![CDATA[SYSDATE]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="UPDATEDBY" primaryKey="false" required="true" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="ETRX_ENTITY_MAPPING_ID" primaryKey="false" required="true" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="ETRX_INSTANCE_CONNECTOR_ID" primaryKey="false" required="true" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <foreign-key foreignTable="AD_CLIENT" name="ETRX_CONN_SUSCRIP_AD_CLIENT">
+        <reference local="AD_CLIENT_ID" foreign="AD_CLIENT_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="ETRX_INSTANCE_CONNECTOR" name="ETRX_CONN_SUSCRIP_CONN_INS">
+        <reference local="ETRX_INSTANCE_CONNECTOR_ID" foreign="ETRX_INSTANCE_CONNECTOR_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="AD_ORG" name="ETRX_INSTANCE_MAPPING_AD_ORG">
+        <reference local="AD_ORG_ID" foreign="AD_ORG_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="ETRX_ENTITY_MAPPING" name="ETRX_INSTANCE_MAPPING_MAP">
+        <reference local="ETRX_ENTITY_MAPPING_ID" foreign="ETRX_ENTITY_MAPPING_ID"/>
+      </foreign-key>
+      <check name="ETRX_ENTITY_MAP_ISACTIVE_CHK"><![CDATA[ISACTIVE IN ('Y', 'N')]]></check>
+    </table>
+  </database>
