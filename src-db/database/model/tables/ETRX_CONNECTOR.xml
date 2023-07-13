@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
-  <database name="TABLE ETRX_PROJECTION">
-    <table name="ETRX_PROJECTION" primaryKey="ETRX_PROJECTION_KEY">
-      <column name="ETRX_PROJECTION_ID" primaryKey="true" required="true" type="VARCHAR" size="32" autoIncrement="false">
+  <database name="TABLE ETRX_CONNECTOR">
+    <table name="ETRX_CONNECTOR" primaryKey="ETRX_CONNECTOR_KEY">
+      <column name="ETRX_CONNECTOR_ID" primaryKey="true" required="true" type="VARCHAR" size="32" autoIncrement="false">
         <default/>
         <onCreateDefault/>
       </column>
@@ -37,30 +37,12 @@
         <default/>
         <onCreateDefault/>
       </column>
-      <column name="AD_MODULE_ID" primaryKey="false" required="true" type="VARCHAR" size="32" autoIncrement="false">
-        <default/>
-        <onCreateDefault/>
-      </column>
-      <column name="HASGRPC" primaryKey="false" required="true" type="CHAR" size="1" autoIncrement="false">
-        <default><![CDATA[N]]></default>
-        <onCreateDefault/>
-      </column>
-      <column name="DESCRIPTION" primaryKey="false" required="false" type="VARCHAR" size="200" autoIncrement="false">
-        <default/>
-        <onCreateDefault/>
-      </column>
-      <foreign-key foreignTable="AD_CLIENT" name="ETRX_PROJECTION_ADCLIENT">
+      <foreign-key foreignTable="AD_CLIENT" name="ETRX_CONNECTOR_AD_CLIENT">
         <reference local="AD_CLIENT_ID" foreign="AD_CLIENT_ID"/>
       </foreign-key>
-      <foreign-key foreignTable="AD_ORG" name="ETRX_PROJECTION_ADORG">
+      <foreign-key foreignTable="AD_ORG" name="ETRX_CONNECTOR_AD_ORG">
         <reference local="AD_ORG_ID" foreign="AD_ORG_ID"/>
       </foreign-key>
-      <foreign-key foreignTable="AD_MODULE" name="ETRX_PROJECTION_MODULE">
-        <reference local="AD_MODULE_ID" foreign="AD_MODULE_ID"/>
-      </foreign-key>
-      <unique name="ETRX_PROJECTION_UNIQUE">
-        <unique-column name="AD_MODULE_ID"/>
-        <unique-column name="NAME"/>
-      </unique>
+      <check name="ETRX_CONNECTOR_ISACTIVE_CHK"><![CDATA[ISACTIVE IN ('Y', 'N')]]></check>
     </table>
   </database>
