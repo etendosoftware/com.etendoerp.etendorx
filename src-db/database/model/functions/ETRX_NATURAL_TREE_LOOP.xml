@@ -17,13 +17,9 @@ BEGIN
     v_new_ids := '|' || org_id || '|';
     WHILE true LOOP
         v_new_ids := '';
-        FOR rec IN (SELECT n.parent_id FROM ad_tree t, ad_treenode n, ad_org o, ad_orgtype ot 
-                    WHERE n.node_id = o.ad_org_id
-                    AND o.ad_orgtype_id = ot.ad_orgtype_id
-                    AND n.ad_tree_id = t.ad_tree_id
-                    AND t.ad_table_id = '155'
-                    AND t.ad_client_id = client_id
-                    AND instr(v_new_ids, '|' || n.ad_org_id || '|') = 0)
+        FOR rec IN (SELECT t.ad_parent_org_id AS parent_id FROM ad_org_tree t
+					WHERE t.ad_client_id = client_id
+                    AND instr(v_new_ids, '|' || t.ad_org_id || '|') = 0)
         LOOP
             v_new_ids := v_new_ids || '|' || rec.parent_id || '|';
         END LOOP;
