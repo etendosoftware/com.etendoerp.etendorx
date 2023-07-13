@@ -37,17 +37,17 @@ definitions:
   caches:
     sonar: ~/.sonar
 
-pipelines:  
+pipelines:
   branches:
-    '{master,develop}': 
+    '{master,develop}':
       - step: *build-step
   pull-requests:
     'develop':
       - step:
           script:
-          - echo "Skip for develop branch"
-          - exit 0
+            - echo "Skip for develop branch"
+            - exit 0
     '**':
       - parallel:
-        - step: *make-review
-        - step: *build-step
+          - step: *make-review
+          - step: *build-step
