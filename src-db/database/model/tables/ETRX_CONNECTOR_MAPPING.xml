@@ -33,10 +33,6 @@
         <default/>
         <onCreateDefault/>
       </column>
-      <column name="ETRX_INSTANCE_CONNECTOR_ID" primaryKey="false" required="true" type="VARCHAR" size="32" autoIncrement="false">
-        <default/>
-        <onCreateDefault/>
-      </column>
       <column name="ETENDO_ENTITY_ID" primaryKey="false" required="true" type="VARCHAR" size="32" autoIncrement="false">
         <default/>
         <onCreateDefault/>
@@ -46,6 +42,10 @@
         <onCreateDefault/>
       </column>
       <column name="AD_TABLE_ID" primaryKey="false" required="true" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="ETRX_INSTANCE_CONNECTOR_ID" primaryKey="false" required="true" type="VARCHAR" size="32" autoIncrement="false">
         <default/>
         <onCreateDefault/>
       </column>
