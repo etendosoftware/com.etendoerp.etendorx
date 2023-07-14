@@ -1,0 +1,58 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION ETRX_NATURAL_TREE_LOOP">
+    <function name="ETRX_NATURAL_TREE_LOOP" type="VARCHAR">
+      <parameter name="client_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="org_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[v_org_tree_ids VARCHAR(8000) := '|';
+    v_new_ids VARCHAR(8000);
+    v_level INTEGER := 0;
+	  TYPE RECORD IS REF CURSOR;
+    rec RECORD;
+BEGIN
+    -- Loop for parent organizations
+    v_new_ids := '|' || org_id || '|';
+    WHILE true LOOP
+        v_new_ids := '';
+        FOR rec IN (SELECT t.ad_parent_org_id AS parent_id FROM ad_org_tree t
+					WHERE t.ad_client_id = client_id
+                    AND instr(v_new_ids, '|' || t.ad_org_id || '|') = 0)
+        LOOP
+            v_new_ids := v_new_ids || '|' || rec.parent_id || '|';
+        END LOOP;
+
+        IF length(v_new_ids) > v_level + 1 THEN
+            v_org_tree_ids := v_org_tree_ids || v_new_ids;
+        ELSE 
+            EXIT; -- No new IDs found, exit the loop
+        END IF;
+        v_level := length(v_new_ids);
+    END LOOP;
+
+    -- Reset level and clear v_new_ids
+    v_level := 0;
+    v_new_ids := '|' || org_id || '|';
+
+    -- Repeat similar loop for child organizations
+    WHILE true LOOP
+        -- Similar loop logic for child organizations
+        v_new_ids := '';
+        FOR rec IN (SELECT t.ad_org_id FROM ad_org_tree t WHERE instr(v_new_ids, '|' || n.ad_parent_org_id || '|') = 0)
+            v_new_ids := v_new_ids || '|' || rec.ad_org_id || '|';
+        END LOOP;
+
+        IF length(v_new_ids) > v_level + 1 THEN
+            v_org_tree_ids := v_org_tree_ids || v_new_ids;
+        ELSE 
+            EXIT; -- No new IDs found, exit the loop
+        END IF;
+        v_level := length(v_new_ids);
+    END LOOP;
+    RETURN v_org_tree_ids;
+END ETRX_NATURAL_TREE_LOOP
+]]></body>
+    </function>
+  </database>
