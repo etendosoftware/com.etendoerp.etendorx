@@ -40,14 +40,7 @@ BEGIN
     WHILE true LOOP
         -- Similar loop logic for child organizations
         v_new_ids := '';
-        FOR rec IN (SELECT n.ad_org_id FROM ad_tree t, ad_treenode n, ad_org o, ad_orgtype ot 
-                    WHERE n.node_id = o.ad_org_id
-                    AND o.ad_orgtype_id = ot.ad_orgtype_id
-                    AND n.ad_tree_id = t.ad_tree_id
-                    AND t.ad_table_id = '155'
-                    AND t.ad_client_id = client_id
-                    AND instr(v_new_ids, '|' || n.parent_id || '|') = 0)
-        LOOP
+        FOR rec IN (SELECT t.ad_org_id FROM ad_org_tree t WHERE instr(v_new_ids, '|' || n.ad_parent_org_id || '|') = 0)
             v_new_ids := v_new_ids || '|' || rec.ad_org_id || '|';
         END LOOP;
 
