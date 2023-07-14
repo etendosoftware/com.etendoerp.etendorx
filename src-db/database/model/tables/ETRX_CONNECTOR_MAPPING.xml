@@ -33,7 +33,7 @@
         <default/>
         <onCreateDefault/>
       </column>
-      <column name="INSTANCE_CONNECTOR_ID" primaryKey="false" required="true" type="VARCHAR" size="60" autoIncrement="false">
+      <column name="ETRX_INST_CONNECTOR_ID" primaryKey="false" required="true" type="VARCHAR" size="60" autoIncrement="false">
         <default/>
         <onCreateDefault/>
       </column>
@@ -58,8 +58,8 @@
       <foreign-key foreignTable="AD_TABLE" name="ETRX_CONN_MAP_AD_TABLE_ID">
         <reference local="AD_TABLE_ID" foreign="AD_TABLE_ID"/>
       </foreign-key>
-      <foreign-key foreignTable="ETRX_INSTANCE_CONNECTOR" name="ETRX_CONN_MAP_INST_CONN_ID">
-        <reference local="INSTANCE_CONNECTOR_ID" foreign="ETRX_INSTANCE_CONNECTOR_ID"/>
+      <foreign-key foreignTable="ETRX_INSTANCE_CONNECTOR" name="ETRX_CONN_MAP_INST_CONN">
+        <reference local="ETRX_CONNECTOR_MAPPING_ID" foreign="ETRX_INSTANCE_CONNECTOR_ID"/>
       </foreign-key>
       <check name="ETRX_CONN_MAP_ISACTIVE_CHK"><![CDATA[ISACTIVE IN ('Y', 'N')]]></check>
     </table>
