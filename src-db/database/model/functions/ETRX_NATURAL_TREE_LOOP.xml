@@ -13,6 +13,12 @@
 	  TYPE RECORD IS REF CURSOR;
     rec RECORD;
 BEGIN
+
+	if not exists(select 1 from ad_org where ad_org_id = org_id and ad_client_id = client_id)
+	then
+		return '';
+	end if;
+	
     -- Loop for parent organizations
     v_new_ids := '|' || org_id || '|';
     WHILE true LOOP
@@ -38,9 +44,13 @@ BEGIN
 
     -- Repeat similar loop for child organizations
     WHILE true LOOP
+		if length(v_new_ids) = 0 then
+			exit;
+		end if;
         -- Similar loop logic for child organizations
         v_new_ids := '';
-        FOR rec IN (SELECT t.ad_org_id FROM ad_org_tree t WHERE instr(v_new_ids, '|' || n.ad_parent_org_id || '|') = 0)
+        FOR rec IN (SELECT t.ad_org_id FROM ad_org_tree t WHERE instr(v_new_ids, '|' || t.ad_parent_org_id || '|') = 0)
+        LOOP
             v_new_ids := v_new_ids || '|' || rec.ad_org_id || '|';
         END LOOP;
 

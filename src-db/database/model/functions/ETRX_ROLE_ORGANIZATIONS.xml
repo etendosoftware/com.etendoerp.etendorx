@@ -69,7 +69,7 @@ BEGIN
     END IF;
 	org_ids := org_ids || aux_new_ids;
     -- Add "0" to the list
-    org_ids := org_ids || '0';
+    org_ids := org_ids || '0|';
 
     RETURN org_ids;
 END ETRX_ROLE_ORGANIZATIONS
