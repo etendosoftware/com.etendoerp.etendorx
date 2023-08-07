@@ -53,6 +53,6 @@
       <foreign-key foreignTable="ETRX_CONNECTOR" name="ETRX_CONN_SUSCRIPTION_CONN">
         <reference local="ETRX_CONNECTOR_ID" foreign="ETRX_CONNECTOR_ID"/>
       </foreign-key>
-      <check name="ETRX_ENTITY_MAP_ISACTIVE_CHK"><![CDATA[ISACTIVE IN ('Y', 'N')]]></check>
+      <check name="ETRX_SUSCRIP_MAP_ISACTIVE_CHK"><![CDATA[ISACTIVE IN ('Y', 'N')]]></check>
     </table>
   </database>
