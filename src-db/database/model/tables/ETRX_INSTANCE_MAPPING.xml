@@ -53,6 +53,6 @@
       <foreign-key foreignTable="ETRX_ENTITY_MAPPING" name="ETRX_INSTANCE_MAPPING_MAP">
         <reference local="ETRX_ENTITY_MAPPING_ID" foreign="ETRX_ENTITY_MAPPING_ID"/>
       </foreign-key>
-      <check name="ETRX_ENTITY_MAP_ISACTIVE_CHK"><![CDATA[ISACTIVE IN ('Y', 'N')]]></check>
+      <check name="ETRX_INSTANCE_MAP_ISACTIVE_CHK"><![CDATA[ISACTIVE IN ('Y', 'N')]]></check>
     </table>
   </database>
