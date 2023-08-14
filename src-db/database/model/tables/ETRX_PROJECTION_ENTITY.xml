@@ -45,6 +45,10 @@
         <default><![CDATA[N]]></default>
         <onCreateDefault/>
       </column>
+      <column name="MAPPING_TYPE" primaryKey="false" required="true" type="VARCHAR" size="60" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
       <foreign-key foreignTable="AD_CLIENT" name="ETRX_ENTITY_ADCLIENT">
         <reference local="AD_CLIENT_ID" foreign="AD_CLIENT_ID"/>
       </foreign-key>
@@ -60,6 +64,7 @@
       <unique name="ETRX_PROJECTION_ENTITY_UNIQUE">
         <unique-column name="ETRX_PROJECTION_ID"/>
         <unique-column name="AD_TABLE_ID"/>
+        <unique-column name="MAPPING_TYPE"/>
       </unique>
     </table>
   </database>
