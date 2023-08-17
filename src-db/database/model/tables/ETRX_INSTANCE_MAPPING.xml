@@ -41,10 +41,10 @@
         <default/>
         <onCreateDefault/>
       </column>
-      <foreign-key foreignTable="AD_CLIENT" name="ETRX_CONN_SUSCRIP_AD_CLIENT">
+      <foreign-key foreignTable="AD_CLIENT" name="ETRX_INS_MAP_AD_CLIENT">
         <reference local="AD_CLIENT_ID" foreign="AD_CLIENT_ID"/>
       </foreign-key>
-      <foreign-key foreignTable="ETRX_INSTANCE_CONNECTOR" name="ETRX_CONN_SUSCRIP_CONN_INS">
+      <foreign-key foreignTable="ETRX_INSTANCE_CONNECTOR" name="ETRX_INS_MAP_CONN_INS">
         <reference local="ETRX_INSTANCE_CONNECTOR_ID" foreign="ETRX_INSTANCE_CONNECTOR_ID"/>
       </foreign-key>
       <foreign-key foreignTable="AD_ORG" name="ETRX_INSTANCE_MAPPING_AD_ORG">
@@ -53,6 +53,6 @@
       <foreign-key foreignTable="ETRX_ENTITY_MAPPING" name="ETRX_INSTANCE_MAPPING_MAP">
         <reference local="ETRX_ENTITY_MAPPING_ID" foreign="ETRX_ENTITY_MAPPING_ID"/>
       </foreign-key>
-      <check name="ETRX_ENTITY_MAP_ISACTIVE_CHK"><![CDATA[ISACTIVE IN ('Y', 'N')]]></check>
+      <check name="ETRX_INSTANCE_MAP_ISACTIVE_CHK"><![CDATA[ISACTIVE IN ('Y', 'N')]]></check>
     </table>
   </database>
