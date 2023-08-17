@@ -69,8 +69,11 @@
       <foreign-key foreignTable="AD_ORG" name="ETRX_JM_ADORG">
         <reference local="AD_ORG_ID" foreign="AD_ORG_ID"/>
       </foreign-key>
-      <unique name="ETRX_JM_UNIQUE">
+      <unique name="ETRX_JM_UNIQUE_NAME">
         <unique-column name="NAME"/>
+      </unique>
+      <unique name="ETRX_JM_UNIQUE_QUALIFIER">
+        <unique-column name="QUALIFIER"/>
       </unique>
     </table>
   </database>
