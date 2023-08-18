@@ -16,21 +16,21 @@ configurations {
     moduleDependencyContainer
 }
 
-publishing {
-    publications {
-        "com.etendoerp.etendorx"(MavenPublication) {
-            from components.java
-            groupId    = group
-            artifactId = artifact
-            version    = version
-        }
-    }
-    repositories {
-        maven {
-            url "https://maven.pkg.github.com/etendosoftware/com.etendoerp.platform.extensions"
-        }
-    }
-}
+//publishing {
+//    publications {
+//        "com.etendoerp.etendorx"(MavenPublication) {
+//            from components.java
+//            groupId    = group
+//            artifactId = artifact
+//            version    = version
+//        }
+//    }
+//    repositories {
+//        maven {
+//            url "https://maven.pkg.github.com/etendosoftware/com.etendoerp.platform.extensions"
+//        }
+//    }
+//}
 
 repositories {
     mavenCentral()
@@ -49,9 +49,9 @@ repositories {
 * Declare Java dependencies using 'implementation'
 * Ex: implementation "com.sun.mail:javax.mail:1.6.2"
 */
-dependencies {
-   implementation('com.etendoerp.platform:etendo-core:[21.4.0,23.3.0)')
-}
+//dependencies {
+//   implementation('com.etendoerp.platform:etendo-core:[21.4.0,23.3.0)')
+//}
 
 sourceSets {
     main {
