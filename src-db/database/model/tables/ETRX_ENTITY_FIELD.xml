@@ -85,6 +85,9 @@
       <foreign-key foreignTable="AD_MODULE" name="ETRX_FIELD_MODULE">
         <reference local="AD_MODULE_ID" foreign="AD_MODULE_ID"/>
       </foreign-key>
+      <foreign-key foreignTable="ETRX_PROJECTION_ENTITY" name="ETRX_PROJ_ENT_REL_ID">
+        <reference local="ETRX_PROJECTION_ENTITY_REL_ID" foreign="ETRX_PROJECTION_ENTITY_ID"/>
+      </foreign-key>
       <foreign-key foreignTable="ETRX_PROJECTION_ENTITY" name="ETRX_PROJECTION_ENTITY">
         <reference local="ETRX_PROJECTION_ENTITY_ID" foreign="ETRX_PROJECTION_ENTITY_ID"/>
       </foreign-key>
