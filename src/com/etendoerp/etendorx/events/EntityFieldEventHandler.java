@@ -17,6 +17,7 @@ package com.etendoerp.etendorx.events;
 
 import javax.enterprise.event.Observes;
 
+import org.apache.commons.codec.binary.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.openbravo.base.exception.OBException;
@@ -27,17 +28,14 @@ import org.openbravo.client.kernel.event.EntityPersistenceEventObserver;
 import org.openbravo.client.kernel.event.EntityUpdateEvent;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
 
-import com.etendoerp.etendorx.data.ETRXJavaMapping;
+import com.etendoerp.etendorx.data.ETRXEntityField;
 
-public class JavaMappingsEventHandler extends EntityPersistenceEventObserver {
+public class EntityFieldEventHandler extends EntityPersistenceEventObserver {
 
-    private static Entity[] entities = { ModelProvider.getInstance().getEntity(ETRXJavaMapping.ENTITY_NAME) };
+    private static Entity[] entities = { ModelProvider.getInstance().getEntity(ETRXEntityField.class) };
     private static final Logger logger = LogManager.getLogger();
 
-    static final String INVALID_PROJECTION_MESSAGE = "ETRX_InvalidJavaMappingQualifier";
-
-    static final int MIN_CHARACTER = 3;
-    static final int MAX_CHARACTER = 30;
+    static final String INVALID_PROJECTION_MESSAGE = "ETRX_InvalidPropery";
 
     @Override
     protected Entity[] getObservedEntities() {
@@ -48,26 +46,31 @@ public class JavaMappingsEventHandler extends EntityPersistenceEventObserver {
         if (!isValidEvent(event)) {
             return;
         }
-        validateJavaMapping((ETRXJavaMapping)event.getTargetInstance());
+        validateEntityField((ETRXEntityField)event.getTargetInstance());
     }
 
     public void onSave(@Observes EntityNewEvent event) {
         if (!isValidEvent(event)) {
             return;
         }
-        validateJavaMapping((ETRXJavaMapping)event.getTargetInstance());
+        validateEntityField((ETRXEntityField)event.getTargetInstance());
     }
 
-    void validateJavaMapping(ETRXJavaMapping javaMapping) {
-        if (!validateJavaMappingsQualifier(javaMapping.getQualifier())) {
-            logger.error("Invalid Java Mapping qualifier '{}'", javaMapping.getName());
-            throw new OBException(OBMessageUtils.getI18NMessage(INVALID_PROJECTION_MESSAGE,
-                    new String[] { String.valueOf(MIN_CHARACTER), String.valueOf(MAX_CHARACTER) }));
+    void validateEntityField(ETRXEntityField entityField) {
+        if (!validProperty(entityField)) {
+            logger.error("Invalid entity property '{}'", entityField.getProperty());
+            throw new OBException(OBMessageUtils.getI18NMessage(INVALID_PROJECTION_MESSAGE));
         }
     }
 
-    boolean validateJavaMappingsQualifier(String javaMappingName) {
-        return javaMappingName != null && javaMappingName.matches("^[a-zA-Z]{"+MIN_CHARACTER+","+MAX_CHARACTER+"}$");
+    private boolean validProperty(ETRXEntityField entityField) {
+      if(entityField.getProperty() == null) {
+        return false;
+      }
+      if (StringUtils.equals(entityField.getEtrxProjectionEntity().getMappingType(), "W")) {
+        return entityField.getProperty().matches("^[a-zA-Z_]*$");
+      }
+      return true;
     }
 
 }
