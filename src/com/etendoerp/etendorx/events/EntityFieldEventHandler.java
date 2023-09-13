@@ -64,7 +64,7 @@ public class EntityFieldEventHandler extends EntityPersistenceEventObserver {
     }
 
     private boolean validProperty(ETRXEntityField entityField) {
-      if(entityField.getProperty() == null) {
+      if(!StringUtils.equals(entityField.getFieldMapping(), "JM") && entityField.getProperty() == null) {
         return false;
       }
       if (StringUtils.equals(entityField.getEtrxProjectionEntity().getMappingType(), "W")) {
