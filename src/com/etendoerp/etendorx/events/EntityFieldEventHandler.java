@@ -17,7 +17,7 @@ package com.etendoerp.etendorx.events;
 
 import javax.enterprise.event.Observes;
 
-import org.apache.commons.codec.binary.StringUtils;
+import org.apache.commons.lang.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.openbravo.base.exception.OBException;
@@ -64,11 +64,11 @@ public class EntityFieldEventHandler extends EntityPersistenceEventObserver {
     }
 
     private boolean validProperty(ETRXEntityField entityField) {
-      if(!StringUtils.equals(entityField.getFieldMapping(), "JM") && entityField.getProperty() == null) {
-        return false;
+      if(StringUtils.equals(entityField.getFieldMapping(), "JM") && StringUtils.isBlank(entityField.getProperty())) {
+        return true;
       }
       if (StringUtils.equals(entityField.getEtrxProjectionEntity().getMappingType(), "W")) {
-        return entityField.getProperty().matches("^[a-zA-Z_]*$");
+        return !StringUtils.contains(entityField.getProperty(), ".");
       }
       return true;
     }
