@@ -61,6 +61,10 @@
         <default><![CDATA[IRU]]></default>
         <onCreateDefault/>
       </column>
+      <column name="ETRX_DISABLE_TRIGGERS" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[Y]]></default>
+        <onCreateDefault/>
+      </column>
       <foreign-key foreignTable="ETRX_PROJECTION_ENTITY" name="ETRX_ENTITY_MAP_PROJECTION">
         <reference local="ETRX_PROJECTION_ENTITY_ID" foreign="ETRX_PROJECTION_ENTITY_ID"/>
       </foreign-key>
