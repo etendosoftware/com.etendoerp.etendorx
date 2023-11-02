@@ -14,6 +14,7 @@ ext.repository = "https://maven.pkg.github.com/etendosoftware/com.etendoerp.plat
 
 configurations {
     moduleDependencyContainer
+    codegen
 }
 
 //publishing {
@@ -59,4 +60,35 @@ sourceSets {
             srcDirs("etendo-resources")
         }
     }
+}
+
+configurations {
+    codegen
+}
+
+dependencies {
+    //codegen 'com.etendorx:generate-entities:1.1.1'
+    codegen fileTree(dir: '../../lib/codegen/', include: '*.jar')
+    codegen 'org.postgresql:postgresql:42.5.4'
+
+    codegen group: 'org.freemarker', name: 'freemarker', version: '2.3.31'
+    codegen group: 'commons-io', name: 'commons-io', version: '2.11.0'
+    codegen group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.17.2'
+    codegen 'org.hibernate:hibernate-core:5.4.2.Final'
+    codegen group: 'org.codehaus.jettison', name: 'jettison', version: '1.4.1'
+    codegen 'commons-cli:commons-cli:1.5.0'
+
+    // String Utils
+    codegen 'org.apache.commons:commons-lang3:3.13.0'
+    codegen 'javax.servlet:servlet-api:2.5'
+    codegen 'commons-pool:commons-pool:1.5.4'
+    codegen 'commons-dbcp:commons-dbcp:1.4'
+    codegen 'com.fasterxml.jackson.core:jackson-databind:2.13.3'
+}
+
+task gee(type: JavaExec) {
+    main = "com.etendorx.gen.GenerateEntitiesApplication"
+    classpath = configurations.codegen
+    println "Working dir: ${workingDir}"
+    workingDir = '../..'
 }
