@@ -54,9 +54,6 @@
       <foreign-key foreignTable="ETRX_ENTITY_MAPPING" name="ETRX_POSTPRO_ETRX_EMAPPING">
         <reference local="ETRX_ENTITY_MAPPING_ID" foreign="ETRX_ENTITY_MAPPING_ID"/>
       </foreign-key>
-      <foreign-key foreignTable="OBUIAPP_PROCESS" name="ETRX_POSTPRO_OBUI_PROCESS">
-        <reference local="OBUIAPP_PROCESS_ID" foreign="OBUIAPP_PROCESS_ID"/>
-      </foreign-key>
       <check name="ETRX_POSTPRO_ISACTIVE_CHECK"><![CDATA[ISACTIVE IN ('Y', 'N')]]></check>
     </table>
   </database>
