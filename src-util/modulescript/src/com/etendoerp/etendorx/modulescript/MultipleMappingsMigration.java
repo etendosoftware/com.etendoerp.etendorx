@@ -32,19 +32,19 @@ public class MultipleMappingsMigration extends ModuleScript {
       ConnectionProvider cp = getConnectionProvider();
       DatabaseMetaData metaData = cp.getConnection().getMetaData();
       PreparedStatement ps = cp
-          .getPreparedStatement("UPDATE etrx_projection_entity e" +
+          .getPreparedStatement("UPDATE etrx_projection_entity e " +
               "SET    NAME = ( Upper(p.NAME) || ' - ' || t.NAME || ' - ' || " +
               "CASE e.mapping_type WHEN 'R' THEN 'Read' ELSE 'Write' END ) " +
               "FROM   etrx_projection p, ad_table t " +
               "WHERE  p.etrx_projection_id = e.etrx_projection_id " +
-              "AND t.ad_table_id = e.ad_table_id");
+              "AND t.ad_table_id = e.ad_table_id AND e.name IS NULL");
       ps.executeUpdate();
       ps = cp
           .getPreparedStatement("UPDATE etrx_projection_entity e " +
               "SET external_name = t.name " +
               "FROM etrx_projection p, ad_table t " +
               "WHERE p.etrx_projection_id = e.etrx_projection_id " +
-              "AND t.ad_table_id = e.ad_table_id");
+              "AND t.ad_table_id = e.ad_table_id AND e.external_name IS NULL");
       ps.executeUpdate();
     } catch (Exception e) {
       handleError(e);
