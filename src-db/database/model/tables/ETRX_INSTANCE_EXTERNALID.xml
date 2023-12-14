@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
-  <database name="TABLE ETRX_CONNECTOR_MAPPING">
-    <table name="ETRX_CONNECTOR_MAPPING" primaryKey="ETRX_CONNECTOR_MAPPING_KEY">
-      <column name="ETRX_CONNECTOR_MAPPING_ID" primaryKey="true" required="true" type="VARCHAR" size="32" autoIncrement="false">
+  <database name="TABLE ETRX_INSTANCE_EXTERNALID">
+    <table name="ETRX_INSTANCE_EXTERNALID" primaryKey="ETRX_INSTANCE_EXTERNALID_KEY">
+      <column name="ETRX_INSTANCE_EXTERNALID_ID" primaryKey="true" required="true" type="VARCHAR" size="32" autoIncrement="false">
         <default/>
         <onCreateDefault/>
       </column>
@@ -33,10 +33,6 @@
         <default/>
         <onCreateDefault/>
       </column>
-      <column name="ETRX_INSTANCE_CONNECTOR_ID" primaryKey="false" required="true" type="VARCHAR" size="32" autoIncrement="false">
-        <default/>
-        <onCreateDefault/>
-      </column>
       <column name="ETENDO_ENTITY_ID" primaryKey="false" required="true" type="VARCHAR" size="32" autoIncrement="false">
         <default/>
         <onCreateDefault/>
@@ -49,18 +45,22 @@
         <default/>
         <onCreateDefault/>
       </column>
-      <foreign-key foreignTable="AD_CLIENT" name="ETRX_CONN_MAP_AD_CLIENT">
+      <column name="ETRX_INSTANCE_CONNECTOR_ID" primaryKey="false" required="true" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <foreign-key foreignTable="AD_CLIENT" name="ETRX_INS_EXT_AD_CLIENT">
         <reference local="AD_CLIENT_ID" foreign="AD_CLIENT_ID"/>
       </foreign-key>
-      <foreign-key foreignTable="AD_ORG" name="ETRX_CONN_MAP_AD_ORG">
+      <foreign-key foreignTable="AD_ORG" name="ETRX_INS_EXT_AD_ORG">
         <reference local="AD_ORG_ID" foreign="AD_ORG_ID"/>
       </foreign-key>
-      <foreign-key foreignTable="AD_TABLE" name="ETRX_CONN_MAP_AD_TABLE_ID">
+      <foreign-key foreignTable="AD_TABLE" name="ETRX_INS_EXT_AD_TABLE_ID">
         <reference local="AD_TABLE_ID" foreign="AD_TABLE_ID"/>
       </foreign-key>
-      <foreign-key foreignTable="ETRX_INSTANCE_CONNECTOR" name="ETRX_CONN_MAP_INST_CONN">
+      <foreign-key foreignTable="ETRX_INSTANCE_CONNECTOR" name="ETRX_INS_EXT_INST_CONN">
         <reference local="ETRX_INSTANCE_CONNECTOR_ID" foreign="ETRX_INSTANCE_CONNECTOR_ID"/>
       </foreign-key>
-      <check name="ETRX_CONN_MAP_ISACTIVE_CHK"><![CDATA[ISACTIVE IN ('Y', 'N')]]></check>
+      <check name="ETRX_INS_EXT_ISACTIVE_CHK"><![CDATA[ISACTIVE IN ('Y', 'N')]]></check>
     </table>
   </database>

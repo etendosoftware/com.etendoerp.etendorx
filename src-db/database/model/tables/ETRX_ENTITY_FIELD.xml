@@ -37,7 +37,7 @@
         <default/>
         <onCreateDefault/>
       </column>
-      <column name="PROPERTY" primaryKey="false" required="true" type="VARCHAR" size="255" autoIncrement="false">
+      <column name="PROPERTY" primaryKey="false" required="false" type="VARCHAR" size="255" autoIncrement="false">
         <default/>
         <onCreateDefault/>
       </column>
@@ -53,20 +53,50 @@
         <default><![CDATA[N]]></default>
         <onCreateDefault/>
       </column>
+      <column name="AD_MODULE_ID" primaryKey="false" required="true" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="FIELD_MAPPING" primaryKey="false" required="false" type="VARCHAR" size="60" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="ETRX_JAVA_MAPPING_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="LINE" primaryKey="false" required="false" type="DECIMAL" size="10,0" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="ETRX_PROJECTION_ENTITY_REL_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="JSONPATH" primaryKey="false" required="false" type="VARCHAR" size="255" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
       <foreign-key foreignTable="AD_CLIENT" name="ETRX_FIELD_ADCLIENT">
         <reference local="AD_CLIENT_ID" foreign="AD_CLIENT_ID"/>
       </foreign-key>
       <foreign-key foreignTable="AD_ORG" name="ETRX_FIELD_ADORG">
         <reference local="AD_ORG_ID" foreign="AD_ORG_ID"/>
       </foreign-key>
+      <foreign-key foreignTable="ETRX_JAVA_MAPPING" name="ETRX_FIELD_JMAP">
+        <reference local="ETRX_JAVA_MAPPING_ID" foreign="ETRX_JAVA_MAPPING_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="AD_MODULE" name="ETRX_FIELD_MODULE">
+        <reference local="AD_MODULE_ID" foreign="AD_MODULE_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="ETRX_PROJECTION_ENTITY" name="ETRX_PROJ_ENT_REL_ID">
+        <reference local="ETRX_PROJECTION_ENTITY_REL_ID" foreign="ETRX_PROJECTION_ENTITY_ID"/>
+      </foreign-key>
       <foreign-key foreignTable="ETRX_PROJECTION_ENTITY" name="ETRX_PROJECTION_ENTITY">
         <reference local="ETRX_PROJECTION_ENTITY_ID" foreign="ETRX_PROJECTION_ENTITY_ID"/>
       </foreign-key>
-      <unique name="ETRX_ENTITY_FIELD_UNIQUE">
-        <unique-column name="ETRX_PROJECTION_ENTITY_ID"/>
-        <unique-column name="PROPERTY"/>
-      </unique>
       <check name="ETRX_ENTITYFIELD_IDEN_UNIV_CHK"><![CDATA[IDENTIFIES_UNIVOCALLY IN ('Y', 'N')]]></check>
       <check name="ETRX_ENTITYFIELD_MANDATORY_CHK"><![CDATA[ISMANDATORY IN ('Y', 'N')]]></check>
+      <check name="ETRX_FIELD_MAP_CHK"><![CDATA[FIELD_MAPPING = 'JM' AND NOT ETRX_JAVA_MAPPING_ID IS NULL OR FIELD_MAPPING = 'DM' AND NOT PROPERTY IS NULL OR FIELD_MAPPING = 'EM' AND NOT PROPERTY IS NULL AND NOT ETRX_PROJECTION_ENTITY_REL_ID IS NULL]]></check>
     </table>
   </database>

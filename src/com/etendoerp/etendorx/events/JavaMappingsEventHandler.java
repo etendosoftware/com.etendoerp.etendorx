@@ -15,28 +15,29 @@
  */
 package com.etendoerp.etendorx.events;
 
-import com.etendoerp.etendorx.data.ETRXProjection;
+import javax.enterprise.event.Observes;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.base.model.Entity;
 import org.openbravo.base.model.ModelProvider;
 import org.openbravo.client.kernel.event.EntityNewEvent;
 import org.openbravo.client.kernel.event.EntityPersistenceEventObserver;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.openbravo.client.kernel.event.EntityUpdateEvent;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
 
-import javax.enterprise.event.Observes;
+import com.etendoerp.etendorx.data.ETRXJavaMapping;
 
-public class ProjectionEventHandler extends EntityPersistenceEventObserver {
+public class JavaMappingsEventHandler extends EntityPersistenceEventObserver {
 
-    private static Entity[] entities = { ModelProvider.getInstance().getEntity(ETRXProjection.ENTITY_NAME) };
+    private static Entity[] entities = { ModelProvider.getInstance().getEntity(ETRXJavaMapping.ENTITY_NAME) };
     private static final Logger logger = LogManager.getLogger();
 
-    static final String INVALID_PROJECTION_MESSAGE = "ETRX_InvalidProjectionName";
+    static final String INVALID_PROJECTION_MESSAGE = "ETRX_InvalidJavaMappingQualifier";
 
     static final int MIN_CHARACTER = 3;
-    static final int MAX_CHARACTER = 10;
+    static final int MAX_CHARACTER = 30;
 
     @Override
     protected Entity[] getObservedEntities() {
@@ -47,26 +48,26 @@ public class ProjectionEventHandler extends EntityPersistenceEventObserver {
         if (!isValidEvent(event)) {
             return;
         }
-        validateProjection((ETRXProjection)event.getTargetInstance());
+        validateJavaMapping((ETRXJavaMapping)event.getTargetInstance());
     }
 
     public void onSave(@Observes EntityNewEvent event) {
         if (!isValidEvent(event)) {
             return;
         }
-        validateProjection((ETRXProjection)event.getTargetInstance());
+        validateJavaMapping((ETRXJavaMapping)event.getTargetInstance());
     }
 
-    void validateProjection(ETRXProjection projection) {
-        if (!validProjectionName(projection.getName())) {
-            logger.error("Invalid projection name '{}'", projection.getName());
+    void validateJavaMapping(ETRXJavaMapping javaMapping) {
+        if (!validateJavaMappingsQualifier(javaMapping.getQualifier())) {
+            logger.error("Invalid Java Mapping qualifier '{}'", javaMapping.getName());
             throw new OBException(OBMessageUtils.getI18NMessage(INVALID_PROJECTION_MESSAGE,
                     new String[] { String.valueOf(MIN_CHARACTER), String.valueOf(MAX_CHARACTER) }));
         }
     }
 
-    boolean validProjectionName(String projectionName) {
-        return projectionName != null && projectionName.matches("^[a-zA-Z]{"+MIN_CHARACTER+","+MAX_CHARACTER+"}$");
+    boolean validateJavaMappingsQualifier(String javaMappingName) {
+        return javaMappingName != null && javaMappingName.matches("^[a-zA-Z]{"+MIN_CHARACTER+","+MAX_CHARACTER+"}$");
     }
 
 }
