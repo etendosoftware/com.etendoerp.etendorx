@@ -79,5 +79,6 @@
       </foreign-key>
       <check name="ETRX_ENT_MAP_FIRSTLEVEL_CHK"><![CDATA[ISFIRSTLEVEL IN ('Y', 'N')]]></check>
       <check name="ETRX_ENTITY_MAP_ISACTIVE_CHK"><![CDATA[ISACTIVE IN ('Y', 'N')]]></check>
+      <check name="ETRX_ENT_MAP_DIS_TRG"><![CDATA[ETRX_DISABLE_TRIGGERS IN ('Y', 'N')]]></check>
     </table>
   </database>
