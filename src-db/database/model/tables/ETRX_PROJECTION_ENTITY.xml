@@ -49,15 +49,15 @@
         <default/>
         <onCreateDefault/>
       </column>
-      <column name="NAME" primaryKey="false" required="true" type="VARCHAR" size="60" autoIncrement="false">
+      <column name="NAME" primaryKey="false" required="false" type="VARCHAR" size="60" autoIncrement="false">
         <default/>
         <onCreateDefault/>
       </column>
-      <column name="IS_REST_END_POINT" primaryKey="false" required="true" type="CHAR" size="1" autoIncrement="false">
+      <column name="IS_REST_END_POINT" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
         <default><![CDATA[Y]]></default>
         <onCreateDefault/>
       </column>
-      <column name="EXTERNAL_NAME" primaryKey="false" required="true" type="VARCHAR" size="60" autoIncrement="false">
+      <column name="EXTERNAL_NAME" primaryKey="false" required="false" type="VARCHAR" size="60" autoIncrement="false">
         <default/>
         <onCreateDefault/>
       </column>
