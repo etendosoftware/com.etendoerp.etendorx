@@ -7,7 +7,7 @@
 */
 
 group          = "com.etendoerp"
-version        = "1.5.0"
+version        = "1.6.0"
 description    = "Integration with Etendo RX"
 ext.artifact   = "etendorx"
 ext.repository = "https://maven.pkg.github.com/etendosoftware/com.etendoerp.platform.extensions"
@@ -50,7 +50,7 @@ repositories {
 * Ex: implementation "com.sun.mail:javax.mail:1.6.2"
 */
 dependencies {
-   implementation('com.etendoerp.platform:etendo-core:[21.4.0,23.4.0)')
+   implementation('com.etendoerp.platform:etendo-core:[21.4.0,24.1.0)')
 }
 
 sourceSets {
