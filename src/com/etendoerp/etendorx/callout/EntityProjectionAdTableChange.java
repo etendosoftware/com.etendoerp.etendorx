@@ -18,7 +18,7 @@ public class EntityProjectionAdTableChange extends SimpleCallout {
 
     if (!StringUtils.isEmpty(inpadTableId)) {
       var adTable = OBDal.getInstance().get(Table.class, inpadTableId);
-      inpexternalName = adTable.getDBTableName();
+      inpexternalName = adTable.getName();
       info.addResult("inpexternalName", inpexternalName);
     }
     EntityProjectionUtils.buildName(inpexternalName, inpmappingType, inpetrxProjectionId, info);
