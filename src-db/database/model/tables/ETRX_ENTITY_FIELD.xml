@@ -82,7 +82,7 @@
         <onCreateDefault/>
       </column>
       <column name="ISEXTERNALIDENTIFIER" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
-        <default/>
+        <default><![CDATA[N]]></default>
         <onCreateDefault/>
       </column>
       <column name="AD_TABLE_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
