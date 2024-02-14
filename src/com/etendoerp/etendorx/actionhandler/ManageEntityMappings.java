@@ -34,6 +34,7 @@ import org.openbravo.client.application.process.BaseProcessActionHandler;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
+import org.openbravo.model.ad.datamodel.Table;
 import org.openbravo.model.ad.module.Module;
 import org.openbravo.service.db.DbUtility;
 
@@ -139,6 +140,12 @@ public class ManageEntityMappings extends BaseProcessActionHandler {
       ConstantValue etrxConstantValue = OBDal.getInstance().get(ConstantValue.class, etrxConstantValueStr);
       entityField.setEtrxConstantValue(etrxConstantValue);
     }
+    entityField.setMandatory(entityMappingProperties.getBoolean("externalIdentifier"));
+    String tableStr = entityMappingProperties.getString("table");
+    if (!StringUtils.isEmpty(tableStr)){
+      Table table = OBDal.getInstance().get(Table.class, tableStr);
+      entityField.setTable(table);
+    }
     OBDal.getInstance().save(entityField);
   }
 
@@ -148,37 +155,37 @@ public class ManageEntityMappings extends BaseProcessActionHandler {
     var updated = false;
     var property = entityMappingProperties.getString("property");
     if (!StringUtils.equals(property, entityField.getProperty())) {
-      entityField.setProperty(entityMappingProperties.getString("property"));
+      entityField.setProperty(property);
       updated = true;
     }
     var name = entityMappingProperties.getString("name");
     if (!StringUtils.equals(name, entityField.getName())) {
-      entityField.setName(entityMappingProperties.getString("name"));
+      entityField.setName(name);
       updated = true;
     }
     var line = entityMappingProperties.getString("line");
     if (!StringUtils.equals(line, entityField.getLine().toString())) {
-      entityField.setLine(Long.parseLong(entityMappingProperties.getString("line")));
+      entityField.setLine(Long.parseLong(line));
       updated = true;
     }
     var identifiesUnivocally = entityMappingProperties.getBoolean("identifiesUnivocally");
     if (identifiesUnivocally != entityField.isIdentifiesUnivocally()) {
-      entityField.setIdentifiesUnivocally(entityMappingProperties.getBoolean("identifiesUnivocally"));
+      entityField.setIdentifiesUnivocally(identifiesUnivocally);
       updated = true;
     }
     var ismandatory = entityMappingProperties.getBoolean("ismandatory");
     if (ismandatory != entityField.isMandatory()) {
-      entityField.setMandatory(entityMappingProperties.getBoolean("ismandatory"));
+      entityField.setMandatory(ismandatory);
       updated = true;
     }
     var fieldMapping = entityMappingProperties.getString("fieldMapping");
     if (!StringUtils.equals(fieldMapping, entityField.getFieldMapping())) {
-      entityField.setFieldMapping(entityMappingProperties.getString("fieldMapping"));
+      entityField.setFieldMapping(fieldMapping);
       updated = true;
     }
     var jsonpath = StringUtils.isBlank(entityMappingProperties.getString("jsonpath"))? null : entityMappingProperties.getString("jsonpath");
     if (!StringUtils.equals(jsonpath, entityField.getJsonpath())) {
-      entityField.setJsonpath(entityMappingProperties.getString("jsonpath"));
+      entityField.setJsonpath(jsonpath);
       updated = true;
     }
     var etrxProjectionEntityRelatedStr = entityMappingProperties.getString("etrxProjectionEntityRelated");
@@ -200,6 +207,18 @@ public class ManageEntityMappings extends BaseProcessActionHandler {
         (entityField.getEtrxConstantValue() == null || !StringUtils.equals(etrxConstantValueStr, entityField.getEtrxConstantValue().getId()))){
       ConstantValue etrxConstantValue = OBDal.getInstance().get(ConstantValue.class, etrxConstantValueStr);
       entityField.setEtrxConstantValue(etrxConstantValue);
+      updated = true;
+    }
+    var externalIdentifier = entityMappingProperties.getBoolean("externalIdentifier");
+    if (externalIdentifier != entityField.isExternalIdentifier()) {
+      entityField.setExternalIdentifier(externalIdentifier);
+      updated = true;
+    }
+    var tableStr = entityMappingProperties.getString("table");
+    if (!StringUtils.isEmpty(tableStr) &&
+        (entityField.getTable() == null || !StringUtils.equals(tableStr, entityField.getTable().getId()))){
+      Table table = OBDal.getInstance().get(Table.class, tableStr);
+      entityField.setTable(table);
       updated = true;
     }
     if (updated) {
