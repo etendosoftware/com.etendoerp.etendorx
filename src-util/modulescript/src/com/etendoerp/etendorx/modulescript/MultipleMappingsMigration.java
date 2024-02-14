@@ -22,7 +22,7 @@ public class MultipleMappingsMigration extends ModuleScript {
 
   @Override
   protected ExecutionLimits getExecutionLimits() {
-    return new ModuleScriptExecutionLimits(AD_MODULE_ID, null, new OpenbravoVersion(1, 5, 0));
+    return new ModuleScriptExecutionLimits(AD_MODULE_ID, null, new OpenbravoVersion(3, 99, 999));
   }
 
   @Override
@@ -43,6 +43,13 @@ public class MultipleMappingsMigration extends ModuleScript {
           .append("FROM etrx_projection p, ad_table t ")
           .append("WHERE p.etrx_projection_id = e.etrx_projection_id ")
           .append("AND t.ad_table_id = e.ad_table_id AND e.external_name IS NULL")
+          .toString());
+      ps.executeUpdate();
+      ps = cp.getPreparedStatement(new StringBuilder().append("UPDATE etrx_projection_entity e ")
+          .append("SET is_rest_end_point = 'Y' ")
+          .append("FROM etrx_projection p, ad_table t ")
+          .append("WHERE p.etrx_projection_id = e.etrx_projection_id ")
+          .append("AND is_rest_end_point is NULL ")
           .toString());
       ps.executeUpdate();
     } catch (Exception e) {
