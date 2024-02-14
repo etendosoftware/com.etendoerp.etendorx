@@ -81,6 +81,17 @@
         <default/>
         <onCreateDefault/>
       </column>
+      <column name="ISEXTERNALIDENTIFIER" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[N]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="AD_TABLE_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <foreign-key foreignTable="AD_TABLE" name="ETRX_ENTITY_TABLE">
+        <reference local="AD_TABLE_ID" foreign="AD_TABLE_ID"/>
+      </foreign-key>
       <foreign-key foreignTable="AD_CLIENT" name="ETRX_FIELD_ADCLIENT">
         <reference local="AD_CLIENT_ID" foreign="AD_CLIENT_ID"/>
       </foreign-key>
@@ -102,6 +113,7 @@
       <foreign-key foreignTable="ETRX_PROJECTION_ENTITY" name="ETRX_PROJECTION_ENTITY">
         <reference local="ETRX_PROJECTION_ENTITY_ID" foreign="ETRX_PROJECTION_ENTITY_ID"/>
       </foreign-key>
+      <check name="ETRX_ENTITYFIELD_EXT_IDENT_CHK"><![CDATA[ISMANDATORY IN ('Y', 'N')]]></check>
       <check name="ETRX_ENTITYFIELD_IDEN_UNIV_CHK"><![CDATA[IDENTIFIES_UNIVOCALLY IN ('Y', 'N')]]></check>
       <check name="ETRX_ENTITYFIELD_MANDATORY_CHK"><![CDATA[ISMANDATORY IN ('Y', 'N')]]></check>
       <check name="ETRX_FIELD_MAP_CHK"><![CDATA[FIELD_MAPPING = 'JM' AND NOT ETRX_JAVA_MAPPING_ID IS NULL OR FIELD_MAPPING = 'DM' AND NOT PROPERTY IS NULL OR FIELD_MAPPING = 'EM' AND NOT PROPERTY IS NULL AND NOT ETRX_PROJECTION_ENTITY_REL_ID IS NULL OR FIELD_MAPPING = 'CM' AND NOT PROPERTY IS NULL AND NOT ETRX_CONSTANT_VALUE_ID IS NULL]]></check>
