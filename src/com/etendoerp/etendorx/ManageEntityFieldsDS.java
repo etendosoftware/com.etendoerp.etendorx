@@ -23,6 +23,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
@@ -105,43 +106,46 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
       if (entityFields.size() > 0){
         lineNo = entityFields.get(0).getLine();
       }
+
+      List<String> entityFieldInResult = new LinkedList<String>();
+      for (ETRXEntityField entityField: entityFields) {
+        Map<String, Object> entityFieldMap = new HashMap<String, Object>();
+          entityFieldMap.put("id", entityField.getId());
+          entityFieldMap.put("Client", entityField.getClient());
+          entityFieldMap.put("Organization", entityField.getOrganization());
+          entityFieldMap.put("etrxProjectionEntity", entityField.getEtrxProjectionEntity());
+          entityFieldMap.put("creationDate", entityField.getCreationDate());
+          entityFieldMap.put("createdBy", entityField.getCreatedBy());
+          entityFieldMap.put("updated", entityField.getUpdated());
+          entityFieldMap.put("updatedBy", entityField.getUpdatedBy());
+          entityFieldMap.put("Active", entityField.isActive());
+          entityFieldMap.put("property", entityField.getName());
+          entityFieldMap.put("name", entityField.getName());
+          entityFieldMap.put("ismandatory", entityField.isMandatory());
+          entityFieldMap.put("identifiesUnivocally", entityField.isIdentifiesUnivocally());
+          entityFieldMap.put("module", entityField.getModule());
+          entityFieldMap.put("fieldMapping", entityField.getFieldMapping());
+          entityFieldMap.put("javaMapping", entityField.getJavaMapping());
+          entityFieldMap.put("line", entityField.getLine());
+          entityFieldMap.put("etrxProjectionEntityRelated", entityField.getEtrxProjectionEntityRelated());
+          entityFieldMap.put("jsonpath", entityField.getJsonpath());
+          entityFieldMap.put("etrxConstantValue", entityField.getEtrxConstantValue());
+          entityFieldMap.put("externalIdentifier", entityField.isExternalIdentifier());
+          entityFieldMap.put("table", entityField.getTable());
+          entityFieldMap.put("obSelected", true);
+          entityFieldMap.put("entityFieldCreated", true);
+          result.add(entityFieldMap);
+          entityFieldInResult.add("["+entityFieldMap.get("property")+"]["+entityFieldMap.get("name")+"]");
+      }
+
       for (Property entityProperty : entityProperties){
         if (!isValidEntityReference(entityProperty)){
           continue;
         }
-        boolean notExistsProperty = true;
-        lineNo+=10L;
-        Map<String, Object> entityFieldMap = new HashMap<String, Object>();
-        for (ETRXEntityField entityField: entityFields) {
-          if (StringUtils.equals(entityProperty.getName(), entityField.getProperty())){
-            notExistsProperty = false;
-            entityFieldMap.put("id", entityField.getId());
-            entityFieldMap.put("Client", entityField.getClient());
-            entityFieldMap.put("Organization", entityField.getOrganization());
-            entityFieldMap.put("etrxProjectionEntity", entityField.getEtrxProjectionEntity());
-            entityFieldMap.put("creationDate", entityField.getCreationDate());
-            entityFieldMap.put("createdBy", entityField.getCreatedBy());
-            entityFieldMap.put("updated", entityField.getUpdated());
-            entityFieldMap.put("updatedBy", entityField.getUpdatedBy());
-            entityFieldMap.put("Active", entityField.isActive());
-            entityFieldMap.put("property", entityField.getName());
-            entityFieldMap.put("name", entityField.getName());
-            entityFieldMap.put("ismandatory", entityField.isMandatory());
-            entityFieldMap.put("identifiesUnivocally", entityField.isIdentifiesUnivocally());
-            entityFieldMap.put("module", entityField.getModule());
-            entityFieldMap.put("fieldMapping", entityField.getFieldMapping());
-            entityFieldMap.put("javaMapping", entityField.getJavaMapping());
-            entityFieldMap.put("line", entityField.getLine());
-            entityFieldMap.put("etrxProjectionEntityRelated", entityField.getEtrxProjectionEntityRelated());
-            entityFieldMap.put("jsonpath", entityField.getJsonpath());
-            entityFieldMap.put("etrxConstantValue", entityField.getEtrxConstantValue());
-            entityFieldMap.put("obSelected", true);
-            entityFieldMap.put("entityFieldCreated", true);
-            break;
-          }
-        }
-        if(notExistsProperty) {
+        if (!entityFieldInResult.contains("["+entityProperty.getName()+"]["+entityProperty.getName()+"]")){
           log.debug("Create new Entity Field with property: " + entityProperty.getName());
+          Map<String, Object> entityFieldMap = new HashMap<String, Object>();
+          lineNo+=10L;
           entityFieldMap.put("Client", projectionEntity.getClient());
           entityFieldMap.put("Organization", projectionEntity.getOrganization());
           entityFieldMap.put("etrxProjectionEntity", projectionEntity);
@@ -149,7 +153,7 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
           entityFieldMap.put("createdBy", OBContext.getOBContext().getUser());
           entityFieldMap.put("updated", new Date());
           entityFieldMap.put("updatedBy", OBContext.getOBContext().getUser());
-          entityFieldMap.put("Active", "Y");
+          entityFieldMap.put("Active", true);
           entityFieldMap.put("property", entityProperty.getName());
           entityFieldMap.put("name", entityProperty.getName());
           entityFieldMap.put("ismandatory", false);
@@ -165,10 +169,13 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
             entityFieldMap.put("jsonpath", null);
           }
           entityFieldMap.put("etrxConstantValue", null);
+          entityFieldMap.put("externalIdentifier", false);
+          entityFieldMap.put("table", null);
           entityFieldMap.put("obSelected", false);
           entityFieldMap.put("entityFieldCreated", false);
+          result.add(entityFieldMap);
+          entityFieldInResult.add("["+entityFieldMap.get("property")+"]["+entityFieldMap.get("name")+"]");
         }
-        result.add(entityFieldMap);
       }
 
       String strSortBy = parameters.get("_sortBy");
@@ -184,7 +191,7 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
       Collections.sort(result, new ResultComparator(strSortBy, ascending));
 
     } catch (JSONException e) {
-      log.error("Error while managing the variant characteristics", e);
+      log.error("Error while managing the entiry fields", e);
     } finally {
       OBContext.restorePreviousMode();
     }
@@ -268,6 +275,10 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
         selectedFilters.setJsonpath(value);
       } else if (fieldName.equals("etrxConstantValue")) {
         selectedFilters.setEtrxConstantValue(value);
+      } else if (fieldName.equals("externalIdentifier")) {
+        selectedFilters.setExternalIdentifier(criteria.getBoolean("value"));
+      } else if (fieldName.equals("table")) {
+        selectedFilters.setTable(value);
       } else if (fieldName.equals("entityFieldCreated")) {
         selectedFilters.setEntityFieldCreated(criteria.getBoolean("value"));
       }
@@ -299,16 +310,27 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
         } else {
           return o2 ? -1 : 1;
         }
-      } else {
-        String str1 = map1.get(sortByField).toString();
-        String str2 = map2.get(sortByField).toString();
+      } else if (StringUtils.equals("line",sortByField)) {
+        Long val1 = Long.parseLong(map1.get(sortByField).toString());
+        Long val2 = Long.parseLong(map2.get(sortByField).toString());
         if (sortByChanged) {
-          sortByField = "entityFieldCreated";
+          sortByField = "line";
         }
         if (ascending) {
-          return str1.compareTo(str2);
+          return val1.compareTo(val2);
         } else {
-          return str2.compareTo(str1);
+          return val2.compareTo(val1);
+        }
+      } else {
+        String val1 = map1.get(sortByField).toString();
+        String val2 = map2.get(sortByField).toString();
+        if (sortByChanged) {
+          sortByField = "line";
+        }
+        if (ascending) {
+          return val1.compareTo(val2);
+        } else {
+          return val2.compareTo(val1);
         }
       }
       // returning 0 but should never reach this point.
@@ -332,6 +354,8 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
     private String etrxProjectionEntityRelated;
     private String jsonpath;
     private String etrxConstantValue;
+    private Boolean externalIdentifier;
+    private String table;
     private Boolean entityFieldCreated;
 
     EntityFieldSelectedFilters() {
@@ -348,6 +372,8 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
       jsonpath = null;
       etrxConstantValue = null;
       entityFieldCreated = false;
+      externalIdentifier = false;
+      table = null;
     }
 
     public void addSelectedID(String id) {
@@ -461,6 +487,22 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
 
     public void setEntityFieldCreated(Boolean entityFieldCreated) {
       this.entityFieldCreated = entityFieldCreated;
+    }
+
+    public Boolean getExternalIdentifier() {
+      return externalIdentifier;
+    }
+
+    public void setExternalIdentifier(Boolean externalIdentifier) {
+      this.externalIdentifier = externalIdentifier;
+    }
+
+    public String getTable() {
+      return table;
+    }
+
+    public void setTable(String table) {
+      this.table = table;
     }
   }
 
