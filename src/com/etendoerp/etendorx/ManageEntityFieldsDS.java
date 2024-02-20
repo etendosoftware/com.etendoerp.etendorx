@@ -130,8 +130,6 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
           entityFieldMap.put("etrxProjectionEntityRelated", entityField.getEtrxProjectionEntityRelated());
           entityFieldMap.put("jsonpath", entityField.getJsonpath());
           entityFieldMap.put("etrxConstantValue", entityField.getEtrxConstantValue());
-          entityFieldMap.put("externalIdentifier", entityField.isExternalIdentifier());
-          entityFieldMap.put("table", entityField.getTable());
           entityFieldMap.put("obSelected", true);
           entityFieldMap.put("entityFieldCreated", true);
           result.add(entityFieldMap);
