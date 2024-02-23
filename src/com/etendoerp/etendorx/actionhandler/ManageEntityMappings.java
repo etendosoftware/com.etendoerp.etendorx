@@ -51,20 +51,12 @@ public class ManageEntityMappings extends BaseProcessActionHandler {
   @Override
   protected JSONObject doExecute(Map<String, Object> parameters, String content) {
     JSONObject jsonRequest = null;
-    OBContext.setAdminMode(true);
     try {
+      OBContext.setAdminMode(true);
       jsonRequest = new JSONObject(content);
-      JSONArray allRows = jsonRequest.getJSONObject("_params")
+      JSONArray selection = jsonRequest.getJSONObject("_params")
           .getJSONObject("grid")
-          .getJSONArray("_allRows");
-      JSONArray selection = new JSONArray();
-      for (int i = 0; i < allRows.length(); i++) {
-        JSONObject row = allRows.getJSONObject(i);
-        boolean isSelected = row.getBoolean("obSelected");
-        if (isSelected) {
-          selection.put(row);
-        }
-      }
+          .getJSONArray("_selection");
 
       ETRXProjectionEntity etrxProjectionEntity = null;
       String strProjectionId = jsonRequest.getString("Etrx_Projection_Entity_ID");
