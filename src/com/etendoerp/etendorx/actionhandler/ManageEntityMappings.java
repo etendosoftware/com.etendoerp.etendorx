@@ -20,6 +20,7 @@
 package com.etendoerp.etendorx.actionhandler;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.lang.StringUtils;
@@ -28,13 +29,14 @@ import org.apache.logging.log4j.Logger;
 import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
+import org.hibernate.criterion.Restrictions;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.base.provider.OBProvider;
 import org.openbravo.client.application.process.BaseProcessActionHandler;
 import org.openbravo.dal.core.OBContext;
+import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
-import org.openbravo.model.ad.datamodel.Table;
 import org.openbravo.model.ad.module.Module;
 import org.openbravo.service.db.DbUtility;
 
@@ -73,11 +75,7 @@ public class ManageEntityMappings extends BaseProcessActionHandler {
         }
       }
 
-      JSONArray allRows = jsonRequest.getJSONObject("_params")
-          .getJSONObject("grid")
-          .getJSONArray("_allRows");
-      checkDeletedRecords(allRows, etrxProjectionEntity);
-
+      checkDeletedRecords(selection, etrxProjectionEntity);
       OBDal.getInstance().flush();
 
       String messageText = OBMessageUtils.messageBD("Success");
@@ -108,34 +106,42 @@ public class ManageEntityMappings extends BaseProcessActionHandler {
   }
 
   private void createEntityField(JSONObject entityMappingProperties, ETRXProjectionEntity etrxProjectionEntity) throws JSONException {
-    Module module = OBDal.getInstance().get(Module.class, entityMappingProperties.getString("module"));
+    var moduleSrt = StringUtils.isBlank(entityMappingProperties.getString("module")) ? null : entityMappingProperties.getString("module");
+    Module module = OBDal.getInstance().get(Module.class, moduleSrt);
     if (!module.isInDevelopment()) {
-      throw new OBException("Module is not in development"); //TODO: Use a message
+      String errorMessageText = OBMessageUtils.messageBD("20533");
+      throw new OBException(OBMessageUtils.parseTranslation(errorMessageText, new HashMap<String, String>()));
     }
     final ETRXEntityField entityField = OBProvider.getInstance().get(ETRXEntityField.class);
     entityField.setClient(etrxProjectionEntity.getClient());
     entityField.setOrganization(etrxProjectionEntity.getOrganization());
-    entityField.setProperty(entityMappingProperties.getString("property"));
-    entityField.setName(entityMappingProperties.getString("name"));
-    entityField.setLine(Long.parseLong(entityMappingProperties.getString("line")));
+    var property = StringUtils.isBlank(entityMappingProperties.getString("property")) ? null : entityMappingProperties.getString("property");
+    entityField.setProperty(property);
+    var name = StringUtils.isBlank(entityMappingProperties.getString("name")) ? null : entityMappingProperties.getString("name");
+    entityField.setName(name);
+    var line = StringUtils.isBlank(entityMappingProperties.getString("line")) ? null : entityMappingProperties.getString("line");
+    entityField.setLine(Long.parseLong(line));
     entityField.setEtrxProjectionEntity(etrxProjectionEntity);
     entityField.setModule(module);
-    entityField.setIdentifiesUnivocally(entityMappingProperties.getBoolean("identifiesUnivocally"));
-    entityField.setMandatory(entityMappingProperties.getBoolean("ismandatory"));
-    entityField.setFieldMapping(entityMappingProperties.getString("fieldMapping"));
+    var identifiesUnivocally = entityMappingProperties.getBoolean("identifiesUnivocally");
+    entityField.setIdentifiesUnivocally(identifiesUnivocally);
+    var ismandatory = entityMappingProperties.getBoolean("ismandatory");
+    entityField.setMandatory(ismandatory);
+    var fieldMapping = StringUtils.isBlank(entityMappingProperties.getString("fieldMapping")) ? null : entityMappingProperties.getString("fieldMapping");
+    entityField.setFieldMapping(fieldMapping);
     var jsonpath = StringUtils.isBlank(entityMappingProperties.getString("jsonpath"))? null : entityMappingProperties.getString("jsonpath");
     entityField.setJsonpath(jsonpath);
-    String etrxProjectionEntityRelatedStr = entityMappingProperties.getString("etrxProjectionEntityRelated");
+    var etrxProjectionEntityRelatedStr = StringUtils.isBlank(entityMappingProperties.getString("etrxProjectionEntityRelated")) ? null : entityMappingProperties.getString("etrxProjectionEntityRelated");
     if (!StringUtils.isEmpty(etrxProjectionEntityRelatedStr)){
       ETRXProjectionEntity etrxProjectionEntityRelated = OBDal.getInstance().get(ETRXProjectionEntity.class, etrxProjectionEntityRelatedStr);
       entityField.setEtrxProjectionEntityRelated(etrxProjectionEntityRelated);
     }
-    String javaMappingStr = entityMappingProperties.getString("javaMapping");
+    var javaMappingStr = StringUtils.isBlank(entityMappingProperties.getString("javaMapping")) ? null : entityMappingProperties.getString("javaMapping");
     if (!StringUtils.isEmpty(javaMappingStr)){
       ETRXJavaMapping javaMapping = OBDal.getInstance().get(ETRXJavaMapping.class, javaMappingStr);
       entityField.setJavaMapping(javaMapping);
     }
-    String etrxConstantValueStr = entityMappingProperties.getString("etrxConstantValue");
+    var etrxConstantValueStr = StringUtils.isBlank(entityMappingProperties.getString("etrxConstantValue")) ? null : entityMappingProperties.getString("etrxConstantValue");
     if (!StringUtils.isEmpty(etrxConstantValueStr)){
       ConstantValue etrxConstantValue = OBDal.getInstance().get(ConstantValue.class, etrxConstantValueStr);
       entityField.setEtrxConstantValue(etrxConstantValue);
@@ -153,17 +159,22 @@ public class ManageEntityMappings extends BaseProcessActionHandler {
     final String eTRXEntityFieldId = entityMappingProperties.getString("id");
     final ETRXEntityField entityField = OBDal.getInstance().get(ETRXEntityField.class, eTRXEntityFieldId );
     var updated = false;
-    var property = entityMappingProperties.getString("property");
-    if (!StringUtils.equals(property, entityField.getProperty())) {
+    var fieldMapping = StringUtils.isBlank(entityMappingProperties.getString("fieldMapping")) ? null : entityMappingProperties.getString("fieldMapping");
+    if (!StringUtils.equals(fieldMapping, entityField.getFieldMapping())) {
+      entityField.setFieldMapping(fieldMapping);
+      updated = true;
+    }
+    var property = StringUtils.isBlank(entityMappingProperties.getString("property")) ? null : entityMappingProperties.getString("property");
+    if (!StringUtils.equals(property, entityField.getProperty()) && !StringUtils.equals(fieldMapping,"JM")) {
       entityField.setProperty(property);
       updated = true;
     }
-    var name = entityMappingProperties.getString("name");
+    var name = StringUtils.isBlank(entityMappingProperties.getString("name")) ? null : entityMappingProperties.getString("name");
     if (!StringUtils.equals(name, entityField.getName())) {
       entityField.setName(name);
       updated = true;
     }
-    var line = entityMappingProperties.getString("line");
+    var line = StringUtils.isBlank(entityMappingProperties.getString("line")) ? null : entityMappingProperties.getString("line");
     if (!StringUtils.equals(line, entityField.getLine().toString())) {
       entityField.setLine(Long.parseLong(line));
       updated = true;
@@ -178,66 +189,72 @@ public class ManageEntityMappings extends BaseProcessActionHandler {
       entityField.setMandatory(ismandatory);
       updated = true;
     }
-    var fieldMapping = entityMappingProperties.getString("fieldMapping");
-    if (!StringUtils.equals(fieldMapping, entityField.getFieldMapping())) {
-      entityField.setFieldMapping(fieldMapping);
-      updated = true;
-    }
     var jsonpath = StringUtils.isBlank(entityMappingProperties.getString("jsonpath"))? null : entityMappingProperties.getString("jsonpath");
     if (!StringUtils.equals(jsonpath, entityField.getJsonpath())) {
       entityField.setJsonpath(jsonpath);
       updated = true;
     }
-    var etrxProjectionEntityRelatedStr = entityMappingProperties.getString("etrxProjectionEntityRelated");
+    var etrxProjectionEntityRelatedStr = StringUtils.isBlank(entityMappingProperties.getString("etrxProjectionEntityRelated")) ? null : entityMappingProperties.getString("etrxProjectionEntityRelated");
     if (!StringUtils.isEmpty(etrxProjectionEntityRelatedStr) &&
         (entityField.getEtrxProjectionEntityRelated() == null || !StringUtils.equals(etrxProjectionEntityRelatedStr, entityField.getEtrxProjectionEntityRelated().getId()))){
       ETRXProjectionEntity etrxProjectionEntityRelated = OBDal.getInstance().get(ETRXProjectionEntity.class, etrxProjectionEntityRelatedStr);
       entityField.setEtrxProjectionEntityRelated(etrxProjectionEntityRelated);
       updated = true;
     }
-    var javaMappingStr = entityMappingProperties.getString("javaMapping");
+    var javaMappingStr = StringUtils.isBlank(entityMappingProperties.getString("javaMapping")) ? null : entityMappingProperties.getString("javaMapping");
     if (!StringUtils.isEmpty(javaMappingStr) &&
         (entityField.getJavaMapping() == null || !StringUtils.equals(javaMappingStr, entityField.getJavaMapping().getId()))){
       ETRXJavaMapping javaMapping = OBDal.getInstance().get(ETRXJavaMapping.class, javaMappingStr);
       entityField.setJavaMapping(javaMapping);
       updated = true;
     }
-    var etrxConstantValueStr = entityMappingProperties.getString("etrxConstantValue");
+    var etrxConstantValueStr = StringUtils.isBlank(entityMappingProperties.getString("etrxConstantValue")) ? null : entityMappingProperties.getString("etrxConstantValue");
     if (!StringUtils.isEmpty(etrxConstantValueStr) &&
         (entityField.getEtrxConstantValue() == null || !StringUtils.equals(etrxConstantValueStr, entityField.getEtrxConstantValue().getId()))){
       ConstantValue etrxConstantValue = OBDal.getInstance().get(ConstantValue.class, etrxConstantValueStr);
       entityField.setEtrxConstantValue(etrxConstantValue);
       updated = true;
     }
-    var externalIdentifier = entityMappingProperties.getBoolean("externalIdentifier");
-    if (externalIdentifier != entityField.isExternalIdentifier()) {
-      entityField.setExternalIdentifier(externalIdentifier);
-      updated = true;
-    }
-    var tableStr = entityMappingProperties.getString("table");
-    if (!StringUtils.isEmpty(tableStr) &&
-        (entityField.getTable() == null || !StringUtils.equals(tableStr, entityField.getTable().getId()))){
-      Table table = OBDal.getInstance().get(Table.class, tableStr);
-      entityField.setTable(table);
+    String moduleSrt = StringUtils.isBlank(entityMappingProperties.getString("module")) ? null : entityMappingProperties.getString("module");
+    if (!StringUtils.equals(moduleSrt, entityField.getModule().getId())) {
+      if (!entityField.getModule().isInDevelopment()) {
+        String errorMessageText = OBMessageUtils.messageBD("20533");
+        throw new OBException(OBMessageUtils.parseTranslation(errorMessageText, new HashMap<String, String>()));
+      }
+      Module module = OBDal.getInstance().get(Module.class, entityMappingProperties.getString("module"));
+      entityField.setModule(module);
       updated = true;
     }
     if (updated) {
       if (!entityField.getModule().isInDevelopment()) {
-        throw new OBException("Module is not in development"); //TODO: Use a message
+        String errorMessageText = OBMessageUtils.messageBD("20533");
+        throw new OBException(OBMessageUtils.parseTranslation(errorMessageText, new HashMap<String, String>()));
       }
       OBDal.getInstance().save(entityField);
     }
   }
 
-  private void checkDeletedRecords(JSONArray allRows,  ETRXProjectionEntity eTRXEntityField) throws JSONException {
-    for (int i = 0; i < allRows.length(); i++) {
-      JSONObject row = allRows.getJSONObject(i);
-      var isEntityFieldCreated = row.getBoolean("entityFieldCreated");
-      var obSelected = row.getBoolean("obSelected");
-      if (isEntityFieldCreated && !obSelected) {
-        final String eTRXEntityFieldId = row.getString("id");
-        final ETRXEntityField entityField = OBDal.getInstance().get(ETRXEntityField.class, eTRXEntityFieldId );
-        eTRXEntityField.getETRXEntityFieldList().remove(entityField);
+  private void checkDeletedRecords(JSONArray selection,  ETRXProjectionEntity eTRXEntityField) throws JSONException {
+    OBCriteria<ETRXEntityField> etxEntityFieldOBCCriteria = OBDal.getInstance().createCriteria(ETRXEntityField.class);
+    etxEntityFieldOBCCriteria.add(Restrictions.eq(ETRXEntityField.PROPERTY_ETRXPROJECTIONENTITY, eTRXEntityField));
+    etxEntityFieldOBCCriteria.setFilterOnActive(false);
+    List<ETRXEntityField> entityFields = etxEntityFieldOBCCriteria.list();
+
+    for (ETRXEntityField entityField : entityFields) {
+      boolean wasDeleted = true;
+      for (int i = 0; i < selection.length(); i++) {
+        JSONObject row = selection.getJSONObject(i);
+        String id = row.getString("id");
+        if (StringUtils.equals(id, entityField.getId())) {
+          wasDeleted = false;
+          break;
+        }
+      }
+      if(wasDeleted) {
+        if (!entityField.getModule().isInDevelopment()) {
+          String errorMessageText = OBMessageUtils.messageBD("20533");
+          throw new OBException(OBMessageUtils.parseTranslation(errorMessageText, new HashMap<String, String>()));
+        }
         OBDal.getInstance().remove(entityField);
       }
     }

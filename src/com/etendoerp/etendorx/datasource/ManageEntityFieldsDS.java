@@ -16,7 +16,7 @@
  * Contributor(s):  ______________________________________.
  *************************************************************************
  */
-package com.etendoerp.etendorx;
+package com.etendoerp.etendorx.datasource;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -34,6 +34,7 @@ import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.hibernate.criterion.Restrictions;
+import org.openbravo.base.exception.OBException;
 import org.openbravo.base.exception.OBSecurityException;
 import org.openbravo.base.model.Entity;
 import org.openbravo.base.model.ModelProvider;
@@ -77,9 +78,9 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
   @Override
   protected List<Map<String, Object>> getData(Map<String, String> parameters, int startRow,
       int endRow) {
-    OBContext.setAdminMode(true);
     final List<Map<String, Object>> result = new ArrayList<Map<String, Object>>();
     try {
+      OBContext.setAdminMode(true);
       EntityFieldSelectedFilters selectedFilters = readCriteria(parameters);
       final String strProjectionId = parameters.get("@ETRX_Projection_Entity.id@");
       final ETRXProjectionEntity projectionEntity = OBDal.getInstance().get(ETRXProjectionEntity.class, strProjectionId);
@@ -119,7 +120,7 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
           entityFieldMap.put("updated", entityField.getUpdated());
           entityFieldMap.put("updatedBy", entityField.getUpdatedBy());
           entityFieldMap.put("Active", entityField.isActive());
-          entityFieldMap.put("property", entityField.getName());
+          entityFieldMap.put("property", entityField.getProperty());
           entityFieldMap.put("name", entityField.getName());
           entityFieldMap.put("ismandatory", entityField.isMandatory());
           entityFieldMap.put("identifiesUnivocally", entityField.isIdentifiesUnivocally());
@@ -130,8 +131,6 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
           entityFieldMap.put("etrxProjectionEntityRelated", entityField.getEtrxProjectionEntityRelated());
           entityFieldMap.put("jsonpath", entityField.getJsonpath());
           entityFieldMap.put("etrxConstantValue", entityField.getEtrxConstantValue());
-          entityFieldMap.put("externalIdentifier", entityField.isExternalIdentifier());
-          entityFieldMap.put("table", entityField.getTable());
           entityFieldMap.put("obSelected", true);
           entityFieldMap.put("entityFieldCreated", true);
           result.add(entityFieldMap);
@@ -146,6 +145,8 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
           log.debug("Create new Entity Field with property: " + entityProperty.getName());
           Map<String, Object> entityFieldMap = new HashMap<String, Object>();
           lineNo+=10L;
+          String id = getId();
+          entityFieldMap.put("id",id);
           entityFieldMap.put("Client", projectionEntity.getClient());
           entityFieldMap.put("Organization", projectionEntity.getOrganization());
           entityFieldMap.put("etrxProjectionEntity", projectionEntity);
@@ -156,7 +157,7 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
           entityFieldMap.put("Active", true);
           entityFieldMap.put("property", entityProperty.getName());
           entityFieldMap.put("name", entityProperty.getName());
-          entityFieldMap.put("ismandatory", false);
+          entityFieldMap.put("ismandatory", entityProperty.isMandatory());
           entityFieldMap.put("identifiesUnivocally", false);
           entityFieldMap.put("module", projectionEntity.getProjection().getModule());
           entityFieldMap.put("fieldMapping", "DM");
@@ -196,6 +197,28 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
       OBContext.restorePreviousMode();
     }
     return result;
+  }
+
+  private String getId() {
+    String id = null;
+    //@formatter:off
+    final String hql =
+        "select get_uuid() " +
+            "  from ETRX_Entity_Field as ef";
+    //@formatter:on
+    try {
+      final List<String> resultList = OBDal.getInstance()
+          .getSession()
+          .createQuery(hql, String.class)
+          .setMaxResults(1)
+          .list();
+      if (!resultList.isEmpty()) {
+        id = resultList.get(0);
+      }
+      return id;
+    } catch (final Exception e) {
+      throw new OBException(e.getMessage(), e.getCause());
+    }
   }
 
   private boolean isValidEntityReference(Property property){
