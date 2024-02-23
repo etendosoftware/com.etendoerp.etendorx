@@ -54,9 +54,17 @@ public class ManageEntityMappings extends BaseProcessActionHandler {
     OBContext.setAdminMode(true);
     try {
       jsonRequest = new JSONObject(content);
-      JSONArray selection = jsonRequest.getJSONObject("_params")
+      JSONArray allRows = jsonRequest.getJSONObject("_params")
           .getJSONObject("grid")
-          .getJSONArray("_selection");
+          .getJSONArray("_allRows");
+      JSONArray selection = new JSONArray();
+      for (int i = 0; i < allRows.length(); i++) {
+        JSONObject row = allRows.getJSONObject(i);
+        boolean isSelected = row.getBoolean("obSelected");
+        if (isSelected) {
+          selection.put(row);
+        }
+      }
 
       ETRXProjectionEntity etrxProjectionEntity = null;
       String strProjectionId = jsonRequest.getString("Etrx_Projection_Entity_ID");
@@ -81,7 +89,7 @@ public class ManageEntityMappings extends BaseProcessActionHandler {
       String messageText = OBMessageUtils.messageBD("Success");
       JSONObject msg = new JSONObject();
       msg.put("severity", "success");
-      msg.put("text", OBMessageUtils.parseTranslation(messageText, new HashMap<String, String>()));
+      msg.put("text", OBMessageUtils.parseTranslation(messageText, new HashMap<>()));
       jsonRequest.put("message", msg);
 
     } catch (Exception e) {
@@ -145,12 +153,6 @@ public class ManageEntityMappings extends BaseProcessActionHandler {
     if (!StringUtils.isEmpty(etrxConstantValueStr)){
       ConstantValue etrxConstantValue = OBDal.getInstance().get(ConstantValue.class, etrxConstantValueStr);
       entityField.setEtrxConstantValue(etrxConstantValue);
-    }
-    entityField.setMandatory(entityMappingProperties.getBoolean("externalIdentifier"));
-    String tableStr = entityMappingProperties.getString("table");
-    if (!StringUtils.isEmpty(tableStr)){
-      Table table = OBDal.getInstance().get(Table.class, tableStr);
-      entityField.setTable(table);
     }
     OBDal.getInstance().save(entityField);
   }
