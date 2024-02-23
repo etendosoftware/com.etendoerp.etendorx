@@ -55,14 +55,13 @@ import com.etendoerp.etendorx.data.ETRXProjectionEntity;
 public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
 
   private static final Logger log = LogManager.getLogger();
-  private static final String MANAGE_ENTITY_FIELDS_TABLE_ID = "9738ABD7629C4E59AA1B8AD3631696F7";
   private static final String ID_REFERENCE_ID = "13";
 
   @Override
   public void checkFetchDatasourceAccess(Map<String, String> parameter) {
     final OBContext obContext = OBContext.getOBContext();
     Entity manageEntityField = ModelProvider.getInstance()
-        .getEntityByTableId(MANAGE_ENTITY_FIELDS_TABLE_ID);
+        .getEntityByTableId(ManageEntityFieldConstants.MANAGE_ENTITY_FIELDS_TABLE_ID);
     try {
       obContext.getEntityAccessChecker().checkReadableAccess(manageEntityField);
     } catch (OBSecurityException e) {
@@ -111,30 +110,31 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
       List<String> entityFieldInResult = new LinkedList<String>();
       for (ETRXEntityField entityField: entityFields) {
         Map<String, Object> entityFieldMap = new HashMap<String, Object>();
-          entityFieldMap.put("id", entityField.getId());
-          entityFieldMap.put("Client", entityField.getClient());
-          entityFieldMap.put("Organization", entityField.getOrganization());
-          entityFieldMap.put("etrxProjectionEntity", entityField.getEtrxProjectionEntity());
-          entityFieldMap.put("creationDate", entityField.getCreationDate());
-          entityFieldMap.put("createdBy", entityField.getCreatedBy());
-          entityFieldMap.put("updated", entityField.getUpdated());
-          entityFieldMap.put("updatedBy", entityField.getUpdatedBy());
-          entityFieldMap.put("Active", entityField.isActive());
-          entityFieldMap.put("property", entityField.getProperty());
-          entityFieldMap.put("name", entityField.getName());
-          entityFieldMap.put("ismandatory", entityField.isMandatory());
-          entityFieldMap.put("identifiesUnivocally", entityField.isIdentifiesUnivocally());
-          entityFieldMap.put("module", entityField.getModule());
-          entityFieldMap.put("fieldMapping", entityField.getFieldMapping());
-          entityFieldMap.put("javaMapping", entityField.getJavaMapping());
-          entityFieldMap.put("line", entityField.getLine());
-          entityFieldMap.put("etrxProjectionEntityRelated", entityField.getEtrxProjectionEntityRelated());
-          entityFieldMap.put("jsonpath", entityField.getJsonpath());
-          entityFieldMap.put("etrxConstantValue", entityField.getEtrxConstantValue());
-          entityFieldMap.put("obSelected", true);
-          entityFieldMap.put("entityFieldCreated", true);
+          entityFieldMap.put(ManageEntityFieldConstants.ID, entityField.getId());
+          entityFieldMap.put(ManageEntityFieldConstants.CLIENT, entityField.getClient());
+          entityFieldMap.put(ManageEntityFieldConstants.ORGANIZATION, entityField.getOrganization());
+          entityFieldMap.put(ManageEntityFieldConstants.ETRXPROJECTIONENTITY, entityField.getEtrxProjectionEntity());
+          entityFieldMap.put(ManageEntityFieldConstants.CREATIONDATE, entityField.getCreationDate());
+          entityFieldMap.put(ManageEntityFieldConstants.CREATEDBY, entityField.getCreatedBy());
+          entityFieldMap.put(ManageEntityFieldConstants.UPDATED, entityField.getUpdated());
+          entityFieldMap.put(ManageEntityFieldConstants.UPDATEDBY, entityField.getUpdatedBy());
+          entityFieldMap.put(ManageEntityFieldConstants.ACTIVE, entityField.isActive());
+          entityFieldMap.put(ManageEntityFieldConstants.PROPERTY, entityField.getProperty());
+          entityFieldMap.put(ManageEntityFieldConstants.NAME, entityField.getName());
+          entityFieldMap.put(ManageEntityFieldConstants.ISMANDATORY, entityField.isMandatory());
+          entityFieldMap.put(ManageEntityFieldConstants.IDENTIFIESUNIVOCALLY, entityField.isIdentifiesUnivocally());
+          entityFieldMap.put(ManageEntityFieldConstants.MODULE, entityField.getModule());
+          entityFieldMap.put(ManageEntityFieldConstants.FIELDMAPPING, entityField.getFieldMapping());
+          entityFieldMap.put(ManageEntityFieldConstants.JAVAMAPPING, entityField.getJavaMapping());
+          entityFieldMap.put(ManageEntityFieldConstants.LINE, entityField.getLine());
+          entityFieldMap.put(ManageEntityFieldConstants.ETRXPROJECTIONENTITYRELATED, entityField.getEtrxProjectionEntityRelated());
+          entityFieldMap.put(ManageEntityFieldConstants.JSONPATH, entityField.getJsonpath());
+          entityFieldMap.put(ManageEntityFieldConstants.ETRXCONSTANTVALUE, entityField.getEtrxConstantValue());
+          entityFieldMap.put(ManageEntityFieldConstants.OBSELECTED, true);
+          entityFieldMap.put(ManageEntityFieldConstants.ENTITYFIELDCREATED, true);
           result.add(entityFieldMap);
-          entityFieldInResult.add("["+entityFieldMap.get("property")+"]["+entityFieldMap.get("name")+"]");
+          entityFieldInResult.add("["+entityFieldMap.get(ManageEntityFieldConstants.PROPERTY)+"]["+entityFieldMap.get(
+              ManageEntityFieldConstants.NAME)+"]");
       }
 
       for (Property entityProperty : entityProperties){
@@ -146,42 +146,38 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
           Map<String, Object> entityFieldMap = new HashMap<String, Object>();
           lineNo+=10L;
           String id = getId();
-          entityFieldMap.put("id",id);
-          entityFieldMap.put("Client", projectionEntity.getClient());
-          entityFieldMap.put("Organization", projectionEntity.getOrganization());
-          entityFieldMap.put("etrxProjectionEntity", projectionEntity);
-          entityFieldMap.put("creationDate", new Date());
-          entityFieldMap.put("createdBy", OBContext.getOBContext().getUser());
-          entityFieldMap.put("updated", new Date());
-          entityFieldMap.put("updatedBy", OBContext.getOBContext().getUser());
-          entityFieldMap.put("Active", true);
-          entityFieldMap.put("property", entityProperty.getName());
-          entityFieldMap.put("name", entityProperty.getName());
-          entityFieldMap.put("ismandatory", entityProperty.isMandatory());
-          entityFieldMap.put("identifiesUnivocally", false);
-          entityFieldMap.put("module", projectionEntity.getProjection().getModule());
-          entityFieldMap.put("fieldMapping", "DM");
-          entityFieldMap.put("javaMapping", null);
-          entityFieldMap.put("line", lineNo);
-          entityFieldMap.put("etrxProjectionEntityRelated", null);
-          if (StringUtils.equals(projectionEntity.getMappingType(),"W")){
-            entityFieldMap.put("jsonpath", "$."+entityProperty.getName());
-          } else {
-            entityFieldMap.put("jsonpath", null);
-          }
-          entityFieldMap.put("etrxConstantValue", null);
-          entityFieldMap.put("externalIdentifier", false);
-          entityFieldMap.put("table", null);
-          entityFieldMap.put("obSelected", false);
-          entityFieldMap.put("entityFieldCreated", false);
+          entityFieldMap.put(ManageEntityFieldConstants.ID,id);
+          entityFieldMap.put(ManageEntityFieldConstants.CLIENT, projectionEntity.getClient());
+          entityFieldMap.put(ManageEntityFieldConstants.ORGANIZATION, projectionEntity.getOrganization());
+          entityFieldMap.put(ManageEntityFieldConstants.ETRXPROJECTIONENTITY, projectionEntity);
+          entityFieldMap.put(ManageEntityFieldConstants.CREATIONDATE, new Date());
+          entityFieldMap.put(ManageEntityFieldConstants.CREATEDBY, OBContext.getOBContext().getUser());
+          entityFieldMap.put(ManageEntityFieldConstants.UPDATED, new Date());
+          entityFieldMap.put(ManageEntityFieldConstants.UPDATEDBY, OBContext.getOBContext().getUser());
+          entityFieldMap.put(ManageEntityFieldConstants.ACTIVE, true);
+          entityFieldMap.put(ManageEntityFieldConstants.PROPERTY, entityProperty.getName());
+          entityFieldMap.put(ManageEntityFieldConstants.NAME, entityProperty.getName());
+          entityFieldMap.put(ManageEntityFieldConstants.ISMANDATORY, entityProperty.isMandatory());
+          entityFieldMap.put(ManageEntityFieldConstants.IDENTIFIESUNIVOCALLY, false);
+          entityFieldMap.put(ManageEntityFieldConstants.MODULE, projectionEntity.getProjection().getModule());
+          entityFieldMap.put(ManageEntityFieldConstants.FIELDMAPPING, "DM");
+          entityFieldMap.put(ManageEntityFieldConstants.JAVAMAPPING, null);
+          entityFieldMap.put(ManageEntityFieldConstants.LINE, lineNo);
+          entityFieldMap.put(ManageEntityFieldConstants.ETRXPROJECTIONENTITYRELATED, null);
+          var jsonpath = StringUtils.equals(projectionEntity.getMappingType(),"W") ? "$."+entityProperty.getName() : null;
+          entityFieldMap.put(ManageEntityFieldConstants.JSONPATH, jsonpath);
+          entityFieldMap.put(ManageEntityFieldConstants.ETRXCONSTANTVALUE, null);
+          entityFieldMap.put(ManageEntityFieldConstants.OBSELECTED, false);
+          entityFieldMap.put(ManageEntityFieldConstants.ENTITYFIELDCREATED, false);
           result.add(entityFieldMap);
-          entityFieldInResult.add("["+entityFieldMap.get("property")+"]["+entityFieldMap.get("name")+"]");
+          entityFieldInResult.add("["+entityFieldMap.get(ManageEntityFieldConstants.PROPERTY)+"]["+entityFieldMap.get(
+              ManageEntityFieldConstants.NAME)+"]");
         }
       }
 
       String strSortBy = parameters.get("_sortBy");
       if (strSortBy == null) {
-        strSortBy = "line";
+        strSortBy = ManageEntityFieldConstants.LINE;
       }
       boolean ascending = true;
       if (strSortBy.startsWith("-")) {
@@ -202,38 +198,31 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
   private String getId() {
     String id = null;
     //@formatter:off
-    final String hql =
-        "select get_uuid() " +
-            "  from ETRX_Entity_Field as ef";
+    final String sql =
+        "select get_uuid() ";
     //@formatter:on
     try {
-      final List<String> resultList = OBDal.getInstance()
-          .getSession()
-          .createQuery(hql, String.class)
-          .setMaxResults(1)
-          .list();
-      if (!resultList.isEmpty()) {
-        id = resultList.get(0);
-      }
-      return id;
+        id = (String) OBDal.getInstance()
+            .getSession().createSQLQuery(sql)
+              .setMaxResults(1).uniqueResult();
     } catch (final Exception e) {
       throw new OBException(e.getMessage(), e.getCause());
     }
+    return id;
   }
 
   private boolean isValidEntityReference(Property property){
+    final List<String> NOT_ALLOWED = List.of("Button");
     if (property.isOneToMany() || StringUtils.isNotBlank(property.getSqlLogic()) || StringUtils.equals(property.getName(),"_computedColumns")){
       return false;
     }
-    if (property.getReferencedProperty() != null) {
-      if (StringUtils.equalsIgnoreCase(property.getReferencedProperty().getColumnName(), "AD_Image_ID")) {
-       return false;
-      }
+    if (property.getReferencedProperty() != null
+        && StringUtils.equalsIgnoreCase(property.getReferencedProperty().getColumnName(), "AD_Image_ID")) {
+      return false;
     }
-    if (property.getDomainType() != null && property.getDomainType().getReference() != null) {
-      if (StringUtils.equalsIgnoreCase(property.getDomainType().getReference().getName(), "Button")) {
-        return false;
-      }
+    if (property.getDomainType() != null && property.getDomainType().getReference() != null
+        && NOT_ALLOWED.contains(property.getDomainType().getReference().getName())) {
+      return false;
     }
     return true;
   }
@@ -270,39 +259,35 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
       if (criteria.has("value")) {
         value = criteria.getString("value");
       }
-      if (fieldName.equals("id") && operatorName.equals("notNull")) {
+      if (fieldName.equals(ManageEntityFieldConstants.ID) && operatorName.equals("notNull")) {
         // In the case of having the criteria
         // "fieldName":"id","operator":"notNull" don't do anything.
         // This case is the one which should return every record.
         continue;
       }
-      if (fieldName.equals("id")) {
+      if (fieldName.equals(ManageEntityFieldConstants.ID)) {
         selectedFilters.addSelectedID(value);
-      } else if (fieldName.equals("property")) {
+      } else if (fieldName.equals(ManageEntityFieldConstants.PROPERTY)) {
         selectedFilters.setProperty(value);
-      } else if (fieldName.equals("name")) {
+      } else if (fieldName.equals(ManageEntityFieldConstants.NAME)) {
         selectedFilters.setName(value);
-      } else if (fieldName.equals("ismandatory")) {
+      } else if (fieldName.equals(ManageEntityFieldConstants.ISMANDATORY)) {
         selectedFilters.setIsmandatory(criteria.getBoolean("value"));
-      } else if (fieldName.equals("identifiesUnivocally")) {
+      } else if (fieldName.equals(ManageEntityFieldConstants.IDENTIFIESUNIVOCALLY)) {
         selectedFilters.setIdentifiesUnivocally(criteria.getBoolean("value"));
-      } else if (fieldName.equals("fieldMapping")) {
+      } else if (fieldName.equals(ManageEntityFieldConstants.FIELDMAPPING)) {
         selectedFilters.setFieldMapping(value);
-      } else if (fieldName.equals("javaMapping")) {
+      } else if (fieldName.equals(ManageEntityFieldConstants.JAVAMAPPING)) {
         selectedFilters.setJavaMapping(value);
-      } else if (fieldName.equals("line")) {
+      } else if (fieldName.equals(ManageEntityFieldConstants.LINE)) {
         selectedFilters.setLine(value);
-      } else if (fieldName.equals("etrxProjectionEntityRelated")) {
+      } else if (fieldName.equals(ManageEntityFieldConstants.ETRXPROJECTIONENTITYRELATED)) {
         selectedFilters.setEtrxProjectionEntityRelated(value);
-      } else if (fieldName.equals("jsonpath")) {
+      } else if (fieldName.equals(ManageEntityFieldConstants.JSONPATH)) {
         selectedFilters.setJsonpath(value);
-      } else if (fieldName.equals("etrxConstantValue")) {
+      } else if (fieldName.equals(ManageEntityFieldConstants.ETRXCONSTANTVALUE)) {
         selectedFilters.setEtrxConstantValue(value);
-      } else if (fieldName.equals("externalIdentifier")) {
-        selectedFilters.setExternalIdentifier(criteria.getBoolean("value"));
-      } else if (fieldName.equals("table")) {
-        selectedFilters.setTable(value);
-      } else if (fieldName.equals("entityFieldCreated")) {
+      } else if (fieldName.equals(ManageEntityFieldConstants.ENTITYFIELDCREATED)) {
         selectedFilters.setEntityFieldCreated(criteria.getBoolean("value"));
       }
 
@@ -326,18 +311,18 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
         boolean o1 = (boolean) map1.get(sortByField);
         boolean o2 = (boolean) map2.get(sortByField);
         if (o1 == o2) {
-          sortByField = "line";
+          sortByField = ManageEntityFieldConstants.LINE;
           sortByChanged = true;
         } else if (ascending) {
           return o1 ? -1 : 1;
         } else {
           return o2 ? -1 : 1;
         }
-      } else if (StringUtils.equals("line",sortByField)) {
+      } else if (StringUtils.equals(ManageEntityFieldConstants.LINE,sortByField)) {
         Long val1 = Long.parseLong(map1.get(sortByField).toString());
         Long val2 = Long.parseLong(map2.get(sortByField).toString());
         if (sortByChanged) {
-          sortByField = "line";
+          sortByField = ManageEntityFieldConstants.LINE;
         }
         if (ascending) {
           return val1.compareTo(val2);
@@ -348,7 +333,7 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
         String val1 = map1.get(sortByField).toString();
         String val2 = map2.get(sortByField).toString();
         if (sortByChanged) {
-          sortByField = "line";
+          sortByField = ManageEntityFieldConstants.LINE;
         }
         if (ascending) {
           return val1.compareTo(val2);
@@ -377,8 +362,6 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
     private String etrxProjectionEntityRelated;
     private String jsonpath;
     private String etrxConstantValue;
-    private Boolean externalIdentifier;
-    private String table;
     private Boolean entityFieldCreated;
 
     EntityFieldSelectedFilters() {
@@ -395,8 +378,6 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
       jsonpath = null;
       etrxConstantValue = null;
       entityFieldCreated = false;
-      externalIdentifier = false;
-      table = null;
     }
 
     public void addSelectedID(String id) {
@@ -511,22 +492,6 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
     public void setEntityFieldCreated(Boolean entityFieldCreated) {
       this.entityFieldCreated = entityFieldCreated;
     }
-
-    public Boolean getExternalIdentifier() {
-      return externalIdentifier;
-    }
-
-    public void setExternalIdentifier(Boolean externalIdentifier) {
-      this.externalIdentifier = externalIdentifier;
-    }
-
-    public String getTable() {
-      return table;
-    }
-
-    public void setTable(String table) {
-      this.table = table;
-    }
   }
 
   @Override
@@ -536,7 +501,7 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
     Reference idReference = OBDal.getInstance().get(Reference.class, ID_REFERENCE_ID);
     UIDefinition uiDefinition = UIDefinitionController.getInstance().getUIDefinition(idReference);
     dsProperty.setId(true);
-    dsProperty.setName("id");
+    dsProperty.setName(ManageEntityFieldConstants.ID);
     dsProperty.setUIDefinition(uiDefinition);
     dataSourceProperties.add(dsProperty);
     return dataSourceProperties;
