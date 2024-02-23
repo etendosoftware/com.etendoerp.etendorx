@@ -56,6 +56,7 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
 
   private static final Logger log = LogManager.getLogger();
   private static final String ID_REFERENCE_ID = "13";
+  private static final List<String> NOT_ALLOWED_REFERENCES = List.of("Button");
 
   @Override
   public void checkFetchDatasourceAccess(Map<String, String> parameter) {
@@ -212,7 +213,6 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
   }
 
   private boolean isValidEntityReference(Property property){
-    final List<String> NOT_ALLOWED = List.of("Button");
     if (property.isOneToMany() || StringUtils.isNotBlank(property.getSqlLogic()) || StringUtils.equals(property.getName(),"_computedColumns")){
       return false;
     }
@@ -220,11 +220,8 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
         && StringUtils.equalsIgnoreCase(property.getReferencedProperty().getColumnName(), "AD_Image_ID")) {
       return false;
     }
-    if (property.getDomainType() != null && property.getDomainType().getReference() != null
-        && NOT_ALLOWED.contains(property.getDomainType().getReference().getName())) {
-      return false;
-    }
-    return true;
+    return !(property.getDomainType() != null && property.getDomainType().getReference() != null
+        && NOT_ALLOWED_REFERENCES.contains(property.getDomainType().getReference().getName()));
   }
 
   private EntityFieldSelectedFilters readCriteria(Map<String, String> parameters)
@@ -249,7 +246,7 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
       JSONObject criteria = criteriaArray.getJSONObject(i);
       // Basic advanced criteria handling
       if (criteria.has("_constructor")
-          && "AdvancedCriteria".equals(criteria.getString("_constructor"))
+          && StringUtils.equals("AdvancedCriteria",criteria.getString("_constructor"))
           && criteria.has("criteria")) {
         JSONArray innerCriteriaArray = new JSONArray(criteria.getString("criteria"));
         criteria = innerCriteriaArray.getJSONObject(0);
@@ -259,38 +256,37 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
       if (criteria.has("value")) {
         value = criteria.getString("value");
       }
-      if (fieldName.equals(ManageEntityFieldConstants.ID) && operatorName.equals("notNull")) {
+      if (StringUtils.equals(fieldName,ManageEntityFieldConstants.ID) && StringUtils.equals("notNull",operatorName)) {
         // In the case of having the criteria
         // "fieldName":"id","operator":"notNull" don't do anything.
         // This case is the one which should return every record.
         continue;
       }
-      if (fieldName.equals(ManageEntityFieldConstants.ID)) {
+      if (StringUtils.equals(fieldName,ManageEntityFieldConstants.ID)) {
         selectedFilters.addSelectedID(value);
-      } else if (fieldName.equals(ManageEntityFieldConstants.PROPERTY)) {
+      } else if (StringUtils.equals(fieldName,ManageEntityFieldConstants.PROPERTY)) {
         selectedFilters.setProperty(value);
-      } else if (fieldName.equals(ManageEntityFieldConstants.NAME)) {
+      } else if (StringUtils.equals(fieldName,ManageEntityFieldConstants.NAME)) {
         selectedFilters.setName(value);
-      } else if (fieldName.equals(ManageEntityFieldConstants.ISMANDATORY)) {
+      } else if (StringUtils.equals(fieldName,ManageEntityFieldConstants.ISMANDATORY)) {
         selectedFilters.setIsmandatory(criteria.getBoolean("value"));
-      } else if (fieldName.equals(ManageEntityFieldConstants.IDENTIFIESUNIVOCALLY)) {
+      } else if (StringUtils.equals(fieldName,ManageEntityFieldConstants.IDENTIFIESUNIVOCALLY)) {
         selectedFilters.setIdentifiesUnivocally(criteria.getBoolean("value"));
-      } else if (fieldName.equals(ManageEntityFieldConstants.FIELDMAPPING)) {
+      } else if (StringUtils.equals(fieldName,ManageEntityFieldConstants.FIELDMAPPING)) {
         selectedFilters.setFieldMapping(value);
-      } else if (fieldName.equals(ManageEntityFieldConstants.JAVAMAPPING)) {
+      } else if (StringUtils.equals(fieldName,ManageEntityFieldConstants.JAVAMAPPING)) {
         selectedFilters.setJavaMapping(value);
-      } else if (fieldName.equals(ManageEntityFieldConstants.LINE)) {
+      } else if (StringUtils.equals(fieldName,ManageEntityFieldConstants.LINE)) {
         selectedFilters.setLine(value);
-      } else if (fieldName.equals(ManageEntityFieldConstants.ETRXPROJECTIONENTITYRELATED)) {
+      } else if (StringUtils.equals(fieldName,ManageEntityFieldConstants.ETRXPROJECTIONENTITYRELATED)) {
         selectedFilters.setEtrxProjectionEntityRelated(value);
-      } else if (fieldName.equals(ManageEntityFieldConstants.JSONPATH)) {
+      } else if (StringUtils.equals(fieldName,ManageEntityFieldConstants.JSONPATH)) {
         selectedFilters.setJsonpath(value);
-      } else if (fieldName.equals(ManageEntityFieldConstants.ETRXCONSTANTVALUE)) {
+      } else if (StringUtils.equals(fieldName,ManageEntityFieldConstants.ETRXCONSTANTVALUE)) {
         selectedFilters.setEtrxConstantValue(value);
-      } else if (fieldName.equals(ManageEntityFieldConstants.ENTITYFIELDCREATED)) {
+      } else if (StringUtils.equals(fieldName,ManageEntityFieldConstants.ENTITYFIELDCREATED)) {
         selectedFilters.setEntityFieldCreated(criteria.getBoolean("value"));
       }
-
     }
     return selectedFilters;
   }
