@@ -87,7 +87,7 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
   @Override
   protected List<Map<String, Object>> getData(Map<String, String> parameters, int startRow,
       int endRow) {
-    List<Map<String, Object>> result = new ArrayList<Map<String, Object>>();
+    List<Map<String, Object>> result = new ArrayList<>();
     try {
       OBContext.setAdminMode(true);
 
@@ -109,7 +109,7 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
 
   private List<Map<String, Object>> getDistinctParam(Map<String, String> parameters, ETRXProjectionEntity projectionEntity){
     var distinct = parameters.get(JsonConstants.DISTINCT_PARAMETER);
-    List<Map<String, Object>> result = new ArrayList<Map<String, Object>>();
+    List<Map<String, Object>> result = new ArrayList<>();
     log.debug("Distinct param: " + distinct);
     if (StringUtils.equals(ManageEntityFieldConstants.MODULE, distinct)) {
       result = getModuleFilterData(projectionEntity);
@@ -127,7 +127,7 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
   }
 
   private List<Map<String, Object>> getGridData(Map<String, String> parameters, ETRXProjectionEntity projectionEntity) throws JSONException {
-    List<Map<String, Object>> result = new ArrayList<Map<String, Object>>();
+    List<Map<String, Object>> result = new ArrayList<>();
     OBCriteria<ETRXEntityField> etxEntityFieldOBCCriteria = OBDal.getInstance()
         .createCriteria(ETRXEntityField.class);
     etxEntityFieldOBCCriteria.add(Restrictions.eq(ETRXEntityField.PROPERTY_ETRXPROJECTIONENTITY, projectionEntity));
@@ -140,9 +140,9 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
       lineNo = entityFields.get(0).getLine();
     }
 
-    List<String> entityFieldInResult = new LinkedList<String>();
+    List<String> entityFieldInResult = new LinkedList<>();
     for (ETRXEntityField entityField : entityFields) {
-      Map<String, Object> entityFieldMap = new HashMap<String, Object>();
+      Map<String, Object> entityFieldMap = new HashMap<>();
       entityFieldMap.put(ManageEntityFieldConstants.ID, entityField.getId());
       entityFieldMap.put(ManageEntityFieldConstants.CLIENT, entityField.getClient());
       entityFieldMap.put(ManageEntityFieldConstants.ORGANIZATION, entityField.getOrganization());
@@ -173,7 +173,7 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
     }
 
     final String tabId = projectionEntity.getTableEntity().getId();
-    List<Property> entityProperties = new ArrayList<Property>();
+    List<Property> entityProperties = new ArrayList<>();
     try {
       final Entity entity = ModelProvider.getInstance().getEntityByTableId(tabId);
       if (entity != null) {
@@ -188,7 +188,7 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
       }
       if (!entityFieldInResult.contains("[" + entityProperty.getName() + "][" + entityProperty.getName() + "]")) {
         log.debug("Create new Entity Field with property: " + entityProperty.getName());
-        Map<String, Object> entityFieldMap = new HashMap<String, Object>();
+        Map<String, Object> entityFieldMap = new HashMap<>();
         lineNo += 10L;
         String id = getId();
         entityFieldMap.put(ManageEntityFieldConstants.ID, id);
@@ -661,13 +661,13 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
     private Boolean entityFieldCreated;
 
     EntityFieldSelectedFilters() {
-      selectedMappingValues = new HashMap<String, List<ETRXEntityField>>();
-      selectedIds = new ArrayList<String>();
-      moduleIds = new ArrayList<String>();
-      fieldMappingIds = new ArrayList<String>();
-      javaMappingIds = new ArrayList<String>();
-      etrxProjectionEntityRelatedIds = new ArrayList<String>();
-      etrxConstantValueIds = new ArrayList<String>();
+      selectedMappingValues = new HashMap<>();
+      selectedIds = new ArrayList<>();
+      moduleIds = new ArrayList<>();
+      fieldMappingIds = new ArrayList<>();
+      javaMappingIds = new ArrayList<>();
+      etrxProjectionEntityRelatedIds = new ArrayList<>();
+      etrxConstantValueIds = new ArrayList<>();
       line = null;
       property = null;
       name = null;
@@ -821,7 +821,7 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
 
   @Override
   public List<DataSourceProperty> getDataSourceProperties(Map<String, Object> parameters) {
-    List<DataSourceProperty> dataSourceProperties = new ArrayList<DataSourceProperty>();
+    List<DataSourceProperty> dataSourceProperties = new ArrayList<>();
     dataSourceProperties.add(getIdProperty(ManageEntityFieldConstants.ID));
     dataSourceProperties.add(getStringProperty(ManageEntityFieldConstants.NAME));
     dataSourceProperties.add(getStringProperty(ManageEntityFieldConstants.JSONPATH));
