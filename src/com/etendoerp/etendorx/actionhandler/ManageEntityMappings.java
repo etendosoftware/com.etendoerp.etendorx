@@ -48,7 +48,7 @@ import com.etendoerp.etendorx.datasource.ManageEntityFieldConstants;
 
 public class ManageEntityMappings extends BaseProcessActionHandler {
   final static private Logger log = LogManager.getLogger();
-  private static String NOT_IS_IN_DEVELOPMENT_MSG = "20533";
+  private static String NOTISINDEVELOPMENTMSG = "20533";
 
   @Override
   protected JSONObject doExecute(Map<String, Object> parameters, String content) {
@@ -111,7 +111,7 @@ public class ManageEntityMappings extends BaseProcessActionHandler {
     var moduleSrt = getStringValue(entityMappingProperties, ManageEntityFieldConstants.MODULE);
     Module module = OBDal.getInstance().get(Module.class, moduleSrt);
     if (!module.isInDevelopment()) {
-      String errorMessageText = OBMessageUtils.messageBD(NOT_IS_IN_DEVELOPMENT_MSG);
+      String errorMessageText = OBMessageUtils.messageBD(NOTISINDEVELOPMENTMSG);
       throw new OBException(OBMessageUtils.parseTranslation(errorMessageText, new HashMap<String, String>()));
     }
     final ETRXEntityField entityField = OBProvider.getInstance().get(ETRXEntityField.class);
@@ -155,6 +155,7 @@ public class ManageEntityMappings extends BaseProcessActionHandler {
     final String eTRXEntityFieldId = entityMappingProperties.getString(ManageEntityFieldConstants.ID);
     final ETRXEntityField entityField = OBDal.getInstance().get(ETRXEntityField.class, eTRXEntityFieldId );
     var updated = false;
+    var moduleChanged = false;
     var fieldMapping = getStringValue(entityMappingProperties,ManageEntityFieldConstants.FIELDMAPPING);
     if (!StringUtils.equals(fieldMapping, entityField.getFieldMapping())) {
       entityField.setFieldMapping(fieldMapping);
@@ -214,17 +215,27 @@ public class ManageEntityMappings extends BaseProcessActionHandler {
     String moduleSrt = getStringValue(entityMappingProperties, ManageEntityFieldConstants.MODULE);
     if (!StringUtils.equals(moduleSrt, entityField.getModule().getId())) {
       if (!entityField.getModule().isInDevelopment()) {
-        String errorMessageText = OBMessageUtils.messageBD(NOT_IS_IN_DEVELOPMENT_MSG);
+        String errorMessageText = OBMessageUtils.messageBD(NOTISINDEVELOPMENTMSG);
         throw new OBException(OBMessageUtils.parseTranslation(errorMessageText, new HashMap<String, String>()));
       }
       Module module = OBDal.getInstance().get(Module.class, entityMappingProperties.getString(ManageEntityFieldConstants.MODULE));
       entityField.setModule(module);
       updated = true;
+      moduleChanged = true;
     }
     if (updated) {
-      if (!entityField.getModule().isInDevelopment()) {
-        String errorMessageText = OBMessageUtils.messageBD(NOT_IS_IN_DEVELOPMENT_MSG);
+      if (moduleChanged && !entityField.getModule().isInDevelopment()) {
+        String errorMessageText = OBMessageUtils.messageBD(NOTISINDEVELOPMENTMSG);
         throw new OBException(OBMessageUtils.parseTranslation(errorMessageText, new HashMap<String, String>()));
+      } else if (!entityField.getModule().isInDevelopment()) {
+        OBCriteria<Module> moduleOBCriteria = OBDal.getInstance().createCriteria(Module.class);
+        moduleOBCriteria.add(Restrictions.eq(Module.PROPERTY_INDEVELOPMENT, true));
+        moduleOBCriteria.add(Restrictions.eq(Module.PROPERTY_TYPE, "T"));
+        Module inDevTemplate = (Module) moduleOBCriteria.setMaxResults(1).uniqueResult();
+        if (inDevTemplate == null){
+          String errorMessageText = OBMessageUtils.messageBD(NOTISINDEVELOPMENTMSG);
+          throw new OBException(OBMessageUtils.parseTranslation(errorMessageText, new HashMap<String, String>()));
+        }
       }
       OBDal.getInstance().save(entityField);
     }
@@ -251,7 +262,7 @@ public class ManageEntityMappings extends BaseProcessActionHandler {
       }
       if(wasDeleted) {
         if (!entityField.getModule().isInDevelopment()) {
-          String errorMessageText = OBMessageUtils.messageBD(NOT_IS_IN_DEVELOPMENT_MSG);
+          String errorMessageText = OBMessageUtils.messageBD(NOTISINDEVELOPMENTMSG);
           throw new OBException(OBMessageUtils.parseTranslation(errorMessageText, new HashMap<String, String>()));
         }
         OBDal.getInstance().remove(entityField);
