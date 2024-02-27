@@ -1,21 +1,3 @@
-/*
- *************************************************************************
- * The contents of this file are subject to the Openbravo  Public  License
- * Version  1.0  (the  "License"),  being   the  Mozilla   Public  License
- * Version 1.1  with a permitted attribution clause; you may not  use this
- * file except in compliance with the License. You  may  obtain  a copy of
- * the License at http://www.openbravo.com/legal/license.html
- * Software distributed under the License  is  distributed  on  an "AS IS"
- * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
- * License for the specific  language  governing  rights  and  limitations
- * under the License.
- * The Original Code is Openbravo ERP.
- * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2013-2021 Openbravo SLU
- * All Rights Reserved.
- * Contributor(s):  ______________________________________.
- *************************************************************************
- */
 package com.etendoerp.etendorx.datasource;
 
 import java.util.ArrayList;
@@ -135,11 +117,6 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
     etxEntityFieldOBCCriteria.setFilterOnActive(false);
     List<ETRXEntityField> entityFields = etxEntityFieldOBCCriteria.list();
 
-    Long lineNo = 0L;
-    if (entityFields.size() > 0) {
-      lineNo = entityFields.get(0).getLine();
-    }
-
     List<String> entityFieldInResult = new LinkedList<>();
     for (ETRXEntityField entityField : entityFields) {
       Map<String, Object> entityFieldMap = new HashMap<>();
@@ -182,6 +159,21 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
     } catch (OBSecurityException e) {
       handleExceptionUnsecuredDSAccess(e);
     }
+
+    Module module = projectionEntity.getProjection().getModule();
+    if (!module.isInDevelopment()) {
+      OBCriteria<Module> moduleOBCriteria = OBDal.getInstance()
+          .createCriteria(Module.class);
+      moduleOBCriteria.add(Restrictions.eq(Module.PROPERTY_INDEVELOPMENT, true));
+      moduleOBCriteria.add(Restrictions.eq(Module.PROPERTY_ETRXISRX, true));
+      moduleOBCriteria.add(Restrictions.eq(Module.PROPERTY_TYPE, "M"));
+      moduleOBCriteria.addOrderBy(Module.PROPERTY_UPDATED, false);
+      Module inDevModule = (Module) moduleOBCriteria.setMaxResults(1).uniqueResult();
+      if (inDevModule != null) {
+        module = inDevModule;
+      }
+    }
+    Long lineNo = getMaxValueLineNo(projectionEntity);
     for (Property entityProperty : entityProperties) {
       if (!isValidEntityReference(entityProperty)) {
         continue;
@@ -190,8 +182,7 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
         log.debug("Create new Entity Field with property: " + entityProperty.getName());
         Map<String, Object> entityFieldMap = new HashMap<>();
         lineNo += 10L;
-        String id = getId();
-        entityFieldMap.put(ManageEntityFieldConstants.ID, id);
+        entityFieldMap.put(ManageEntityFieldConstants.ID, getId());
         entityFieldMap.put(ManageEntityFieldConstants.CLIENT, projectionEntity.getClient());
         entityFieldMap.put(ManageEntityFieldConstants.ORGANIZATION, projectionEntity.getOrganization());
         entityFieldMap.put(ManageEntityFieldConstants.ETRXPROJECTIONENTITY, projectionEntity);
@@ -204,19 +195,6 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
         entityFieldMap.put(ManageEntityFieldConstants.NAME, entityProperty.getName());
         entityFieldMap.put(ManageEntityFieldConstants.ISMANDATORY, entityProperty.isMandatory());
         entityFieldMap.put(ManageEntityFieldConstants.IDENTIFIESUNIVOCALLY, false);
-        Module module = projectionEntity.getProjection().getModule();
-        if (!module.isInDevelopment()) {
-          OBCriteria<Module> moduleOBCriteria = OBDal.getInstance()
-              .createCriteria(Module.class);
-          moduleOBCriteria.add(Restrictions.eq(Module.PROPERTY_INDEVELOPMENT, true));
-          moduleOBCriteria.add(Restrictions.eq(Module.PROPERTY_ETRXISRX, true));
-          moduleOBCriteria.add(Restrictions.eq(Module.PROPERTY_TYPE, "M"));
-          moduleOBCriteria.addOrderBy(Module.PROPERTY_UPDATED, false);
-          Module inDevModule = (Module) moduleOBCriteria.setMaxResults(1).uniqueResult();
-          if (inDevModule != null) {
-            module = inDevModule;
-          }
-        }
         entityFieldMap.put(ManageEntityFieldConstants.MODULE, module);
         entityFieldMap.put(ManageEntityFieldConstants.FIELDMAPPING, "DM");
         entityFieldMap.put(ManageEntityFieldConstants.JAVAMAPPING, null);
@@ -481,6 +459,25 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
       throw new OBException(e.getMessage(), e.getCause());
     }
     return id;
+  }
+
+  private Long getMaxValueLineNo(ETRXProjectionEntity projectionEntity) {
+    //@formatter:off
+    final String hql =
+        " select coalesce(max(ef.line), 0) as maxSeqNo " +
+            "   from ETRX_Entity_Field as ef " +
+            "  where ef.etrxProjectionEntity.id = :etrxProjectionEntityId";
+    //@formatter:on
+
+    final Long maxSeqNo = OBDal.getInstance()
+        .getSession()
+        .createQuery(hql, Long.class)
+        .setParameter("etrxProjectionEntityId", projectionEntity.getId())
+        .uniqueResult();
+    if (maxSeqNo != null) {
+      return maxSeqNo;
+    }
+    return 0l;
   }
 
   private boolean isValidEntityReference(Property property){
