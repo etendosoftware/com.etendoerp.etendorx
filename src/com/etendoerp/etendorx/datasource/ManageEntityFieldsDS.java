@@ -508,50 +508,50 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
 
   private void addCriteria(EntityFieldSelectedFilters selectedFilters,
       JSONObject criteria) throws JSONException {
-    String value = StringUtils.EMPTY;
     String fieldName = criteria.getString("fieldName");
+    String value = StringUtils.EMPTY;
     String operatorName = criteria.getString("operator");
     if (criteria.has("value")) {
       value = criteria.getString("value");
     }
-    if (StringUtils.equals(fieldName,ManageEntityFieldConstants.ID) && StringUtils.equals("notNull",operatorName)) {
+    if (StringUtils.equals(fieldName, ManageEntityFieldConstants.ID) && StringUtils.equals("notNull", operatorName)) {
       // In the case of having the criteria
       // "fieldName":"id","operator":"notNull" don't do anything.
       // This case is the one which should return every record.
       return;
     }
-    if (StringUtils.equals(fieldName,ManageEntityFieldConstants.ID)) {
+    if (StringUtils.equals(fieldName, ManageEntityFieldConstants.ID)) {
       selectedFilters.addSelectedID(value);
-    } else if (StringUtils.equals(fieldName,ManageEntityFieldConstants.MODULE)) {
+    } else if (StringUtils.equals(fieldName, ManageEntityFieldConstants.MODULE)) {
       selectedFilters.addModuleIds(value);
-    } else if (StringUtils.equals(fieldName,ManageEntityFieldConstants.PROPERTY)) {
+    } else if (StringUtils.equals(fieldName, ManageEntityFieldConstants.PROPERTY)) {
       selectedFilters.setProperty(value);
-    } else if (StringUtils.equals(fieldName,ManageEntityFieldConstants.NAME)) {
+    } else if (StringUtils.equals(fieldName, ManageEntityFieldConstants.NAME)) {
       selectedFilters.setName(value);
-    } else if (StringUtils.equals(fieldName,ManageEntityFieldConstants.ISMANDATORY)) {
+    } else if (StringUtils.equals(fieldName, ManageEntityFieldConstants.ISMANDATORY)) {
       var isBoolean = StringUtils.equalsIgnoreCase(value, Boolean.TRUE.toString()) || StringUtils.equalsIgnoreCase(
           value,Boolean.FALSE.toString());
       selectedFilters.setIsmandatory(isBoolean ? criteria.getBoolean("value") : null);
-    } else if (StringUtils.equals(fieldName,ManageEntityFieldConstants.IDENTIFIESUNIVOCALLY)) {
+    } else if (StringUtils.equals(fieldName, ManageEntityFieldConstants.IDENTIFIESUNIVOCALLY)) {
       var isBoolean = StringUtils.equalsIgnoreCase(value, Boolean.TRUE.toString()) || StringUtils.equalsIgnoreCase(
           value, Boolean.FALSE.toString());
       selectedFilters.setIdentifiesUnivocally(isBoolean ? criteria.getBoolean("value") : null);
-    } else if (StringUtils.equals(fieldName,ManageEntityFieldConstants.FIELDMAPPING)) {
+    } else if (StringUtils.equals(fieldName, ManageEntityFieldConstants.FIELDMAPPING)) {
       var normalizedValue = value.replace("[", "")
           .replace("]","")
           .replace("\"","").split(",");
       selectedFilters.getFieldMappingIds().addAll(List.of(normalizedValue));
-    } else if (StringUtils.equals(fieldName,ManageEntityFieldConstants.JAVAMAPPING)) {
+    } else if (StringUtils.equals(fieldName, ManageEntityFieldConstants.JAVAMAPPING)) {
       selectedFilters.addJavaMappingIds(value);
-    } else if (StringUtils.equals(fieldName,ManageEntityFieldConstants.LINE)) {
+    } else if (StringUtils.equals(fieldName, ManageEntityFieldConstants.LINE)) {
       selectedFilters.setLine(value);
-    } else if (StringUtils.equals(fieldName,ManageEntityFieldConstants.ETRXPROJECTIONENTITYRELATED)) {
+    } else if (StringUtils.equals(fieldName, ManageEntityFieldConstants.ETRXPROJECTIONENTITYRELATED)) {
       selectedFilters.addEtrxProjectionEntityRelatedIds(value);
-    } else if (StringUtils.equals(fieldName,ManageEntityFieldConstants.JSONPATH)) {
+    } else if (StringUtils.equals(fieldName, ManageEntityFieldConstants.JSONPATH)) {
       selectedFilters.setJsonpath(value);
-    } else if (StringUtils.equals(fieldName,ManageEntityFieldConstants.ETRXCONSTANTVALUE)) {
+    } else if (StringUtils.equals(fieldName, ManageEntityFieldConstants.ETRXCONSTANTVALUE)) {
       selectedFilters.addEtrxConstantValueIds(value);
-    } else if (StringUtils.equals(fieldName,ManageEntityFieldConstants.ENTITYFIELDCREATED)) {
+    } else if (StringUtils.equals(fieldName, ManageEntityFieldConstants.ENTITYFIELDCREATED)) {
       var isBoolean = StringUtils.equalsIgnoreCase(value, Boolean.TRUE.toString()) || StringUtils.equalsIgnoreCase(
           value, Boolean.FALSE.toString());
       selectedFilters.setEntityFieldCreated(isBoolean ? criteria.getBoolean("value") : null);
@@ -596,42 +596,65 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
           returnValue = o1 ? -1 : 1;
         }
       } else if (NUMERIC_FIELD_LIST.contains(sortByField)) {
-        Long val1 = Long.parseLong(map1.get(sortByField).toString());
-        Long val2 = Long.parseLong(map2.get(sortByField).toString());
-        returnValue = val1.compareTo(val2);
+        returnValue = getNumericCompare(map1, map2);
       } else if (STRING_FIELD_LIST.contains(sortByField)) {
-        var val1 = map1.get(sortByField) != null ? map1.get(sortByField).toString() :  StringUtils.EMPTY;
-        var val2 = map2.get(sortByField) != null ? map2.get(sortByField).toString() :  StringUtils.EMPTY;
-        returnValue = val1.compareTo(val2);
-      } else {
-        var val1 = StringUtils.EMPTY;
-        var val2 = StringUtils.EMPTY;
-        if (StringUtils.equals("module$_identifier", sortByField)) {
-          val1 = map1.get(ManageEntityFieldConstants.MODULE) != null ? ((Module) map1.get(
-              ManageEntityFieldConstants.MODULE)).getIdentifier() : StringUtils.EMPTY;
-          val2 = map2.get(ManageEntityFieldConstants.MODULE) != null ? ((Module) map2.get(
-              ManageEntityFieldConstants.MODULE)).getIdentifier() : StringUtils.EMPTY;
-        } else if (StringUtils.equals("javaMapping$_identifier", sortByField)) {
-          val1 = map1.get(ManageEntityFieldConstants.JAVAMAPPING) != null ? ((ETRXJavaMapping) map1.get(
-              ManageEntityFieldConstants.JAVAMAPPING)).getIdentifier() : StringUtils.EMPTY;
-          val2 = map2.get(ManageEntityFieldConstants.JAVAMAPPING) != null ? ((ETRXJavaMapping) map2.get(
-              ManageEntityFieldConstants.JAVAMAPPING)).getIdentifier() : StringUtils.EMPTY;
-        } else if (StringUtils.equals("etrxProjectionEntityRelated$_identifier", sortByField)) {
-          val1 = map1.get(
-              ManageEntityFieldConstants.ETRXPROJECTIONENTITYRELATED) != null ? ((ETRXProjectionEntity) map1.get(
-              ManageEntityFieldConstants.ETRXPROJECTIONENTITYRELATED)).getIdentifier() : StringUtils.EMPTY;
-          val2 = map2.get(
-              ManageEntityFieldConstants.ETRXPROJECTIONENTITYRELATED) != null ? ((ETRXProjectionEntity) map2.get(
-              ManageEntityFieldConstants.ETRXPROJECTIONENTITYRELATED)).getIdentifier() : StringUtils.EMPTY;
-        } else if (StringUtils.equals("etrxConstantValue$_identifier", sortByField)) {
-          val1 = map1.get(ManageEntityFieldConstants.ETRXCONSTANTVALUE) != null ? ((ConstantValue) map1.get(
-              ManageEntityFieldConstants.ETRXCONSTANTVALUE)).getIdentifier() : StringUtils.EMPTY;
-          val2 = map2.get(ManageEntityFieldConstants.ETRXCONSTANTVALUE) != null ? ((ConstantValue) map2.get(
-              ManageEntityFieldConstants.ETRXCONSTANTVALUE)).getIdentifier() : StringUtils.EMPTY;
-        }
-        returnValue = val1.compareTo(val2);
+        returnValue = getStringCompare(map1, map2);
+      } else if (StringUtils.equals("module$_identifier", sortByField)) {
+        returnValue = getModuleCompare(map1, map2);
+      } else if (StringUtils.equals("javaMapping$_identifier", sortByField)) {
+        returnValue = getJavaMappingCompare(map1, map2);
+      } else if (StringUtils.equals("etrxProjectionEntityRelated$_identifier", sortByField)) {
+        returnValue = getProjectionEntityRelatedCompare(map1, map2);
+      } else if (StringUtils.equals("etrxConstantValue$_identifier", sortByField)) {
+        returnValue = getConstantValueCompare(map1, map2);
       }
       return returnValue * ascending;
+    }
+
+    private int getConstantValueCompare(Map<String, Object> map1, Map<String, Object> map2) {
+      var val1 = map1.get(ManageEntityFieldConstants.ETRXCONSTANTVALUE) != null ? ((ConstantValue) map1.get(
+          ManageEntityFieldConstants.ETRXCONSTANTVALUE)).getIdentifier() : StringUtils.EMPTY;
+      var val2 = map2.get(ManageEntityFieldConstants.ETRXCONSTANTVALUE) != null ? ((ConstantValue) map2.get(
+          ManageEntityFieldConstants.ETRXCONSTANTVALUE)).getIdentifier() : StringUtils.EMPTY;
+      return val1.compareTo(val2);
+    }
+
+    private int getProjectionEntityRelatedCompare(Map<String, Object> map1, Map<String, Object> map2) {
+      var val1 = map1.get(
+          ManageEntityFieldConstants.ETRXPROJECTIONENTITYRELATED) != null ? ((ETRXProjectionEntity) map1.get(
+          ManageEntityFieldConstants.ETRXPROJECTIONENTITYRELATED)).getIdentifier() : StringUtils.EMPTY;
+      var val2 = map2.get(
+          ManageEntityFieldConstants.ETRXPROJECTIONENTITYRELATED) != null ? ((ETRXProjectionEntity) map2.get(
+          ManageEntityFieldConstants.ETRXPROJECTIONENTITYRELATED)).getIdentifier() : StringUtils.EMPTY;
+      return val1.compareTo(val2);
+    }
+
+    private int getJavaMappingCompare(Map<String, Object> map1, Map<String, Object> map2) {
+      var val1 = map1.get(ManageEntityFieldConstants.JAVAMAPPING) != null ? ((ETRXJavaMapping) map1.get(
+          ManageEntityFieldConstants.JAVAMAPPING)).getIdentifier() : StringUtils.EMPTY;
+      var val2 = map2.get(ManageEntityFieldConstants.JAVAMAPPING) != null ? ((ETRXJavaMapping) map2.get(
+          ManageEntityFieldConstants.JAVAMAPPING)).getIdentifier() : StringUtils.EMPTY;
+      return val1.compareTo(val2);
+    }
+
+    private int getModuleCompare(Map<String, Object> map1, Map<String, Object> map2) {
+      var val1 = map1.get(ManageEntityFieldConstants.MODULE) != null ? ((Module) map1.get(
+          ManageEntityFieldConstants.MODULE)).getIdentifier() : StringUtils.EMPTY;
+      var val2 = map2.get(ManageEntityFieldConstants.MODULE) != null ? ((Module) map2.get(
+          ManageEntityFieldConstants.MODULE)).getIdentifier() : StringUtils.EMPTY;
+      return val1.compareTo(val2);
+    }
+
+    private int getStringCompare(Map<String, Object> map1, Map<String, Object> map2) {
+      var val1 = map1.get(sortByField) != null ? map1.get(sortByField).toString() : StringUtils.EMPTY;
+      var val2 = map2.get(sortByField) != null ? map2.get(sortByField).toString() : StringUtils.EMPTY;
+      return val1.compareTo(val2);
+    }
+
+    private int getNumericCompare(Map<String, Object> map1, Map<String, Object> map2) {
+      Long val1 = map1.get(sortByField) != null ? Long.parseLong(map1.get(sortByField).toString()) : Long.MIN_VALUE;
+      Long val2 = map2.get(sortByField) != null ? Long.parseLong(map2.get(sortByField).toString()) : Long.MIN_VALUE;
+      return val1.compareTo(val2);
     }
   }
 
@@ -640,7 +663,7 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
    */
   private class EntityFieldSelectedFilters {
 
-    private HashMap<String, List<ETRXEntityField>> selectedMappingValues;
+    private Map<String, List<ETRXEntityField>> selectedMappingValues;
     private List<String> selectedIds;
     private List<String> moduleIds;
     private List<String> fieldMappingIds;
@@ -700,12 +723,12 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
       etrxConstantValueIds.add(id);
     }
 
-    public HashMap<String, List<ETRXEntityField>> getSelectedMappingValues() {
+    public Map<String, List<ETRXEntityField>> getSelectedMappingValues() {
       return selectedMappingValues;
     }
 
     public void setSelectedMappingValues(
-        HashMap<String, List<ETRXEntityField>> selectedMappingValues) {
+        Map<String, List<ETRXEntityField>> selectedMappingValues) {
       this.selectedMappingValues = selectedMappingValues;
     }
 
