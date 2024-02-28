@@ -225,19 +225,18 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
               "  join ef.etrxConstantValue as cv " +
               " where ef.etrxProjectionEntity.id = :etrxProjectionEntityId";
       //@formatter:on
-
-      Query<ConstantValue> moduleQuery = OBDal.getInstance()
+      Query<ConstantValue> constantValueQuery = OBDal.getInstance()
           .getSession()
           .createQuery(hql, ConstantValue.class)
           .setParameter("etrxProjectionEntityId", projectionEntity.getId());
-
-      for (ConstantValue o : moduleQuery.list()) {
-        Map<String, Object> myMap = new HashMap<>();
-        myMap.put("id", o.getId());
-        myMap.put("name", o.getIdentifier());
-        myMap.put("_identifier", o.getIdentifier());
-        myMap.put("_entityName", "ETRX_Constant_Value");
-        result.add(myMap);
+      List<ConstantValue> constantValueList = constantValueQuery.list();
+      for (ConstantValue constantValue : constantValueList) {
+        Map<String, Object> filterRecord = new HashMap<>();
+        filterRecord.put("id", constantValue.getId());
+        filterRecord.put("name", constantValue.getIdentifier());
+        filterRecord.put("_identifier", constantValue.getIdentifier());
+        filterRecord.put("_entityName", ConstantValue.ENTITY_NAME);
+        result.add(filterRecord);
       }
     } finally {
       OBContext.restorePreviousMode();
@@ -255,19 +254,18 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
               "  join ef.etrxProjectionEntityRelated as ref " +
               " where ef.etrxProjectionEntity.id = :etrxProjectionEntityId";
       //@formatter:on
-
-      Query<ETRXProjectionEntity> moduleQuery = OBDal.getInstance()
+      Query<ETRXProjectionEntity> etrxProjectionEntityRelatedQuery = OBDal.getInstance()
           .getSession()
           .createQuery(hql, ETRXProjectionEntity.class)
           .setParameter("etrxProjectionEntityId", projectionEntity.getId());
-
-      for (ETRXProjectionEntity o : moduleQuery.list()) {
-        Map<String, Object> myMap = new HashMap<>();
-        myMap.put("id", o.getId());
-        myMap.put("name", o.getIdentifier());
-        myMap.put("_identifier", o.getIdentifier());
-        myMap.put("_entityName", "ETRX_Projection_Entity");
-        result.add(myMap);
+      List<ETRXProjectionEntity> etrxProjectionEntityRelatedList = etrxProjectionEntityRelatedQuery.list();
+      for (ETRXProjectionEntity etrxProjectionEntityRelated : etrxProjectionEntityRelatedList) {
+        Map<String, Object> filterRecord = new HashMap<>();
+        filterRecord.put("id", etrxProjectionEntityRelated.getId());
+        filterRecord.put("name", etrxProjectionEntityRelated.getIdentifier());
+        filterRecord.put("_identifier", etrxProjectionEntityRelated.getIdentifier());
+        filterRecord.put("_entityName", ETRXProjectionEntity.ENTITY_NAME);
+        result.add(filterRecord);
       }
     } finally {
       OBContext.restorePreviousMode();
@@ -285,19 +283,18 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
               "  join ef.javaMapping as jm " +
               " where ef.etrxProjectionEntity.id = :etrxProjectionEntityId";
       //@formatter:on
-
-      Query<ETRXJavaMapping> moduleQuery = OBDal.getInstance()
+      Query<ETRXJavaMapping> javaMappingQuery = OBDal.getInstance()
           .getSession()
           .createQuery(hql, ETRXJavaMapping.class)
           .setParameter("etrxProjectionEntityId", projectionEntity.getId());
-
-      for (ETRXJavaMapping o : moduleQuery.list()) {
-        Map<String, Object> myMap = new HashMap<>();
-        myMap.put("id", o.getId());
-        myMap.put("name", o.getIdentifier());
-        myMap.put("_identifier", o.getIdentifier());
-        myMap.put("_entityName", "ETRX_Java_Mapping");
-        result.add(myMap);
+      List<ETRXJavaMapping> etrxJavaMappingList = javaMappingQuery.list();
+      for (ETRXJavaMapping etrxJavaMapping : etrxJavaMappingList) {
+        Map<String, Object> filterRecord = new HashMap<>();
+        filterRecord.put("id", etrxJavaMapping.getId());
+        filterRecord.put("name", etrxJavaMapping.getIdentifier());
+        filterRecord.put("_identifier", etrxJavaMapping.getIdentifier());
+        filterRecord.put("_entityName", ETRXJavaMapping.ENTITY_NAME);
+        result.add(filterRecord);
       }
     } finally {
       OBContext.restorePreviousMode();
@@ -315,30 +312,28 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
           "  join ef.module as m " +
           " where ef.etrxProjectionEntity.id = :etrxProjectionEntityId";
       //@formatter:on
-
       Query<Module> moduleQuery = OBDal.getInstance()
           .getSession()
           .createQuery(hql, Module.class)
           .setParameter("etrxProjectionEntityId", projectionEntity.getId());
       List<Module> moduleList = moduleQuery.list();
-      for (Module o : moduleList) {
-        Map<String, Object> myMap = new HashMap<>();
-        myMap.put("id", o.getId());
-        myMap.put("name", o.getIdentifier());
-        myMap.put("_identifier", o.getIdentifier());
-        myMap.put("_entityName", "ADModule");
-        result.add(myMap);
+      for (Module module: moduleList) {
+        Map<String, Object> filterRecord = new HashMap<>();
+        filterRecord.put("id", module.getId());
+        filterRecord.put("name", module.getIdentifier());
+        filterRecord.put("_identifier", module.getIdentifier());
+        filterRecord.put("_entityName", Module.ENTITY_NAME);
+        result.add(filterRecord);
       }
-
-      Module module = projectionEntity.getProjection().getModule();
-      if (module.isInDevelopment() && !moduleList.contains(module)) {
-        Map<String, Object> myMap = new HashMap<>();
-        myMap.put("id", module.getId());
-        myMap.put("name", module.getIdentifier());
-        myMap.put("_identifier", module.getIdentifier());
-        myMap.put("_entityName", "ADModule");
-        result.add(myMap);
-      } else if (!module.isInDevelopment()){
+      Module projectionModule = projectionEntity.getProjection().getModule();
+      if (projectionModule.isInDevelopment() && !moduleList.contains(projectionModule)) {
+        Map<String, Object> filterRecord = new HashMap<>();
+        filterRecord.put("id", projectionModule.getId());
+        filterRecord.put("name", projectionModule.getIdentifier());
+        filterRecord.put("_identifier", projectionModule.getIdentifier());
+        filterRecord.put("_entityName", Module.ENTITY_NAME);
+        result.add(filterRecord);
+      } else if (!projectionModule.isInDevelopment()){
         OBCriteria<Module> moduleOBCriteria = OBDal.getInstance()
             .createCriteria(Module.class);
         moduleOBCriteria.add(Restrictions.eq(Module.PROPERTY_INDEVELOPMENT, true));
@@ -347,12 +342,12 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
         moduleOBCriteria.addOrderBy(Module.PROPERTY_UPDATED, false);
         Module inDevModule = (Module) moduleOBCriteria.setMaxResults(1).uniqueResult();
         if (inDevModule != null && !moduleList.contains(inDevModule)) {
-          Map<String, Object> myMap = new HashMap<>();
-          myMap.put("id", inDevModule.getId());
-          myMap.put("name", inDevModule.getIdentifier());
-          myMap.put("_identifier", inDevModule.getIdentifier());
-          myMap.put("_entityName", "ADModule");
-          result.add(myMap);
+          Map<String, Object> filterRecord = new HashMap<>();
+          filterRecord.put("id", inDevModule.getId());
+          filterRecord.put("name", inDevModule.getIdentifier());
+          filterRecord.put("_identifier", inDevModule.getIdentifier());
+          filterRecord.put("_entityName", Module.ENTITY_NAME);
+          result.add(filterRecord);
         }
       }
     } finally {
@@ -361,7 +356,12 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
     return result;
   }
 
-  private List<Map<String, Object>> applyFiltersAndSort(Map<String, String> parameters, List<Map<String, Object>> result) throws JSONException {
+    private void sortResult(Map<String, String> parameters, List<Map<String, Object>> result) {
+      String strSortBy = parameters.getOrDefault("_sortBy", ManageEntityFieldConstants.LINE);
+      Collections.sort(result, new ResultComparator(strSortBy));
+    }
+
+    private List<Map<String, Object>> applyFiltersAndSort(Map<String, String> parameters, List<Map<String, Object>> result) throws JSONException {
     EntityFieldSelectedFilters selectedFilters = readCriteria(parameters);
     //IsMandatory Filter
     if (selectedFilters.getIsmandatory() != null) {
@@ -432,19 +432,10 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
               && selectedFilters.getEtrxConstantValueIds().contains(((ETRXProjectionEntity) row.get(ManageEntityFieldConstants.ETRXCONSTANTVALUE)).getId())).collect(
           Collectors.toList());
     }
-
-    String strSortBy = parameters.get("_sortBy");
-    if (strSortBy == null) {
-      strSortBy = ManageEntityFieldConstants.LINE;
-    }
-    boolean ascending = true;
-    if (strSortBy.startsWith("-")) {
-      ascending = false;
-      strSortBy = strSortBy.substring(1);
-    }
-    Collections.sort(result, new ResultComparator(strSortBy, ascending));
+    sortResult(parameters, result);
     return result;
   }
+
   private String getId() {
     String id;
     //@formatter:off
@@ -546,9 +537,9 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
           value, Boolean.FALSE.toString());
       selectedFilters.setIdentifiesUnivocally(isBoolean ? criteria.getBoolean("value") : null);
     } else if (StringUtils.equals(fieldName,ManageEntityFieldConstants.FIELDMAPPING)) {
-      var normalizedValue = value.replaceAll("\\[", "")
-          .replaceAll("\\]","")
-          .replaceAll("\"","").split(",");
+      var normalizedValue = value.replace("[", "")
+          .replace("]","")
+          .replace("\"","").split(",");
       selectedFilters.getFieldMappingIds().addAll(List.of(normalizedValue));
     } else if (StringUtils.equals(fieldName,ManageEntityFieldConstants.JAVAMAPPING)) {
       selectedFilters.addJavaMappingIds(value);
@@ -569,71 +560,78 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
 
   private static class ResultComparator implements Comparator<Map<String, Object>> {
     private String sortByField;
-    private boolean ascending;
+    private int ascending;
 
-    public ResultComparator(String sortByField, boolean ascending) {
+    private static final List<String> BOOLEAN_FIELD_LIST = List.of(
+        ManageEntityFieldConstants.ISMANDATORY,
+        ManageEntityFieldConstants.IDENTIFIESUNIVOCALLY,
+        ManageEntityFieldConstants.ENTITYFIELDCREATED);
+
+    private static final List<String> NUMERIC_FIELD_LIST = List.of(ManageEntityFieldConstants.LINE);
+
+    private static final List<String> STRING_FIELD_LIST = List.of(ManageEntityFieldConstants.ID,
+        ManageEntityFieldConstants.PROPERTY,
+        ManageEntityFieldConstants.NAME,
+        ManageEntityFieldConstants.FIELDMAPPING,
+        ManageEntityFieldConstants.JSONPATH);
+
+    public ResultComparator(String sortByField) {
       this.sortByField = sortByField;
-      this.ascending = ascending;
+      ascending = 1;
+      if (StringUtils.startsWith(sortByField, "-")) {
+        ascending = -1;
+        this.sortByField = StringUtils.substring(sortByField,1);
+      }
     }
 
     @Override
     public int compare(Map<String, Object> map1, Map<String, Object> map2) {
-      List<String> booleanFields = List.of(ManageEntityFieldConstants.ISMANDATORY,
-          ManageEntityFieldConstants.IDENTIFIESUNIVOCALLY,ManageEntityFieldConstants.ENTITYFIELDCREATED);
-      List<String> numericFields = List.of(ManageEntityFieldConstants.LINE);
-      List<String> stringFields = List.of(ManageEntityFieldConstants.ID,ManageEntityFieldConstants.PROPERTY,
-          ManageEntityFieldConstants.NAME,ManageEntityFieldConstants.FIELDMAPPING,ManageEntityFieldConstants.JSONPATH);
-
-      if (booleanFields.contains(sortByField)) {
+      int returnValue = 0;
+      if (BOOLEAN_FIELD_LIST.contains(sortByField)) {
         boolean o1 = (boolean) map1.get(sortByField);
         boolean o2 = (boolean) map2.get(sortByField);
         if (o1 == o2) {
           sortByField = ManageEntityFieldConstants.LINE;
-        } else if (ascending) {
-          return o1 ? -1 : 1;
         } else {
-          return o2 ? -1 : 1;
+          returnValue = o1 ? -1 : 1;
         }
-      } else if (numericFields.contains(sortByField)) {
+      } else if (NUMERIC_FIELD_LIST.contains(sortByField)) {
         Long val1 = Long.parseLong(map1.get(sortByField).toString());
         Long val2 = Long.parseLong(map2.get(sortByField).toString());
-        if (ascending) {
-          return val1.compareTo(val2);
-        } else {
-          return val2.compareTo(val1);
-        }
-      } else if (stringFields.contains(sortByField)) {
-        String val1 = map1.get(sortByField) != null ? map1.get(sortByField).toString() :  StringUtils.EMPTY;
-        String val2 = map2.get(sortByField) != null ? map2.get(sortByField).toString() :  StringUtils.EMPTY;
-        if (ascending) {
-          return val1.compareTo(val2);
-        } else {
-          return val2.compareTo(val1);
-        }
+        returnValue = val1.compareTo(val2);
+      } else if (STRING_FIELD_LIST.contains(sortByField)) {
+        var val1 = map1.get(sortByField) != null ? map1.get(sortByField).toString() :  StringUtils.EMPTY;
+        var val2 = map2.get(sortByField) != null ? map2.get(sortByField).toString() :  StringUtils.EMPTY;
+        returnValue = val1.compareTo(val2);
       } else {
-        String val1 = StringUtils.EMPTY;
-        String val2 = StringUtils.EMPTY;
+        var val1 = StringUtils.EMPTY;
+        var val2 = StringUtils.EMPTY;
         if (StringUtils.equals("module$_identifier", sortByField)) {
-          val1 = map1.get(ManageEntityFieldConstants.MODULE) != null ? ((Module) map1.get(ManageEntityFieldConstants.MODULE)).getIdentifier() : StringUtils.EMPTY;
-          val2 = map2.get(ManageEntityFieldConstants.MODULE) != null ? ((Module) map2.get(ManageEntityFieldConstants.MODULE)).getIdentifier() : StringUtils.EMPTY;
+          val1 = map1.get(ManageEntityFieldConstants.MODULE) != null ? ((Module) map1.get(
+              ManageEntityFieldConstants.MODULE)).getIdentifier() : StringUtils.EMPTY;
+          val2 = map2.get(ManageEntityFieldConstants.MODULE) != null ? ((Module) map2.get(
+              ManageEntityFieldConstants.MODULE)).getIdentifier() : StringUtils.EMPTY;
         } else if (StringUtils.equals("javaMapping$_identifier", sortByField)) {
-          val1 =  map1.get(ManageEntityFieldConstants.JAVAMAPPING) != null ? ((ETRXJavaMapping) map1.get(ManageEntityFieldConstants.JAVAMAPPING)).getIdentifier() : StringUtils.EMPTY;
-          val2 =  map2.get(ManageEntityFieldConstants.JAVAMAPPING) != null ? ((ETRXJavaMapping) map2.get(ManageEntityFieldConstants.JAVAMAPPING)).getIdentifier() : StringUtils.EMPTY;
+          val1 = map1.get(ManageEntityFieldConstants.JAVAMAPPING) != null ? ((ETRXJavaMapping) map1.get(
+              ManageEntityFieldConstants.JAVAMAPPING)).getIdentifier() : StringUtils.EMPTY;
+          val2 = map2.get(ManageEntityFieldConstants.JAVAMAPPING) != null ? ((ETRXJavaMapping) map2.get(
+              ManageEntityFieldConstants.JAVAMAPPING)).getIdentifier() : StringUtils.EMPTY;
         } else if (StringUtils.equals("etrxProjectionEntityRelated$_identifier", sortByField)) {
-          val1 = map1.get(ManageEntityFieldConstants.ETRXPROJECTIONENTITYRELATED) != null ? ((ETRXProjectionEntity) map1.get(ManageEntityFieldConstants.ETRXPROJECTIONENTITYRELATED)).getIdentifier() : StringUtils.EMPTY;
-          val2 = map2.get(ManageEntityFieldConstants.ETRXPROJECTIONENTITYRELATED) != null ? ((ETRXProjectionEntity) map2.get(ManageEntityFieldConstants.ETRXPROJECTIONENTITYRELATED)).getIdentifier() : StringUtils.EMPTY;
+          val1 = map1.get(
+              ManageEntityFieldConstants.ETRXPROJECTIONENTITYRELATED) != null ? ((ETRXProjectionEntity) map1.get(
+              ManageEntityFieldConstants.ETRXPROJECTIONENTITYRELATED)).getIdentifier() : StringUtils.EMPTY;
+          val2 = map2.get(
+              ManageEntityFieldConstants.ETRXPROJECTIONENTITYRELATED) != null ? ((ETRXProjectionEntity) map2.get(
+              ManageEntityFieldConstants.ETRXPROJECTIONENTITYRELATED)).getIdentifier() : StringUtils.EMPTY;
         } else if (StringUtils.equals("etrxConstantValue$_identifier", sortByField)) {
-          val1 = map1.get(ManageEntityFieldConstants.ETRXCONSTANTVALUE) != null ? ((ConstantValue) map1.get(ManageEntityFieldConstants.ETRXCONSTANTVALUE)).getIdentifier() : StringUtils.EMPTY;
-          val2 = map2.get(ManageEntityFieldConstants.ETRXCONSTANTVALUE) != null ? ((ConstantValue) map2.get(ManageEntityFieldConstants.ETRXCONSTANTVALUE)).getIdentifier() : StringUtils.EMPTY;
+          val1 = map1.get(ManageEntityFieldConstants.ETRXCONSTANTVALUE) != null ? ((ConstantValue) map1.get(
+              ManageEntityFieldConstants.ETRXCONSTANTVALUE)).getIdentifier() : StringUtils.EMPTY;
+          val2 = map2.get(ManageEntityFieldConstants.ETRXCONSTANTVALUE) != null ? ((ConstantValue) map2.get(
+              ManageEntityFieldConstants.ETRXCONSTANTVALUE)).getIdentifier() : StringUtils.EMPTY;
         }
-        if (ascending) {
-          return val1.compareTo(val2);
-        } else {
-          return val2.compareTo(val1);
-        }
+        returnValue = val1.compareTo(val2);
       }
-      // returning 0 but should never reach this point.
-      return 0;
+      return returnValue * ascending;
     }
   }
 
