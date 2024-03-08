@@ -5,10 +5,6 @@
         <default/>
         <onCreateDefault/>
       </column>
-      <column name="OBUIAPP_PROCESS_ID" primaryKey="false" required="true" type="VARCHAR" size="32" autoIncrement="false">
-        <default/>
-        <onCreateDefault/>
-      </column>
       <column name="ETRX_POST_PROCESS_ID" primaryKey="false" required="true" type="VARCHAR" size="32" autoIncrement="false">
         <default/>
         <onCreateDefault/>
@@ -43,6 +39,10 @@
       </column>
       <column name="ETRX_ENTITY_MAPPING_ID" primaryKey="false" required="true" type="VARCHAR" size="32" autoIncrement="false">
         <default><![CDATA[@etrx_entity_mapping_id@]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="OBUIAPP_PROCESS_ID" primaryKey="false" required="true" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
         <onCreateDefault/>
       </column>
       <foreign-key foreignTable="AD_CLIENT" name="ETRX_POSTPRO_AD_CLIENT">
