@@ -68,7 +68,8 @@ public class EntityFieldEventHandler extends EntityPersistenceEventObserver {
         return true;
       }
       if (StringUtils.equals(entityField.getEtrxProjectionEntity().getMappingType(), "W")) {
-        return !StringUtils.contains(entityField.getProperty(), ".");
+        // The input cannot have more than two dot
+        return StringUtils.countMatches(entityField.getProperty(), ".") <= 2;
       }
       return true;
     }

@@ -52,12 +52,24 @@ public class AsyncProcessUtil {
    */
   public static HttpRequest getRequest(String uri) {
     OBPropertiesProvider obPropertiesProvider = OBPropertiesProvider.getInstance();
+    String asyncUrl = "";
+    if(System.getenv("ASYNC_URL") != null) {
+      asyncUrl = System.getenv("ASYNC_URL");
+    } else {
+      asyncUrl = obPropertiesProvider.getOpenbravoProperties().getProperty("async.url");
+    }
+    String asyncToken = "";
+    if(System.getenv("ASYNC_TOKEN") != null) {
+      asyncToken = System.getenv("ASYNC_TOKEN");
+    } else {
+      asyncToken = obPropertiesProvider.getOpenbravoProperties().getProperty("async.token");
+    }
     return HttpRequest.newBuilder()
         .uri(URI.create(
-            obPropertiesProvider.getOpenbravoProperties().getProperty("async.url") + uri))
+            asyncUrl + uri))
         .header("Content-Type", "application/json")
         .header("Authorization",
-            obPropertiesProvider.getOpenbravoProperties().getProperty("async.token"))
+            asyncToken)
         .GET()
         .build();
   }
