@@ -81,6 +81,10 @@
         <default/>
         <onCreateDefault/>
       </column>
+      <column name="CREATE_RELATED" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
       <foreign-key foreignTable="AD_CLIENT" name="ETRX_FIELD_ADCLIENT">
         <reference local="AD_CLIENT_ID" foreign="AD_CLIENT_ID"/>
       </foreign-key>
@@ -102,6 +106,7 @@
       <foreign-key foreignTable="ETRX_PROJECTION_ENTITY" name="ETRX_PROJECTION_ENTITY">
         <reference local="ETRX_PROJECTION_ENTITY_ID" foreign="ETRX_PROJECTION_ENTITY_ID"/>
       </foreign-key>
+      <check name="ETRX_ENTITYFIELD_CREATE_CHK"><![CDATA[CREATE_RELATED IN ('Y', 'N')]]></check>
       <check name="ETRX_ENTITYFIELD_EXT_IDENT_CHK"><![CDATA[ISMANDATORY IN ('Y', 'N')]]></check>
       <check name="ETRX_ENTITYFIELD_IDEN_UNIV_CHK"><![CDATA[IDENTIFIES_UNIVOCALLY IN ('Y', 'N')]]></check>
       <check name="ETRX_ENTITYFIELD_MANDATORY_CHK"><![CDATA[ISMANDATORY IN ('Y', 'N')]]></check>
