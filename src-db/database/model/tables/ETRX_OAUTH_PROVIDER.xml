@@ -78,11 +78,11 @@
         <onCreateDefault/>
       </column>
       <column name="API_URL" primaryKey="false" required="true" type="VARCHAR" size="150" autoIncrement="false">
-        <default/>
+        <default><![CDATA[...]]></default>
         <onCreateDefault/>
       </column>
       <column name="AUTHORIZATION_GRANT_TYPE" primaryKey="false" required="true" type="VARCHAR" size="25" autoIncrement="false">
-        <default/>
+        <default><![CDATA[...]]></default>
         <onCreateDefault/>
       </column>
       <foreign-key foreignTable="AD_CLIENT" name="ETRX_OAUTH_PROV_AD_CLIENT">
