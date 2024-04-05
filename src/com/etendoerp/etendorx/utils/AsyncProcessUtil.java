@@ -69,7 +69,7 @@ public class AsyncProcessUtil {
             asyncUrl + uri))
         .header("Content-Type", "application/json")
         .header("Authorization",
-            asyncToken)
+            "Bearer " + asyncToken)
         .GET()
         .build();
   }
