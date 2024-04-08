@@ -87,7 +87,7 @@ public class BuildConfig extends HttpBaseServlet {
    */
   private static JSONObject getDefaultConfigToJsonObject() throws IOException, JSONException {
     JSONObject result;
-    URL url = new URL((String) OBPropertiesProvider.getInstance().getOpenbravoProperties().get("config.url"));
+    URL url = new URL("http://config:8888/auth/default");
     HttpURLConnection conn = (HttpURLConnection) url.openConnection();
     conn.setRequestMethod("GET");
     final InputStream inputStream = conn.getInputStream();
