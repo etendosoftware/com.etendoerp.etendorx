@@ -20,13 +20,13 @@ import org.openbravo.base.HttpBaseServlet;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBDal;
+import org.openbravo.base.session.OBPropertiesProvider;
 
 import com.etendoerp.etendorx.data.ETRXoAuthProvider;
 
 public class BuildConfig extends HttpBaseServlet {
 
   private static Logger log = LogManager.getLogger();
-  public static final String CONFIG_URL = "http://localhost:8888/auth/default";
   public static final String OAUTH_CLIENT_REG = "spring.security.oauth2.client.registration.";
   public static final String OAUTH_CLIENT_PROV = "spring.security.oauth2.client.provider.";
 
@@ -87,7 +87,7 @@ public class BuildConfig extends HttpBaseServlet {
    */
   private static JSONObject getDefaultConfigToJsonObject() throws IOException, JSONException {
     JSONObject result;
-    URL url = new URL(CONFIG_URL);
+    URL url = new URL((String) OBPropertiesProvider.getInstance().getOpenbravoProperties().get("config.url"));
     HttpURLConnection conn = (HttpURLConnection) url.openConnection();
     conn.setRequestMethod("GET");
     final InputStream inputStream = conn.getInputStream();
