@@ -26,6 +26,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * This class extends ReadOnlyDataSourceService and is used to handle asynchronous process logs.
@@ -52,8 +53,8 @@ public class AsyncProcessLogsDS extends ReadOnlyDataSourceService {
    * This method fetches data based on the provided parameters and row range.
    *
    * @param parameters a map of parameters used to fetch the data
-   * @param startRow the starting index of the row range
-   * @param endRow the ending index of the row range
+   * @param startRow   the starting index of the row range
+   * @param endRow     the ending index of the row range
    * @return a list of maps representing the fetched data
    * @throws OBException if an error occurs while getting the data
    */
@@ -61,8 +62,10 @@ public class AsyncProcessLogsDS extends ReadOnlyDataSourceService {
   protected List<Map<String, Object>> getData(Map<String, String> parameters, int startRow,
       int endRow) {
     try {
-      return AsyncProcessUtil.getList("/async-process/latest", rowCount -> {
-      }, this::convertRow);
+      return AsyncProcessUtil.getList("/async-process/latest")
+          .stream()
+          .map(this::convertRow)
+          .collect(Collectors.toList());
     } catch (Exception e) {
       log.error("Error getting data", e);
       throw new OBException("Error getting data " + e.getMessage(), e);
