@@ -68,5 +68,6 @@
         <unique-column name="ETRX_ENTITY_FIELD_ID"/>
         <unique-column name="ETRX_ENTITY_FIELD_REL_ID"/>
       </unique>
+      <check name="ETRX_FLD_MAP_ACT"><![CDATA[ISACTIVE IN ('Y', 'N')]]></check>
     </table>
   </database>
