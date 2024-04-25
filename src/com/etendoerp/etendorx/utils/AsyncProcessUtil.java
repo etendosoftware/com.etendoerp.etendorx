@@ -69,7 +69,7 @@ public class AsyncProcessUtil {
             asyncUrl + uri))
         .header("Content-Type", "application/json")
         .header("Authorization",
-            asyncToken)
+            "Bearer " + asyncToken)
         .GET()
         .build();
   }
@@ -110,15 +110,12 @@ public class AsyncProcessUtil {
    * @return the list of transformed maps
    * @throws OBException if an error occurs during the HTTP request or the parsing of the response
    */
-  public static List<Map<String, Object>> getList(String uri, IntConsumer rowCount,
-      UnaryOperator<Map<String, Object>> convertRow) {
+  public static List<Map<String, Object>> getList(String uri) {
     try {
       HttpClient client = HttpClient.newHttpClient();
       var response = client.send(AsyncProcessUtil.getRequest(uri),
           HttpResponse.BodyHandlers.ofString());
-      var rows = getRows(response.body());
-      rowCount.accept(rows.size());
-      return rows.stream().map(convertRow).collect(Collectors.toList());
+      return getRows(response.body());
     } catch (IOException | InterruptedException e) {
       Thread.currentThread().interrupt();
       throw new OBException(e);
