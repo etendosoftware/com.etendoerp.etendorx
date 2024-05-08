@@ -45,7 +45,7 @@
         <default/>
         <onCreateDefault/>
       </column>
-      <column name="VALIDUNTIL" primaryKey="false" required="true" type="TIMESTAMP" size="7" autoIncrement="false">
+      <column name="VALID_UNTIL" primaryKey="false" required="true" type="TIMESTAMP" size="7" autoIncrement="false">
         <default><![CDATA[SYSDATE]]></default>
         <onCreateDefault/>
       </column>
