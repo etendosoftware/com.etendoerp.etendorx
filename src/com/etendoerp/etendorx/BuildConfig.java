@@ -57,7 +57,7 @@ public class BuildConfig extends HttpBaseServlet {
     ETRXConfig rxConfig = (ETRXConfig) OBDal.getInstance().createCriteria(ETRXConfig.class)
         .setMaxResults(1)
         .uniqueResult();
-    URL url = new URL(rxConfig.getConfigUrl() + "/auth/default");
+    URL url = new URL(rxConfig.getConfigURL() + "/auth/default");
     HttpURLConnection conn = (HttpURLConnection) url.openConnection();
     conn.setRequestMethod("GET");
     final InputStream inputStream = conn.getInputStream();
