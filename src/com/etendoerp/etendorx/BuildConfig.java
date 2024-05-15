@@ -144,7 +144,7 @@ public class BuildConfig extends HttpBaseServlet {
   private void updateSourceWithOAuthProvider(JSONObject sourceJSON, ETRXoAuthProvider provider) {
     try {
       String providerName = provider.getValue();
-      String apiUrl = provider.getAPIUrl();
+      String apiUrl = provider.getAPIURL();
       final String providerRegistration = SPRING_SECURITY_OAUTH_2_CLIENT_REGISTRATION + providerName;
       final String providerProv = SPRING_SECURITY_OAUTH_2_CLIENT_PROVIDER + providerName;
       sourceJSON.put(providerName + "-api", apiUrl);
