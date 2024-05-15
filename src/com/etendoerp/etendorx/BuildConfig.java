@@ -24,17 +24,20 @@ import java.net.URL;
 
 import com.etendoerp.etendorx.data.ETRXConfig;
 import com.etendoerp.etendorx.data.ETRXoAuthProvider;
+import com.etendoerp.etendorx.utils.OAuthProviderConfigInjector;
+import com.etendoerp.etendorx.utils.OAuthProviderConfigInjectorRegistry;
 
 /**
  * This class is the base class for the build configuration servlets. It provides the basic
  * functionality for retrieving the default configuration and updating it with the OAuth providers
  * details.
  */
-public abstract class BuildConfig extends HttpBaseServlet {
+public class BuildConfig extends HttpBaseServlet {
 
   private static final Logger log = LogManager.getLogger();
   public static final String SPRING_SECURITY_OAUTH_2_CLIENT_REGISTRATION = "spring.security.oauth2.client.registration.";
   public static final String SPRING_SECURITY_OAUTH_2_CLIENT_PROVIDER = "spring.security.oauth2.client.provider.";
+  private static final String SOURCE = "source";
 
   /**
    * This method handles the GET request. It fetches the default configuration, updates it with the OAuth providers details and sends the response.
@@ -112,12 +115,12 @@ public abstract class BuildConfig extends HttpBaseServlet {
     final int length = propSource.length();
     for (int i = 0; i < length; i++) {
       if (propSource.getJSONObject(i).getString("name").contains(service)) {
-        return new SimpleEntry<>(i, propSource.getJSONObject(i).getJSONObject("source"));
+        return new SimpleEntry<>(i, propSource.getJSONObject(i).getJSONObject(SOURCE));
       }
     }
     // If no default config is found for the specific service, retrieve the application default config.
     // That it's always load at the last index of the JSONArray
-    return new SimpleEntry<>(length - 1, propSource.getJSONObject(length - 1).getJSONObject("source"));
+    return new SimpleEntry<>(length - 1, propSource.getJSONObject(length - 1).getJSONObject(SOURCE));
   }
 
   /**
@@ -142,22 +145,26 @@ public abstract class BuildConfig extends HttpBaseServlet {
     try {
       String providerName = provider.getValue();
       String apiUrl = provider.getAPIUrl();
+      final String providerRegistration = SPRING_SECURITY_OAUTH_2_CLIENT_REGISTRATION + providerName;
+      final String providerProv = SPRING_SECURITY_OAUTH_2_CLIENT_PROVIDER + providerName;
       sourceJSON.put(providerName + "-api", apiUrl);
-      sourceJSON.put(SPRING_SECURITY_OAUTH_2_CLIENT_REGISTRATION + providerName + ".provider", providerName);
-      sourceJSON.put(SPRING_SECURITY_OAUTH_2_CLIENT_REGISTRATION + providerName + ".client-id", provider.getIdforclient());
-      sourceJSON.put(SPRING_SECURITY_OAUTH_2_CLIENT_REGISTRATION + providerName + ".scope", provider.getScope());
-      sourceJSON.put(SPRING_SECURITY_OAUTH_2_CLIENT_REGISTRATION + providerName + ".client-name", provider.getClientname());
-      sourceJSON.put(SPRING_SECURITY_OAUTH_2_CLIENT_REGISTRATION + providerName + ".authorization-grant-type", provider.getAuthorizationGrantType());
-      sourceJSON.put(SPRING_SECURITY_OAUTH_2_CLIENT_REGISTRATION + providerName + ".redirectUri", provider.getRedirecturi());
-      sourceJSON.put(SPRING_SECURITY_OAUTH_2_CLIENT_REGISTRATION + providerName + ".code_challenge_method", provider.getCodechallengemethod());
-      sourceJSON.put(SPRING_SECURITY_OAUTH_2_CLIENT_REGISTRATION + providerName + ".client-authentication-method", provider.getClientauthenticationmethod());
-      sourceJSON.put(SPRING_SECURITY_OAUTH_2_CLIENT_REGISTRATION + providerName + ".token-uri", apiUrl + provider.getTokenuri());
-      sourceJSON.put(SPRING_SECURITY_OAUTH_2_CLIENT_PROVIDER + providerName + ".authorization-uri", apiUrl + provider.getAuthorizationuri());
-      sourceJSON.put(SPRING_SECURITY_OAUTH_2_CLIENT_PROVIDER + providerName + ".token-uri", apiUrl + provider.getTokenuri());
-      sourceJSON.put(SPRING_SECURITY_OAUTH_2_CLIENT_PROVIDER + providerName + ".user-info-uri",  apiUrl + provider.getUserinfouri());
-      sourceJSON.put(SPRING_SECURITY_OAUTH_2_CLIENT_PROVIDER + providerName + ".user-name-attribute", provider.getUsernameattribute());
-      // Here the abstract method is called to fill custom configurations.
-      fillCustomConfigs(sourceJSON, provider);
+      sourceJSON.put(providerRegistration + ".provider", providerName);
+      sourceJSON.put(providerRegistration + ".client-id", provider.getIdforclient());
+      sourceJSON.put(providerRegistration + ".scope", provider.getScope());
+      sourceJSON.put(providerRegistration + ".client-name", provider.getClientname());
+      sourceJSON.put(providerRegistration + ".authorization-grant-type", provider.getAuthorizationGrantType());
+      sourceJSON.put(providerRegistration + ".redirectUri", provider.getRedirecturi());
+      sourceJSON.put(providerRegistration + ".code_challenge_method", provider.getCodechallengemethod());
+      sourceJSON.put(providerRegistration + ".client-authentication-method", provider.getClientauthenticationmethod());
+      sourceJSON.put(providerRegistration + ".token-uri", apiUrl + provider.getTokenuri());
+      sourceJSON.put(providerProv + ".authorization-uri", apiUrl + provider.getAuthorizationuri());
+      sourceJSON.put(providerProv + ".token-uri", apiUrl + provider.getTokenuri());
+      sourceJSON.put(providerProv + ".user-info-uri",  apiUrl + provider.getUserinfouri());
+      sourceJSON.put(providerProv + ".user-name-attribute", provider.getUsernameattribute());
+      // Here I need give the possibility to inject code, so other people can add they custom configs.
+      for (OAuthProviderConfigInjector injector : OAuthProviderConfigInjectorRegistry.getInjectors()) {
+        injector.injectConfig(sourceJSON, provider);
+      }
     } catch (JSONException e) {
       log.error(e.getMessage(), e);
       throw new OBException(e);
@@ -173,11 +180,12 @@ public abstract class BuildConfig extends HttpBaseServlet {
    * @param indexFound The index of the source JSON object in the property sources array.
    * @throws IOException If there is an error writing the response.
    */
-  private void sendResponse(HttpServletResponse response, JSONObject result, JSONObject sourceJSON, Integer indexFound) throws IOException {
+  private void sendResponse(HttpServletResponse response, JSONObject result, JSONObject sourceJSON, Integer indexFound)
+      throws IOException {
     response.setContentType("application/json");
     response.setCharacterEncoding("utf-8");
     try (Writer w = response.getWriter()) {
-      result.getJSONArray("propertySources").getJSONObject(indexFound).put("source", sourceJSON);
+      result.getJSONArray("propertySources").getJSONObject(indexFound).put(SOURCE, sourceJSON);
       w.write(result.toString());
     } catch (JSONException e) {
       log.error(e.getMessage(), e);
@@ -185,22 +193,8 @@ public abstract class BuildConfig extends HttpBaseServlet {
     }
   }
 
+  @Override
   public void doPost(HttpServletRequest request, HttpServletResponse response) {
     throw new OBException("POST not supported");
   }
-
-  /**
-   * This abstract method is used to fill custom configurations in the source JSON object.
-   * Implementing classes should add configurations that follow the same structure as a YAML file.
-   * <p>
-   * For example, to add a client-id for a specific OAuth provider, the following code can be used:
-   * <code>sourceJSON.put("spring.security.oauth2.client.registration." + providerName +
-   * ".client-id", provider.getIdforclient());</code>
-   * <p>
-   * This method should be implemented by any class that extends BuildConfig.
-   *
-   * @param sourceJSON The source JSON object where the custom configurations should be added.
-   * @param provider The OAuth provider for which the custom configurations are being added.
-   */
-  public abstract void fillCustomConfigs(JSONObject sourceJSON, ETRXoAuthProvider provider);
 }
