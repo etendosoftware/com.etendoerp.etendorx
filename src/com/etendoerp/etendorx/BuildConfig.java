@@ -21,6 +21,8 @@ import java.io.InputStreamReader;
 import java.io.Writer;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.List;
+import java.util.ArrayList;
 
 import com.etendoerp.etendorx.data.ETRXConfig;
 import com.etendoerp.etendorx.data.ETRXoAuthProvider;
@@ -56,7 +58,12 @@ public class BuildConfig extends HttpBaseServlet {
       SimpleEntry<Integer, JSONObject> sourceEntry = findSource(result.getJSONArray("propertySources"), service);
       // TODO: Improve the way to check if the service needs the oAuthProvider configuration.
       if (StringUtils.equals("auth", service) || StringUtils.equals("psd2", service)) {
-        updateSourceWithOAuthProviders(sourceEntry.getValue());
+        List<OAuthProviderConfigInjector> allInjectors = new ArrayList<>();
+        for (OAuthProviderConfigInjector injector : OAuthProviderConfigInjectorRegistry.getInjectors()) {
+          allInjectors.add(injector);
+        }
+
+        updateSourceWithOAuthProviders(sourceEntry.getValue(), allInjectors);
       }
       sendResponse(response, result, sourceEntry.getValue(), sourceEntry.getKey());
     } catch (Exception e) {
@@ -128,11 +135,11 @@ public class BuildConfig extends HttpBaseServlet {
    *
    * @param sourceJSON The source JSON object.
    */
-  private void updateSourceWithOAuthProviders(JSONObject sourceJSON) {
+  private void updateSourceWithOAuthProviders(JSONObject sourceJSON, List<OAuthProviderConfigInjector> allInjectors) {
     OBDal.getInstance().createCriteria(ETRXoAuthProvider.class)
         .setFilterOnReadableOrganization(false)
         .setFilterOnReadableClients(false)
-        .list().forEach(provider -> updateSourceWithOAuthProvider(sourceJSON, provider));
+        .list().forEach(provider -> updateSourceWithOAuthProvider(sourceJSON, provider, allInjectors));
   }
 
   /**
@@ -141,10 +148,10 @@ public class BuildConfig extends HttpBaseServlet {
    * @param sourceJSON The source JSON object.
    * @param provider The OAuth provider.
    */
-  private void updateSourceWithOAuthProvider(JSONObject sourceJSON, ETRXoAuthProvider provider) {
+  private void updateSourceWithOAuthProvider(JSONObject sourceJSON, ETRXoAuthProvider provider, List<OAuthProviderConfigInjector> allInjectors) {
     try {
       String providerName = provider.getValue();
-      String apiUrl = provider.getAPIURL();
+      String apiUrl = provider.getOAuthAPIURL();
       final String providerRegistration = SPRING_SECURITY_OAUTH_2_CLIENT_REGISTRATION + providerName;
       final String providerProv = SPRING_SECURITY_OAUTH_2_CLIENT_PROVIDER + providerName;
       sourceJSON.put(providerName + "-api", apiUrl);
@@ -162,7 +169,7 @@ public class BuildConfig extends HttpBaseServlet {
       sourceJSON.put(providerProv + ".user-info-uri",  apiUrl + provider.getUserinfouri());
       sourceJSON.put(providerProv + ".user-name-attribute", provider.getUsernameattribute());
       // Here I need give the possibility to inject code, so other people can add they custom configs.
-      for (OAuthProviderConfigInjector injector : OAuthProviderConfigInjectorRegistry.getInjectors()) {
+      for (OAuthProviderConfigInjector injector : allInjectors) {
         injector.injectConfig(sourceJSON, provider);
       }
     } catch (JSONException e) {
