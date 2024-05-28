@@ -85,6 +85,10 @@
         <default><![CDATA[...]]></default>
         <onCreateDefault/>
       </column>
+       <column name="AUTHORIZATION_ENDPOINT" primaryKey="false" required="true" type="VARCHAR" size="100" autoIncrement="false">
+        <default><![CDATA[/oauth2/authorization/]]></default>
+        <onCreateDefault/>
+      </column>
       <foreign-key foreignTable="AD_CLIENT" name="ETRX_OAUTH_PROV_AD_CLIENT">
         <reference local="AD_CLIENT_ID" foreign="AD_CLIENT_ID"/>
       </foreign-key>
