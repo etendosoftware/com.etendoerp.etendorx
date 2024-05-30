@@ -245,7 +245,7 @@ public class ManageEntityMappings extends BaseProcessActionHandler {
     return false;
   }
 
-  private boolean checkModuleIsInDevelopment(Module module, boolean moduleChanged) {
+  protected boolean checkModuleIsInDevelopment(Module module, boolean moduleChanged) {
     if (!moduleChanged && !module.isInDevelopment()) {
       OBCriteria<Module> moduleOBCriteria = OBDal.getInstance().createCriteria(Module.class);
       moduleOBCriteria.add(Restrictions.eq(Module.PROPERTY_INDEVELOPMENT, true));
