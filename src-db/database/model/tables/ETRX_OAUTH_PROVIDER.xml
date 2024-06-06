@@ -85,8 +85,12 @@
         <default><![CDATA[...]]></default>
         <onCreateDefault/>
       </column>
-       <column name="AUTHORIZATION_ENDPOINT" primaryKey="false" required="true" type="VARCHAR" size="100" autoIncrement="false">
+      <column name="AUTHORIZATION_ENDPOINT" primaryKey="false" required="true" type="VARCHAR" size="100" autoIncrement="false">
         <default><![CDATA[/oauth2/authorization/]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="REFRESH_CONFIGS" primaryKey="false" required="true" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[N]]></default>
         <onCreateDefault/>
       </column>
       <foreign-key foreignTable="AD_CLIENT" name="ETRX_OAUTH_PROV_AD_CLIENT">

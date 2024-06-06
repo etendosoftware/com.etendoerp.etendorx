@@ -62,7 +62,6 @@ public class BuildConfig extends HttpBaseServlet {
         for (OAuthProviderConfigInjector injector : OAuthProviderConfigInjectorRegistry.getInjectors()) {
           allInjectors.add(injector);
         }
-
         updateSourceWithOAuthProviders(sourceEntry.getValue(), allInjectors);
       }
       sendResponse(response, result, sourceEntry.getValue(), sourceEntry.getKey());
