@@ -18,10 +18,10 @@ package com.etendoerp.etendorx.datasource;
 import com.etendoerp.etendorx.utils.AsyncProcessUtil;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.openbravo.base.exception.OBException;
 import org.openbravo.service.datasource.ReadOnlyDataSourceService;
 
 import java.text.ParseException;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -34,11 +34,9 @@ public class AsyncProcessExecLogsDS extends ReadOnlyDataSourceService {
 
   private static final Logger log = LogManager.getLogger();
 
-  // ThreadLocal instance for storing line number information.
-  private ThreadLocal<Integer> lineno = new ThreadLocal<>();
-
   /**
    * This method is used to get the count of data.
+   *
    * @param parameters The parameters used to get the data.
    * @return The size of the data.
    */
@@ -49,31 +47,32 @@ public class AsyncProcessExecLogsDS extends ReadOnlyDataSourceService {
 
   /**
    * This method is used to get the data.
+   *
    * @param parameters The parameters used to get the data.
-   * @param startRow The starting row for getting the data.
-   * @param endRow The ending row for getting the data.
+   * @param startRow   The starting row for getting the data.
+   * @param endRow     The ending row for getting the data.
    * @return The list of data.
    */
   @Override
   protected List<Map<String, Object>> getData(Map<String, String> parameters, int startRow,
       int endRow) {
-    try {
-      return AsyncProcessUtil.getList("/async-process/" + parameters.get("@ETRX_Async_Proc.id@"),
-          rowCount -> lineno.set(rowCount), this::convertRow);
-    } catch (Exception e) {
-      log.error("Error getting data", e);
-      throw new OBException("Error getting data " + e.getMessage(), e);
-    } finally {
-      lineno.remove();
+    List<Map<String, Object>> rows = AsyncProcessUtil.getList("/async-process/" + parameters.get("@ETRX_Async_Proc.id@"));
+    List<Map<String, Object>> convertedRows = new ArrayList<>();
+    int lineno = rows.size() * 10;
+    for (Map<String, Object> row : rows) {
+      convertedRows.add(convertRow(row, lineno));
+      lineno -= 10;
     }
+    return convertedRows;
   }
 
   /**
    * This method is used to convert a row of data.
+   *
    * @param row The row to be converted.
    * @return The converted row.
    */
-  private Map<String, Object> convertRow(Map<String, Object> row) {
+  private Map<String, Object> convertRow(Map<String, Object> row, int lineno) {
     Map<String, Object> newRow = new HashMap<>();
     newRow.put("id", row.get("id"));
     newRow.put("organization", "0");
@@ -93,8 +92,7 @@ public class AsyncProcessExecLogsDS extends ReadOnlyDataSourceService {
     newRow.put("description", row.get("description"));
     newRow.put("params", row.get("params"));
     newRow.put("log", row.get("log"));
-    newRow.put("lineno", lineno.get());
-    lineno.set(lineno.get() - 10);
+    newRow.put("lineno", lineno);
     return newRow;
   }
 
