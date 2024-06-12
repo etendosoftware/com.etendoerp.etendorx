@@ -13,6 +13,7 @@ import org.codehaus.jettison.json.JSONObject;
 import org.openbravo.dal.service.OBDal;
 
 import com.etendoerp.etendorx.data.ETRXConfig;
+import com.etendoerp.etendorx.data.ETRXoAuthProvider;
 import com.smf.jobs.Action;
 import com.smf.jobs.ActionResult;
 import com.smf.jobs.Result;
@@ -38,12 +39,20 @@ public class RefreshOAuthConfigs extends Action {
   @Override
   protected ActionResult action(JSONObject parameters, MutableBoolean isStopped) {
     var actionResult = new ActionResult();
+    var input = getInputContents(getInputClass());
     actionResult.setType(Result.Type.SUCCESS);
     actionResult.setMessage("OAuth configurations are being refreshed.");
     ETRXConfig rxConfig = getETRXConfig();
 
     try {
-      HttpURLConnection connection = createConnection(rxConfig);
+      URL rxConfigUrl = new URL(rxConfig.getAuthURL() + ACTUATOR_RESTART);
+      HttpURLConnection connection = createConnection(rxConfigUrl);
+      sendPostRequest(connection);
+      checkResponse(connection, actionResult);
+      ETRXoAuthProvider actualProvider = input.get(0);
+      String psd2URL = actualProvider.getETBIConsentAuthUrl().split("consents")[0];
+      rxConfigUrl = new URL(psd2URL + ACTUATOR_RESTART);
+      connection = createConnection(rxConfigUrl);
       sendPostRequest(connection);
       checkResponse(connection, actionResult);
     } catch (IOException e) {
@@ -66,12 +75,12 @@ public class RefreshOAuthConfigs extends Action {
   /**
    * This method is used to create a connection to the authentication server.
    *
-   * @param rxConfig the ETRXConfig instance
+   * @param url the url to make the connection
    * @return a HttpURLConnection to the authentication server
    * @throws IOException if an I/O error occurs while creating the connection
    */
-  private HttpURLConnection createConnection(ETRXConfig rxConfig) throws IOException {
-    URL url = new URL(rxConfig.getAuthURL() + ACTUATOR_RESTART);
+  private HttpURLConnection createConnection(URL url) throws IOException {
+    log.debug("URL to restart server: {}", url);
     HttpURLConnection connection = (HttpURLConnection) url.openConnection();
     connection.setRequestMethod(POST);
     connection.setDoOutput(true);
@@ -102,8 +111,10 @@ public class RefreshOAuthConfigs extends Action {
    */
   private void checkResponse(HttpURLConnection connection, ActionResult actionResult) throws IOException {
     if (connection.getResponseCode() != HttpURLConnection.HTTP_OK) {
+      log.error(connection.getResponseMessage());
+      log.error(connection.getErrorStream());
       actionResult.setType(Result.Type.ERROR);
-      actionResult.setMessage("Restart failed! Try again.");
+      actionResult.setMessage(connection.getResponseMessage());
     }
   }
 
@@ -113,7 +124,7 @@ public class RefreshOAuthConfigs extends Action {
    * @return the Class object for ETRXConfig
    */
   @Override
-  protected Class<?> getInputClass() {
-    return ETRXConfig.class;
+  protected Class<ETRXoAuthProvider> getInputClass() {
+    return ETRXoAuthProvider.class;
   }
 }

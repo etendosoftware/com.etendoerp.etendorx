@@ -40,6 +40,7 @@ public class BuildConfig extends HttpBaseServlet {
   public static final String SPRING_SECURITY_OAUTH_2_CLIENT_REGISTRATION = "spring.security.oauth2.client.registration.";
   public static final String SPRING_SECURITY_OAUTH_2_CLIENT_PROVIDER = "spring.security.oauth2.client.provider.";
   private static final String SOURCE = "source";
+  private static final String MANAGEMENT_ENDPOINT_RESTART_ENABLED = "management.endpoint.restart.enabled";
 
   /**
    * This method handles the GET request. It fetches the default configuration, updates it with the OAuth providers details and sends the response.
@@ -167,7 +168,6 @@ public class BuildConfig extends HttpBaseServlet {
       sourceJSON.put(providerProv + ".token-uri", apiUrl + provider.getTokenuri());
       sourceJSON.put(providerProv + ".user-info-uri",  apiUrl + provider.getUserinfouri());
       sourceJSON.put(providerProv + ".user-name-attribute", provider.getUsernameattribute());
-      // Here I need give the possibility to inject code, so other people can add they custom configs.
       for (OAuthProviderConfigInjector injector : allInjectors) {
         injector.injectConfig(sourceJSON, provider);
       }
@@ -191,16 +191,12 @@ public class BuildConfig extends HttpBaseServlet {
     response.setContentType("application/json");
     response.setCharacterEncoding("utf-8");
     try (Writer w = response.getWriter()) {
+      sourceJSON.put(MANAGEMENT_ENDPOINT_RESTART_ENABLED, true);
       result.getJSONArray("propertySources").getJSONObject(indexFound).put(SOURCE, sourceJSON);
       w.write(result.toString());
     } catch (JSONException e) {
       log.error(e.getMessage(), e);
       throw new OBException(e);
     }
-  }
-
-  @Override
-  public void doPost(HttpServletRequest request, HttpServletResponse response) {
-    throw new OBException("POST not supported");
   }
 }
