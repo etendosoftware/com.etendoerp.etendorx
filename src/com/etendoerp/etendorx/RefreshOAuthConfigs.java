@@ -1,9 +1,10 @@
 package com.etendoerp.etendorx;
 
 import java.io.IOException;
+import java.io.OutputStream;
+import java.net.ConnectException;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 
 import org.apache.commons.lang.mutable.MutableBoolean;
@@ -38,28 +39,31 @@ public class RefreshOAuthConfigs extends Action {
    */
   @Override
   protected ActionResult action(JSONObject parameters, MutableBoolean isStopped) {
-    var actionResult = new ActionResult();
-    var input = getInputContents(getInputClass());
+    ActionResult actionResult = new ActionResult();
     actionResult.setType(Result.Type.SUCCESS);
     actionResult.setMessage("OAuth configurations are being refreshed.");
+
     ETRXConfig rxConfig = getETRXConfig();
+    String serviceName = "Auth";
 
     try {
-      URL rxConfigUrl = new URL(rxConfig.getAuthURL() + ACTUATOR_RESTART);
-      HttpURLConnection connection = createConnection(rxConfigUrl);
-      sendPostRequest(connection);
-      checkResponse(connection, actionResult);
-      ETRXoAuthProvider actualProvider = input.get(0);
-      String psd2URL = actualProvider.getETBIConsentAuthUrl().split("consents")[0];
-      rxConfigUrl = new URL(psd2URL + ACTUATOR_RESTART);
-      connection = createConnection(rxConfigUrl);
-      sendPostRequest(connection);
-      checkResponse(connection, actionResult);
-    } catch (IOException e) {
-      log.error(e.getMessage(), e);
+      performRestart(rxConfig.getAuthURL() + ACTUATOR_RESTART, actionResult);
+
+      ETRXoAuthProvider actualProvider = getInputContents(getInputClass()).get(0);
+      String psd2URL = actualProvider.getETBIConsentAuthUrl().split("/consents")[0];
+      serviceName = "PSD2";
+      performRestart(psd2URL + ACTUATOR_RESTART, actionResult);
+
+    } catch (ConnectException e1) {
+      log.error("Failed to connect: {}", e1.getMessage(), e1);
+      actionResult.setType(Result.Type.WARNING);
+      actionResult.setMessage("Auth services restarted. Failed to restart " + serviceName + ". Please restart the server manually.");
+    } catch (IOException e2) {
+      log.error("I/O error: {}", e2.getMessage(), e2);
       actionResult.setType(Result.Type.ERROR);
-      actionResult.setMessage(e.getMessage());
+      actionResult.setMessage(e2.getMessage());
     }
+
     return actionResult;
   }
 
@@ -69,7 +73,26 @@ public class RefreshOAuthConfigs extends Action {
    * @return an ETRXConfig instance
    */
   private ETRXConfig getETRXConfig() {
-    return (ETRXConfig) OBDal.getInstance().createCriteria(ETRXConfig.class).setMaxResults(1).uniqueResult();
+      return (ETRXConfig) OBDal.getInstance().createCriteria(ETRXConfig.class).setMaxResults(1).uniqueResult();
+  }
+
+  /**
+   * This method is used to create a connection to the authentication server and perform a restart.
+   *
+   * @param urlStr the URL string to make the connection
+   * @param actionResult the ActionResult to update the result
+   * @throws IOException if an I/O error occurs
+   */
+  private void performRestart(String urlStr, ActionResult actionResult) throws IOException {
+    URL url = new URL(urlStr);
+    HttpURLConnection connection = createConnection(url);
+
+    try {
+      sendPostRequest(connection);
+      checkResponse(connection, actionResult);
+    } finally {
+      connection.disconnect();
+    }
   }
 
   /**
@@ -110,18 +133,19 @@ public class RefreshOAuthConfigs extends Action {
    * @throws IOException if an I/O error occurs while getting the response code
    */
   private void checkResponse(HttpURLConnection connection, ActionResult actionResult) throws IOException {
-    if (connection.getResponseCode() != HttpURLConnection.HTTP_OK) {
-      log.error(connection.getResponseMessage());
-      log.error(connection.getErrorStream());
+    int responseCode = connection.getResponseCode();
+    if (responseCode != HttpURLConnection.HTTP_OK) {
+      String responseMessage = connection.getResponseMessage();
+      log.error("Response Code: {}, Message: {}", responseCode, responseMessage);
       actionResult.setType(Result.Type.ERROR);
-      actionResult.setMessage(connection.getResponseMessage());
+      actionResult.setMessage(responseMessage);
     }
   }
 
   /**
    * This method is used to get the input class for the action.
    *
-   * @return the Class object for ETRXConfig
+   * @return the Class object for ETRXoAuthProvider
    */
   @Override
   protected Class<ETRXoAuthProvider> getInputClass() {
