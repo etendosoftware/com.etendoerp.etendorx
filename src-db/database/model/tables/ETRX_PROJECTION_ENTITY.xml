@@ -61,6 +61,10 @@
         <default/>
         <onCreateDefault/>
       </column>
+      <column name="CREATE_FIELDS" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[N]]></default>
+        <onCreateDefault/>
+      </column>
       <foreign-key foreignTable="AD_CLIENT" name="ETRX_ENTITY_ADCLIENT">
         <reference local="AD_CLIENT_ID" foreign="AD_CLIENT_ID"/>
       </foreign-key>
@@ -83,5 +87,8 @@
         <unique-column name="MAPPING_TYPE"/>
         <unique-column name="EXTERNAL_NAME"/>
       </unique>
+      <check name="ETRX_PENTITY_CFIELDS_CHECK"><![CDATA[CREATE_FIELDS IN ('Y', 'N')]]></check>
+      <check name="ETRX_PENTITY_ISACTIVE_CHECK"><![CDATA[ISACTIVE IN ('Y', 'N')]]></check>
+      <check name="ETRX_PENTITY_ISIDENTITY_CHECK"><![CDATA[ISIDENTITY IN ('Y', 'N')]]></check>
     </table>
   </database>
