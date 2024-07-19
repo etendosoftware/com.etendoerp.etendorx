@@ -1,0 +1,54 @@
+def ETENDORX_PRODUCTION_REPOSITORY_URL = "https://maven.pkg.github.com/etendosoftware/com.etendoerp.platform.extensions"
+def ETENDORX_SNAPSHOT_REPOSITORY_URL = "https://repo.futit.cloud/repository/etendo-snapshot-jars"
+def ETENDORX_VERSION = "2.0.0-SNAPSHOT"
+
+task "setup.rx" {
+    description = 'Finds all Docker Compose YAML files and copies them to build/compose'
+    group = 'Docker'
+
+    doLast{
+        println("Copying RX config files")
+        // Ensure the destination directory exists
+        def destDir = file("$buildDir/rxconfig")
+        if (!destDir.exists()) {
+            destDir.mkdirs()
+        }
+
+        // Find all Docker Compose YAML files and copy them
+        fileTree(dir: 'modules', include: '**/rxconfig/*.yaml.template').each { file ->
+            println "Copying RX config file: $file to $buildDir/rxconfig"
+            copy {
+                from file
+                into destDir
+                rename { String fileName ->
+                    fileName.replace('.template', '')}
+            }
+        }
+    }
+}
+
+task "rx.env.file" {
+    description = 'Generates the .env file for RX'
+    group = 'Docker'
+
+    doLast {
+        def props = envFile()
+        def env = props.envFile
+        def properties = props.properties
+        env.withWriterAppend { writer ->
+            writer.write("ETENDORX_VERSION=${ETENDORX_VERSION}\n")
+            if("${ETENDORX_VERSION}".contains("SNAPSHOT")){
+                writer.write("ETENDORX_REPOSITORY_URL=${ETENDORX_SNAPSHOT_REPOSITORY_URL}\n")
+                writer.write("ETENDORX_REPOSITORY_USER=${properties.getProperty("mavenUser")}\n")
+                writer.write("ETENDORX_REPOSITORY_PASSWORD=${properties.getProperty("mavenPassword")}\n")
+            } else {
+                writer.write("ETENDORX_REPOSITORY_URL=${ETENDORX_PRODUCTION_REPOSITORY_URL}\n")
+                writer.write("ETENDORX_REPOSITORY_USER=${properties.getProperty("githubUser")}\n")
+                writer.write("ETENDORX_REPOSITORY_PASSWORD=${properties.getProperty("githubToken")}\n")
+            }
+        }
+    }
+}
+
+generateEnvFile.finalizedBy "rx.env.file"
+tasks.getByName("resources.up").dependsOn "setup.rx"

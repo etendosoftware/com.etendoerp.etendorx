@@ -50,7 +50,7 @@ repositories {
 * Ex: implementation "com.sun.mail:javax.mail:1.6.2"
 */
 dependencies {
-   implementation('com.etendoerp.platform:etendo-core:[21.4.0,24.2.0)')
+   implementation('com.etendoerp.platform:etendo-core:[21.4.0,)')
 }
 
 sourceSets {
