@@ -64,12 +64,13 @@ services:
     image: etendo/dynamic-gradle:latest
     ports:
       - "8094:8094"
+      - "8000:8000"
     environment:
       - DEPENDENCIES=com.etendorx:auth:${ETENDORX_VERSION}
       - REPO_URL=${REPOSITORY_URL}
       - REPO_USER=${REPOSITORY_USER}
       - REPO_PASSWORD=${REPOSITORY_PASSWORD}
-      - CONFIG_SERVER_URL=http://config:8888
+      - CONFIG_SERVER_URL=http://host.docker.internal:8080/etendo/buildConfig
       - TASK=downloadJar
     networks:
       - etendo

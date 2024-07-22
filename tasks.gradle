@@ -1,6 +1,6 @@
 def ETENDORX_PRODUCTION_REPOSITORY_URL = "https://maven.pkg.github.com/etendosoftware/com.etendoerp.platform.extensions"
 def ETENDORX_SNAPSHOT_REPOSITORY_URL = "https://repo.futit.cloud/repository/etendo-snapshot-jars"
-def ETENDORX_VERSION = "2.0.0-SNAPSHOT"
+def ETENDORX_VERSION = "2.0.1-SNAPSHOT"
 
 task "setup.rx" {
     description = 'Finds all Docker Compose YAML files and copies them to build/compose'
