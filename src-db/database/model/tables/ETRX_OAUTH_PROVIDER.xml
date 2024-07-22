@@ -78,15 +78,15 @@
         <onCreateDefault/>
       </column>
       <column name="API_URL" primaryKey="false" required="true" type="VARCHAR" size="150" autoIncrement="false">
-        <default><![CDATA[...]]></default>
+        <default/>
         <onCreateDefault/>
       </column>
       <column name="AUTHORIZATION_GRANT_TYPE" primaryKey="false" required="true" type="VARCHAR" size="25" autoIncrement="false">
-        <default><![CDATA[...]]></default>
+        <default/>
         <onCreateDefault/>
       </column>
       <column name="AUTHORIZATION_ENDPOINT" primaryKey="false" required="true" type="VARCHAR" size="100" autoIncrement="false">
-        <default><![CDATA[/oauth2/authorization/]]></default>
+        <default/>
         <onCreateDefault/>
       </column>
       <column name="REFRESH_CONFIGS" primaryKey="false" required="true" type="CHAR" size="1" autoIncrement="false">

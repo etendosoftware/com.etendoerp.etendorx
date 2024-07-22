@@ -6,11 +6,13 @@ import java.net.ConnectException;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 import org.apache.commons.lang.mutable.MutableBoolean;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.codehaus.jettison.json.JSONObject;
+import org.hibernate.criterion.Restrictions;
 import org.openbravo.dal.service.OBDal;
 
 import com.etendoerp.etendorx.data.ETRXConfig;
@@ -43,21 +45,23 @@ public class RefreshOAuthConfigs extends Action {
     actionResult.setType(Result.Type.SUCCESS);
     actionResult.setMessage("OAuth configurations are being refreshed.");
 
-    ETRXConfig rxConfig = getETRXConfig();
-    String serviceName = "Auth";
+    List<ETRXConfig> rxConfig = OBDal.getInstance().createCriteria(ETRXConfig.class)
+        .add(Restrictions.eq(ETRXConfig.PROPERTY_UPDATEABLECONFIGS, true))
+        .list();
 
+    String serviceName = "";
+    StringBuilder succServices = new StringBuilder();
     try {
-      performRestart(rxConfig.getAuthURL() + ACTUATOR_RESTART, actionResult);
-
-      ETRXoAuthProvider actualProvider = getInputContents(getInputClass()).get(0);
-      String psd2URL = actualProvider.getETBIConsentAuthUrl().split("/consents")[0];
-      serviceName = "PSD2";
-      performRestart(psd2URL + ACTUATOR_RESTART, actionResult);
+      for(ETRXConfig actualService : rxConfig) {
+        serviceName = actualService.getServiceName();
+        performRestart(actualService.getServiceURL() + ACTUATOR_RESTART, actionResult);
+        succServices.append(serviceName).append(" Has been restarted.");
+      }
 
     } catch (ConnectException e1) {
       log.error("Failed to connect: {}", e1.getMessage(), e1);
       actionResult.setType(Result.Type.WARNING);
-      actionResult.setMessage("Auth services restarted. Failed to restart " + serviceName + ". Please restart the server manually.");
+      actionResult.setMessage(succServices + "Failed to restart " + serviceName + ". Please restart the server manually.");
     } catch (IOException e2) {
       log.error("I/O error: {}", e2.getMessage(), e2);
       actionResult.setType(Result.Type.ERROR);
@@ -65,15 +69,6 @@ public class RefreshOAuthConfigs extends Action {
     }
 
     return actionResult;
-  }
-
-  /**
-   * This method is used to get the ETRXConfig instance.
-   *
-   * @return an ETRXConfig instance
-   */
-  private ETRXConfig getETRXConfig() {
-      return (ETRXConfig) OBDal.getInstance().createCriteria(ETRXConfig.class).setMaxResults(1).uniqueResult();
   }
 
   /**

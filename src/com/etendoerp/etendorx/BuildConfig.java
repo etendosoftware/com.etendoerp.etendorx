@@ -6,6 +6,7 @@ import org.apache.logging.log4j.Logger;
 import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
+import org.hibernate.criterion.Restrictions;
 import org.openbravo.base.HttpBaseServlet;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.dal.core.OBContext;
@@ -58,14 +59,13 @@ public class BuildConfig extends HttpBaseServlet {
       final String service = serviceURI.split("/")[1];
       final JSONObject result = getDefaultConfigToJsonObject(serviceURI);
       SimpleEntry<Integer, JSONObject> sourceEntry = findSource(result.getJSONArray("propertySources"), service);
-      // TODO: Improve the way to check if the service needs the oAuthProvider configuration.
-      if (StringUtils.equals("auth", service) || StringUtils.equals("psd2", service)) {
-        List<OAuthProviderConfigInjector> allInjectors = new ArrayList<>();
-        for (OAuthProviderConfigInjector injector : OAuthProviderConfigInjectorRegistry.getInjectors()) {
-          allInjectors.add(injector);
-        }
-        updateSourceWithOAuthProviders(sourceEntry.getValue(), allInjectors);
+      // No need (for now) to check the services to be updated due to only those who needs the config
+      // will change the url to get the config from config server to this endpoint.
+      List<OAuthProviderConfigInjector> allInjectors = new ArrayList<>();
+      for (OAuthProviderConfigInjector injector : OAuthProviderConfigInjectorRegistry.getInjectors()) {
+        allInjectors.add(injector);
       }
+      updateSourceWithOAuthProviders(sourceEntry.getValue(), allInjectors);
       sendResponse(response, result, sourceEntry.getValue(), sourceEntry.getKey());
     } catch (Exception e) {
       log.error(e.getMessage(), e);
@@ -94,9 +94,10 @@ public class BuildConfig extends HttpBaseServlet {
    */
   private JSONObject getDefaultConfigToJsonObject(String serviceURI) throws JSONException, IOException {
     ETRXConfig rxConfig = (ETRXConfig) OBDal.getInstance().createCriteria(ETRXConfig.class)
+        .add(Restrictions.eq(ETRXConfig.PROPERTY_SERVICENAME, "config"))
         .setMaxResults(1)
         .uniqueResult();
-    URL url = new URL(rxConfig.getConfigURL() + serviceURI);
+    URL url = new URL(rxConfig.getServiceURL() + serviceURI);
     HttpURLConnection conn = (HttpURLConnection) url.openConnection();
     conn.setRequestMethod("GET");
     final InputStream inputStream = conn.getInputStream();
@@ -132,7 +133,7 @@ public class BuildConfig extends HttpBaseServlet {
   }
 
   /**
-   * This method updates the source JSON object with the OAuth providers details.
+   * This method updates the source JSON object with the oAuth providers details.
    *
    * @param sourceJSON The source JSON object.
    */
@@ -144,10 +145,10 @@ public class BuildConfig extends HttpBaseServlet {
   }
 
   /**
-   * This method updates the source JSON object with the details of a single OAuth provider.
+   * This method updates the source JSON object with the details of a single oAuth provider.
    *
    * @param sourceJSON The source JSON object.
-   * @param provider The OAuth provider.
+   * @param provider The oAuth provider.
    */
   private void updateSourceWithOAuthProvider(JSONObject sourceJSON, ETRXoAuthProvider provider, List<OAuthProviderConfigInjector> allInjectors) {
     try {

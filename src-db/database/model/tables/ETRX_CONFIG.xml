@@ -33,24 +33,16 @@
         <default/>
         <onCreateDefault/>
       </column>
-      <column name="CONFIG_URL" primaryKey="false" required="true" type="VARCHAR" size="100" autoIncrement="false">
+      <column name="SERVICE_NAME" primaryKey="false" required="true" type="VARCHAR" size="25" autoIncrement="false">
         <default/>
         <onCreateDefault/>
       </column>
-      <column name="CLASSIC_URL" primaryKey="false" required="false" type="VARCHAR" size="100" autoIncrement="false">
+      <column name="SERVICE_URL" primaryKey="false" required="true" type="VARCHAR" size="255" autoIncrement="false">
         <default/>
         <onCreateDefault/>
       </column>
-      <column name="AUTH_URL" primaryKey="false" required="true" type="VARCHAR" size="100" autoIncrement="false">
-        <default/>
-        <onCreateDefault/>
-      </column>
-      <column name="TOKEN_URI" primaryKey="false" required="false" type="VARCHAR" size="30" autoIncrement="false">
-        <default/>
-        <onCreateDefault/>
-      </column>
-      <column name="DAS_URL" primaryKey="false" required="true" type="VARCHAR" size="100" autoIncrement="false">
-        <default><![CDATA[http://localhost:8092]]></default>
+      <column name="UPDATEABLE_CONFIGS" primaryKey="false" required="true" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[Y]]></default>
         <onCreateDefault/>
       </column>
       <foreign-key foreignTable="AD_CLIENT" name="ETRX_CONFIG_ADCLIENT">
@@ -60,5 +52,6 @@
         <reference local="AD_ORG_ID" foreign="AD_ORG_ID"/>
       </foreign-key>
       <check name="ETRX_ISACTIVE_CHECK"><![CDATA[ISACTIVE IN ('Y', 'N')]]></check>
+      <check name="ETRX_UPDATE_CONFIG_CHECK"><![CDATA[UPDATEABLE_CONFIGS IN ('Y', 'N')]]></check>
     </table>
   </database>
