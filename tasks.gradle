@@ -18,7 +18,7 @@ task "setup.rx" {
         dirs.each { dir ->
             // Find all Docker Compose YAML files and copy them
             fileTree(dir: dir, include: '**/rxconfig/*.yaml.template').each { file ->
-                println "Copying RX config file: $file to $buildDir/rxconfig"
+                def destFile = new File(destDir, file.name.replace('.template', ''))
                 copy {
                     from file
                     into destDir
@@ -26,6 +26,9 @@ task "setup.rx" {
                         fileName.replace('.template', '')
                     }
                 }
+                def content = destFile.text
+                content = content.replace('{BBDD_URL}', isBBDDEnabled ? 'db' : "host.docker.internal")
+                destFile.text = content
             }
         }
     }
