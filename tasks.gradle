@@ -54,11 +54,11 @@ task "rx.env.file" {
     }
 }
 
-tasks.whenTaskAdded { Task task ->
-    if (task.name == 'generateEnvFile') {
-        task.finalizedBy 'rx.env.file'
+afterEvaluate {
+    tasks.named("generateEnvFile").configure { task ->
+        task.finalizedBy("rx.env.file")
     }
-    if (task.name == 'resources.up') {
-        task.dependsOn 'setup.rx'
+    tasks.named("resources.up").configure { task ->
+        task.finalizedBy("setup.rx")
     }
 }
