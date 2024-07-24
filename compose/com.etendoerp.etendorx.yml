@@ -38,10 +38,10 @@ services:
       - "5005:5005"
     environment:
       - DEPENDENCIES=com.etendorx:das:${ETENDORX_VERSION}
-      - REPO_URL=${REPOSITORY_URL}
-      - REPO_USER=${REPOSITORY_USER}
-      - REPO_PASSWORD=${REPOSITORY_PASSWORD}
-      - CONFIG_SERVER_URL=http://config:8888
+      - REPO_URL=${ETENDORX_REPOSITORY_URL}
+      - REPO_USER=${ETENDORX_REPOSITORY_USER}
+      - REPO_PASSWORD=${ETENDORX_REPOSITORY_PASSWORD}
+      - CONFIG_SERVER_URL=http://{CONFIG_URL}:8888
       - TASK=downloadJar
       - DEBUG_PORT=5005
     networks:
@@ -67,10 +67,10 @@ services:
       - "8000:8000"
     environment:
       - DEPENDENCIES=com.etendorx:auth:${ETENDORX_VERSION}
-      - REPO_URL=${REPOSITORY_URL}
-      - REPO_USER=${REPOSITORY_USER}
-      - REPO_PASSWORD=${REPOSITORY_PASSWORD}
-      - CONFIG_SERVER_URL=http://host.docker.internal:8080/etendo/buildConfig
+      - REPO_URL=${ETENDORX_REPOSITORY_URL}
+      - REPO_USER=${ETENDORX_REPOSITORY_USER}
+      - REPO_PASSWORD=${ETENDORX_REPOSITORY_PASSWORD}
+      - CONFIG_SERVER_URL=http://{CONFIG_URL}:8080/etendo/buildConfig
       - TASK=downloadJar
     networks:
       - etendo
