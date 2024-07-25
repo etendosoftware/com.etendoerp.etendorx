@@ -37,7 +37,7 @@
         <default/>
         <onCreateDefault/>
       </column>
-      <column name="IDFORCLIENT" primaryKey="false" required="true" type="VARCHAR" size="255" autoIncrement="false">
+      <column name="IDFORCLIENT" primaryKey="false" required="false" type="VARCHAR" size="255" autoIncrement="false">
         <default/>
         <onCreateDefault/>
       </column>
