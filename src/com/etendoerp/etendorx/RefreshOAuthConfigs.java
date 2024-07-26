@@ -53,8 +53,9 @@ public class RefreshOAuthConfigs extends Action {
 
     if (rxConfig.isEmpty()) {
       actionResult.setType(Result.Type.WARNING);
-      actionResult.setMessage(OBMessageUtils.getI18NMessage("ETRX_NoConfigToRefresh"));
-      throw new OBException(OBMessageUtils.getI18NMessage("ETRX_NoConfigToRefresh"));
+      String noConfigMessage = OBMessageUtils.getI18NMessage("ETRX_NoConfigToRefresh");
+      actionResult.setMessage(noConfigMessage);
+      throw new OBException(noConfigMessage);
     }
 
     String serviceName = "";
@@ -63,13 +64,14 @@ public class RefreshOAuthConfigs extends Action {
       for(ETRXConfig actualService : rxConfig) {
         serviceName = actualService.getServiceName();
         performRestart(actualService.getServiceURL() + ACTUATOR_RESTART, actionResult);
-        sucRestServices.append(serviceName).append(" Has been restarted.");
+        sucRestServices.append(String.format("%s Has been restarted.", serviceName));
       }
 
     } catch (ConnectException e1) {
       log.error("Failed to connect: {}", e1.getMessage(), e1);
       actionResult.setType(Result.Type.WARNING);
-      actionResult.setMessage(sucRestServices + "Failed to restart " + serviceName + ". Please restart the server manually.");
+      actionResult.setMessage(sucRestServices +
+          String.format("Failed to restart %s. Please restart the server manually.", serviceName));
     } catch (IOException e2) {
       log.error("I/O error: {}", e2.getMessage(), e2);
       actionResult.setType(Result.Type.ERROR);

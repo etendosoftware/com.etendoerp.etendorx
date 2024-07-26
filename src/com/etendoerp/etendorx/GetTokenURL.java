@@ -45,8 +45,9 @@ public class GetTokenURL extends BaseActionHandler {
           .setMaxResults(1)
           .uniqueResult();
       if (rxConfig == null) {
-        handleErrorMessage(OBMessageUtils.getI18NMessage("ETRX_NoConfigAuthFound"), result);
-        throw new OBException(OBMessageUtils.getI18NMessage("ETRX_NoConfigAuthFound"));
+        final String etrxNoConfigAuthFound = OBMessageUtils.getI18NMessage("ETRX_NoConfigAuthFound");
+        handleErrorMessage(etrxNoConfigAuthFound, result);
+        throw new OBException(etrxNoConfigAuthFound);
       }
       final String getTokenURL = getGetTokenURL(rxConfig, oauthProvider, oAuthProviderId);
       result.put("auth_url", getTokenURL);
@@ -70,8 +71,8 @@ public class GetTokenURL extends BaseActionHandler {
   private static String getGetTokenURL(ETRXConfig rxConfig, ETRXoAuthProvider oauthProvider,
       String oAuthProviderId) {
     return rxConfig.getServiceURL() + oauthProvider.getAuthorizationEndpoint() + oauthProvider.getValue()
-        + "?userId=" + OBContext.getOBContext().getUser().getId()
-        + "&etrxOauthProviderId=" + oAuthProviderId;
+        + String.format("?userId=%s&etrxOauthProviderId=%s",
+        OBContext.getOBContext().getUser().getId(), oAuthProviderId);
   }
 
   /**
