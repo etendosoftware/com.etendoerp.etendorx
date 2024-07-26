@@ -10,6 +10,7 @@ import org.openbravo.base.HttpBaseServlet;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBDal;
+import org.openbravo.erpCommon.utility.OBMessageUtils;
 
 import java.util.AbstractMap.SimpleEntry;
 import javax.servlet.http.HttpServletRequest;
@@ -44,7 +45,8 @@ public class BuildConfig extends HttpBaseServlet {
   private static final String SERVER_ERROR_PATH = "server.error.path";
 
   /**
-   * This method handles the GET request. It fetches the default configuration, updates it with the OAuth providers details and sends the response.
+   * This method handles the GET request. It fetches the default configuration,
+   * updates it with the OAuth providers details and sends the response.
    * It also handles the creation of a new source if no default configuration is found for the specific service.
    *
    * @param request The HttpServletRequest object.
@@ -68,6 +70,9 @@ public class BuildConfig extends HttpBaseServlet {
           .add(Restrictions.eq(ETRXConfig.PROPERTY_SERVICENAME, "auth"))
           .setMaxResults(1)
           .uniqueResult();
+      if (rxConfig == null) {
+        throw new OBException(OBMessageUtils.getI18NMessage("ETRX_NoConfigAuthFound"));
+      }
       updateSourceWithOAuthProviders(sourceEntry.getValue(), allInjectors, rxConfig.getServiceURL());
       sendResponse(response, result, sourceEntry.getValue(), sourceEntry.getKey());
     } catch (Exception e) {
@@ -85,7 +90,6 @@ public class BuildConfig extends HttpBaseServlet {
    * @return The URI as a string. It is the part of the request URL that comes after the servlet path.
    */
   private static String getURIFromRequest(HttpServletRequest request) {
-    // TODO: Improve the way to get the URI
     return request.getRequestURL().toString().split(request.getServletPath())[1];
   }
 
@@ -100,6 +104,9 @@ public class BuildConfig extends HttpBaseServlet {
         .add(Restrictions.eq(ETRXConfig.PROPERTY_SERVICENAME, "config"))
         .setMaxResults(1)
         .uniqueResult();
+    if (rxConfig == null) {
+      throw new OBException(OBMessageUtils.getI18NMessage("ETRX_NoConfigConfigFound"));
+    }
     URL url = new URL(rxConfig.getServiceURL() + serviceURI);
     HttpURLConnection conn = (HttpURLConnection) url.openConnection();
     conn.setRequestMethod("GET");
@@ -140,7 +147,8 @@ public class BuildConfig extends HttpBaseServlet {
    *
    * @param sourceJSON The source JSON object.
    */
-  private void updateSourceWithOAuthProviders(JSONObject sourceJSON, List<OAuthProviderConfigInjector> allInjectors, String authURL) {
+  private void updateSourceWithOAuthProviders(JSONObject sourceJSON, List<OAuthProviderConfigInjector> allInjectors,
+      String authURL) {
     OBDal.getInstance().createCriteria(ETRXoAuthProvider.class)
         .setFilterOnReadableOrganization(false)
         .setFilterOnReadableClients(false)

@@ -13,7 +13,9 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.codehaus.jettison.json.JSONObject;
 import org.hibernate.criterion.Restrictions;
+import org.openbravo.base.exception.OBException;
 import org.openbravo.dal.service.OBDal;
+import org.openbravo.erpCommon.utility.OBMessageUtils;
 
 import com.etendoerp.etendorx.data.ETRXConfig;
 import com.etendoerp.etendorx.data.ETRXoAuthProvider;
@@ -49,19 +51,25 @@ public class RefreshOAuthConfigs extends Action {
         .add(Restrictions.eq(ETRXConfig.PROPERTY_UPDATEABLECONFIGS, true))
         .list();
 
+    if (rxConfig.isEmpty()) {
+      actionResult.setType(Result.Type.WARNING);
+      actionResult.setMessage(OBMessageUtils.getI18NMessage("ETRX_NoConfigToRefresh"));
+      throw new OBException(OBMessageUtils.getI18NMessage("ETRX_NoConfigToRefresh"));
+    }
+
     String serviceName = "";
-    StringBuilder succServices = new StringBuilder();
+    StringBuilder sucRestServices = new StringBuilder();
     try {
       for(ETRXConfig actualService : rxConfig) {
         serviceName = actualService.getServiceName();
         performRestart(actualService.getServiceURL() + ACTUATOR_RESTART, actionResult);
-        succServices.append(serviceName).append(" Has been restarted.");
+        sucRestServices.append(serviceName).append(" Has been restarted.");
       }
 
     } catch (ConnectException e1) {
       log.error("Failed to connect: {}", e1.getMessage(), e1);
       actionResult.setType(Result.Type.WARNING);
-      actionResult.setMessage(succServices + "Failed to restart " + serviceName + ". Please restart the server manually.");
+      actionResult.setMessage(sucRestServices + "Failed to restart " + serviceName + ". Please restart the server manually.");
     } catch (IOException e2) {
       log.error("I/O error: {}", e2.getMessage(), e2);
       actionResult.setType(Result.Type.ERROR);

@@ -21,7 +21,7 @@ OB.ETRX.oAuthToken = {
 
 		function callbackOnProcessActionHandler(response, data, request) {
             if (data.message?.severity === 'error') {
-                handleMessage(data.message.title, data.message.text, isc.OBMessageBar.TYPE_ERROR);
+                this.getWindow().showMessage(data.message.text)
             } else {
                 const popup = window.open(data.auth_url, 'Authentication Popup', 'width=' + popupWidth + ',height=' + popupHeight + ',left=' + left + ',top=' + upperMargin);
                 if (!popup) {
