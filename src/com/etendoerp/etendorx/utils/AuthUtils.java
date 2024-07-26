@@ -9,6 +9,10 @@ import com.etendoerp.etendorx.data.ETRXConfig;
  * This class is responsible for providing utility for Auth Service.
  */
 public class AuthUtils {
+  
+  private AuthUtils() {
+    throw new IllegalStateException("Utility class");
+  }
 
   /**
    * This method is used to get the RX Configuration.

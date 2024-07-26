@@ -12,12 +12,20 @@ import org.openbravo.erpCommon.utility.OBMessageUtils;
 
 import com.etendoerp.etendorx.data.ETRXoAuthProvider;
 
+/**
+ * This class is responsible for validation about the OAuth Provider.
+ */
 public class CheckOAuthProviderEventHandler extends EntityPersistenceEventObserver {
   private static final Entity[] entities = { ModelProvider.getInstance().getEntity(ETRXoAuthProvider.ENTITY_NAME) };
 
   @Override
   protected Entity[] getObservedEntities() { return entities; }
 
+  /**
+   * This method is used to validate an update event.
+   *
+   * @param event an EntityUpdateEvent instance
+   */
   public void onUpdate(@Observes EntityUpdateEvent event) {
     if (!isValidEvent(event)) {
       return;
@@ -25,6 +33,11 @@ public class CheckOAuthProviderEventHandler extends EntityPersistenceEventObserv
     validateClientID((ETRXoAuthProvider) event.getTargetInstance());
   }
 
+  /**
+   * This method is used to validate a new event.
+   *
+   * @param event an EntityNewEvent instance
+   */
   public void onSave(@Observes EntityNewEvent event) {
     if (!isValidEvent(event)) {
       return;
@@ -32,6 +45,11 @@ public class CheckOAuthProviderEventHandler extends EntityPersistenceEventObserv
     validateClientID((ETRXoAuthProvider) event.getTargetInstance());
   }
 
+  /**
+   * This method is used to validate the client ID.
+   *
+   * @param actualProvider an ETRXoAuthProvider instance
+   */
   private static void validateClientID(ETRXoAuthProvider actualProvider) {
     if (actualProvider.getIdforclient() == null) {
       throw new OBException(OBMessageUtils.getI18NMessage("ETRX_IDForClientNotSet"));
