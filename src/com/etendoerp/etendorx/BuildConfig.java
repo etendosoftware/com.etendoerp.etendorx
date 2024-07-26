@@ -27,6 +27,7 @@ import java.util.ArrayList;
 
 import com.etendoerp.etendorx.data.ETRXConfig;
 import com.etendoerp.etendorx.data.ETRXoAuthProvider;
+import com.etendoerp.etendorx.utils.AuthUtils;
 import com.etendoerp.etendorx.utils.OAuthProviderConfigInjector;
 import com.etendoerp.etendorx.utils.OAuthProviderConfigInjectorRegistry;
 
@@ -66,10 +67,7 @@ public class BuildConfig extends HttpBaseServlet {
       for (OAuthProviderConfigInjector injector : OAuthProviderConfigInjectorRegistry.getInjectors()) {
         allInjectors.add(injector);
       }
-      ETRXConfig rxConfig = (ETRXConfig) OBDal.getInstance().createCriteria(ETRXConfig.class)
-          .add(Restrictions.eq(ETRXConfig.PROPERTY_SERVICENAME, "auth"))
-          .setMaxResults(1)
-          .uniqueResult();
+      ETRXConfig rxConfig = AuthUtils.getRXConfig("auth");
       if (rxConfig == null) {
         throw new OBException(OBMessageUtils.getI18NMessage("ETRX_NoConfigAuthFound"));
       }
@@ -100,10 +98,7 @@ public class BuildConfig extends HttpBaseServlet {
    * @throws JSONException If there is an error parsing the JSON.
    */
   private JSONObject getDefaultConfigToJsonObject(String serviceURI) throws JSONException, IOException {
-    ETRXConfig rxConfig = (ETRXConfig) OBDal.getInstance().createCriteria(ETRXConfig.class)
-        .add(Restrictions.eq(ETRXConfig.PROPERTY_SERVICENAME, "config"))
-        .setMaxResults(1)
-        .uniqueResult();
+    ETRXConfig rxConfig = AuthUtils.getRXConfig("config");
     if (rxConfig == null) {
       throw new OBException(OBMessageUtils.getI18NMessage("ETRX_NoConfigConfigFound"));
     }

@@ -8,6 +8,7 @@ import org.openbravo.base.model.ModelProvider;
 import org.openbravo.client.kernel.event.EntityNewEvent;
 import org.openbravo.client.kernel.event.EntityPersistenceEventObserver;
 import org.openbravo.client.kernel.event.EntityUpdateEvent;
+import org.openbravo.erpCommon.utility.OBMessageUtils;
 
 import com.etendoerp.etendorx.data.ETRXoAuthProvider;
 
@@ -33,7 +34,7 @@ public class CheckOAuthProviderEventHandler extends EntityPersistenceEventObserv
 
   private static void validateClientID(ETRXoAuthProvider actualProvider) {
     if (actualProvider.getIdforclient() == null) {
-      throw new OBException("ID for Client is required");
+      throw new OBException(OBMessageUtils.getI18NMessage("ETRX_IDForClientNotSet"));
     }
   }
 }
