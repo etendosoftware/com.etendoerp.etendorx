@@ -1,6 +1,5 @@
 package com.etendoerp.etendorx;
 
-import org.apache.commons.lang.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.codehaus.jettison.json.JSONArray;
@@ -65,7 +64,11 @@ public class BuildConfig extends HttpBaseServlet {
       for (OAuthProviderConfigInjector injector : OAuthProviderConfigInjectorRegistry.getInjectors()) {
         allInjectors.add(injector);
       }
-      updateSourceWithOAuthProviders(sourceEntry.getValue(), allInjectors);
+      ETRXConfig rxConfig = (ETRXConfig) OBDal.getInstance().createCriteria(ETRXConfig.class)
+          .add(Restrictions.eq(ETRXConfig.PROPERTY_SERVICENAME, "auth"))
+          .setMaxResults(1)
+          .uniqueResult();
+      updateSourceWithOAuthProviders(sourceEntry.getValue(), allInjectors, rxConfig.getServiceURL());
       sendResponse(response, result, sourceEntry.getValue(), sourceEntry.getKey());
     } catch (Exception e) {
       log.error(e.getMessage(), e);
@@ -137,11 +140,11 @@ public class BuildConfig extends HttpBaseServlet {
    *
    * @param sourceJSON The source JSON object.
    */
-  private void updateSourceWithOAuthProviders(JSONObject sourceJSON, List<OAuthProviderConfigInjector> allInjectors) {
+  private void updateSourceWithOAuthProviders(JSONObject sourceJSON, List<OAuthProviderConfigInjector> allInjectors, String authURL) {
     OBDal.getInstance().createCriteria(ETRXoAuthProvider.class)
         .setFilterOnReadableOrganization(false)
         .setFilterOnReadableClients(false)
-        .list().forEach(provider -> updateSourceWithOAuthProvider(sourceJSON, provider, allInjectors));
+        .list().forEach(provider -> updateSourceWithOAuthProvider(sourceJSON, provider, allInjectors, authURL));
   }
 
   /**
@@ -150,7 +153,8 @@ public class BuildConfig extends HttpBaseServlet {
    * @param sourceJSON The source JSON object.
    * @param provider The oAuth provider.
    */
-  private void updateSourceWithOAuthProvider(JSONObject sourceJSON, ETRXoAuthProvider provider, List<OAuthProviderConfigInjector> allInjectors) {
+  private void updateSourceWithOAuthProvider(JSONObject sourceJSON, ETRXoAuthProvider provider,
+      List<OAuthProviderConfigInjector> allInjectors, String authURL) {
     try {
       String providerName = provider.getValue();
       String apiUrl = provider.getOAuthAPIURL();
@@ -162,7 +166,7 @@ public class BuildConfig extends HttpBaseServlet {
       sourceJSON.put(providerRegistration + ".scope", provider.getScope());
       sourceJSON.put(providerRegistration + ".client-name", provider.getClientname());
       sourceJSON.put(providerRegistration + ".authorization-grant-type", provider.getAuthorizationGrantType());
-      sourceJSON.put(providerRegistration + ".redirectUri", provider.getRedirecturi());
+      sourceJSON.put(providerRegistration + ".redirectUri", authURL + provider.getRedirecturi());
       sourceJSON.put(providerRegistration + ".code_challenge_method", provider.getCodechallengemethod());
       sourceJSON.put(providerRegistration + ".client-authentication-method", provider.getClientauthenticationmethod());
       sourceJSON.put(providerRegistration + ".token-uri", apiUrl + provider.getTokenuri());
