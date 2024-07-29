@@ -9,11 +9,13 @@ import org.openbravo.base.exception.OBException;
 import org.openbravo.client.kernel.BaseActionHandler;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBDal;
+import org.openbravo.erpCommon.utility.OBMessageUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.etendoerp.etendorx.data.ETRXConfig;
 import com.etendoerp.etendorx.data.ETRXoAuthProvider;
+import com.etendoerp.etendorx.utils.AuthUtils;
 
 /**
  * This class is responsible for getting the token URL.
@@ -39,16 +41,17 @@ public class GetTokenURL extends BaseActionHandler {
       final JSONObject jsonData = new JSONObject(content);
       final String oAuthProviderId = jsonData.getString("id");
       ETRXoAuthProvider oauthProvider = OBDal.getInstance().get(ETRXoAuthProvider.class, oAuthProviderId);
-      ETRXConfig rxConfig = (ETRXConfig) OBDal.getInstance().createCriteria(ETRXConfig.class)
-          .add(Restrictions.eq(ETRXConfig.PROPERTY_SERVICENAME, "auth"))
-          .setMaxResults(1)
-          .uniqueResult();
-      String getTokenURL = rxConfig.getServiceURL() + oauthProvider.getAuthorizationEndpoint() + oauthProvider.getValue()
-          + "?userId=" + OBContext.getOBContext().getUser().getId() + "&etrxOauthProviderId=" + oAuthProviderId;
+      ETRXConfig rxConfig = AuthUtils.getRXConfig("auth");
+      if (rxConfig == null) {
+        final String etrxNoConfigAuthFound = OBMessageUtils.getI18NMessage("ETRX_NoConfigAuthFound");
+        handleErrorMessage(etrxNoConfigAuthFound, result);
+        throw new OBException(etrxNoConfigAuthFound);
+      }
+      final String getTokenURL = getGetTokenURL(rxConfig, oauthProvider, oAuthProviderId);
       result.put("auth_url", getTokenURL);
     } catch (OBException | JSONException e) {
       log.error(e.getMessage(), e);
-      handleErrorMessage(e, result);
+      handleErrorMessage(e.getMessage(), result);
     } finally {
       OBContext.restorePreviousMode();
     }
@@ -56,22 +59,36 @@ public class GetTokenURL extends BaseActionHandler {
   }
 
   /**
-   * This method is responsible for handling error messages.
-   * It takes an exception and a JSONObject as input.
-   * It modifies the JSONObject to include the error message.
+   * This method is used to create the token URL.
    *
-   * @param e The exception to handle.
-   * @param result The JSONObject to modify.
+   * @param rxConfig an ETRXConfig instance
+   * @param oauthProvider an ETRXoAuthProvider instance
+   * @param oAuthProviderId a String containing the OAuth provider ID
+   * @return a String containing the token URL
    */
-  private static void handleErrorMessage(Exception e, JSONObject result) {
+  private static String getGetTokenURL(ETRXConfig rxConfig, ETRXoAuthProvider oauthProvider,
+      String oAuthProviderId) {
+    return rxConfig.getServiceURL() + oauthProvider.getAuthorizationEndpoint() + oauthProvider.getValue()
+        + String.format("?userId=%s&etrxOauthProviderId=%s",
+        OBContext.getOBContext().getUser().getId(), oAuthProviderId);
+  }
+
+  /**
+   * This method is used to handle error messages.
+   * It creates a JSONObject containing the error message and adds it to the result.
+   *
+   * @param message a String containing the error message
+   * @param result a JSONObject containing the result
+   */
+  private static void handleErrorMessage(String message, JSONObject result) {
     try {
       JSONObject errorMessage = new JSONObject();
       errorMessage.put("severity", "error");
       errorMessage.put("title", "ERROR");
-      errorMessage.put("text", e.getMessage());
+      errorMessage.put("text", message);
       result.put("message", errorMessage);
-    } catch (JSONException e2) {
-      log.error(e.getMessage(), e2);
+    } catch (JSONException e) {
+      log.error(e.getMessage(), e);
     }
   }
 }

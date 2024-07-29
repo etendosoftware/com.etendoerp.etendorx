@@ -41,7 +41,7 @@
         <default/>
         <onCreateDefault/>
       </column>
-      <column name="TOKEN" primaryKey="false" required="true" type="VARCHAR" size="100" autoIncrement="false">
+      <column name="TOKEN" primaryKey="false" required="true" type="VARCHAR" size="1000" autoIncrement="false">
         <default/>
         <onCreateDefault/>
       </column>
