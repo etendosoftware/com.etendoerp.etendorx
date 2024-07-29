@@ -51,7 +51,7 @@ public class CheckOAuthProviderEventHandler extends EntityPersistenceEventObserv
    * @param actualProvider an ETRXoAuthProvider instance
    */
   private static void validateClientID(ETRXoAuthProvider actualProvider) {
-    if (actualProvider.getIdforclient() == null) {
+    if (actualProvider.getIDForClient() == null) {
       throw new OBException(OBMessageUtils.getI18NMessage("ETRX_IDForClientNotSet"));
     }
   }

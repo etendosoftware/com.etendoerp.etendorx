@@ -165,18 +165,18 @@ public class BuildConfig extends HttpBaseServlet {
       final String providerProv = SPRING_SECURITY_OAUTH_2_CLIENT_PROVIDER + providerName;
       sourceJSON.put(providerName + "-api", apiUrl);
       sourceJSON.put(providerRegistration + ".provider", providerName);
-      sourceJSON.put(providerRegistration + ".client-id", provider.getIdforclient());
+      sourceJSON.put(providerRegistration + ".client-id", provider.getIDForClient());
       sourceJSON.put(providerRegistration + ".scope", provider.getScope());
-      sourceJSON.put(providerRegistration + ".client-name", provider.getClientname());
+      sourceJSON.put(providerRegistration + ".client-name", provider.getClientName());
       sourceJSON.put(providerRegistration + ".authorization-grant-type", provider.getAuthorizationGrantType());
-      sourceJSON.put(providerRegistration + ".redirectUri", authURL + provider.getRedirecturi());
-      sourceJSON.put(providerRegistration + ".code_challenge_method", provider.getCodechallengemethod());
-      sourceJSON.put(providerRegistration + ".client-authentication-method", provider.getClientauthenticationmethod());
-      sourceJSON.put(providerRegistration + ".token-uri", apiUrl + provider.getTokenuri());
-      sourceJSON.put(providerProv + ".authorization-uri", apiUrl + provider.getAuthorizationuri());
-      sourceJSON.put(providerProv + ".token-uri", apiUrl + provider.getTokenuri());
-      sourceJSON.put(providerProv + ".user-info-uri",  apiUrl + provider.getUserinfouri());
-      sourceJSON.put(providerProv + ".user-name-attribute", provider.getUsernameattribute());
+      sourceJSON.put(providerRegistration + ".redirectUri", authURL + provider.getRedirectURI());
+      sourceJSON.put(providerRegistration + ".code_challenge_method", provider.getCodeChallengeMethod());
+      sourceJSON.put(providerRegistration + ".client-authentication-method", provider.getClientAuthenticationMethod());
+      sourceJSON.put(providerRegistration + ".token-uri", apiUrl + provider.getTokenURI());
+      sourceJSON.put(providerProv + ".authorization-uri", apiUrl + provider.getAuthorizationURI());
+      sourceJSON.put(providerProv + ".token-uri", apiUrl + provider.getTokenURI());
+      sourceJSON.put(providerProv + ".user-info-uri",  apiUrl + provider.getUserInfoURI());
+      sourceJSON.put(providerProv + ".user-name-attribute", provider.getUserNameAttribute());
       for (OAuthProviderConfigInjector injector : allInjectors) {
         injector.injectConfig(sourceJSON, provider);
       }
