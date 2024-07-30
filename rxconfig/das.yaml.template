@@ -3,7 +3,7 @@ server:
 
 spring:
   datasource:
-    url: jdbc:postgresql://db:5432/etendo
+    url: jdbc:postgresql://{BBDD_URL}:5432/etendo
     username: tad
     password: tad
   jackson:

@@ -7,7 +7,7 @@
 */
 
 group          = "com.etendoerp"
-version        = "2.0.2-SNAPSHOT"
+version        = "2.0.6-SNAPSHOT"
 description    = "Integration with Etendo RX"
 ext.artifact   = "etendorx"
 ext.repository = "https://maven.pkg.github.com/etendosoftware/com.etendoerp.platform.extensions"
@@ -54,7 +54,7 @@ repositories {
 */
 dependencies {
    implementation('com.etendoerp.platform:etendo-core:[21.4.0,)')
-   implementation('com.etendoerp:docker:1.0.0-SNAPSHOT')
+   implementation('com.etendoerp:docker:0.0.3')
 }
 
 sourceSets {

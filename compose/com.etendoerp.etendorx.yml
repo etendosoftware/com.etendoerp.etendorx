@@ -1,14 +1,12 @@
 services:
   config:
-    depends_on:
-      db:
-        condition: service_healthy
+    env_file: ".env"
     container_name: config
-    image: etendo/dynamic-gradle:latest
+    image: etendo/dynamic-gradle:1.0.0
     ports:
       - "8888:8888"
     volumes:
-      - ../../build/rxconfig:/rxconfig
+      - ${VOLUMES_PATH}/rxconfig:/rxconfig
     environment:
       - SPRING_CLOUD_CONFIG_SERVER_NATIVE_SEARCHLOCATIONS=file:///rxconfig
       - SPRING_PROFILES_ACTIVE=native
@@ -16,6 +14,7 @@ services:
       - REPO_URL=${ETENDORX_REPOSITORY_URL}
       - REPO_USER=${ETENDORX_REPOSITORY_USER}
       - REPO_PASSWORD=${ETENDORX_REPOSITORY_PASSWORD}
+      - CONFIG_SERVER_URL=
       - TASK=downloadJar
     networks:
       - etendo
@@ -26,59 +25,65 @@ services:
       retries: 60
 
   das:
+    env_file: ".env"
     depends_on:
-      db:
-        condition: service_healthy
       config:
         condition: service_healthy
     container_name: das
-    image: etendo/dynamic-das:latest
+    image: etendo/dynamic-das:1.0.0
     ports:
       - "8092:8092"
       - "5005:5005"
     environment:
       - DEPENDENCIES=com.etendorx:das:${ETENDORX_VERSION}
-      - REPO_URL=${REPOSITORY_URL}
-      - REPO_USER=${REPOSITORY_USER}
-      - REPO_PASSWORD=${REPOSITORY_PASSWORD}
-      - CONFIG_SERVER_URL=http://config:8888
+      - REPO_URL=${ETENDORX_REPOSITORY_URL}
+      - REPO_USER=${ETENDORX_REPOSITORY_USER}
+      - REPO_PASSWORD=${ETENDORX_REPOSITORY_PASSWORD}
+      - CONFIG_SERVER_URL=${ETENDORX_CONFIG_SERVER_URL}
       - TASK=downloadJar
       - DEBUG_PORT=5005
+      - DB_HOST=${ETENDORX_DB_HOST}
+      - DB_PORT=${ETENDORX_DB_PORT}
+      - DB_SID=${ETENDORX_DB_SID}
     networks:
       - etendo
     volumes:
-      - ./volumes/das/gradle-cache:/root/.gradle
-      - ./volumes/das/app:/app/
+      - das_cache_vol:/root/.gradle
+      - das_app_vol:/app/
     healthcheck:
-      test: ["CMD-SHELL", "wget --spider -q http://localhost:8888/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "wget --spider -q http://localhost:8092/actuator/health || exit 1"]
       interval: 10s
       timeout: 10s
       retries: 60
+
   auth:
+    env_file: ".env"
     depends_on:
-      db:
-        condition: service_healthy
       config:
         condition: service_healthy
     container_name: auth
-    image: etendo/dynamic-gradle:latest
+    image: etendo/dynamic-gradle:1.0.0
     ports:
       - "8094:8094"
     environment:
       - DEPENDENCIES=com.etendorx:auth:${ETENDORX_VERSION}
-      - REPO_URL=${REPOSITORY_URL}
-      - REPO_USER=${REPOSITORY_USER}
-      - REPO_PASSWORD=${REPOSITORY_PASSWORD}
-      - CONFIG_SERVER_URL=http://config:8888
+      - REPO_URL=${ETENDORX_REPOSITORY_URL}
+      - REPO_USER=${ETENDORX_REPOSITORY_USER}
+      - REPO_PASSWORD=${ETENDORX_REPOSITORY_PASSWORD}
+      - CONFIG_SERVER_URL=${ETENDORX_CONFIG_SERVER_URL}
       - TASK=downloadJar
     networks:
       - etendo
     volumes:
-      - ./volumes/auth/gradle-cache:/root/.gradle
+      - auth_vol:/root/.gradle
     healthcheck:
-      test: ["CMD-SHELL", "wget --spider -q http://localhost:8888/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "wget --spider -q http://localhost:8094/actuator/health || exit 1"]
       interval: 10s
       timeout: 10s
       retries: 60
 networks:
   etendo:
+volumes:
+  das_cache_vol:
+  das_app_vol:
+  auth_vol:
