@@ -1,3 +1,6 @@
+classic:
+  url: http://tomcat:8080/etendo
+
 das:
   url: http://das:8092
   grpc:

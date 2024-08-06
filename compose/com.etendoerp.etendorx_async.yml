@@ -1,0 +1,21 @@
+services:
+  asyncprocess:
+    depends_on:
+      - config
+    container_name: asyncprocess
+    image: etendo/dynamic-gradle:1.0.0
+    ports:
+      - "8099:8099"
+    environment:
+      - DEPENDENCIES=com.etendorx:asyncprocess:${ETENDORX_VERSION}
+      - REPO_URL=${ETENDORX_REPOSITORY_URL}
+      - REPO_USER=${ETENDORX_REPOSITORY_USER}
+      - REPO_PASSWORD=${ETENDORX_REPOSITORY_PASSWORD}
+      - CONFIG_SERVER_URL=${ETENDORX_CONFIG_SERVER_URL}
+      - TASK=downloadJar
+    networks:
+      - etendo
+    volumes:
+      - async_cache_vol:/root/.gradle
+volumes:
+  async_cache_vol:
