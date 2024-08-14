@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
-  <database name="TABLE ETRX_CLIENT_TYPE">
-    <table name="ETRX_CLIENT_TYPE" primaryKey="ETRX_CLIENT_TYPE_KEY">
-      <column name="ETRX_CLIENT_TYPE_ID" primaryKey="true" required="true" type="VARCHAR" size="32" autoIncrement="false">
+  <database name="TABLE ETRX_CONFIG">
+    <table name="ETRX_CONFIG" primaryKey="ETRX_CONFIG_KEY">
+      <column name="ETRX_CONFIG_ID" primaryKey="true" required="true" type="VARCHAR" size="32" autoIncrement="false">
         <default/>
         <onCreateDefault/>
       </column>
@@ -33,16 +33,25 @@
         <default/>
         <onCreateDefault/>
       </column>
-      <column name="CLIENTTYPE" primaryKey="false" required="true" type="VARCHAR" size="25" autoIncrement="false">
+      <column name="SERVICE_NAME" primaryKey="false" required="true" type="VARCHAR" size="25" autoIncrement="false">
         <default/>
         <onCreateDefault/>
       </column>
-      <foreign-key foreignTable="AD_CLIENT" name="ETRX_CLIENT_TYPE_AD_CLIENT">
+      <column name="SERVICE_URL" primaryKey="false" required="true" type="VARCHAR" size="255" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="UPDATEABLE_CONFIGS" primaryKey="false" required="true" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[Y]]></default>
+        <onCreateDefault/>
+      </column>
+      <foreign-key foreignTable="AD_CLIENT" name="ETRX_CONFIG_ADCLIENT">
         <reference local="AD_CLIENT_ID" foreign="AD_CLIENT_ID"/>
       </foreign-key>
-      <foreign-key foreignTable="AD_ORG" name="ETRX_CLIENT_TYPE_ORG">
+      <foreign-key foreignTable="AD_ORG" name="ETRX_CONFIG_ADORG">
         <reference local="AD_ORG_ID" foreign="AD_ORG_ID"/>
       </foreign-key>
-      <check name="ETRX_CLIENT_TYPE_ACTIVE_CHECK"><![CDATA[ISACTIVE IN ('Y', 'N')]]></check>
+      <check name="ETRX_ISACTIVE_CHECK"><![CDATA[ISACTIVE IN ('Y', 'N')]]></check>
+      <check name="ETRX_UPDATE_CONFIG_CHECK"><![CDATA[UPDATEABLE_CONFIGS IN ('Y', 'N')]]></check>
     </table>
   </database>
