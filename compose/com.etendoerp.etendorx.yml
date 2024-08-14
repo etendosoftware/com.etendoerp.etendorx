@@ -1,0 +1,113 @@
+services:
+  config:
+    env_file: ".env"
+    image: etendo/dynamic-gradle:1.0.0
+    ports:
+      - "8888:8888"
+    volumes:
+      - ${VOLUMES_PATH}/rxconfig:/rxconfig
+    environment:
+      - SPRING_CLOUD_CONFIG_SERVER_NATIVE_SEARCHLOCATIONS=file:///rxconfig
+      - SPRING_PROFILES_ACTIVE=native
+      - DEPENDENCIES=com.etendorx:configserver:${ETENDORX_VERSION}
+      - REPO_URL=${ETENDORX_REPOSITORY_URL}
+      - REPO_USER=${ETENDORX_REPOSITORY_USER}
+      - REPO_PASSWORD=${ETENDORX_REPOSITORY_PASSWORD}
+      - CONFIG_SERVER_URL=
+      - TASK=downloadJar
+    networks:
+      - etendo
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://localhost:8888/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 60
+
+  das:
+    env_file: ".env"
+    depends_on:
+      config:
+        condition: service_healthy
+    image: etendo/dynamic-das:1.0.0
+    ports:
+      - "8092:8092"
+      - "5005:5005"
+    environment:
+      - DEPENDENCIES=com.etendorx:das:${ETENDORX_VERSION}
+      - REPO_URL=${ETENDORX_REPOSITORY_URL}
+      - REPO_USER=${ETENDORX_REPOSITORY_USER}
+      - REPO_PASSWORD=${ETENDORX_REPOSITORY_PASSWORD}
+      - CONFIG_SERVER_URL=${ETENDORX_CONFIG_SERVER_URL}
+      - TASK=downloadJar
+      - DEBUG_PORT=5005
+      - DB_HOST=${ETENDORX_DB_HOST}
+      - DB_PORT=${ETENDORX_DB_PORT}
+      - DB_SID=${ETENDORX_DB_SID}
+    networks:
+      - etendo
+    volumes:
+      - das_cache_vol:/root/.gradle
+      - das_app_vol:/app/
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://localhost:8092/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 60
+
+  auth:
+    env_file: ".env"
+    depends_on:
+      config:
+        condition: service_healthy
+    image: etendo/dynamic-gradle:1.0.0
+    ports:
+      - "8094:8094"
+    environment:
+      - DEPENDENCIES=com.etendorx:auth:${ETENDORX_VERSION}
+      - REPO_URL=${ETENDORX_REPOSITORY_URL}
+      - REPO_USER=${ETENDORX_REPOSITORY_USER}
+      - REPO_PASSWORD=${ETENDORX_REPOSITORY_PASSWORD}
+      - CONFIG_SERVER_URL=${ETENDORX_CONFIG_SERVER_URL}
+      - TASK=downloadJar
+    networks:
+      - etendo
+    volumes:
+      - auth_vol:/root/.gradle
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://localhost:8094/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 60
+
+  edge:
+    env_file: ".env"
+    depends_on:
+      config:
+        condition: service_healthy
+    image: etendo/dynamic-gradle:1.0.0
+    ports:
+      - "8096:8096"
+    environment:
+      - DEPENDENCIES=com.etendorx:edge:${ETENDORX_VERSION}
+      - REPO_URL=${ETENDORX_REPOSITORY_URL}
+      - REPO_USER=${ETENDORX_REPOSITORY_USER}
+      - REPO_PASSWORD=${ETENDORX_REPOSITORY_PASSWORD}
+      - CONFIG_SERVER_URL=${ETENDORX_CONFIG_SERVER_URL}
+      - TASK=downloadJar
+    networks:
+      - etendo
+    volumes:
+      - edge_vol:/root/.gradle
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://localhost:8096/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 60
+
+networks:
+  etendo:
+volumes:
+  das_cache_vol:
+  das_app_vol:
+  auth_vol:
+  edge_vol:
