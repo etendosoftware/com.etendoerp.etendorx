@@ -22,7 +22,7 @@ pipeline {
         OWNER_REPOSITORY    = 'koodu_software'
         REPOSITORY_NAME     = 'com.etendoerp.etendorx'
 
-        EMAIL_ADDRESS       = 'roman.magnoli@etendo.software'
+        EMAIL_ADDRESS       = credentials('email_builds')
         CORE_URL_REPO       = 'https://github.com/etendosoftware/etendo_core'
         RX_URL_REPO         = 'https://github.com/etendosoftware/etendo_rx'
         URL_REPO            = 'https://bitbucket.org/koodu_software/com.etendoerp.etendorx'
@@ -47,7 +47,7 @@ pipeline {
 
     agent {
         kubernetes {
-            label 'jenkins-node-rx'
+            inheritFrom 'jenkins-node-rx'
             defaultContainer 'jnlp'
             yaml """
 apiVersion: v1
@@ -123,7 +123,7 @@ spec:
         }
     }
     stages {
-        stage ('Test environment') {
+        stage ('RX Setup') {
             steps {
                 container('compiler') {
                     script {
@@ -144,13 +144,15 @@ spec:
                             mkdir -p modules
                             ./gradlew :setup
                             """
-                            '...Environment TESTS SUCCESSFUL...'
+                            env.STATUSRX = "1"
+                            echo '...Environment TESTS SUCCESSFUL...'
                         } catch (Exception e) {
                             echo 'Exception occurred: ' + e.toString()
                             echo '...Environment TEST FAILED...'
                             currentBuild.result = 'UNSTABLE'
                             unstable('Environment TESTS FAILED!')
                             env.STATUSTEST = "0"
+                            env.STATUSRX = "0"
                         }
                     }
                 }
@@ -159,7 +161,7 @@ spec:
         stage ('Build Environment Etendo Core') {
             when {
                 expression {
-                    env.BUILD_CLASSIC == "true"
+                    env.BUILD_CLASSIC == "true" && env.STATUSRX == "1"
                 }
             }
             steps {
@@ -208,7 +210,6 @@ spec:
                                     sh './gradlew smartbuild -PignoreConsistency=true --info --stacktrace'
                                     echo 'Build of Etendo Core Finished'
                                     env.STATUSCORE = "1"
-                                    env.STATUSRX = "0"
                                     currentBuild.result = 'SUCCESS'
                                 }
                             } catch (Exception e) {
@@ -242,6 +243,7 @@ spec:
                             """
                             echo 'Build of Etendo RX Finished'
                             env.STATUSRX = "1"
+                            currentBuild.result = "SUCCESS"
                         } catch (Exception e) {
                             echo 'Build of Etendo RX FAILED'
                             currentBuild.result = 'FAILED'
@@ -267,7 +269,7 @@ spec:
                         cd etendo_core
                         ./gradlew test --tests "com.etendoerp.etendorx.*" --info
                         """
-                        '...ETENDO RX MODULE TESTS SUCCESSFUL...'
+                        echo '...ETENDO RX MODULE TESTS SUCCESSFUL...'
                     } catch (Exception e) {
                         echo 'Exception occurred: ' + e.toString()
                         echo '...ETENDO RX MODULE TESTS FAILED...'
@@ -316,7 +318,7 @@ spec:
                             ./gradlew :com.etendorx.das:test --info --tests com.etendorx.das.unit.JsonPathConverterBaseTests
                             ./gradlew :com.etendorx.das:test --info --tests com.etendorx.entities.mapper.lib.JsonPathEntityRetrieverBaseTests
                             """
-                            '...DAS TESTS SUCCESSFUL...'
+                            echo '...DAS TESTS SUCCESSFUL...'
                         } catch (Exception e) {
                             echo 'Exception occurred: ' + e.toString()
                             echo '...DAS TEST FAILED...'
@@ -346,18 +348,32 @@ spec:
             subject: "✅ FIXED - ${currentBuild.fullDisplayName}",
             mimeType: "text/html",
             body: """
-            ${new Date()}
-            __________________________________________________________
+            <html>
+                <head>
+                    <style>
+                        body { font-family: 'Arial', sans-serif; }
+                        .header { font-size: 16px; font-weight: bold; color: #333; }
+                    </style>
+                </head>
+                <body>
+                    <p><em>${new Date()}</em></p>
+                    <p>__________________________________________________________</p>
 
-            ✅ ERRORS FIXED ✅
+                    <h2 class="header">✅ ERRORS FIXED ✅ ✅</h2>
 
-            Commit: ${URL_REPO}/commits/${env.GIT_COMMIT}
-            Author: ${COMMIT_AUTHOR_NAME} <${COMMIT_AUTHOR_EMAIL}>
-
-            The problems found in the previous run/s have been fixed! 💪
-            Check out the output in the following link:
-            ${env.BUILD_URL}
-            __________________________________________________________
+                    <p>
+                        <strong>Commit:</strong> <a href="${URL_REPO}/commits/${env.GIT_COMMIT}">${URL_REPO}/commits/${env.GIT_COMMIT}</a><br />
+                        <strong>Author:</strong> ${COMMIT_AUTHOR_NAME} (${COMMIT_AUTHOR_EMAIL})
+                    </p>
+                    <p>
+                        The build has failed unexpectedly.<br />
+                        💡 This build was on an Full Etendo (CORE and RX) build environment based on RX module commit.<br />
+                        For more information on the failing run, visit:<br />
+                        <a href="${env.BUILD_URL}">${env.BUILD_URL}</a>
+                    </p>
+                    <p>__________________________________________________________</p>
+                </body>
+            </html>
             """
         }
         failure {
@@ -371,18 +387,29 @@ spec:
             subject: "⛔ ERROR - ${currentBuild.fullDisplayName}",
             mimeType: "text/html",
             body:  """
-            ${new Date()}
-            __________________________________________________________
+            <html>
+                <head>
+                    <style>
+                        body { font-family: 'Arial', sans-serif; }
+                        .header { font-size: 16px; font-weight: bold; color: #333; }
+                    </style>
+                </head>
+                <body>
+                    <p><em>${new Date()}</em></p>
+                    <p>__________________________________________________________</p>
 
-            ⛔ ERROR ⛔
+                    <h2 class="header">🚫 BUILD FAILED 🚫</h2>
 
-            Commit: ${URL_REPO}/commits/${env.GIT_COMMIT}
-            Author: ${COMMIT_AUTHOR_NAME} <${COMMIT_AUTHOR_EMAIL}>
-
-            The build has failed unexpectedly.
-            💡 This build was on an Etendo Core environment.
-            To more information on the failing run visit:
-            ${env.BUILD_URL}
+                    <p>
+                        <strong>Commit:</strong> <a href="${URL_REPO}/commits/${env.GIT_COMMIT}">${URL_REPO}/commits/${env.GIT_COMMIT}</a><br />
+                        <strong>Author:</strong> ${COMMIT_AUTHOR_NAME} (${COMMIT_AUTHOR_EMAIL})
+                    </p>
+                    <p>
+                        The build has failed unexpectedly.<br />
+                        💡 This build was on an Full Etendo (CORE and RX) build environment based on RX module commit.<br />
+                        To more information on the failing run visit:<br />
+                        <a href="${env.BUILD_URL}">${env.BUILD_URL}</a>
+                    </p>
             __________________________________________________________
             """
         }
@@ -397,18 +424,29 @@ spec:
             subject: "⚠️ TESTS FAILED - ${currentBuild.fullDisplayName}",
             mimeType: "text/html",
             body: """
-            ${new Date()}
-            __________________________________________________________
+            <html>
+                <head>
+                    <style>
+                        body { font-family: 'Arial', sans-serif; }
+                        .header { font-size: 16px; font-weight: bold; color: #333; }
+                    </style>
+                </head>
+                <body>
+                    <p><em>${new Date()}</em></p>
+                    <p>__________________________________________________________</p>
 
-            ⚠️ BUILD UNSTABLE ⚠️
+                    <h2 class="header">🚨 BUILD UNSTABLE 🚨</h2>
 
-            Commit: ${URL_REPO}/commits/${env.GIT_COMMIT}
-            Author: ${COMMIT_AUTHOR_NAME} <${COMMIT_AUTHOR_EMAIL}>
-
-            Tests have been detected that have failed in Etendo RX.
-            💡 These tests were run on a Postgres database environment.
-            To more information on the failing run visit:
-            ${env.BUILD_URL}
+                    <p>
+                        <strong>Commit:</strong> <a href="${URL_REPO}/commits/${env.GIT_COMMIT}">${URL_REPO}/commits/${env.GIT_COMMIT}</a><br />
+                        <strong>Author:</strong> ${COMMIT_AUTHOR_NAME} (${COMMIT_AUTHOR_EMAIL})
+                    </p>
+                    <p>
+                        Tests have been detected that have failed in Etendo RX module and/or DAS test.<br />
+                        💡 These tests were run on a Postgres database environment.<br />
+                        To more information on the failing run visit:<br />
+                        <a href="${env.BUILD_URL}">${env.BUILD_URL}</a>
+                    </p>
             __________________________________________________________
             """
         }
