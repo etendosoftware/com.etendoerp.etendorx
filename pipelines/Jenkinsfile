@@ -290,7 +290,7 @@ spec:
         stage ("Run Das Tests") {
             when {
                 expression {
-                    currentBuild.result == "SUCCESS"
+                    env.STATUSRX == "1"
                 }
             }
             steps {
