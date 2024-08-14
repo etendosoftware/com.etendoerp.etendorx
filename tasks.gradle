@@ -1,8 +1,8 @@
 def ETENDORX_PRODUCTION_REPOSITORY_URL = "https://maven.pkg.github.com/etendosoftware/com.etendoerp.platform.extensions"
 def ETENDORX_SNAPSHOT_REPOSITORY_URL = "https://repo.futit.cloud/repository/etendo-snapshot-jars"
-def ETENDORX_VERSION = "2.0.7-SNAPSHOT"
+def ETENDORX_VERSION = "2.0.9-SNAPSHOT"
 
-task "setup.rx" {
+task "rx.setup" {
     description = 'Finds all Docker Compose YAML files and copies them to build/compose'
     group = 'Docker'
 
@@ -28,6 +28,8 @@ task "setup.rx" {
                 }
                 def content = destFile.text
                 content = content.replace('{BBDD_URL}', isBBDDEnabled ? 'db' : "host.docker.internal")
+                content = content.replace('{CONTEXT_NAME}', project.property("context.name").toString())
+
                 destFile.text = content
             }
         }
@@ -80,11 +82,33 @@ task "rx.env.file" {
     }
 }
 
+task "rx.das.restart" {
+    doLast {
+        if(project.hasProperty("docker_com.etendoerp.etendorx") ? project.property("docker_com.etendoerp.etendorx").toBoolean() : false) {
+            executeDockerComposeCommand("restart das")
+        }
+    }
+}
+
+task "rx.das.stop" {
+    doLast {
+        if(project.hasProperty("docker_com.etendoerp.etendorx") ? project.property("docker_com.etendoerp.etendorx").toBoolean() : false) {
+            executeDockerComposeCommand("stop das")
+        }
+    }
+}
+
 afterEvaluate {
     tasks.named("generateEnvFile").configure { task ->
         task.finalizedBy("rx.env.file")
     }
     tasks.named("resources.up").configure { task ->
-        task.finalizedBy("setup.rx")
+        task.finalizedBy("rx.setup")
+    }
+    tasks.named("update.database").configure { task ->
+        task.dependsOn("rx.das.stop")
+    }
+    tasks.named("smartbuild").configure { task ->
+        task.finalizedBy("rx.das.restart")
     }
 }
