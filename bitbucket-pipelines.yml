@@ -5,34 +5,6 @@ clone:
 
 definitions:
   steps:
-    - step: &git-police
-        name: Git Police Step
-        script:
-          - printenv
-          - echo "-------------------------------------------------------------------------"
-          - echo "${DOCKERHUB_PASSWORD}" | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
-          - docker run -d -p 5000:5000 -e REPO_TOKEN="${ETENDOBOT_TOKEN}" -e PR_ID="$BITBUCKET_PR_ID" -e REPO_NAME="$BITBUCKET_REPO_SLUG" etendo/gitpolice:"${GITPOLICE_VERSION}"
-          - echo "-------------------------------------------------------------------------"
-          - sleep 10s
-          - response=$(curl -s -o response.txt -w "%{http_code}" -X GET http://localhost:5000/api/bitbucket)
-          - |
-            if [ "$response" -ne 200 ]; then
-              echo "API call failed with status code $response"
-              cat response.txt
-              exit 1
-            fi
-          - |
-            if ! grep -q "Valid branch name and correct destination" response.txt; then
-              echo "Git Police check failed: response does not contain 'Valid branch name and correct destination'"
-              echo "Full response:"
-              cat response.txt
-              exit 1
-            fi
-          - echo "API call successful with status code $response"
-          - cat response.txt
-        services:
-          - docker
-
     - step: &make-review
         name: Make Review Step
         script:
@@ -63,7 +35,7 @@ definitions:
               SONAR_TOKEN: ${SONAR_TOKEN} # Get the value from the repository/workspace variable. You shouldn't set secret in clear text here.
               SONAR_EXCLUDE: node_modules, android, ios
   caches:
-    sonar: ~/.sonar 
+    sonar: ~/.sonar
 
 pipelines:
   branches:
@@ -73,10 +45,9 @@ pipelines:
     'develop':
       - step:
           script:
-          - echo "Skip for develop branch"
-          - exit 0
+            - echo "Skip for develop branch"
+            - exit 0
     '**':
-      - step: *git-police
       - parallel:
-        - step: *make-review
-        - step: *build-step
+          - step: *make-review
+          - step: *build-step

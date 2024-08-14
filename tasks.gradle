@@ -1,0 +1,114 @@
+def ETENDORX_PRODUCTION_REPOSITORY_URL = "https://maven.pkg.github.com/etendosoftware/com.etendoerp.platform.extensions"
+def ETENDORX_SNAPSHOT_REPOSITORY_URL = "https://repo.futit.cloud/repository/etendo-snapshot-jars"
+def ETENDORX_VERSION = "2.0.9-SNAPSHOT"
+
+task "rx.setup" {
+    description = 'Finds all Docker Compose YAML files and copies them to build/compose'
+    group = 'Docker'
+
+    doLast {
+        println("Copying RX config files")
+        // Ensure the destination directory exists
+        def destDir = file("$buildDir/rxconfig")
+        if (!destDir.exists()) {
+            destDir.mkdirs()
+        }
+
+        def dirs = ['modules', "${buildDir}/etendo/modules"]
+        dirs.each { dir ->
+            // Find all Docker Compose YAML files and copy them
+            fileTree(dir: dir, include: '**/rxconfig/*.yaml.template').each { file ->
+                def destFile = new File(destDir, file.name.replace('.template', ''))
+                copy {
+                    from file
+                    into destDir
+                    rename { String fileName ->
+                        fileName.replace('.template', '')
+                    }
+                }
+                def content = destFile.text
+                content = content.replace('{BBDD_URL}', isBBDDEnabled ? 'db' : "host.docker.internal")
+                content = content.replace('{CONTEXT_NAME}', project.property("context.name").toString())
+
+                destFile.text = content
+            }
+        }
+        executeDockerComposeCommand("cp ${destDir} config:/")
+    }
+}
+
+task "rx.env.file" {
+    description = 'Generates the .env file for RX'
+    group = 'Docker'
+
+    doLast {
+        def props = envFile()
+        def env = props.envFile
+        def properties = props.properties
+        env.withWriterAppend { writer ->
+            writer.write("ETENDORX_VERSION=${ETENDORX_VERSION}\n")
+            if ("${ETENDORX_VERSION}".contains("SNAPSHOT")) {
+                writer.write("ETENDORX_REPOSITORY_URL=${ETENDORX_SNAPSHOT_REPOSITORY_URL}\n")
+                writer.write("ETENDORX_REPOSITORY_USER=${properties.getProperty("nexusUser")}\n")
+                writer.write("ETENDORX_REPOSITORY_PASSWORD=${properties.getProperty("nexusPassword")}\n")
+            } else {
+                writer.write("ETENDORX_REPOSITORY_URL=${ETENDORX_PRODUCTION_REPOSITORY_URL}\n")
+                writer.write("ETENDORX_REPOSITORY_USER=${properties.getProperty("githubUser")}\n")
+                writer.write("ETENDORX_REPOSITORY_PASSWORD=${properties.getProperty("githubToken")}\n")
+            }
+            def destUrl = isBBDDEnabled ? "db" : "host.docker.internal"
+            def port = isBBDDEnabled ? "5432" : project.property("bbdd.port")
+            def sid = project.hasProperty("bbdd.sid") ? project.property("bbdd.sid") : "etendo"
+            def contextName = project.hasProperty("context.name") ? project.property("context.name") : "etendo"
+            writer.write("ETENDORX_DB_HOST=${destUrl}\n")
+            writer.write("ETENDORX_DB_PORT=${port}\n")
+            writer.write("ETENDORX_DB_SID=${sid}\n")
+
+            // TODO - When the mix config server - tomcat unified is ready, use this commented code
+            /*
+            def tomcatHost = "tomcat"
+            def tomcatPort = "8080"
+            if(!isTomcatEnabled) {
+                tomcatHost = "host.docker.internal"
+                if(project.hasProperty("docker_com.etendoerp.tomcat_port")) {
+                    tomcatPort = project.property("docker_com.etendoerp.tomcat_port").toString()
+                }
+            }
+            def configServerUrl = "http://${tomcatHost}:${tomcatPort}/${contextName}"
+            writer.write("ETENDORX_CONFIG_SERVER_URL=${configServerUrl}\n")
+            */
+            writer.write("ETENDORX_CONFIG_SERVER_URL=http://config:8888\n")
+        }
+    }
+}
+
+task "rx.das.restart" {
+    doLast {
+        if(project.hasProperty("docker_com.etendoerp.etendorx") ? project.property("docker_com.etendoerp.etendorx").toBoolean() : false) {
+            executeDockerComposeCommand("restart das")
+        }
+    }
+}
+
+task "rx.das.stop" {
+    doLast {
+        if(project.hasProperty("docker_com.etendoerp.etendorx") ? project.property("docker_com.etendoerp.etendorx").toBoolean() : false) {
+            executeDockerComposeCommand("stop das")
+        }
+    }
+}
+
+afterEvaluate {
+    tasks.named("generateEnvFile").configure { task ->
+        task.finalizedBy("rx.env.file")
+    }
+    tasks.named("resources.up").configure { task ->
+        task.finalizedBy("rx.setup")
+    }
+    tasks.named("update.database").configure { task ->
+        task.dependsOn("rx.das.stop")
+    }
+    tasks.named("smartbuild").configure { task ->
+        task.finalizedBy("rx.das.restart")
+    }
+}
