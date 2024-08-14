@@ -27,7 +27,7 @@ publishing {
     }
     repositories {
         maven {
-            url "https://repo.futit.cloud/repository/maven-snapshots"
+            url "https://maven.pkg.github.com/etendosoftware/com.etendoerp.platform.extensions"
         }
     }
 }
@@ -42,9 +42,6 @@ repositories {
     }
     maven {
         url "https://repo.futit.cloud/repository/maven-public-jars"
-    }
-    maven {
-        url "https://repo.futit.cloud/repository/maven-snapshots"
     }
 }
 
