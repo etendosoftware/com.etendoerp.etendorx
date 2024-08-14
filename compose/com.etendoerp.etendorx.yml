@@ -1,7 +1,6 @@
 services:
   config:
     env_file: ".env"
-    container_name: config
     image: etendo/dynamic-gradle:1.0.0
     ports:
       - "8888:8888"
@@ -29,7 +28,6 @@ services:
     depends_on:
       config:
         condition: service_healthy
-    container_name: das
     image: etendo/dynamic-das:1.0.0
     ports:
       - "8092:8092"
@@ -61,7 +59,6 @@ services:
     depends_on:
       config:
         condition: service_healthy
-    container_name: auth
     image: etendo/dynamic-gradle:1.0.0
     ports:
       - "8094:8094"
@@ -81,9 +78,36 @@ services:
       interval: 10s
       timeout: 10s
       retries: 60
+
+  edge:
+    env_file: ".env"
+    depends_on:
+      config:
+        condition: service_healthy
+    image: etendo/dynamic-gradle:1.0.0
+    ports:
+      - "8096:8096"
+    environment:
+      - DEPENDENCIES=com.etendorx:edge:${ETENDORX_VERSION}
+      - REPO_URL=${ETENDORX_REPOSITORY_URL}
+      - REPO_USER=${ETENDORX_REPOSITORY_USER}
+      - REPO_PASSWORD=${ETENDORX_REPOSITORY_PASSWORD}
+      - CONFIG_SERVER_URL=${ETENDORX_CONFIG_SERVER_URL}
+      - TASK=downloadJar
+    networks:
+      - etendo
+    volumes:
+      - edge_vol:/root/.gradle
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://localhost:8096/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 60
+
 networks:
   etendo:
 volumes:
   das_cache_vol:
   das_app_vol:
   auth_vol:
+  edge_vol:

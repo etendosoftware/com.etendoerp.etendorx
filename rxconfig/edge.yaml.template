@@ -11,13 +11,13 @@ logging:
 
 etendorx:
   auth:
-    url: http://localhost:8094
-  zapier:
-    url: http://localhost:8091
+    url: http://auth:8094
 classic:
-  url: http://localhost:8080
+  url: http://tomcat:8080
+  context:
+    name: {CONTEXT_NAME}
 subapp:
-  url: http://localhost:3000
+  url: http://host.docker.internal:3000
 
 spring:
   cloud:
@@ -32,31 +32,21 @@ spring:
           filters:
             - RewritePath=/login, /api/authenticate
 
-        # Zapier secure paths
-        - id: zapier_secure_path_route
-          uri: ${etendorx.zapier.url}
-          predicates:
-            - Method=GET, POST, DELETE
-            - Path=/secure/zapier/**
-          filters:
-            - JwtAuthenticationFilter
-            - RewritePath=/secure/zapier(?<segment>/?.*), $\{segment}
-
         # Classic path
         - id: classic_path_route
           uri: ${classic.url}
           predicates:
             - Method=GET, POST, DELETE, HEAD, PATCH
-            - Path=/etendo/**
+            - Path=/${classic.context.name}/**
           filters:
-            - RewritePath=/etendo/(?<segment>.*), /etendo/$\{segment}
+            - RewritePath=/${classic.context.name}/(?<segment>.*), /${classic.context.name}/$\{segment}
             - RemoveResponseHeader=Location
 
         # Das path
         - id: das_path_route
           uri: ${das.url}
           predicates:
-            - Method=GET, POST, DELETE, HEAD, PATCH
+            - Method=GET, PUT, POST, DELETE, HEAD, PATCH
             - Path=/das/**
           filters:
             #- JwtAuthenticationFilter
