@@ -15,25 +15,34 @@ pipeline {
         NEXUS_PASSWORD      = credentials('nexus-admin-passwd')
         GITHUB_USER         = 'etendobot'
         GITHUB_TOKEN        = credentials('github-read-package-token')
-        JAVA_HOME           = '/opt/java/openjdk/'
-        ACCESS_TOKEN        = credentials('access_token_github')
+        
+        USER_ACCESS         = credentials('user-access-commit-bitbucket')
+        ACCESS_TOKEN        = credentials('access-token-commit-bitbucket')
+        
+        OWNER_REPOSITORY    = 'koodu_software'
+        REPOSITORY_NAME     = 'com.etendoerp.etendorx'
+
         EMAIL_ADDRESS       = 'roman.magnoli@etendo.software'
         CORE_URL_REPO       = 'https://github.com/etendosoftware/etendo_core'
         RX_URL_REPO         = 'https://github.com/etendosoftware/etendo_rx'
+        URL_REPO            = 'https://bitbucket.org/koodu_software/com.etendoerp.etendorx'
+        BRANCH_NAME_RX      = 'develop'
+        
         COMMIT_AUTHOR_NAME  = sh(returnStdout: true, script: "git log -1 --pretty=format:'%an'").trim()
         COMMIT_AUTHOR_EMAIL = sh(returnStdout: true, script: "git log -1 --pretty=format:'%ae'").trim()
+
+        JAVA_HOME           = '/opt/java/openjdk/'
         CATALINA_HOME       = '${WORKSPACE}/apache-tomcat-8.5.75'
-        STATUSCORE          = '1'
         BUILD_CLASSIC       = true
         DOCKER_HOST         = '/home/jenkins/docker.sock'
         DOCKER_TLS_VERIFY   = 0
-        REPOSITORY_NAME     = 'com.etendoerp.etendorx'
-        CONTEXT_BUILD       = 'Module Tests'
 
-        COMMIT_INPROGRESS_STATUS = 'pending'
-        COMMIT_SUCCESS_STATUS    = 'success'
-        COMMIT_FAILED_STATUS     = 'failure'
-        
+        CONTEXT_BUILD       = 'Module Tests'
+        STATUSCORE          = '1'
+
+        COMMIT_INPROGRESS_STATUS = 'INPROGRESS'
+        COMMIT_SUCCESS_STATUS    = 'SUCCESSFUL'
+        COMMIT_FAILED_STATUS     = 'FAILED'
     }
 
     agent {
@@ -44,10 +53,10 @@ pipeline {
 apiVersion: v1
 kind: Pod
 metadata:
-  name: jenkins-node-core-unittests-rx
+  name: jenkins-node
   namespace: jenkins
   labels:
-    app.kubernetes.io/name: jenkins-node-core-unittests-rx
+    app.kubernetes.io/name: jenkins-node
 spec:
   containers:
     - name: compiler
@@ -120,11 +129,12 @@ spec:
                     script {
                         try {
                             echo "Starting Environment tests"
+                            sh 'chmod a+x ./pipelines/utils/build-update.sh'
                             sh "./pipelines/utils/build-update.sh ${REPOSITORY_NAME} ${GIT_COMMIT} ${BUILD_NUMBER} ${COMMIT_INPROGRESS_STATUS} \"${CONTEXT_BUILD}\" ${BUILD_URL} \"Starting Build\" ${OWNER_REPOSITORY} ${USER_ACCESS} ${ACCESS_TOKEN}"
                             sh """
                             export DOCKER_HOST=/var/run/docker.sock
                             export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
-                            git clone --branch $BRANCH_NAME ${RX_URL_REPO}
+                            git clone --branch ${BRANCH_NAME_RX} ${RX_URL_REPO}
                             cd etendo_rx
                             cp gradle.properties.template gradle.properties
                             sed -i 's/^githubUser=.*/githubUser=${GITHUB_USER}/' gradle.properties
@@ -162,8 +172,7 @@ spec:
                         """
 
                         // Clone Etendo Core
-                        sh 'GIT_SSH_COMMAND=\"ssh -i ${keyfile}\" git clone --branch develop git@github.com:etendosoftware/etendo_core.git etendo_core'
-
+                        sh 'git clone --branch develop ${CORE_URL_REPO}'
                         // Setup environment
                         sh 'printenv'
                         script {
@@ -192,14 +201,15 @@ spec:
                                     cd modules
                                     GIT_SSH_COMMAND=\"ssh -i ${keyfile}\" git clone git@bitbucket.org:koodu_software/com.etendoerp.etendorx.git
                                     cd com.etendoerp.etendorx
-                                    git checkout epic/EE-537
+                                    git checkout ${GIT_COMMIT}
                                     cd ../..
                                     """
-                                    sh './gradlew install --info --stacktrace'
-                                    sh './gradlew smartbuild --info --stacktrace'
+                                    sh './gradlew install -PignoreConsistency=true --info --stacktrace'
+                                    sh './gradlew smartbuild -PignoreConsistency=true --info --stacktrace'
                                     echo 'Build of Etendo Core Finished'
                                     env.STATUSCORE = "1"
                                     env.STATUSRX = "0"
+                                    currentBuild.result = 'SUCCESS'
                                 }
                             } catch (Exception e) {
                                 echo 'Build of Etendo Core FAILED'
@@ -215,7 +225,7 @@ spec:
         stage ('Build Environment Etendo RX') {
             when {
                 expression {
-                    env.STATUSCORE == "1"
+                    currentBuild.result == "SUCCESS"
                 }
             }
             steps {
@@ -245,7 +255,7 @@ spec:
         stage ("Run Etendo RX module tests") {
             when {
                 expression {
-                    false
+                    currentBuild.result == "SUCCESS"
                 }
             }
             steps {
@@ -254,7 +264,7 @@ spec:
                         env.STATUSTEST = "1"
                         echo "Starting Etendo RX module tests"
                         sh """
-                        cd etendo_rx
+                        cd etendo_core
                         ./gradlew test --tests "com.etendoerp.etendorx.*" --info
                         """
                         '...ETENDO RX MODULE TESTS SUCCESSFUL...'
@@ -277,88 +287,138 @@ spec:
                 }
             }
         }
-    }
-    post {
-            always {
-                script {
-                    echo"proccess is done"
+        stage ("Run Das Tests") {
+            when {
+                expression {
+                    currentBuild.result == "SUCCESS"
                 }
             }
-            fixed {
-                mail to: EMAIL_ADDRESS,
-                subject: "✅ FIXED - ${currentBuild.fullDisplayName}",
-                body: """
-    ${new Date()}
-    __________________________________________________________
-
-    ✅ ERRORS FIXED ✅
-
-    Commit: ${URL_REPO}/commit/${env.GIT_COMMIT}
-    Author: ${COMMIT_AUTHOR_NAME} <${COMMIT_AUTHOR_EMAIL}>
-
-    The problems found in the previous run/s have been fixed! 💪
-    Check out the output in the following link:
-    ${env.BUILD_URL}
-    __________________________________________________________
-                """
-            }
-            failure {
-                script {
-                    sh 'chmod a+x ./pipelines/run-tests/build-update.sh'
-                    sh './pipelines/run-tests/build-update.sh etendo_rx failure "Failed Build Environments" $ACCESS_TOKEN $GIT_COMMIT $BUILD_URL'
-                    echo "Failed Build Environments"
+            steps {
+                container("compiler") {
+                    script {
+                        try {
+                            echo "Starting Das tests"
+                            sh """
+                            export DOCKER_HOST=/var/run/docker.sock
+                            export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+                            cd etendo_rx
+                            ./gradlew :com.etendorx.das:test --info --tests com.etendorx.das.test.RepositoryTest
+                            ./gradlew :com.etendorx.das:test --info --tests com.etendorx.das.test.RestCallTest
+                            ./gradlew :com.etendorx.das:test --info --tests com.etendorx.das.test.DefaultFiltersTest
+                            ./gradlew :com.etendorx.das:test --info --tests com.etendorx.das.test.eventhandlertest.test.AnnotationTests
+                            ./gradlew :com.etendorx.das:test --info --tests com.etendorx.das.unit.BindedRestControllerTest
+                            ./gradlew :com.etendorx.das:test --info --tests com.etendorx.das.unit.JsonPathEntityRetrieverDefaultTest
+                            ./gradlew :com.etendorx.das:test --info --tests com.etendorx.das.unit.MappingUtilsImplTest
+                            ./gradlew :com.etendorx.das:test --info --tests com.etendorx.das.test.DisableEnableTriggersTest
+                            ./gradlew :com.etendorx.das:test --info --tests com.etendorx.das.test.FieldMappingRestCallTest
+                            ./gradlew :com.etendorx.das:test --info --tests com.etendorx.das.integration.PropertyMetadataTest
+                            ./gradlew :com.etendorx.das:test --info --tests com.etendorx.das.unit.BaseDTORepositoryDefaultTests
+                            ./gradlew :com.etendorx.das:test --info --tests com.etendorx.das.unit.JsonPathConverterBaseTests
+                            ./gradlew :com.etendorx.das:test --info --tests com.etendorx.entities.mapper.lib.JsonPathEntityRetrieverBaseTests
+                            """
+                            '...DAS TESTS SUCCESSFUL...'
+                        } catch (Exception e) {
+                            echo 'Exception occurred: ' + e.toString()
+                            echo '...DAS TEST FAILED...'
+                            currentBuild.result = 'UNSTABLE'
+                            unstable('DAS TESTS FAILED!')
+                            env.STATUSTEST = "0"
+                        }
+                        if(fileExists('etendo_rx/modules_core/com.etendorx.das/build/reports/tests/test')) {
+                            publishHTML([
+                                allowMissing: false,
+                                alwaysLinkToLastBuild: false,
+                                keepAll: true,
+                                reportDir: 'etendo_rx/modules_core/com.etendorx.das/build/reports/tests/test',
+                                reportFiles: '*.html',
+                                reportName: 'DAS TESTS REPORT',
+                                reportTitles: ''
+                            ])
+                        }
+                    }
                 }
-                cleanWs deleteDirs: true
-                mail to: EMAIL_ADDRESS,
-                subject: "⛔ ERROR - ${currentBuild.fullDisplayName}",
-                body:  """
-    ${new Date()}
-    __________________________________________________________
-
-    ⛔ ERROR ⛔
-
-    Commit: ${URL_REPO}/commit/${env.GIT_COMMIT}
-    Author: ${COMMIT_AUTHOR_NAME} <${COMMIT_AUTHOR_EMAIL}>
-
-    The build has failed unexpectedly.
-    💡 This build was on an Etendo Core environment.
-    To more information on the failing run visit:
-    ${env.BUILD_URL}
-    __________________________________________________________
-                """
-            }
-            unstable {
-                script {
-                    sh 'chmod a+x ./pipelines/run-tests/build-update.sh'
-                    sh './pipelines/run-tests/build-update.sh etendo_rx failure "Failed Tests" $ACCESS_TOKEN $GIT_COMMIT $BUILD_URL'
-                    echo "Failed Test"
-                }
-                cleanWs deleteDirs: true
-                mail to: EMAIL_ADDRESS,
-                subject: "⚠️ TESTS FAILED - ${currentBuild.fullDisplayName}",
-                body: """
-    ${new Date()}
-    __________________________________________________________
-
-    ⚠️ BUILD UNSTABLE ⚠️
-
-    Commit: ${URL_REPO}/commit/${env.GIT_COMMIT}
-    Author: ${COMMIT_AUTHOR_NAME} <${COMMIT_AUTHOR_EMAIL}>
-
-    Tests have been detected that have failed in Etendo RX.
-    💡 These tests were run on a Postgres database environment.
-    To more information on the failing run visit:
-    ${env.BUILD_URL}
-    __________________________________________________________
-                """
-            }
-            success {
-                script {
-                    sh 'chmod a+x ./pipelines/run-tests/build-update.sh'
-                    sh './pipelines/run-tests/build-update.sh etendo_rx success "Successful Test Suites" $ACCESS_TOKEN $GIT_COMMIT $BUILD_URL'
-                    echo "Successful Test"
-                }
-                cleanWs deleteDirs: true
             }
         }
+    }
+    post {
+        fixed {
+            mail to: EMAIL_ADDRESS,
+            subject: "✅ FIXED - ${currentBuild.fullDisplayName}",
+            mimeType: "text/html",
+            body: """
+            ${new Date()}
+            __________________________________________________________
+
+            ✅ ERRORS FIXED ✅
+
+            Commit: ${URL_REPO}/commits/${env.GIT_COMMIT}
+            Author: ${COMMIT_AUTHOR_NAME} <${COMMIT_AUTHOR_EMAIL}>
+
+            The problems found in the previous run/s have been fixed! 💪
+            Check out the output in the following link:
+            ${env.BUILD_URL}
+            __________________________________________________________
+            """
+        }
+        failure {
+            script {
+                sh 'chmod a+x ./pipelines/utils/build-update.sh'
+                sh './pipelines/utils/build-update.sh $REPOSITORY_NAME $GIT_COMMIT $BUILD_NUMBER $COMMIT_INPROGRESS_STATUS \"${CONTEXT_BUILD}\" $BUILD_URL "Starting build" $OWNER_REPOSITORY $USER_ACCESS $ACCESS_TOKEN'
+                echo "Failed Build Environments"
+            }
+            cleanWs deleteDirs: true
+            mail to: EMAIL_ADDRESS,
+            subject: "⛔ ERROR - ${currentBuild.fullDisplayName}",
+            mimeType: "text/html",
+            body:  """
+            ${new Date()}
+            __________________________________________________________
+
+            ⛔ ERROR ⛔
+
+            Commit: ${URL_REPO}/commits/${env.GIT_COMMIT}
+            Author: ${COMMIT_AUTHOR_NAME} <${COMMIT_AUTHOR_EMAIL}>
+
+            The build has failed unexpectedly.
+            💡 This build was on an Etendo Core environment.
+            To more information on the failing run visit:
+            ${env.BUILD_URL}
+            __________________________________________________________
+            """
+        }
+        unstable {
+            script {
+                sh 'chmod a+x ./pipelines/utils/build-update.sh'
+                sh './pipelines/utils/build-update.sh $REPOSITORY_NAME $GIT_COMMIT $BUILD_NUMBER $COMMIT_INPROGRESS_STATUS \"${CONTEXT_BUILD}\" $BUILD_URL "Starting build" $OWNER_REPOSITORY $USER_ACCESS $ACCESS_TOKEN'
+                echo "Failed Test"
+            }
+            cleanWs deleteDirs: true
+            mail to: EMAIL_ADDRESS,
+            subject: "⚠️ TESTS FAILED - ${currentBuild.fullDisplayName}",
+            mimeType: "text/html",
+            body: """
+            ${new Date()}
+            __________________________________________________________
+
+            ⚠️ BUILD UNSTABLE ⚠️
+
+            Commit: ${URL_REPO}/commits/${env.GIT_COMMIT}
+            Author: ${COMMIT_AUTHOR_NAME} <${COMMIT_AUTHOR_EMAIL}>
+
+            Tests have been detected that have failed in Etendo RX.
+            💡 These tests were run on a Postgres database environment.
+            To more information on the failing run visit:
+            ${env.BUILD_URL}
+            __________________________________________________________
+            """
+        }
+        success {
+            script {
+                sh 'chmod a+x ./pipelines/utils/build-update.sh'
+                sh './pipelines/utils/build-update.sh $REPOSITORY_NAME $GIT_COMMIT $BUILD_NUMBER $COMMIT_INPROGRESS_STATUS \"${CONTEXT_BUILD}\" $BUILD_URL "Starting build" $OWNER_REPOSITORY $USER_ACCESS $ACCESS_TOKEN'
+                echo "Successful Test"
+            }
+            cleanWs deleteDirs: true
+        }
+    }
 }
