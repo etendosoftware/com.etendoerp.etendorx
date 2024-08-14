@@ -51,7 +51,7 @@ repositories {
 */
 dependencies {
    implementation('com.etendoerp.platform:etendo-core:[21.4.0,)')
-   implementation('com.etendoerp:docker:0.0.3')
+   implementation('com.etendoerp:docker:1.0.0')
 }
 
 sourceSets {
