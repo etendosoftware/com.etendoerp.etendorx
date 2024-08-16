@@ -6,39 +6,41 @@ project.ext {
 }
 
 task "rx.setup" {
-    description = 'Finds all Docker Compose YAML files and copies them to build/compose'
-    group = 'Docker'
+    if(project.hasProperty("docker_com.etendoerp.etendorx") ? project.property("docker_com.etendoerp.etendorx").toBoolean() : false) {
+        description = 'Finds all Docker Compose YAML files and copies them to build/compose'
+        group = 'Docker'
 
-    doLast {
-        println("Copying RX config files")
-        // Ensure the destination directory exists
-        def destDir = file("$buildDir/rxconfig")
-        if (!destDir.exists()) {
-            destDir.mkdirs()
-        }
-
-        def dirs = ['modules', "${buildDir}/etendo/modules"]
-        dirs.each { dir ->
-            // Find all Docker Compose YAML files and copy them
-            fileTree(dir: dir, include: '**/rxconfig/*.yaml.template').each { file ->
-                def destFile = new File(destDir, file.name.replace('.template', ''))
-                copy {
-                    from file
-                    into destDir
-                    rename { String fileName ->
-                        fileName.replace('.template', '')
-                    }
-                }
-                def content = destFile.text
-                content = content.replace('{BBDD_URL}', isBBDDEnabled ? 'db' : "host.docker.internal")
-                content = content.replace('{BBDD_PORT}', isBBDDEnabled ? '5432' : project.property("bbdd.port").toString())
-                content = content.replace('{BBDD_SID}', project.property("bbdd.sid").toString())
-                content = content.replace('{CONTEXT_NAME}', project.property("context.name").toString())
-
-                destFile.text = content
+        doLast {
+            println("Copying RX config files")
+            // Ensure the destination directory exists
+            def destDir = file("$buildDir/rxconfig")
+            if (!destDir.exists()) {
+                destDir.mkdirs()
             }
+
+            def dirs = ['modules', "${buildDir}/etendo/modules"]
+            dirs.each { dir ->
+                // Find all Docker Compose YAML files and copy them
+                fileTree(dir: dir, include: '**/rxconfig/*.yaml.template').each { file ->
+                    def destFile = new File(destDir, file.name.replace('.template', ''))
+                    copy {
+                        from file
+                        into destDir
+                        rename { String fileName ->
+                            fileName.replace('.template', '')
+                        }
+                    }
+                    def content = destFile.text
+                    content = content.replace('{BBDD_URL}', isBBDDEnabled ? 'db' : "host.docker.internal")
+                    content = content.replace('{BBDD_PORT}', isBBDDEnabled ? '5432' : project.property("bbdd.port").toString())
+                    content = content.replace('{BBDD_SID}', project.property("bbdd.sid").toString())
+                    content = content.replace('{CONTEXT_NAME}', project.property("context.name").toString())
+
+                    destFile.text = content
+                }
+            }
+            executeDockerComposeCommand("cp ${destDir} config:/")
         }
-        executeDockerComposeCommand("cp ${destDir} config:/")
     }
 }
 
