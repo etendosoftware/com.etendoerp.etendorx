@@ -71,7 +71,7 @@ public class BuildConfig extends HttpBaseServlet {
       if (rxConfig == null) {
         throw new OBException(OBMessageUtils.getI18NMessage("ETRX_NoConfigAuthFound"));
       }
-      updateSourceWithOAuthProviders(sourceEntry.getValue(), allInjectors, rxConfig.getServiceURL());
+      updateSourceWithOAuthProviders(sourceEntry.getValue(), allInjectors, rxConfig.getPublicURL());
       sendResponse(response, result, sourceEntry.getValue(), sourceEntry.getKey());
     } catch (Exception e) {
       log.error(e.getMessage(), e);

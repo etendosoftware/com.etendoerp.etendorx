@@ -68,7 +68,7 @@ public class GetTokenURL extends BaseActionHandler {
    */
   private static String getGetTokenURL(ETRXConfig rxConfig, ETRXoAuthProvider oauthProvider,
       String oAuthProviderId) {
-    return rxConfig.getServiceURL() + oauthProvider.getAuthorizationEndpoint() + oauthProvider.getValue()
+    return rxConfig.getPublicURL() + oauthProvider.getAuthorizationEndpoint() + oauthProvider.getValue()
         + String.format("?userId=%s&etrxOauthProviderId=%s",
         OBContext.getOBContext().getUser().getId(), oAuthProviderId);
   }
