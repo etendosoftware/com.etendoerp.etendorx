@@ -99,10 +99,8 @@ public class BuildConfig extends HttpBaseServlet {
    */
   private JSONObject getDefaultConfigToJsonObject(String serviceURI) throws JSONException, IOException {
     ETRXConfig rxConfig = AuthUtils.getRXConfig("config");
-    if (rxConfig == null) {
-      throw new OBException(OBMessageUtils.getI18NMessage("ETRX_NoConfigConfigFound"));
-    }
-    URL url = new URL(rxConfig.getServiceURL() + serviceURI);
+    String serverURL = rxConfig == null ? "http://config:8888" : rxConfig.getServiceURL();
+    URL url = new URL(serverURL + serviceURI);
     HttpURLConnection conn = (HttpURLConnection) url.openConnection();
     conn.setRequestMethod("GET");
     final InputStream inputStream = conn.getInputStream();
