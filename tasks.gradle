@@ -48,7 +48,7 @@ task "rx.env.file" {
         def env = props.envFile
         def properties = props.properties
         env.withWriterAppend { writer ->
-            writer.write("ETENDORX_VERSION=${ext.ETENDORX_VERSION}\n")
+            writer.write("ETENDORX_VERSION=${project.ext.ETENDORX_VERSION}\n")
             if ("${ETENDORX_VERSION}".contains("SNAPSHOT")) {
                 writer.write("ETENDORX_REPOSITORY_URL=${ETENDORX_SNAPSHOT_REPOSITORY_URL}\n")
                 writer.write("ETENDORX_REPOSITORY_USER=${properties.getProperty("nexusUser")}\n")
