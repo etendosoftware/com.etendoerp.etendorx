@@ -9,6 +9,9 @@ task "rx.setup" {
     group = 'Docker'
 
     doLast {
+        if(!project.hasProperty("docker_com.etendoerp.etendorx") || !project.property("docker_com.etendoerp.etendorx").toBoolean()) {
+            return
+        }
         println("Copying RX config files")
         // Ensure the destination directory exists
         def destDir = file("$buildDir/rxconfig")
