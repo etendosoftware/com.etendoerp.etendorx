@@ -63,3 +63,12 @@ spring:
             #- JwtAuthenticationFilter
             - RewritePath=/subapp/(?<segment>.*), /$\{segment}
             - RemoveResponseHeader=Location
+
+        # CUSTOM (API Connector)
+        - id: obconnector
+          uri: http://localhost:8101
+          predicates:
+            - Method=GET, POST, PUT, DELETE
+            - Path=/api/sync/**
+          filters:
+            - JwtAuthenticationFilter
