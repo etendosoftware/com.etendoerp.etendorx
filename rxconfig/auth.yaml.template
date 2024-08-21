@@ -1,6 +1,20 @@
 server:
   port: 8094
 
+management:
+  endpoint:
+    restart:
+      enabled: true
+
+spring:
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: placeholder
+            client-secret: placeholder
+
 private-key: >
   -----BEGIN PRIVATE KEY-----
   MIIEvwIBADANBgkqhkiG9w0BAQEFAASCBKkwggSlAgEAAoIBAQChyzrvnYFfwT2x
