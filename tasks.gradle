@@ -2,7 +2,7 @@ def ETENDORX_PRODUCTION_REPOSITORY_URL = "https://maven.pkg.github.com/etendosof
 def ETENDORX_SNAPSHOT_REPOSITORY_URL = "https://repo.futit.cloud/repository/etendo-snapshot-jars"
 def ETENDORX_VERSION = "2.0.0"
 project.ext {
-    ETENDORX_VERSION = "2.0.0"
+    ETENDORX_VERSION = "2.0.13-SNAPSHOT"
 }
 
 task "rx.setup" {
@@ -35,6 +35,7 @@ task "rx.setup" {
                     content = content.replace('{BBDD_PORT}', isBBDDEnabled ? '5432' : project.property("bbdd.port").toString())
                     content = content.replace('{BBDD_SID}', project.property("bbdd.sid").toString())
                     content = content.replace('{CONTEXT_NAME}', project.property("context.name").toString())
+                    content = content.replace('{ETENDORX_BASEPACKAGE}', project.hasProperty("etendorx.basepackage") ? project.property("etendorx.basepackage").toString() : "")
 
                     destFile.text = content
                 }
