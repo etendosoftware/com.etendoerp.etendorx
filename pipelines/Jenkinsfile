@@ -129,7 +129,6 @@ spec:
                     script {
                         try {
                             echo "Starting Environment tests"
-                            sh 'chmod a+x ./pipelines/utils/build-update.sh'
                             sh "./pipelines/utils/build-update.sh ${REPOSITORY_NAME} ${GIT_COMMIT} ${BUILD_NUMBER} ${COMMIT_INPROGRESS_STATUS} \"${CONTEXT_BUILD}\" ${BUILD_URL} \"Starting Build\" ${OWNER_REPOSITORY} ${USER_ACCESS} ${ACCESS_TOKEN}"
                             sh """
                             export DOCKER_HOST=/var/run/docker.sock
@@ -201,7 +200,7 @@ spec:
                                     sh './gradlew expandModules --info --stacktrace'
                                     sh """
                                     cd modules
-                                    GIT_SSH_COMMAND=\"ssh -i ${keyfile}\" git clone git@bitbucket.org:koodu_software/com.etendoerp.etendorx.git
+                                    GIT_SSH_COMMAND=\"ssh -i ${keyfile} -o \"UserKnownHostsFile=/dev/null\" -o \"StrictHostKeyChecking=no\"\" git clone git@bitbucket.org:koodu_software/com.etendoerp.etendorx.git
                                     cd com.etendoerp.etendorx
                                     git checkout ${GIT_COMMIT}
                                     cd ../..
@@ -263,6 +262,7 @@ spec:
             steps {
                 script {
                     try {
+                        sh "./pipelines/utils/build-update.sh ${REPOSITORY_NAME} ${GIT_COMMIT} ${BUILD_NUMBER} ${COMMIT_INPROGRESS_STATUS} \"${CONTEXT_BUILD}\" ${BUILD_URL} \"Running Tests\" ${OWNER_REPOSITORY} ${USER_ACCESS} ${ACCESS_TOKEN}"
                         env.STATUSTEST = "1"
                         echo "Starting Etendo RX module tests"
                         sh """
@@ -359,16 +359,16 @@ spec:
                     <p><em>${new Date()}</em></p>
                     <p>__________________________________________________________</p>
 
-                    <h2 class="header">✅ ERRORS FIXED ✅ ✅</h2>
+                    <h2 class="header">✅ ERRORS FIXED ✅</h2>
 
                     <p>
                         <strong>Commit:</strong> <a href="${URL_REPO}/commits/${env.GIT_COMMIT}">${URL_REPO}/commits/${env.GIT_COMMIT}</a><br />
                         <strong>Author:</strong> ${COMMIT_AUTHOR_NAME} (${COMMIT_AUTHOR_EMAIL})
                     </p>
                     <p>
-                        The build has failed unexpectedly.<br />
+                        The build has been fixed.<br />
                         💡 This build was on an Full Etendo (CORE and RX) build environment based on RX module commit.<br />
-                        For more information on the failing run, visit:<br />
+                        For more information about the run, visit:<br />
                         <a href="${env.BUILD_URL}">${env.BUILD_URL}</a>
                     </p>
                     <p>__________________________________________________________</p>
@@ -378,8 +378,7 @@ spec:
         }
         failure {
             script {
-                sh 'chmod a+x ./pipelines/utils/build-update.sh'
-                sh './pipelines/utils/build-update.sh $REPOSITORY_NAME $GIT_COMMIT $BUILD_NUMBER $COMMIT_INPROGRESS_STATUS \"${CONTEXT_BUILD}\" $BUILD_URL "Starting build" $OWNER_REPOSITORY $USER_ACCESS $ACCESS_TOKEN'
+                sh './pipelines/utils/build-update.sh $REPOSITORY_NAME $GIT_COMMIT $BUILD_NUMBER $COMMIT_FAILED_STATUS \"${CONTEXT_BUILD}\" $BUILD_URL "Build failed" $OWNER_REPOSITORY $USER_ACCESS $ACCESS_TOKEN'
                 echo "Failed Build Environments"
             }
             cleanWs deleteDirs: true
@@ -415,8 +414,7 @@ spec:
         }
         unstable {
             script {
-                sh 'chmod a+x ./pipelines/utils/build-update.sh'
-                sh './pipelines/utils/build-update.sh $REPOSITORY_NAME $GIT_COMMIT $BUILD_NUMBER $COMMIT_INPROGRESS_STATUS \"${CONTEXT_BUILD}\" $BUILD_URL "Starting build" $OWNER_REPOSITORY $USER_ACCESS $ACCESS_TOKEN'
+                sh './pipelines/utils/build-update.sh $REPOSITORY_NAME $GIT_COMMIT $BUILD_NUMBER $COMMIT_FAILED_STATUS \"${CONTEXT_BUILD}\" $BUILD_URL "Test execution failed" $OWNER_REPOSITORY $USER_ACCESS $ACCESS_TOKEN'
                 echo "Failed Test"
             }
             cleanWs deleteDirs: true
@@ -452,11 +450,9 @@ spec:
         }
         success {
             script {
-                sh 'chmod a+x ./pipelines/utils/build-update.sh'
-                sh './pipelines/utils/build-update.sh $REPOSITORY_NAME $GIT_COMMIT $BUILD_NUMBER $COMMIT_INPROGRESS_STATUS \"${CONTEXT_BUILD}\" $BUILD_URL "Starting build" $OWNER_REPOSITORY $USER_ACCESS $ACCESS_TOKEN'
+                sh './pipelines/utils/build-update.sh $REPOSITORY_NAME $GIT_COMMIT $BUILD_NUMBER $COMMIT_SUCCESS_STATUS \"${CONTEXT_BUILD}\" $BUILD_URL "Test finalized successfully" $OWNER_REPOSITORY $USER_ACCESS $ACCESS_TOKEN'
                 echo "Successful Test"
             }
-            cleanWs deleteDirs: true
         }
     }
 }
