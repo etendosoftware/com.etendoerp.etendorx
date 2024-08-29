@@ -3,6 +3,8 @@ das:
   grpc:
     ip: localhost
     port: 9090
+classic:
+  url: http://tomcat:8080
 
 management:
   endpoints:
