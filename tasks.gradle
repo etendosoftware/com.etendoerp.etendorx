@@ -1,7 +1,7 @@
 def ETENDORX_PRODUCTION_REPOSITORY_URL = "https://maven.pkg.github.com/etendosoftware/com.etendoerp.platform.extensions"
 def ETENDORX_SNAPSHOT_REPOSITORY_URL = "https://repo.futit.cloud/repository/etendo-snapshot-jars"
 project.ext {
-    ETENDORX_VERSION = "2.0.13-SNAPSHOT"
+    ETENDORX_VERSION = "2.1.0"
 }
 
 task "rx.setup" {
@@ -30,6 +30,7 @@ task "rx.setup" {
                         }
                     }
                     def content = destFile.text
+                    content = content.replace('{TOMCAT_URL}', isTomcatEnabled ? 'tomcat' : 'host.docker.internal')
                     content = content.replace('{BBDD_URL}', isBBDDEnabled ? 'db' : "host.docker.internal")
                     content = content.replace('{BBDD_PORT}', isBBDDEnabled ? '5432' : project.property("bbdd.port").toString())
                     content = content.replace('{BBDD_SID}', project.property("bbdd.sid").toString())
