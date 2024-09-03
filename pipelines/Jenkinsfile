@@ -140,6 +140,7 @@ spec:
                             sed -i 's/^githubToken=.*/githubToken=${GITHUB_TOKEN}/' gradle.properties
                             sed -i 's/^grpc.enabled=.*/grpc.enabled=true/' gradle.properties
                             sed -i 's/^data-rest.enabled=.*/data-rest.enabled=true/' gradle.properties
+                            echo "\nrx.checkModuleVersion=false" >> gradle.properties
                             mkdir -p modules
                             ./gradlew :setup
                             """
