@@ -1,4 +1,4 @@
-image: maven:3.8.4
+image: tonistiigi/binfmt:latest  # Imagen que soporta multi-arquitectura sin privilegios
 
 clone:
   depth: full
@@ -42,7 +42,6 @@ definitions:
         services:
           - docker
         script:
-          - docker run --privileged --rm tonistiigi/binfmt --install all  
           - docker buildx create --use  
           - docker buildx inspect --bootstrap  
           - export VERSION=$(cat VERSION)  
@@ -70,9 +69,9 @@ definitions:
 
 pipelines:
   branches:
-    'feature/ERP-774':  # Cambié el trigger a la rama 'feature/ERP-774'
+    'feature/ERP-774':  
       - step: *build-step
-      - step: *build-push-images  # Agregué la construcción de imágenes para test con el prefijo 'test-lucas'
+      - step: *build-push-images  
   pull-requests:
     'develop':
       - step:
