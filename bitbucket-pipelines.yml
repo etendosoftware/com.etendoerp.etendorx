@@ -31,9 +31,36 @@ definitions:
         script:
           - pipe: sonarsource/sonarqube-scan:1.0.0
             variables:
-              SONAR_HOST_URL: ${SONAR_HOST_URL} # Get the value from the repository/workspace variable.
-              SONAR_TOKEN: ${SONAR_TOKEN} # Get the value from the repository/workspace variable. You shouldn't set secret in clear text here.
+              SONAR_HOST_URL: ${SONAR_HOST_URL}
+              SONAR_TOKEN: ${SONAR_TOKEN}
               SONAR_EXCLUDE: node_modules, android, ios
+
+    - step: &build-push-images
+        name: Build and Push Docker Images (amd64 and arm64)
+        caches:
+          - docker
+        services:
+          - docker
+        script:
+          - docker run --privileged --rm tonistiigi/binfmt --install all  
+          - docker buildx create --use  
+          - docker buildx inspect --bootstrap  
+          - export VERSION=$(cat VERSION)  
+         
+          - echo "Building amd64 and arm64 images for dynamic-gradle"
+          - docker buildx build --platform linux/amd64,linux/arm64 -t etendo/dynamic-gradle:${VERSION} --push .
+          
+          - echo "Building amd64 and arm64 images for dynamic-das"
+          - docker buildx build --platform linux/amd64,linux/arm64 -t etendo/dynamic-das:${VERSION} --push .
+
+          - echo "Creating and pushing manifest for multi-arch support for dynamic-gradle"
+          - docker manifest create etendo/dynamic-gradle:${VERSION} etendo/dynamic-gradle:${VERSION}-amd64 etendo/dynamic-gradle:${VERSION}-arm64
+          - docker manifest push etendo/dynamic-gradle:${VERSION}
+
+          - echo "Creating and pushing manifest for multi-arch support for dynamic-das"
+          - docker manifest create etendo/dynamic-das:${VERSION} etendo/dynamic-das:${VERSION}-amd64 etendo/dynamic-das:${VERSION}-arm64
+          - docker manifest push etendo/dynamic-das:${VERSION}
+
   caches:
     sonar: ~/.sonar
 
@@ -41,6 +68,7 @@ pipelines:
   branches:
     '{master,develop}':
       - step: *build-step
+      - step: *build-push-images  
   pull-requests:
     'develop':
       - step:
