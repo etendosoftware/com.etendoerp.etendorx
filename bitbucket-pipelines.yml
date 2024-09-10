@@ -33,57 +33,61 @@ definitions:
         script:
           - pipe: sonarsource/sonarqube-scan:1.0.0
             variables:
-              SONAR_HOST_URL: ${SONAR_HOST_URL}  # La URL del servidor SonarQube
-              SONAR_TOKEN: ${SONAR_TOKEN}  # Token de autenticación de SonarQube
-              SONAR_EXCLUDE: node_modules, android, ios  # Exclusión de carpetas innecesarias
+              SONAR_HOST_URL: ${SONAR_HOST_URL}
+              SONAR_TOKEN: ${SONAR_TOKEN}
+              SONAR_EXCLUDE: node_modules, android, ios
 
-    # Construcción y despliegue para amd64
-    - step: &build-push-amd
-      script:
-        - export BRANCH_NAME=$(echo ${BITBUCKET_BRANCH} | sed 's/[^a-zA-Z0-9_-]/_/g')  # Normaliza el nombre de la rama
-        - echo "${DOCKERHUB_PASSWORD}" | docker login --username "${DOCKERHUB_USERNAME}" --password-stdin
-        - IMAGE=test-lucas/dynamic:${BRANCH_NAME}-amd64
-        - docker buildx create --use  # Crea un builder para multi-arquitectura
-        - docker buildx inspect --bootstrap  # Verifica que el builder esté listo
-        - docker buildx build --platform linux/amd64 -t ${IMAGE} . --push  # Construye y publica la imagen amd64
+    # Construcción y despliegue de imágenes Docker multi-arquitectura
+    - step: &build-push-images
+        name: Build and Push Docker Images (amd64 and arm64)
+        caches:
+          - docker
+        services:
+          - docker
+        script:
+          # Configura QEMU para soportar múltiples arquitecturas sin necesidad de --privileged
+          - docker run --rm --privileged aptman/qus -s -- -p  # QEMU user static sin --privileged
+          - docker buildx create --use  # Crea un builder para multi-arquitectura
+          - docker buildx inspect --bootstrap  # Verifica que el builder esté listo
+          - export VERSION=$(cat VERSION)  
+         
+          # Construcción y publicación de imágenes para dynamic-gradle
+          - echo "Building amd64 and arm64 images for dynamic-gradle"
+          - docker buildx build --platform linux/amd64,linux/arm64 -t etendo/dynamic-gradle-lucas:${VERSION} . --push
+          
+          # Construcción y publicación de imágenes para dynamic-das
+          - echo "Building amd64 and arm64 images for dynamic-das"
+          - docker buildx build --platform linux/amd64,linux/arm64 -t etendo/dynamic-das:${VERSION} . --push
 
-    # Construcción y despliegue para arm64
-    - step: &build-push-arm
-      script:
-        - export BRANCH_NAME=$(echo ${BITBUCKET_BRANCH} | sed 's/[^a-zA-Z0-9_-]/_/g')  # Normaliza el nombre de la rama
-        - echo "${DOCKERHUB_PASSWORD}" | docker login --username "${DOCKERHUB_USERNAME}" --password-stdin
-        - IMAGE=test-lucas/dynamic:${BRANCH_NAME}-arm64
-        - docker buildx build --platform linux/arm64 -t ${IMAGE} . --push  # Construye y publica la imagen arm64
+          # Crear y subir manifiesto multi-arquitectura para dynamic-gradle
+          - echo "Creating and pushing manifest for multi-arch support for dynamic-gradle"
+          - docker manifest create etendo/dynamic-gradle-lucas:${VERSION} \
+              etendo/dynamic-gradle-lucas:${VERSION}-amd64 \
+              etendo/dynamic-gradle-lucas:${VERSION}-arm64
+          - docker manifest push etendo/dynamic-gradle-lucas:${VERSION}
 
-    - step: &create-push-manifes
-      script:
-        - export BRANCH_NAME=$(echo ${BITBUCKET_BRANCH} | sed 's/[^a-zA-Z0-9_-]/_/g')  # Normaliza el nombre de la rama
-        - echo "${DOCKERHUB_PASSWORD}" | docker login --username "${DOCKERHUB_USERNAME}" --password-stdin
-        - docker pull test-lucas/dynamic:${BRANCH_NAME}-amd64
-        - docker pull test-lucas/dynamic:${BRANCH_NAME}-arm64
-        - docker manifest create test-lucas/dynamic:${BRANCH_NAME} \
-            test-lucas/dynamic:${BRANCH_NAME}-amd64 \
-            test-lucas/dynamic:${BRANCH_NAME}-arm64  # Crea el manifiesto multi-arquitectura
-        - docker manifest annotate test-lucas/dynamic:${BRANCH_NAME} test-lucas/dynamic:${BRANCH_NAME}-amd64 --os linux --arch amd64
-        - docker manifest annotate test-lucas/dynamic:${BRANCH_NAME} test-lucas/dynamic:${BRANCH_NAME}-arm64 --os linux --arch arm64
-        - docker manifest push test-lucas/dynamic:${BRANCH_NAME}  # Publica el manifiesto
+          # Crear y subir manifiesto multi-arquitectura para dynamic-das
+          - echo "Creating and pushing manifest for multi-arch support for dynamic-das"
+          - docker manifest create etendo/dynamic-das:${VERSION} \
+              etendo/dynamic-das:${VERSION}-amd64 \
+              etendo/dynamic-das:${VERSION}-arm64
+          - docker manifest push etendo/dynamic-das:${VERSION}
 
   caches:
     sonar: ~/.sonar
 
 pipelines:
   branches:
-    feature/ERP-774:
-      - parallel:
-          - step: *build-step  # Ejecuta el análisis de SonarQube
-          - step: *make-review  # Revisión de código
-      - parallel:
-          - step: *build-push-amd  # Construye y publica amd64
-          - step: *build-push-arm  # Construye y publica arm64
-      - step: *create-push-manifes  # Crea y publica el manifiesto
-
+    'feature/ERP-774':
+      - step: *build-step
+      - step: *build-push-images  
   pull-requests:
-    "**":
+    'develop':
+      - step:
+          script:
+            - echo "Skip for develop branch"
+            - exit 0
+    '**':
       - parallel:
-          - step: *make-review  # Revisión de código en pull requests
-          - step: *build-step  # Análisis de SonarQube en pull requests
+          - step: *make-review
+          - step: *build-step
