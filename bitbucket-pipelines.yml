@@ -47,28 +47,32 @@ definitions:
           - docker buildx inspect --bootstrap  
           - export VERSION=$(cat VERSION)  
          
+          # Build and push for dynamic-gradle with a custom name for testing
           - echo "Building amd64 and arm64 images for dynamic-gradle"
-          - docker buildx build --platform linux/amd64,linux/arm64 -t etendo/dynamic-gradle:${VERSION} --push .
+          - docker buildx build --platform linux/amd64,linux/arm64 -t test-lucas/dynamic-gradle:${VERSION} --push .
           
+          # Build and push for dynamic-das with a custom name for testing
           - echo "Building amd64 and arm64 images for dynamic-das"
-          - docker buildx build --platform linux/amd64,linux/arm64 -t etendo/dynamic-das:${VERSION} --push .
+          - docker buildx build --platform linux/amd64,linux/arm64 -t test-lucas/dynamic-das:${VERSION} --push .
 
+          # Create and push Docker manifest for dynamic-gradle
           - echo "Creating and pushing manifest for multi-arch support for dynamic-gradle"
-          - docker manifest create etendo/dynamic-gradle:${VERSION} etendo/dynamic-gradle:${VERSION}-amd64 etendo/dynamic-gradle:${VERSION}-arm64
-          - docker manifest push etendo/dynamic-gradle:${VERSION}
+          - docker manifest create test-lucas/dynamic-gradle:${VERSION} test-lucas/dynamic-gradle:${VERSION}-amd64 test-lucas/dynamic-gradle:${VERSION}-arm64
+          - docker manifest push test-lucas/dynamic-gradle:${VERSION}
 
+          # Create and push Docker manifest for dynamic-das
           - echo "Creating and pushing manifest for multi-arch support for dynamic-das"
-          - docker manifest create etendo/dynamic-das:${VERSION} etendo/dynamic-das:${VERSION}-amd64 etendo/dynamic-das:${VERSION}-arm64
-          - docker manifest push etendo/dynamic-das:${VERSION}
+          - docker manifest create test-lucas/dynamic-das:${VERSION} test-lucas/dynamic-das:${VERSION}-amd64 test-lucas/dynamic-das:${VERSION}-arm64
+          - docker manifest push test-lucas/dynamic-das:${VERSION}
 
   caches:
     sonar: ~/.sonar
 
 pipelines:
   branches:
-    '{master,develop}':
+    'feature/ERP-774':  # Cambié el trigger a la rama 'feature/ERP-774'
       - step: *build-step
-      - step: *build-push-images  
+      - step: *build-push-images  # Agregué la construcción de imágenes para test con el prefijo 'test-lucas'
   pull-requests:
     'develop':
       - step:
