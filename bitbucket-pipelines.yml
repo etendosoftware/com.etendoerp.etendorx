@@ -1,4 +1,4 @@
-image: docker:20.10.7  # Usa una imagen base de Docker estándar que incluya un shell
+image: docker:20.10.7  # Usa una imagen de Docker estándar
 
 clone:
   depth: full
@@ -42,9 +42,12 @@ definitions:
         services:
           - docker
         script:
-          - docker run --privileged --rm tonistiigi/binfmt --install all  # Habilita soporte para multi-arquitectura manualmente
-          - docker buildx create --use  # Crea un builder para multi-arquitectura
-          - docker buildx inspect --bootstrap  # Verifica que el builder esté listo para construir
+          # Instala soporte para multi-arquitectura usando QEMU
+          - docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+
+          # Crea un builder para multi-arquitectura
+          - docker buildx create --use  
+          - docker buildx inspect --bootstrap  
           - export VERSION=$(cat VERSION)  
          
           # Build and push for dynamic-gradle with a custom name for testing
