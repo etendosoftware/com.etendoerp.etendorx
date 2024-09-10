@@ -1,4 +1,4 @@
-image: tonistiigi/binfmt:latest  # Imagen que soporta multi-arquitectura sin privilegios
+image: docker:20.10.7  # Usa una imagen base de Docker estándar que incluya un shell
 
 clone:
   depth: full
@@ -42,8 +42,9 @@ definitions:
         services:
           - docker
         script:
-          - docker buildx create --use  
-          - docker buildx inspect --bootstrap  
+          - docker run --privileged --rm tonistiigi/binfmt --install all  # Habilita soporte para multi-arquitectura manualmente
+          - docker buildx create --use  # Crea un builder para multi-arquitectura
+          - docker buildx inspect --bootstrap  # Verifica que el builder esté listo para construir
           - export VERSION=$(cat VERSION)  
          
           # Build and push for dynamic-gradle with a custom name for testing
