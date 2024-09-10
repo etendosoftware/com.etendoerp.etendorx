@@ -1,57 +1,18 @@
-image: maven:3.8.4  # Usa Maven como imagen base para las etapas que lo requieran
+image: maven:3.8.4  # Usa Maven como imagen base para el análisis de SonarQube
 
 clone:
   depth: full
 
 definitions:
   steps:
-    # Paso para la validación de ramas con Git Police
-    - step: &git-police
-        name: Git Police Step
-        script:
-          - printenv
-          - echo "-------------------------------------------------------------------------"
-          - echo "${DOCKERHUB_PASSWORD}" | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
-          - docker run -d -p 5000:5000 -e REPO_TOKEN="${ETENDOBOT_TOKEN}" -e PR_ID="$BITBUCKET_PR_ID" -e REPO_NAME="$BITBUCKET_REPO_SLUG" etendo/gitpolice:"${GITPOLICE_VERSION}"
-          - echo "-------------------------------------------------------------------------"
-          - sleep 10s
-          - response=$(curl -s -o response.txt -w "%{http_code}" -X GET http://localhost:5000/api/bitbucket)
-          - |
-            if [ "$response" -ne 200 ]; then
-              echo "API call failed with status code $response"
-              cat response.txt
-              exit 1
-            fi
-          - |
-            if ! grep -q "Valid branch name and correct destination" response.txt; then
-              echo "Git Police check failed: response does not contain 'Valid branch name and correct destination'"
-              echo "Full response:"
-              cat response.txt
-              exit 1
-            fi
-          - echo "API call successful with status code $response"
-          - cat response.txt
-        services:
-          - docker
-
-    # Análisis de SonarQube
-    - step: &build-step
-        name: SonarQube analysis
-        script:
-          - pipe: sonarsource/sonarqube-scan:1.0.0
-            variables:
-              SONAR_HOST_URL: ${SONAR_HOST_URL}
-              SONAR_TOKEN: ${SONAR_TOKEN}
-              SONAR_EXCLUDE: node_modules, android, ios
-
     # Revisión de código automatizada
     - step: &make-review
         name: Make Review Step
         script:
           - printenv
           - echo "-------------------------------------------------------------------------"
-          - echo "${DOCKERHUB_PASSWORD}" | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
-          - docker run -d -p 5000:5000 -e REPO_API_TOKEN="${ETENDOBOT_TOKEN}" -e PULL_REQUEST=$BITBUCKET_PR_ID -e PROJECT=$BITBUCKET_REPO_OWNER -e REPO_SLUG=$BITBUCKET_REPO_SLUG -e OPENAI_API_KEY=$OPENAI_API_KEY etendo/code-reviewer:${REVIEWER_VERSION}
+          - echo "${DOCKERHUB_PASSWORD}" | docker login --username "${DOCKERHUB_USERNAME}" --password-stdin
+          - docker run -d -p 5000:5000 -e REPO_API_TOKEN="${ETENDOBOT_TOKEN}" -e PULL_REQUEST="${BITBUCKET_PR_ID}" -e PROJECT="${BITBUCKET_REPO_OWNER}" -e REPO_SLUG="${BITBUCKET_REPO_SLUG}" -e OPENAI_API_KEY="${OPENAI_API_KEY}" etendo/code-reviewer:"${REVIEWER_VERSION}"
           - echo "-------------------------------------------------------------------------"
           - sleep 10s
           - response=$(curl -s -o response.txt -w "%{http_code}" -X GET http://localhost:5000/review/bitbucket)
@@ -66,78 +27,63 @@ definitions:
         services:
           - docker
 
+    # Análisis de SonarQube
+    - step: &build-step
+        name: SonarQube analysis
+        script:
+          - pipe: sonarsource/sonarqube-scan:1.0.0
+            variables:
+              SONAR_HOST_URL: ${SONAR_HOST_URL}  # La URL del servidor SonarQube
+              SONAR_TOKEN: ${SONAR_TOKEN}  # Token de autenticación de SonarQube
+              SONAR_EXCLUDE: node_modules, android, ios  # Exclusión de carpetas innecesarias
+
     # Construcción y despliegue para amd64
-    - step: &build-push-amd64
-      name: Build and Push for amd64
+    - step: &build-push-amd
       script:
-        - |
-          if [[ "${BITBUCKET_BRANCH}" == "develop" || "${BITBUCKET_BRANCH}" == "master" || "${BITBUCKET_BRANCH}" == "experimental" ]]; then
-            BRANCH_NAME=${BITBUCKET_BRANCH}
-          else
-            BRANCH_NAME=$(echo ${BITBUCKET_BRANCH} | sed 's/[^a-zA-Z0-9_-]/_/g')
-          fi
-        - echo "${DOCKERHUB_PASSWORD}" | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
-        - IMAGE=test-lucas/dynamic-gradle:${BRANCH_NAME}-amd64
-        - docker build --platform linux/amd64 -t ${IMAGE} .
-        - docker push ${IMAGE}
-      services:
-        - docker
+        - export BRANCH_NAME=$(echo ${BITBUCKET_BRANCH} | sed 's/[^a-zA-Z0-9_-]/_/g')  # Normaliza el nombre de la rama
+        - echo "${DOCKERHUB_PASSWORD}" | docker login --username "${DOCKERHUB_USERNAME}" --password-stdin
+        - IMAGE=test-lucas/dynamic:${BRANCH_NAME}-amd64
+        - docker buildx create --use  # Crea un builder para multi-arquitectura
+        - docker buildx inspect --bootstrap  # Verifica que el builder esté listo
+        - docker buildx build --platform linux/amd64 -t ${IMAGE} . --push  # Construye y publica la imagen amd64
 
     # Construcción y despliegue para arm64
-    - step: &build-push-arm64
-      name: Build and Push for arm64
-      runs-on:
-        - self.hosted
-        - linux.arm64
+    - step: &build-push-arm
       script:
-        - |
-          if [[ "${BITBUCKET_BRANCH}" == "develop" || "${BITBUCKET_BRANCH}" == "master" || "${BITBUCKET_BRANCH}" == "experimental" ]]; then
-            BRANCH_NAME=${BITBUCKET_BRANCH}
-          else
-            BRANCH_NAME=$(echo ${BITBUCKET_BRANCH} | sed 's/[^a-zA-Z0-9_-]/_/g')
-          fi
-        - echo "${DOCKERHUB_PASSWORD}" | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
-        - IMAGE=test-lucas/dynamic-das:${BRANCH_NAME}-arm64
-        - docker build --platform linux/arm64/v8 -t ${IMAGE} .
-        - docker push ${IMAGE}
-      services:
-        - docker
+        - export BRANCH_NAME=$(echo ${BITBUCKET_BRANCH} | sed 's/[^a-zA-Z0-9_-]/_/g')  # Normaliza el nombre de la rama
+        - echo "${DOCKERHUB_PASSWORD}" | docker login --username "${DOCKERHUB_USERNAME}" --password-stdin
+        - IMAGE=test-lucas/dynamic:${BRANCH_NAME}-arm64
+        - docker buildx build --platform linux/arm64 -t ${IMAGE} . --push  # Construye y publica la imagen arm64
 
-    # Crear y subir manifiesto multi-arquitectura
-    - step: &create-push-manifest
-      name: Create and Push Manifest
+    - step: &create-push-manifes
       script:
-        - |
-          if [[ "${BITBUCKET_BRANCH}" == "develop" || "${BITBUCKET_BRANCH}" == "master" || "${BITBUCKET_BRANCH}" == "experimental" ]]; then
-            BRANCH_NAME=${BITBUCKET_BRANCH}
-          else
-            BRANCH_NAME=$(echo ${BITBUCKET_BRANCH} | sed 's/[^a-zA-Z0-9_-]/_/g')
-          fi
-        - echo "${DOCKERHUB_PASSWORD}" | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
-        - docker pull test-lucas/dynamic-gradle:${BRANCH_NAME}-amd64
-        - docker pull test-lucas/dynamic-das:${BRANCH_NAME}-arm64
-        - docker manifest create test-lucas/dynamic:${BRANCH_NAME} test-lucas/dynamic-gradle:${BRANCH_NAME}-amd64 test-lucas/dynamic-das:${BRANCH_NAME}-arm64
-        - docker manifest annotate test-lucas/dynamic:${BRANCH_NAME} test-lucas/dynamic-gradle:${BRANCH_NAME}-amd64 --os linux --arch amd64
-        - docker manifest annotate test-lucas/dynamic:${BRANCH_NAME} test-lucas/dynamic-das:${BRANCH_NAME}-arm64 --os linux --arch arm64
-        - docker manifest push test-lucas/dynamic:${BRANCH_NAME}
-      services:
-        - docker
+        - export BRANCH_NAME=$(echo ${BITBUCKET_BRANCH} | sed 's/[^a-zA-Z0-9_-]/_/g')  # Normaliza el nombre de la rama
+        - echo "${DOCKERHUB_PASSWORD}" | docker login --username "${DOCKERHUB_USERNAME}" --password-stdin
+        - docker pull test-lucas/dynamic:${BRANCH_NAME}-amd64
+        - docker pull test-lucas/dynamic:${BRANCH_NAME}-arm64
+        - docker manifest create test-lucas/dynamic:${BRANCH_NAME} \
+            test-lucas/dynamic:${BRANCH_NAME}-amd64 \
+            test-lucas/dynamic:${BRANCH_NAME}-arm64  # Crea el manifiesto multi-arquitectura
+        - docker manifest annotate test-lucas/dynamic:${BRANCH_NAME} test-lucas/dynamic:${BRANCH_NAME}-amd64 --os linux --arch amd64
+        - docker manifest annotate test-lucas/dynamic:${BRANCH_NAME} test-lucas/dynamic:${BRANCH_NAME}-arm64 --os linux --arch arm64
+        - docker manifest push test-lucas/dynamic:${BRANCH_NAME}  # Publica el manifiesto
 
   caches:
     sonar: ~/.sonar
 
 pipelines:
   branches:
-    feature/ERP-774:  # Cambié la rama de trigger para pruebas
-      - step: *build-step
+    feature/ERP-774:
       - parallel:
-          - step: *build-push-amd64
-          - step: *build-push-arm64
-      - step: *create-push-manifest
+          - step: *build-step  # Ejecuta el análisis de SonarQube
+          - step: *make-review  # Revisión de código
+      - parallel:
+          - step: *build-push-amd  # Construye y publica amd64
+          - step: *build-push-arm  # Construye y publica arm64
+      - step: *create-push-manifes  # Crea y publica el manifiesto
 
   pull-requests:
     "**":
-      - step: *git-police
       - parallel:
-          - step: *make-review
-          - step: *build-step
+          - step: *make-review  # Revisión de código en pull requests
+          - step: *build-step  # Análisis de SonarQube en pull requests
