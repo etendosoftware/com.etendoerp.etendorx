@@ -30,6 +30,7 @@ task "rx.setup" {
                         }
                     }
                     def content = destFile.text
+                    content = content.replace('{TOMCAT_URL}', isTomcatEnabled ? 'tomcat' : 'host.docker.internal')
                     content = content.replace('{BBDD_URL}', isBBDDEnabled ? 'db' : "host.docker.internal")
                     content = content.replace('{BBDD_PORT}', isBBDDEnabled ? '5432' : project.property("bbdd.port").toString())
                     content = content.replace('{BBDD_SID}', project.property("bbdd.sid").toString())

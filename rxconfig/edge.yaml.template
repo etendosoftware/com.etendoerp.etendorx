@@ -13,7 +13,7 @@ etendorx:
   auth:
     url: http://auth:8094
 classic:
-  url: http://tomcat:8080
+  url: http://{TOMCAT_URL}:8080
   context:
     name: {CONTEXT_NAME}
 subapp:
