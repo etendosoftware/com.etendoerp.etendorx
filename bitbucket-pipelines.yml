@@ -1,88 +1,103 @@
-image: maven:3.8.4
-
-clone:
-  depth: full
-
 definitions:
   steps:
-    - step: &make-review
-        name: Make Review Step
-        script:
-          - printenv
-          - echo "-------------------------------------------------------------------------"
-          - echo "${DOCKERHUB_PASSWORD}" | docker login --username "${DOCKERHUB_USERNAME}" --password-stdin
-          - docker run -d -p 5000:5000 -e REPO_API_TOKEN="${ETENDOBOT_TOKEN}" -e PULL_REQUEST="${BITBUCKET_PR_ID}" -e PROJECT="${BITBUCKET_REPO_OWNER}" -e REPO_SLUG="${BITBUCKET_REPO_SLUG}" -e OPENAI_API_KEY="${OPENAI_API_KEY}" etendo/code-reviewer:"${REVIEWER_VERSION}"
-          - echo "-------------------------------------------------------------------------"
-          - sleep 10s
-          - response=$(curl -s -o response.txt -w "%{http_code}" -X GET http://localhost:5000/review/bitbucket)
-          - |
-            if [ "$response" -ne 200 ]; then
-              echo "API call failed with status code $response"
-              cat response.txt
-              exit 1
-            fi
-          - echo "API call successful with status code $response"
-          - cat response.txt
-        services:
-          - docker
-
     - step: &build-step
         name: SonarQube analysis
+        image: maven:3.3.9
         script:
           - pipe: sonarsource/sonarqube-scan:1.0.0
             variables:
               SONAR_HOST_URL: ${SONAR_HOST_URL}
               SONAR_TOKEN: ${SONAR_TOKEN}
-              SONAR_EXCLUDE: node_modules, android, ios
 
-    - step: &build-push-images
-        name: Build and Push Docker Images (amd64 and arm64)
-        image: docker:20.10.16
+    - step: &make-review
+        name: Make Review Step
+        script:
+          - printenv
+          - echo "-------------------------------------------------------------------------"
+          - echo ${DOCKERHUB_PASSWORD} | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
+          - docker run -d -p 5000:5000 -e REPO_API_TOKEN="${ETENDOBOT_TOKEN}" -e PULL_REQUEST=$BITBUCKET_PR_ID -e PROJECT=$BITBUCKET_REPO_OWNER -e REPO_SLUG=$BITBUCKET_REPO_SLUG -e OPENAI_API_KEY=$OPENAI_API_KEY etendo/code-reviewer:${REVIEWER_VERSION}
+          - echo "-------------------------------------------------------------------------"
+          - sleep 10s
+          - response=$(curl -s -o response.txt -w "%{http_code}" -X GET http://localhost:5000/review/bitbucket)
+          - |
+            if [ $response -ne 200 ]; then
+              echo "API call failed with status code $response"
+              echo "Response text:"
+              cat response.txt
+              exit 1
+            fi
+          - echo "API call successful with status code $response"
+          - echo "Response text:"
+          - cat response.txt
         services:
           - docker
-        script:
-          - apk add --no-cache qemu-img qemu-system-x86_64 qemu-system-aarch64
-          - docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
-          - docker buildx create --use
-          - docker buildx inspect --bootstrap
 
-          
-          - echo ${DOCKERHUB_PASSWORD} | docker login -u ${DOCKERHUB_USERNAME} --password-stdin
+    - &build-push-amd64
+      name: Build and Push for amd64
+      script:
+        - |
+          if [[ "${BITBUCKET_BRANCH}" == "develop" || "${BITBUCKET_BRANCH}" == "master" ]]; then
+            BRANCH_NAME=${BITBUCKET_BRANCH}
+          else
+            BRANCH_NAME=$(echo ${BITBUCKET_BRANCH} | sed 's/[^a-zA-Z0-9_-]/_/g')
+          fi
+        - echo ${DOCKERHUB_PASSWORD} | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
+        - IMAGE=etendo/dynamic-gradle:${BRANCH_NAME}-amd64
+        - docker build --platform linux/amd64 -t ${IMAGE} .
+        - docker push ${IMAGE}
+      services:
+        - docker
 
-          # Build and push dynamic-gradle
-          - cd resources/dynamic-gradle
-          - docker buildx build --platform linux/amd64,linux/arm64 -t etendo/dynamic-gradle:${VERSION} --push .
+    - &build-push-arm64
+      name: Build and Push for arm64
+      runs-on:
+        - self.hosted
+        - linux.arm64
+      script:
+        - |
+          if [[ "${BITBUCKET_BRANCH}" == "develop" || "${BITBUCKET_BRANCH}" == "master" ]]; then
+            BRANCH_NAME=${BITBUCKET_BRANCH}
+          else
+            BRANCH_NAME=$(echo ${BITBUCKET_BRANCH} | sed 's/[^a-zA-Z0-9_-]/_/g')
+          fi
+        - echo ${DOCKERHUB_PASSWORD} | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
+        - IMAGE=etendo/dynamic-gradle:${BRANCH_NAME}-arm64
+        - docker build --platform linux/arm64/v8 -t ${IMAGE} .
+        - docker push ${IMAGE}
+      services:
+        - docker
 
-          # Build and push dynamic-das
-          - cd ../dynamic-das
-          - docker buildx build --platform linux/amd64,linux/arm64 -t etendo/dynamic-das:${VERSION} --push .
+    - &create-push-manifest
+      name: Create and Push Manifest
+      script:
+        - |
+          if [[ "${BITBUCKET_BRANCH}" == "develop" || "${BITBUCKET_BRANCH}" == "master" ]]; then
+            BRANCH_NAME=${BITBUCKET_BRANCH}
+          else
+            BRANCH_NAME=$(echo ${BITBUCKET_BRANCH} | sed 's/[^a-zA-Z0-9_-]/_/g')
+          fi
+        - echo ${DOCKERHUB_PASSWORD} | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
+        - docker pull etendo/dynamic-gradle:${BRANCH_NAME}-amd64
+        - docker pull etendo/dynamic-gradle:${BRANCH_NAME}-arm64
+        - docker manifest create etendo/dynamic-gradle:${BRANCH_NAME} etendo/dynamic-gradle:${BRANCH_NAME}-amd64 etendo/dynamic-gradle:${BRANCH_NAME}-arm64
+        - docker manifest annotate etendo/dynamic-gradle:${BRANCH_NAME} etendo/dynamic-gradle:${BRANCH_NAME}-amd64 --os linux --arch amd64
+        - docker manifest annotate etendo/dynamic-gradle:${BRANCH_NAME} etendo/dynamic-gradle:${BRANCH_NAME}-arm64 --os linux --arch arm64
+        - docker manifest push etendo/dynamic-gradle:${BRANCH_NAME}
+      services:
+        - docker
 
-          
-          - docker manifest create etendo/dynamic-gradle:${VERSION} 
-              etendo/dynamic-gradle:${VERSION}-amd64 
-              etendo/dynamic-gradle:${VERSION}-arm64
-          - docker manifest push etendo/dynamic-gradle:${VERSION}
-
-          
-          - docker manifest create etendo/dynamic-das:${VERSION} 
-              etendo/dynamic-das:${VERSION}-amd64 
-              etendo/dynamic-das:${VERSION}-arm64
-          - docker manifest push etendo/dynamic-das:${VERSION}
-
-caches:
-  sonar: ~/.sonar
+clone:
+  depth: full
 
 pipelines:
   branches:
-    'feature/ERP-774':
+    feature/ERP-774:
       - step: *build-step
-      - step: *build-push-images
+      - parallel:
+          - step: *build-push-amd64
+          - step: *build-push-arm64
+      - step: *create-push-manifest
   pull-requests:
-    'develop':
-      - step:
-          script:
-            - echo "Skip for develop branch"
-            - exit 0
     '**':
       - parallel:
           - step: *make-review
