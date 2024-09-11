@@ -1,11 +1,10 @@
-image: maven:3.8.4  # Usa Maven como imagen base para el análisis de SonarQube
+image: maven:3.8.4  
 
 clone:
   depth: full
 
 definitions:
   steps:
-    # Revisión de código automatizada
     - step: &make-review
         name: Make Review Step
         script:
@@ -27,7 +26,7 @@ definitions:
         services:
           - docker
 
-    # Análisis de SonarQube
+    
     - step: &build-step
         name: SonarQube analysis
         script:
@@ -37,7 +36,7 @@ definitions:
               SONAR_TOKEN: ${SONAR_TOKEN}
               SONAR_EXCLUDE: node_modules, android, ios
 
-    # Construcción y despliegue de imágenes Docker multi-arquitectura
+    
     - step: &build-push-images
         name: Build and Push Docker Images (amd64 and arm64)
         caches:
@@ -45,28 +44,27 @@ definitions:
         services:
           - docker
         script:
-          # Configura QEMU para soportar múltiples arquitecturas sin necesidad de --privileged
-          - docker run --rm --privileged aptman/qus -s -- -p  # QEMU user static sin --privileged
-          - docker buildx create --use  # Crea un builder para multi-arquitectura
-          - docker buildx inspect --bootstrap  # Verifica que el builder esté listo
+          - docker run --rm  aptman/qus -s -- -p  
+          - docker buildx create --use  
+          - docker buildx inspect --bootstrap  
           - export VERSION=$(cat VERSION)  
          
-          # Construcción y publicación de imágenes para dynamic-gradle
+          
           - echo "Building amd64 and arm64 images for dynamic-gradle"
           - docker buildx build --platform linux/amd64,linux/arm64 -t etendo/dynamic-gradle-lucas:${VERSION} . --push
           
-          # Construcción y publicación de imágenes para dynamic-das
+         
           - echo "Building amd64 and arm64 images for dynamic-das"
           - docker buildx build --platform linux/amd64,linux/arm64 -t etendo/dynamic-das:${VERSION} . --push
 
-          # Crear y subir manifiesto multi-arquitectura para dynamic-gradle
+          
           - echo "Creating and pushing manifest for multi-arch support for dynamic-gradle"
           - docker manifest create etendo/dynamic-gradle-lucas:${VERSION} \
               etendo/dynamic-gradle-lucas:${VERSION}-amd64 \
               etendo/dynamic-gradle-lucas:${VERSION}-arm64
           - docker manifest push etendo/dynamic-gradle-lucas:${VERSION}
 
-          # Crear y subir manifiesto multi-arquitectura para dynamic-das
+          
           - echo "Creating and pushing manifest for multi-arch support for dynamic-das"
           - docker manifest create etendo/dynamic-das:${VERSION} \
               etendo/dynamic-das:${VERSION}-amd64 \
