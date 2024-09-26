@@ -1,18 +1,16 @@
 package com.etendoerp.etendorx;
 
-import org.apache.commons.lang.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.openbravo.base.HttpBaseServlet;
+import org.hibernate.criterion.Restrictions;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
-import org.openbravo.erpCommon.utility.Utility;
-import org.openbravo.service.db.DalConnectionProvider;
 
 import java.util.AbstractMap.SimpleEntry;
 import javax.servlet.http.HttpServletRequest;
@@ -32,7 +30,6 @@ import com.etendoerp.etendorx.data.ETRXoAuthProvider;
 import com.etendoerp.etendorx.utils.AuthUtils;
 import com.etendoerp.etendorx.utils.OAuthProviderConfigInjector;
 import com.etendoerp.etendorx.utils.OAuthProviderConfigInjectorRegistry;
-import com.smf.securewebservices.SWSConfig;
 
 /**
  * This class is the base class for the build configuration servlets. It provides the basic
@@ -72,25 +69,12 @@ public class BuildConfig extends HttpBaseServlet {
         allInjectors.add(injector);
       }
 
-      SWSConfig swsConfig = SWSConfig.getInstance();
-      if(swsConfig == null || swsConfig.getPrivateKey() == null) {
-        log.warn("SWS - SWS are misconfigured");
-        throw new OBException(Utility.messageBD(new DalConnectionProvider(), "SMFSWS_Misconfigured",
-            OBContext.getOBContext().getLanguage().getLanguage()));
-      }
-      JSONObject sourceJSON = sourceEntry.getValue();
-      if (StringUtils.equals("auth", service)) {
-        sourceJSON.put("private-key", swsConfig.getPrivateKey());
-      } else {
-        sourceJSON.put("public-key", swsConfig.getPublicKey());
-      }
-
-      ETRXConfig rxConfigForRedirect = AuthUtils.getRXConfig("auth");
-      if (rxConfigForRedirect == null) {
+      ETRXConfig rxConfig = AuthUtils.getRXConfig("auth");
+      if (rxConfig == null) {
         throw new OBException(OBMessageUtils.getI18NMessage("ETRX_NoConfigAuthFound"));
       }
-      updateSourceWithOAuthProviders(sourceJSON, allInjectors, rxConfigForRedirect.getPublicURL());
-      sendResponse(response, result, sourceJSON, sourceEntry.getKey());
+      updateSourceWithOAuthProviders(sourceEntry.getValue(), allInjectors, rxConfig.getPublicURL());
+      sendResponse(response, result, sourceEntry.getValue(), sourceEntry.getKey());
     } catch (Exception e) {
       log.error(e.getMessage(), e);
       throw new OBException(e);
