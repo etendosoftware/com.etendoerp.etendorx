@@ -5,8 +5,8 @@ import org.apache.logging.log4j.Logger;
 import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
-import org.hibernate.criterion.Restrictions;
 import org.openbravo.base.HttpBaseServlet;
+import org.hibernate.criterion.Restrictions;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBDal;
@@ -44,6 +44,7 @@ public class BuildConfig extends HttpBaseServlet {
   private static final String SOURCE = "source";
   private static final String MANAGEMENT_ENDPOINT_RESTART_ENABLED = "management.endpoint.restart.enabled";
   private static final String SERVER_ERROR_PATH = "server.error.path";
+  private static final String CONFIG_URL = "http://config:8888";
 
   /**
    * This method handles the GET request. It fetches the default configuration,
@@ -67,6 +68,7 @@ public class BuildConfig extends HttpBaseServlet {
       for (OAuthProviderConfigInjector injector : OAuthProviderConfigInjectorRegistry.getInjectors()) {
         allInjectors.add(injector);
       }
+
       ETRXConfig rxConfig = AuthUtils.getRXConfig("auth");
       if (rxConfig == null) {
         throw new OBException(OBMessageUtils.getI18NMessage("ETRX_NoConfigAuthFound"));
@@ -99,7 +101,7 @@ public class BuildConfig extends HttpBaseServlet {
    */
   private JSONObject getDefaultConfigToJsonObject(String serviceURI) throws JSONException, IOException {
     ETRXConfig rxConfig = AuthUtils.getRXConfig("config");
-    String serverURL = rxConfig == null ? "http://config:8888" : rxConfig.getServiceURL();
+    String serverURL = rxConfig == null ? CONFIG_URL : rxConfig.getServiceURL();
     URL url = new URL(serverURL + serviceURI);
     HttpURLConnection conn = (HttpURLConnection) url.openConnection();
     conn.setRequestMethod("GET");

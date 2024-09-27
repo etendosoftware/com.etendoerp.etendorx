@@ -65,11 +65,18 @@
         <default><![CDATA[N]]></default>
         <onCreateDefault/>
       </column>
+      <column name="AD_TAB_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
       <foreign-key foreignTable="AD_CLIENT" name="ETRX_ENTITY_ADCLIENT">
         <reference local="AD_CLIENT_ID" foreign="AD_CLIENT_ID"/>
       </foreign-key>
       <foreign-key foreignTable="AD_ORG" name="ETRX_ENTITY_ADORG">
         <reference local="AD_ORG_ID" foreign="AD_ORG_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="AD_TAB" name="ETRX_ENTITY_TAB">
+        <reference local="AD_TAB_ID" foreign="AD_TAB_ID"/>
       </foreign-key>
       <foreign-key foreignTable="AD_TABLE" name="ETRX_ENTITY_TABLE">
         <reference local="AD_TABLE_ID" foreign="AD_TABLE_ID"/>
