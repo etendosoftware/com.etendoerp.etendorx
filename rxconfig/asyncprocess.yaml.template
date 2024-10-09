@@ -1,2 +1,7 @@
-bootstrap_servers_config: localhost:9092
+bootstrap_servers_config: kafka:9092
+bootstrap_server: kafka:9092
 application_id_config: async-process-queries
+bootstrap_server_config: kafka:9092
+kafka.streams.state.dir: /tmp/kafka-streams/async-process-queries
+kafka.streams.host.info: kafka:9092
+spring.kafka.bootstrap-servers: kafka:9092

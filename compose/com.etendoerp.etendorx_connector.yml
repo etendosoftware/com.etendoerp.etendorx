@@ -1,0 +1,37 @@
+services:
+  obconnsrv:
+    image: etendo/dynamic-gradle:1.0.0
+    ports:
+      - "8101:8101"
+      - "5025:8000"
+    environment:
+      - DEPENDENCIES=com.etendorx.integration:obconn-srv:0.0.1-SNAPSHOT
+      - REPO_URL=${ETENDORX_REPOSITORY_URL}
+      - REPO_USER=${ETENDORX_REPOSITORY_USER}
+      - REPO_PASSWORD=${ETENDORX_REPOSITORY_PASSWORD}
+      - CONFIG_SERVER_URL=${ETENDORX_CONFIG_SERVER_URL}
+      - TASK=downloadJar
+    networks:
+      - etendo
+    volumes:
+      - obconnsrv:/root/.gradle
+
+  obconnwrk:
+    image: etendo/dynamic-gradle:1.0.0
+    ports:
+      - "5026:8000"
+    environment:
+      - DEPENDENCIES=com.etendorx.integration:obconn-wrk:0.0.2-SNAPSHOT
+      - REPO_URL=${ETENDORX_REPOSITORY_URL}
+      - REPO_USER=${ETENDORX_REPOSITORY_USER}
+      - REPO_PASSWORD=${ETENDORX_REPOSITORY_PASSWORD}
+      - CONFIG_SERVER_URL=${ETENDORX_CONFIG_SERVER_URL}
+      - TASK=downloadJar
+    networks:
+      - etendo
+    volumes:
+      - obconnwrk:/root/.gradle
+
+volumes:
+    obconnsrv:
+    obconnwrk:
