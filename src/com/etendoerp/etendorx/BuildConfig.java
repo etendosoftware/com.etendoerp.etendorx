@@ -85,7 +85,7 @@ public class BuildConfig extends HttpBaseServlet {
         sourceJSON.put("public-key", swsConfig.getPublicKey());
       }
 
-      ETRXConfig rxConfigForRedirect = AuthUtils.getRXConfig("auth");
+      ETRXConfig rxConfigForRedirect = AuthUtils.getRXConfig(service);
       if (rxConfigForRedirect == null) {
         throw new OBException(OBMessageUtils.getI18NMessage("ETRX_NoConfigAuthFound"));
       }
