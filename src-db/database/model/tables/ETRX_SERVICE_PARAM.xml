@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
-  <database name="TABLE ETRX_CONFIG">
-    <table name="ETRX_CONFIG" primaryKey="ETRX_CONFIG_KEY">
-      <column name="ETRX_CONFIG_ID" primaryKey="true" required="true" type="VARCHAR" size="32" autoIncrement="false">
+  <database name="TABLE ETRX_SERVICE_PARAM">
+    <table name="ETRX_SERVICE_PARAM" primaryKey="ETRX_SERVICE_PARAM_KEY">
+      <column name="ETRX_SERVICE_PARAM_ID" primaryKey="true" required="true" type="VARCHAR" size="32" autoIncrement="false">
         <default/>
         <onCreateDefault/>
       </column>
@@ -33,34 +33,27 @@
         <default/>
         <onCreateDefault/>
       </column>
-      <column name="SERVICE_NAME" primaryKey="false" required="true" type="VARCHAR" size="25" autoIncrement="false">
+      <column name="PARAM_VALUE" primaryKey="false" required="true" type="VARCHAR" size="500" autoIncrement="false">
         <default/>
         <onCreateDefault/>
       </column>
-      <column name="SERVICE_URL" primaryKey="false" required="true" type="VARCHAR" size="255" autoIncrement="false">
+      <column name="PARAM_KEY" primaryKey="false" required="true" type="VARCHAR" size="500" autoIncrement="false">
         <default/>
         <onCreateDefault/>
       </column>
-      <column name="UPDATEABLE_CONFIGS" primaryKey="false" required="true" type="CHAR" size="1" autoIncrement="false">
-        <default><![CDATA[Y]]></default>
-        <onCreateDefault/>
-      </column>
-      <column name="PUBLIC_URL" primaryKey="false" required="false" type="VARCHAR" size="255" autoIncrement="false">
+      <column name="ETRX_CONFIG_ID" primaryKey="false" required="true" type="VARCHAR" size="32" autoIncrement="false">
         <default/>
         <onCreateDefault/>
       </column>
-      <column name="TOKEN_NEEDED" primaryKey="false" required="true" type="CHAR" size="1" autoIncrement="false">
-        <default><![CDATA[N]]></default>
-        <onCreateDefault/>
-      </column>
-      <foreign-key foreignTable="AD_CLIENT" name="ETRX_CONFIG_ADCLIENT">
+      <foreign-key foreignTable="AD_CLIENT" name="ETRX_SERVICE_PARAM_CLIENT">
         <reference local="AD_CLIENT_ID" foreign="AD_CLIENT_ID"/>
       </foreign-key>
-      <foreign-key foreignTable="AD_ORG" name="ETRX_CONFIG_ADORG">
+      <foreign-key foreignTable="ETRX_CONFIG" name="ETRX_SERVICE_PARAM_CONFIG">
+        <reference local="ETRX_CONFIG_ID" foreign="ETRX_CONFIG_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="AD_ORG" name="ETRX_SERVICE_PARAM_ORG">
         <reference local="AD_ORG_ID" foreign="AD_ORG_ID"/>
       </foreign-key>
       <check name="ETRX_ISACTIVE_CHECK"><![CDATA[ISACTIVE IN ('Y', 'N')]]></check>
-      <check name="ETRX_NEED_TOKEN_CHECK"><![CDATA[TOKEN_NEEDED IN ('Y', 'N')]]></check>
-      <check name="ETRX_UPDATE_CONFIG_CHECK"><![CDATA[UPDATEABLE_CONFIGS IN ('Y', 'N')]]></check>
     </table>
   </database>
