@@ -60,13 +60,13 @@ public class BuildConfig extends HttpBaseServlet {
       OBContext.setAdminMode();
       final String serviceURI = getURIFromRequest(request);
       final String service = serviceURI.split("/")[1];
-      final JSONObject result = getDefaultConfigToJsonObject(serviceURI);
-      SimpleEntry<Integer, JSONObject> sourceEntry = findSource(result.getJSONArray("propertySources"), service);
+      final JSONObject defaultConfig = getDefaultConfigToJsonObject(serviceURI);
+      SimpleEntry<Integer, JSONObject> sourceEntry = findSource(defaultConfig.getJSONArray("propertySources"), service);
       // No need (for now) to check the services to be updated due to only those who needs the config
       // will change the url to get the config from config server to this endpoint.
-      List<OAuthProviderConfigInjector> allInjectors = new ArrayList<>();
-      for (OAuthProviderConfigInjector injector : OAuthProviderConfigInjectorRegistry.getInjectors()) {
-        allInjectors.add(injector);
+      List<OAuthProviderConfigInjector> allInjectors = OAuthProviderConfigInjectorRegistry.getInjectors();
+      for (OAuthProviderConfigInjector injector : allInjectors) {
+        injector.injectConfig(defaultConfig);
       }
 
       ETRXConfig rxConfig = AuthUtils.getRXConfig("auth");
@@ -74,7 +74,7 @@ public class BuildConfig extends HttpBaseServlet {
         throw new OBException(OBMessageUtils.getI18NMessage("ETRX_NoConfigAuthFound"));
       }
       updateSourceWithOAuthProviders(sourceEntry.getValue(), allInjectors, rxConfig.getPublicURL());
-      sendResponse(response, result, sourceEntry.getValue(), sourceEntry.getKey());
+      sendResponse(response, defaultConfig, sourceEntry.getValue(), sourceEntry.getKey());
     } catch (Exception e) {
       log.error(e.getMessage(), e);
       throw new OBException(e);
