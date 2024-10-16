@@ -1,5 +1,6 @@
 package com.etendoerp.etendorx;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.codehaus.jettison.json.JSONArray;
@@ -11,6 +12,8 @@ import org.openbravo.base.exception.OBException;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
+import org.openbravo.erpCommon.utility.Utility;
+import org.openbravo.service.db.DalConnectionProvider;
 
 import java.util.AbstractMap.SimpleEntry;
 import javax.servlet.http.HttpServletRequest;
@@ -30,6 +33,7 @@ import com.etendoerp.etendorx.data.ETRXoAuthProvider;
 import com.etendoerp.etendorx.utils.AuthUtils;
 import com.etendoerp.etendorx.utils.OAuthProviderConfigInjector;
 import com.etendoerp.etendorx.utils.OAuthProviderConfigInjectorRegistry;
+import com.smf.securewebservices.SWSConfig;
 
 /**
  * This class is the base class for the build configuration servlets. It provides the basic
@@ -60,21 +64,37 @@ public class BuildConfig extends HttpBaseServlet {
       OBContext.setAdminMode();
       final String serviceURI = getURIFromRequest(request);
       final String service = serviceURI.split("/")[1];
-      final JSONObject result = getDefaultConfigToJsonObject(serviceURI);
-      SimpleEntry<Integer, JSONObject> sourceEntry = findSource(result.getJSONArray("propertySources"), service);
+      final JSONObject defaultConfig = getDefaultConfigToJsonObject(serviceURI);
+      SimpleEntry<Integer, JSONObject> sourceEntry = findSource(defaultConfig.getJSONArray("propertySources"), service);
       // No need (for now) to check the services to be updated due to only those who needs the config
       // will change the url to get the config from config server to this endpoint.
-      List<OAuthProviderConfigInjector> allInjectors = new ArrayList<>();
-      for (OAuthProviderConfigInjector injector : OAuthProviderConfigInjectorRegistry.getInjectors()) {
-        allInjectors.add(injector);
+      List<OAuthProviderConfigInjector> allInjectors = OAuthProviderConfigInjectorRegistry.getInjectors();
+      for (OAuthProviderConfigInjector injector : allInjectors) {
+        injector.injectConfig(defaultConfig);
       }
 
-      ETRXConfig rxConfig = AuthUtils.getRXConfig("auth");
+      SWSConfig swsConfig = SWSConfig.getInstance();
+      if(swsConfig == null || swsConfig.getPrivateKey() == null) {
+        log.warn("SWS - SWS are misconfigured");
+        throw new OBException(Utility.messageBD(new DalConnectionProvider(), "SMFSWS_Misconfigured",
+            OBContext.getOBContext().getLanguage().getLanguage()));
+      }
+      JSONObject sourceJSON = sourceEntry.getValue();
+      if (StringUtils.equals("auth", service)) {
+        sourceJSON.put("private-key", swsConfig.getPrivateKey());
+      } else {
+        sourceJSON.put("public-key", swsConfig.getPublicKey());
+      }
+
+
+      ETRXConfig rxConfig = AuthUtils.getRXConfig(service);
       if (rxConfig == null) {
-        throw new OBException(OBMessageUtils.getI18NMessage("ETRX_NoConfigAuthFound"));
+        String errorMessage = StringUtils.replace(
+            OBMessageUtils.getI18NMessage("ETRX_NoConfigFound"), "%s" , service);
+        throw new OBException(errorMessage);
       }
       updateSourceWithOAuthProviders(sourceEntry.getValue(), allInjectors, rxConfig.getPublicURL());
-      sendResponse(response, result, sourceEntry.getValue(), sourceEntry.getKey());
+      sendResponse(response, defaultConfig, sourceEntry.getValue(), sourceEntry.getKey());
     } catch (Exception e) {
       log.error(e.getMessage(), e);
       throw new OBException(e);
