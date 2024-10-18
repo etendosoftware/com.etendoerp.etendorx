@@ -79,6 +79,7 @@ public class BuildConfig extends HttpBaseServlet {
         throw new OBException(Utility.messageBD(new DalConnectionProvider(), "SMFSWS_Misconfigured",
             OBContext.getOBContext().getLanguage().getLanguage()));
       }
+      
       JSONObject sourceJSON = sourceEntry.getValue();
       if (StringUtils.equals("auth", service)) {
         sourceJSON.put("private-key", swsConfig.getPrivateKey());
