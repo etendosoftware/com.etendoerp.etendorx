@@ -1,0 +1,4 @@
+server:
+  port: 8101
+
+asyncApiUrl: http://asyncprocess:8099
