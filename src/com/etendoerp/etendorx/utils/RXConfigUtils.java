@@ -6,11 +6,15 @@ import org.openbravo.dal.service.OBDal;
 import com.etendoerp.etendorx.data.ETRXConfig;
 
 /**
- * This class is responsible for providing utility for Auth Service.
+ * Utility class for RX Configuration related operations.
  */
-public class AuthUtils {
-  
-  private AuthUtils() {
+public class RXConfigUtils {
+
+  /**
+   * Private constructor to prevent instantiation of this utility class.
+   * Throws an IllegalStateException if called.
+   */
+  private RXConfigUtils() {
     throw new IllegalStateException("Utility class");
   }
 

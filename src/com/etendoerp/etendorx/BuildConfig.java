@@ -7,7 +7,6 @@ import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.openbravo.base.HttpBaseServlet;
-import org.hibernate.criterion.Restrictions;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBDal;
@@ -26,11 +25,10 @@ import java.io.Writer;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.List;
-import java.util.ArrayList;
 
 import com.etendoerp.etendorx.data.ETRXConfig;
 import com.etendoerp.etendorx.data.ETRXoAuthProvider;
-import com.etendoerp.etendorx.utils.AuthUtils;
+import com.etendoerp.etendorx.utils.RXConfigUtils;
 import com.etendoerp.etendorx.utils.OAuthProviderConfigInjector;
 import com.etendoerp.etendorx.utils.OAuthProviderConfigInjectorRegistry;
 import com.smf.securewebservices.SWSConfig;
@@ -49,6 +47,7 @@ public class BuildConfig extends HttpBaseServlet {
   private static final String MANAGEMENT_ENDPOINT_RESTART_ENABLED = "management.endpoint.restart.enabled";
   private static final String SERVER_ERROR_PATH = "server.error.path";
   private static final String CONFIG_URL = "http://config:8888";
+  private static final String AUTH_SERVICE = "auth";
 
   /**
    * This method handles the GET request. It fetches the default configuration,
@@ -62,6 +61,11 @@ public class BuildConfig extends HttpBaseServlet {
   public void doGet(HttpServletRequest request, HttpServletResponse response) {
     try {
       OBContext.setAdminMode();
+      SWSConfig swsConfig = SWSConfig.getInstance();
+      if(swsConfig == null || swsConfig.getPrivateKey() == null) {
+        throw new OBException(Utility.messageBD(new DalConnectionProvider(), "SMFSWS_Misconfigured",
+            OBContext.getOBContext().getLanguage().getLanguage()));
+      }
       final String serviceURI = getURIFromRequest(request);
       final String service = serviceURI.split("/")[1];
       final JSONObject defaultConfig = getDefaultConfigToJsonObject(serviceURI);
@@ -72,23 +76,19 @@ public class BuildConfig extends HttpBaseServlet {
       for (OAuthProviderConfigInjector injector : allInjectors) {
         injector.injectConfig(defaultConfig);
       }
-
-      SWSConfig swsConfig = SWSConfig.getInstance();
-      if(swsConfig == null || swsConfig.getPrivateKey() == null) {
-        log.warn("SWS - SWS are misconfigured");
-        throw new OBException(Utility.messageBD(new DalConnectionProvider(), "SMFSWS_Misconfigured",
-            OBContext.getOBContext().getLanguage().getLanguage()));
+      if (!StringUtils.equals("ES256", swsConfig.getAlgorithm())) {
+        String errorMessage = Utility.messageBD(new DalConnectionProvider(), "ETRX_WrongAlgorithm",
+            OBContext.getOBContext().getLanguage().getLanguage()) + swsConfig.getAlgorithm();
+        throw new UnsupportedOperationException(errorMessage);
       }
-      
       JSONObject sourceJSON = sourceEntry.getValue();
-      if (StringUtils.equals("auth", service)) {
+      if (StringUtils.equals(AUTH_SERVICE, service)) {
         sourceJSON.put("private-key", swsConfig.getPrivateKey());
       } else {
         sourceJSON.put("public-key", swsConfig.getPublicKey());
       }
 
-
-      ETRXConfig rxConfig = AuthUtils.getRXConfig(service);
+      ETRXConfig rxConfig = RXConfigUtils.getRXConfig(service);
       if (rxConfig == null) {
         String errorMessage = StringUtils.replace(
             OBMessageUtils.getI18NMessage("ETRX_NoConfigFound"), "%s" , service);
@@ -98,7 +98,7 @@ public class BuildConfig extends HttpBaseServlet {
       sendResponse(response, defaultConfig, sourceEntry.getValue(), sourceEntry.getKey());
     } catch (Exception e) {
       log.error(e.getMessage(), e);
-      throw new OBException(e);
+      sendErrorResponse(response, e.getMessage());
     } finally {
       OBContext.restorePreviousMode();
     }
@@ -121,7 +121,7 @@ public class BuildConfig extends HttpBaseServlet {
    * @throws JSONException If there is an error parsing the JSON.
    */
   private JSONObject getDefaultConfigToJsonObject(String serviceURI) throws JSONException, IOException {
-    ETRXConfig rxConfig = AuthUtils.getRXConfig("config");
+    ETRXConfig rxConfig = RXConfigUtils.getRXConfig("config");
     String serverURL = rxConfig == null ? CONFIG_URL : rxConfig.getServiceURL();
     URL url = new URL(serverURL + serviceURI);
     HttpURLConnection conn = (HttpURLConnection) url.openConnection();
@@ -228,6 +228,26 @@ public class BuildConfig extends HttpBaseServlet {
     } catch (JSONException e) {
       log.error(e.getMessage(), e);
       throw new OBException(e);
+    }
+  }
+
+  /**
+   * This method sends an error response in JSON format.
+   *
+   * @param response The HttpServletResponse object.
+   * @param errorMessage The error message to be sent to the client.
+   */
+  private void sendErrorResponse(HttpServletResponse response, String errorMessage) {
+    response.setContentType("application/json");
+    response.setCharacterEncoding("utf-8");
+    response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);  // HTTP status code 500
+    JSONObject errorResponse = new JSONObject();
+    try (Writer writer = response.getWriter()) {
+      errorResponse.put("error", true);
+      errorResponse.put("message", errorMessage);
+      writer.write(errorResponse.toString());
+    } catch (IOException | JSONException ex) {
+      log.error(String.format("Error sending the error response: %s", ex.getMessage()), ex);
     }
   }
 }
