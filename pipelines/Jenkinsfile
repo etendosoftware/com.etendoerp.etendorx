@@ -29,6 +29,7 @@ pipeline {
         BRANCH_NAME_RX      = 'develop'
         RX_DIR              = 'etendo_rx'
         CLASSIC_DIR         = 'etendo_core'
+        CORE_BRANCH         = 'develop'
         
         COMMIT_AUTHOR_NAME  = sh(returnStdout: true, script: "git log -1 --pretty=format:'%an'").trim()
         COMMIT_AUTHOR_EMAIL = sh(returnStdout: true, script: "git log -1 --pretty=format:'%ae'").trim()
@@ -185,7 +186,7 @@ spec:
                                     def sshCmd = "ssh -i ${keyfile} -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no"
 
                                     echo "---------------------- Clonning Classic Repo ----------------------"
-                                    sh "git clone --branch feature/ETP-299 ${CORE_URL_REPO}"
+                                    sh "git clone --branch ${CORE_BRANCH} ${CORE_URL_REPO}"
 
                                     sh "printenv"
                                     echo "---------------------- Clonning RX Module Repo ----------------------"
@@ -252,10 +253,11 @@ spec:
                                 }
                             }
                         } catch (Exception e) {
-                            echo "---------------------- Classic Environment Failed ----------------------"
+                            env.ERROR_MESSAGE = "Build of Classic Environment Failed"
+                            echo "--------------- ${env.ERROR_MESSAGE} ---------------"
                             echo 'Exception occurred: ' + e.toString()
                             currentBuild.result = FAILED
-                            error('Classic Environment Failed')
+                            error(env.ERROR_MESSAGE)
                         }
                     }
                 }
@@ -279,10 +281,11 @@ spec:
                             echo "---------------------- Build of Etendo RX Successful ----------------------"
                             currentBuild.result = SUCCESS
                         } catch (Exception e) {
-                            echo "---------------------- Build of Etendo RX Failed ----------------------"
+                            env.ERROR_MESSAGE = "Build of Etendo RX Failed"
+                            echo "--------------- ${env.ERROR_MESSAGE} ---------------"
                             echo 'Exception occurred: ' + e.toString()
                             currentBuild.result = FAILED
-                            error('Build of Etendo RX Failed')
+                            error(env.ERROR_MESSAGE)
                             env.STATUSRX = "0"
                         }
                     }
@@ -304,7 +307,7 @@ spec:
                             echo "---------------------- Starting Etendo RX Module Tests ----------------------"
                             sh """
                             cd ${CLASSIC_DIR}
-                            ./gradlew test --tests "com.etendoerp.etendorx.*" --info 
+                            ./gradlew test --tests "com.etendoerp.etendorx.*" jacocoRootReport --info
                             """
                             echo "---------------------- RX Module Tests Successful ----------------------"
                         } catch (Exception e) {
@@ -342,7 +345,7 @@ spec:
                             echo "---------------------- Running SonarQube ----------------------"
                             sh """
                             cd ${CLASSIC_DIR}
-                            ./gradlew sonarqube --stacktrace --info
+                            ./gradlew sonar --stacktrace --info
                             """
                             
                             echo "---------------------- Getting SonarQube Report URL ----------------------"
@@ -374,22 +377,26 @@ spec:
                     script {
                         try {
                             echo "---------------------- Running Das Tests ----------------------"
-                            sh """
-                            cd ${RX_DIR}
-                            ./gradlew :com.etendorx.das:test --info --tests com.etendorx.das.test.RepositoryTest
-                            ./gradlew :com.etendorx.das:test --info --tests com.etendorx.das.test.RestCallTest
-                            ./gradlew :com.etendorx.das:test --info --tests com.etendorx.das.test.DefaultFiltersTest
-                            ./gradlew :com.etendorx.das:test --info --tests com.etendorx.das.test.eventhandlertest.test.AnnotationTests
-                            ./gradlew :com.etendorx.das:test --info --tests com.etendorx.das.unit.BindedRestControllerTest
-                            ./gradlew :com.etendorx.das:test --info --tests com.etendorx.das.unit.JsonPathEntityRetrieverDefaultTest
-                            ./gradlew :com.etendorx.das:test --info --tests com.etendorx.das.unit.MappingUtilsImplTest
-                            ./gradlew :com.etendorx.das:test --info --tests com.etendorx.das.test.DisableEnableTriggersTest
-                            ./gradlew :com.etendorx.das:test --info --tests com.etendorx.das.test.FieldMappingRestCallTest
-                            ./gradlew :com.etendorx.das:test --info --tests com.etendorx.das.integration.PropertyMetadataTest
-                            ./gradlew :com.etendorx.das:test --info --tests com.etendorx.das.unit.BaseDTORepositoryDefaultTests
-                            ./gradlew :com.etendorx.das:test --info --tests com.etendorx.das.unit.JsonPathConverterBaseTests
-                            ./gradlew :com.etendorx.das:test --info --tests com.etendorx.entities.mapper.lib.JsonPathEntityRetrieverBaseTests
-                            """
+                            def tests = [
+                                "com.etendorx.das.test.RepositoryTest",
+                                "com.etendorx.das.test.RestCallTest",
+                                "com.etendorx.das.test.DefaultFiltersTest",
+                                "com.etendorx.das.test.eventhandlertest.test.AnnotationTests",
+                                "com.etendorx.das.unit.BindedRestControllerTest",
+                                "com.etendorx.das.unit.JsonPathEntityRetrieverDefaultTest",
+                                "com.etendorx.das.unit.MappingUtilsImplTest",
+                                "com.etendorx.das.test.DisableEnableTriggersTest",
+                                "com.etendorx.das.test.FieldMappingRestCallTest",
+                                "com.etendorx.das.integration.PropertyMetadataTest",
+                                "com.etendorx.das.unit.BaseDTORepositoryDefaultTests",
+                                "com.etendorx.das.unit.JsonPathConverterBaseTests",
+                                "com.etendorx.entities.mapper.lib.JsonPathEntityRetrieverBaseTests"
+                            ]
+                            dir(RX_DIR) {
+                                tests.each { test ->
+                                    sh "./gradlew :com.etendorx.das:test --info --tests ${test}"
+                                }
+                            }
                             echo "---------------------- Das Tests Successful ----------------------"
                         } catch (Exception e) {
                             echo "---------------------- Das Tests Failed ----------------------"
