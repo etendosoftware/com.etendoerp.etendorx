@@ -4,6 +4,7 @@ services:
     image: etendo/dynamic-gradle:1.0.0
     ports:
       - "8888:8888"
+      - "5020:8000"
     volumes:
       - ${VOLUMES_PATH}/rxconfig:/rxconfig
     environment:
@@ -32,6 +33,7 @@ services:
     ports:
       - "8092:8092"
       - "5005:5005"
+      - "5021:8000"
     environment:
       - DEPENDENCIES=${ETENDORX_DEPENDENCIES}
       - REPO_URL=${ETENDORX_REPOSITORY_URL}
@@ -62,7 +64,7 @@ services:
     image: etendo/dynamic-gradle:1.0.0
     ports:
       - "8094:8094"
-      - "8000:8000"
+      - "5022:8000"
     environment:
       - DEPENDENCIES=com.etendorx:auth:${ETENDORX_VERSION}
       - REPO_URL=${ETENDORX_REPOSITORY_URL}
@@ -88,6 +90,7 @@ services:
     image: etendo/dynamic-gradle:1.0.0
     ports:
       - "8096:8096"
+      - "5023:8000"
     environment:
       - DEPENDENCIES=com.etendorx:edge:${ETENDORX_VERSION}
       - REPO_URL=${ETENDORX_REPOSITORY_URL}

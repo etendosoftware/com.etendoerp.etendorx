@@ -66,7 +66,7 @@ spring:
 
         # CUSTOM (API Connector)
         - id: obconnector
-          uri: http://localhost:8101
+          uri: http://{OBCON_URL}:8101
           predicates:
             - Method=GET, POST, PUT, DELETE
             - Path=/api/sync/**

@@ -10,10 +10,10 @@ spring:
     serialization:
       FAIL_ON_EMPTY_BEANS: false
   jpa:
-    show-sql: true
+    show-sql: false
     properties:
       hibernate:
-        format_sql: true
+        format_sql: false
 
 logging:
   level:
