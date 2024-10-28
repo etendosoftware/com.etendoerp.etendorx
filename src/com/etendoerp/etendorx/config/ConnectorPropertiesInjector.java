@@ -41,12 +41,14 @@ public class ConnectorPropertiesInjector implements OAuthProviderConfigInjector 
         JSONObject propertySources = sourceJSON.getJSONArray("propertySources")
             .getJSONObject(0)
             .getJSONObject("source");
+        propertySources.put("connector.instance", instanceConnector.getId());
         propertySources.put("token", token);
         propertySources.put("classic.token", token);
       }
     } catch (NullPointerException npe) {
-      log.error(String.format("Null User for connector instance - %s", npe.getMessage()), npe);
-      throw new OBException(npe);
+      final String noConnInstance = String.format("No connector instance defined - %s", npe.getMessage());
+      log.error(noConnInstance, npe);
+      throw new OBException(noConnInstance, npe);
     } catch (Exception e) {
       log.error(e.getMessage(), e);
       throw new OBException(e);

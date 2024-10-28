@@ -27,7 +27,6 @@ public class OAuthProviderConfigInjectorRegistry {
         OAuthProviderConfigInjector injector = injectorClass.getDeclaredConstructor().newInstance();
         registerInjector(injector);
       } catch (Exception e) {
-        // Handle exception (e.g., log it)
         log.error(e.getMessage(), e);
       }
     }
