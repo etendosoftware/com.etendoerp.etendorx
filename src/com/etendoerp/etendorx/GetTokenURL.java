@@ -4,7 +4,6 @@ import java.util.Map;
 
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
-import org.hibernate.criterion.Restrictions;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.client.kernel.BaseActionHandler;
 import org.openbravo.dal.core.OBContext;
@@ -15,7 +14,7 @@ import org.slf4j.LoggerFactory;
 
 import com.etendoerp.etendorx.data.ETRXConfig;
 import com.etendoerp.etendorx.data.ETRXoAuthProvider;
-import com.etendoerp.etendorx.utils.AuthUtils;
+import com.etendoerp.etendorx.utils.RXConfigUtils;
 
 /**
  * This class is responsible for getting the token URL.
@@ -41,7 +40,7 @@ public class GetTokenURL extends BaseActionHandler {
       final JSONObject jsonData = new JSONObject(content);
       final String oAuthProviderId = jsonData.getString("id");
       ETRXoAuthProvider oauthProvider = OBDal.getInstance().get(ETRXoAuthProvider.class, oAuthProviderId);
-      ETRXConfig rxConfig = AuthUtils.getRXConfig("auth");
+      ETRXConfig rxConfig = RXConfigUtils.getRXConfig("auth");
       if (rxConfig == null) {
         final String etrxNoConfigAuthFound = OBMessageUtils.getI18NMessage("ETRX_NoConfigAuthFound");
         handleErrorMessage(etrxNoConfigAuthFound, result);
