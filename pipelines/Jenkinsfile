@@ -16,16 +16,15 @@ pipeline {
         GITHUB_USER         = 'etendobot'
         GITHUB_TOKEN        = credentials('github-read-package-token')
         
-        USER_ACCESS         = credentials('user-access-commit-bitbucket')
-        ACCESS_TOKEN        = credentials('access-token-commit-bitbucket')
-        
-        OWNER_REPOSITORY    = 'koodu_software'
+        ACCESS_TOKEN        = credentials('access_token_github')
+
         REPOSITORY_NAME     = 'com.etendoerp.etendorx'
 
         EMAIL_ADDRESS       = credentials('email_builds')
         CORE_URL_REPO       = 'https://github.com/etendosoftware/etendo_core'
         RX_URL_REPO         = 'https://github.com/etendosoftware/etendo_rx'
-        URL_REPO            = 'https://bitbucket.org/koodu_software/com.etendoerp.etendorx'
+        URL_REPO            = 'https://github.com/etendosoftware/com.etendoerp.etendorx'
+        RX_MODULE_SSH       = 'git@github.com:etendosoftware/com.etendoerp.etendorx.git'
         BRANCH_NAME_RX      = 'develop'
         RX_DIR              = 'etendo_rx'
         CLASSIC_DIR         = 'etendo_core'
@@ -40,9 +39,9 @@ pipeline {
         CONTEXT_BUILD       = 'Module Tests'
         STATUSCORE          = '1'
 
-        COMMIT_INPROGRESS_STATUS = 'INPROGRESS'
-        COMMIT_SUCCESS_STATUS    = 'SUCCESSFUL'
-        COMMIT_FAILED_STATUS     = 'FAILED'
+        COMMIT_INPROGRESS_STATUS = "pending"
+        COMMIT_SUCCESS_STATUS    = "success"
+        COMMIT_FAILED_STATUS     = "failure"
 
         SUCCESS             = 'SUCCESS'
         FAILED              = 'FAILED'
@@ -139,8 +138,8 @@ spec:
                     script {
                         try {
                             echo "---------------------- Clonning RX Repo ----------------------"
-                            sh "./pipelines/utils/build-update.sh ${REPOSITORY_NAME} ${GIT_COMMIT} ${BUILD_NUMBER} ${COMMIT_INPROGRESS_STATUS} \"${CONTEXT_BUILD}\" ${BUILD_URL} \"Starting Build\" ${OWNER_REPOSITORY} ${USER_ACCESS} ${ACCESS_TOKEN}"
-                            
+                            sh "./pipelines/utils/build-update.sh ${REPOSITORY_NAME} ${COMMIT_INPROGRESS_STATUS} \"RX Setup\" ${ACCESS_TOKEN} ${GIT_COMMIT} ${BUILD_URL} \"${CONTEXT_BUILD}\""
+
                             echo "---------------------- Setup RX Repo ----------------------"
                             sh """
                             git clone --branch ${BRANCH_NAME_RX} ${RX_URL_REPO}
@@ -181,6 +180,7 @@ spec:
                 container('compiler') {
                     script {
                         try {
+                            sh "./pipelines/utils/build-update.sh ${REPOSITORY_NAME} ${COMMIT_INPROGRESS_STATUS} \"Build Environment Etendo Classic\" ${ACCESS_TOKEN} ${GIT_COMMIT} ${BUILD_URL} \"${CONTEXT_BUILD}\""
                             withCredentials([sshUserPrivateKey(credentialsId: 'my-credentials', keyFileVariable: 'keyfile')]) {
                                 withCredentials([usernamePassword(credentialsId: "koodu_credentials", passwordVariable: 'GIT_PASSWORD', usernameVariable: 'GIT_USERNAME')]) {
                                     def sshCmd = "ssh -i ${keyfile} -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no"
@@ -194,7 +194,7 @@ spec:
                                     cd ${CLASSIC_DIR}
                                     mkdir -p modules
                                     cd modules
-                                    GIT_SSH_COMMAND=\"${sshCmd}\" git clone git@bitbucket.org:koodu_software/com.etendoerp.etendorx.git
+                                    GIT_SSH_COMMAND=\"${sshCmd}\" git clone ${RX_MODULE_SSH}
                                     cd ${REPOSITORY_NAME}
                                     git checkout ${GIT_COMMIT}
                                     cd ../..
@@ -229,7 +229,6 @@ spec:
                                         githubToken=${GITHUB_TOKEN}\n
                                         allow.root=true\n
                                         org.gradle.jvmargs=-Dfile.encoding=UTF-8
-                                        
                                         sonarHostUrl=${SONAR_SERVER}
                                         sonarToken=${SONAR_TOKEN}
                                         sonarProjectBaseDir=${WORKDIR_MODULE}
@@ -273,6 +272,7 @@ spec:
                 container('compiler') {
                     script {
                         try {
+                            sh "./pipelines/utils/build-update.sh ${REPOSITORY_NAME} ${COMMIT_INPROGRESS_STATUS} \"Build Environment Etendo RX\" ${ACCESS_TOKEN} ${GIT_COMMIT} ${BUILD_URL} \"${CONTEXT_BUILD}\""
                             echo "---------------------- Building Etendo RX Environment ----------------------"
                             sh """
                             cd ${RX_DIR}
@@ -302,7 +302,7 @@ spec:
                 container('compiler') {
                     script {
                         try {
-                            sh "./pipelines/utils/build-update.sh ${REPOSITORY_NAME} ${GIT_COMMIT} ${BUILD_NUMBER} ${COMMIT_INPROGRESS_STATUS} \"${CONTEXT_BUILD}\" ${BUILD_URL} \"Running Tests\" ${OWNER_REPOSITORY} ${USER_ACCESS} ${ACCESS_TOKEN}"
+                            sh "./pipelines/utils/build-update.sh ${REPOSITORY_NAME} ${COMMIT_INPROGRESS_STATUS} \"Running Module Tests\" ${ACCESS_TOKEN} ${GIT_COMMIT} ${BUILD_URL} \"${CONTEXT_BUILD}\""
 
                             echo "---------------------- Starting Etendo RX Module Tests ----------------------"
                             sh """
@@ -340,14 +340,13 @@ spec:
                 script {
                     container('compiler') {
                         try {
-                            sh "./pipelines/utils/build-update.sh ${REPOSITORY_NAME} ${GIT_COMMIT} ${BUILD_NUMBER} ${COMMIT_INPROGRESS_STATUS} \"${CONTEXT_BUILD}\" ${BUILD_URL} \"Running SonarQube Analysis\" ${OWNER_REPOSITORY} ${USER_ACCESS} ${ACCESS_TOKEN}"
-                            
+                            sh "./pipelines/utils/build-update.sh ${REPOSITORY_NAME} ${COMMIT_INPROGRESS_STATUS} \"Running SonarQube Analysis\" ${ACCESS_TOKEN} ${GIT_COMMIT} ${BUILD_URL} \"${CONTEXT_BUILD}\""
+
                             echo "---------------------- Running SonarQube ----------------------"
                             sh """
                             cd ${CLASSIC_DIR}
                             ./gradlew sonar --stacktrace --info
                             """
-                            
                             echo "---------------------- Getting SonarQube Report URL ----------------------"
                             def branchName = URLEncoder.encode(GIT_BRANCH, 'UTF-8')
                             def projectUrl = "${SONAR_SERVER}/dashboard?id=${PROJECT_KEY}&branch=${branchName}"
@@ -376,6 +375,7 @@ spec:
                 container("compiler") {
                     script {
                         try {
+                            sh "./pipelines/utils/build-update.sh ${REPOSITORY_NAME} ${COMMIT_INPROGRESS_STATUS} \"Running Das Tests\" ${ACCESS_TOKEN} ${GIT_COMMIT} ${BUILD_URL} \"${CONTEXT_BUILD}\""
                             echo "---------------------- Running Das Tests ----------------------"
                             def tests = [
                                 "com.etendorx.das.test.RepositoryTest",
@@ -457,7 +457,7 @@ spec:
         }
         failure {
             script {
-                sh "./pipelines/utils/build-update.sh ${REPOSITORY_NAME} ${GIT_COMMIT} ${BUILD_NUMBER} ${COMMIT_FAILED_STATUS} \"${CONTEXT_BUILD}\" ${BUILD_URL} \"Build Failed\" ${OWNER_REPOSITORY} ${USER_ACCESS} ${ACCESS_TOKEN}"
+                sh "./pipelines/utils/build-update.sh ${REPOSITORY_NAME} ${COMMIT_FAILED_STATUS} \"Build Failed\" ${ACCESS_TOKEN} ${GIT_COMMIT} ${BUILD_URL} \"${CONTEXT_BUILD}\""
                 echo "---------------------- Failed Build Environments ----------------------"
                 echo "Failed Build Environments"
             }
@@ -493,7 +493,7 @@ spec:
         }
         unstable {
             script {
-                sh "./pipelines/utils/build-update.sh ${REPOSITORY_NAME} ${GIT_COMMIT} ${BUILD_NUMBER} ${COMMIT_FAILED_STATUS} \"${CONTEXT_BUILD}\" ${BUILD_URL} \"Test execution failed\" ${OWNER_REPOSITORY} ${USER_ACCESS} ${ACCESS_TOKEN}"
+                sh "./pipelines/utils/build-update.sh ${REPOSITORY_NAME} ${COMMIT_FAILED_STATUS} \"Test Execution Failed\" ${ACCESS_TOKEN} ${GIT_COMMIT} ${BUILD_URL} \"${CONTEXT_BUILD}\""
                 echo "---------------------- Failed Tests ----------------------"
             }
             mail to: EMAIL_ADDRESS,
@@ -528,7 +528,7 @@ spec:
         }
         success {
             script {
-                sh "./pipelines/utils/build-update.sh ${REPOSITORY_NAME} ${GIT_COMMIT} ${BUILD_NUMBER} ${COMMIT_SUCCESS_STATUS} \"${CONTEXT_BUILD}\" ${BUILD_URL} \"Test finalized successfully\" ${OWNER_REPOSITORY} ${USER_ACCESS} ${ACCESS_TOKEN}"
+                sh "./pipelines/utils/build-update.sh ${REPOSITORY_NAME} ${COMMIT_SUCCESS_STATUS} \"Test Finalized Successfully\" ${ACCESS_TOKEN} ${GIT_COMMIT} ${BUILD_URL} \"${CONTEXT_BUILD}\""
                 echo "---------------------- DONE ----------------------"
             }
         }
