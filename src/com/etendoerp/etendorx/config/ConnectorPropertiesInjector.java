@@ -1,4 +1,5 @@
 package com.etendoerp.etendorx.config;
+
 import org.apache.commons.lang.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -15,12 +16,14 @@ import com.etendoerp.etendorx.data.ETRXoAuthProvider;
 import com.etendoerp.etendorx.data.InstanceConnector;
 import com.etendoerp.etendorx.utils.OAuthProviderConfigInjector;
 import com.smf.securewebservices.utils.SecureWebServicesUtils;
+
 /**
  * This class is responsible for injecting configuration properties.
  */
 public class ConnectorPropertiesInjector implements OAuthProviderConfigInjector {
   private static final Logger log = LogManager.getLogger();
   private static final String WORKER_SERVICE = "worker";
+
   /**
    * Injects configuration data into the provided JSONObject.
    * The configuration data is sourced from the sourceJSON parameter.
@@ -36,6 +39,12 @@ public class ConnectorPropertiesInjector implements OAuthProviderConfigInjector 
                 InstanceConnector.class)
             .setMaxResults(1)
             .uniqueResult();
+        if (instanceConnector == null) {
+          String dbMessage = Utility.messageBD(new DalConnectionProvider(), "ETRX_NoConnectorInstance",
+              OBContext.getOBContext().getLanguage().getLanguage());
+          log.error(dbMessage);
+          throw new OBException(dbMessage);
+        }
         User tokenUser = instanceConnector.getUserForToken();
         String token = SecureWebServicesUtils.generateToken(tokenUser);
         JSONObject propertySources = sourceJSON.getJSONArray("propertySources")
@@ -45,17 +54,12 @@ public class ConnectorPropertiesInjector implements OAuthProviderConfigInjector 
         propertySources.put("token", token);
         propertySources.put("classic.token", token);
       }
-    } catch (NullPointerException npe) {
-      String dbMessage = Utility.messageBD(new DalConnectionProvider(), "ETRX_NoConnectorInstance",
-          OBContext.getOBContext().getLanguage().getLanguage());
-      final String noConnInstance = String.format(dbMessage, npe.getMessage());
-      log.error(noConnInstance, npe);
-      throw new OBException(noConnInstance, npe);
     } catch (Exception e) {
       log.error(e.getMessage(), e);
       throw new OBException(e);
     }
   }
+
   /**
    * Injects configuration data into the provided JSONObject.
    * The configuration data is sourced from the sourceJSON parameter and the provider parameter.

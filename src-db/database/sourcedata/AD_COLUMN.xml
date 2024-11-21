@@ -12554,6 +12554,8 @@ Configuration Properties are defined by modules with the purpose other modules a
 <!--DE89AE4AE02E447DB278E6C92A95663C-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
 <!--DE89AE4AE02E447DB278E6C92A95663C-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--DE89AE4AE02E447DB278E6C92A95663C-->  <NAME><![CDATA[Public URL]]></NAME>
+<!--DE89AE4AE02E447DB278E6C92A95663C-->  <DESCRIPTION><![CDATA[Public URL holds the address through which the service is accessed from the client side, enabling external interactions with the system.]]></DESCRIPTION>
+<!--DE89AE4AE02E447DB278E6C92A95663C-->  <HELP><![CDATA[This field stores the public URL used by the client to access the service. Ensure the URL is correctly formatted and reachable.]]></HELP>
 <!--DE89AE4AE02E447DB278E6C92A95663C-->  <COLUMNNAME><![CDATA[Public_Url]]></COLUMNNAME>
 <!--DE89AE4AE02E447DB278E6C92A95663C-->  <AD_TABLE_ID><![CDATA[98CF9D4F903A4ED4924B6AE0F35A58CB]]></AD_TABLE_ID>
 <!--DE89AE4AE02E447DB278E6C92A95663C-->  <AD_REFERENCE_ID><![CDATA[10]]></AD_REFERENCE_ID>

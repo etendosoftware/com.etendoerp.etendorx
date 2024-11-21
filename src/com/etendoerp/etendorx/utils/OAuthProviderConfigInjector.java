@@ -11,6 +11,7 @@ import com.etendoerp.etendorx.data.ETRXoAuthProvider;
  * This configuration data is used to configure an OAuth provider.
  */
 public interface OAuthProviderConfigInjector {
+
   /**
    * Injects configuration data into the provided JSONObject.
    * The configuration data is sourced from the sourceJSON parameter.
@@ -19,6 +20,7 @@ public interface OAuthProviderConfigInjector {
    * @throws JSONException if an error occurs while injecting the configuration data
    */
   void injectConfig(JSONObject sourceJSON) throws JSONException;
+
   /**
    * Injects configuration data into the provided JSONObject.
    * The configuration data is sourced from the sourceJSON parameter and the provider parameter.

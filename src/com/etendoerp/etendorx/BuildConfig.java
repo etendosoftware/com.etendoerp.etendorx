@@ -10,7 +10,9 @@ import org.openbravo.base.HttpBaseServlet;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBDal;
+import org.openbravo.erpCommon.businessUtility.Preferences;
 import org.openbravo.erpCommon.utility.Utility;
+import org.openbravo.model.ad.access.User;
 import org.openbravo.service.db.DalConnectionProvider;
 
 import java.util.AbstractMap.SimpleEntry;
@@ -53,6 +55,7 @@ public class BuildConfig extends HttpBaseServlet {
   private static final String ES256_ALGORITHM = "ES256";
   private static final String PRIVATE_KEY = "private-key";
   private static final String PUBLIC_KEY = "public-key";
+  private static final String SYS_USER_ID = "0";
 
   /**
    * This method handles the GET request. It fetches the default configuration,
@@ -67,7 +70,7 @@ public class BuildConfig extends HttpBaseServlet {
     try {
       OBContext.setAdminMode();
       SWSConfig swsConfig = SWSConfig.getInstance();
-      if(swsConfig == null || swsConfig.getPrivateKey() == null) {
+      if (swsConfig == null || swsConfig.getPrivateKey() == null) {
         throw new OBException(Utility.messageBD(new DalConnectionProvider(), "SMFSWS_Misconfigured",
             OBContext.getOBContext().getLanguage().getLanguage()));
       }
@@ -81,7 +84,10 @@ public class BuildConfig extends HttpBaseServlet {
       for (OAuthProviderConfigInjector injector : allInjectors) {
         injector.injectConfig(defaultConfig);
       }
-      String algorithmPref = SecureWebServicesUtils.getPreferenceValue("SMFSWS_EncryptionAlgorithm");
+      String algorithmPref = Preferences.getPreferenceValue("SMFSWS_EncryptionAlgorithm", true,
+          OBContext.getOBContext().getCurrentClient(),
+          OBContext.getOBContext().getCurrentOrganization(), OBContext.getOBContext().getUser(), OBContext.getOBContext().getRole(),
+          null);
       if (!StringUtils.equals(ES256_ALGORITHM, algorithmPref)) {
         String errorMessage = Utility.messageBD(new DalConnectionProvider(), "ETRX_WrongAlgorithm",
             OBContext.getOBContext().getLanguage().getLanguage()) + algorithmPref;
@@ -90,10 +96,13 @@ public class BuildConfig extends HttpBaseServlet {
       JSONObject sourceJSON = sourceEntry.getValue();
       JSONObject keys = new JSONObject(swsConfig.getPrivateKey());
       if (StringUtils.equals(AUTH_SERVICE, service)) {
+        User sysUser = OBDal.getInstance().get(User.class, SYS_USER_ID);
+        String sysToken = SecureWebServicesUtils.generateToken(sysUser);
+        sourceJSON.put("token", sysToken);
+        log.info("Token generated for auth: " + sysToken);
         sourceJSON.put(PRIVATE_KEY, keys.getString(PRIVATE_KEY));
-      } else {
-        sourceJSON.put(PUBLIC_KEY, keys.getString(PUBLIC_KEY));
       }
+      sourceJSON.put(PUBLIC_KEY, keys.getString(PUBLIC_KEY));
 
       ETRXConfig rxConfig = RXConfigUtils.getRXConfig(service);
       if (rxConfig == null) {
