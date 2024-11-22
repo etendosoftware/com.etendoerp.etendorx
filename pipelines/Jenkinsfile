@@ -3,7 +3,7 @@ pipeline {
         disableConcurrentBuilds()
     }
 
-    environment {
+    environment { // MARK: - Environment Variables
         CONTEXT_NAME        = 'etendo'
         BBDD_SID            = 'etendo'
         BBDD_PORT           = '5432'
@@ -16,36 +16,45 @@ pipeline {
         GITHUB_USER         = 'etendobot'
         GITHUB_TOKEN        = credentials('github-read-package-token')
         
-        USER_ACCESS         = credentials('user-access-commit-bitbucket')
-        ACCESS_TOKEN        = credentials('access-token-commit-bitbucket')
-        
-        OWNER_REPOSITORY    = 'koodu_software'
+        ACCESS_TOKEN        = credentials('access_token_github')
+
         REPOSITORY_NAME     = 'com.etendoerp.etendorx'
 
         EMAIL_ADDRESS       = credentials('email_builds')
         CORE_URL_REPO       = 'https://github.com/etendosoftware/etendo_core'
         RX_URL_REPO         = 'https://github.com/etendosoftware/etendo_rx'
-        URL_REPO            = 'https://bitbucket.org/koodu_software/com.etendoerp.etendorx'
+        URL_REPO            = 'https://github.com/etendosoftware/com.etendoerp.etendorx'
+        RX_MODULE_SSH       = 'git@github.com:etendosoftware/com.etendoerp.etendorx.git'
         BRANCH_NAME_RX      = 'develop'
+        RX_DIR              = 'etendo_rx'
+        CLASSIC_DIR         = 'etendo_core'
+        CORE_BRANCH         = 'develop'
         
         COMMIT_AUTHOR_NAME  = sh(returnStdout: true, script: "git log -1 --pretty=format:'%an'").trim()
         COMMIT_AUTHOR_EMAIL = sh(returnStdout: true, script: "git log -1 --pretty=format:'%ae'").trim()
 
-        JAVA_HOME           = '/opt/java/openjdk/'
-        CATALINA_HOME       = '${WORKSPACE}/apache-tomcat-8.5.75'
+        JAVA_HOME           = '/usr/lib/jvm/java-17-openjdk-amd64'
         BUILD_CLASSIC       = true
-        DOCKER_HOST         = '/home/jenkins/docker.sock'
-        DOCKER_TLS_VERIFY   = 0
 
         CONTEXT_BUILD       = 'Module Tests'
         STATUSCORE          = '1'
 
-        COMMIT_INPROGRESS_STATUS = 'INPROGRESS'
-        COMMIT_SUCCESS_STATUS    = 'SUCCESSFUL'
-        COMMIT_FAILED_STATUS     = 'FAILED'
+        COMMIT_INPROGRESS_STATUS = "pending"
+        COMMIT_SUCCESS_STATUS    = "success"
+        COMMIT_FAILED_STATUS     = "failure"
+
+        SUCCESS             = 'SUCCESS'
+        FAILED              = 'FAILED'
+        UNSTABLE            = 'UNSTABLE'
+
+        SONAR_SERVER        = "https://sonar.etendo.cloud"
+        SONAR_TOKEN         = credentials('sonar-token-access')
+
+        TRUE                = 'true'
+        FALSE               = 'false'
     }
 
-    agent {
+    agent { // MARK: - Agent
         kubernetes {
             inheritFrom 'jenkins-node-rx'
             defaultContainer 'jnlp'
@@ -122,175 +131,241 @@ spec:
 """
         }
     }
-    stages {
-        stage ('RX Setup') {
+    stages { // MARK: - Stages
+        stage ('RX Setup') { // MARK: - RX Setup
             steps {
                 container('compiler') {
                     script {
                         try {
-                            echo "Starting Environment tests"
-                            sh "./pipelines/utils/build-update.sh ${REPOSITORY_NAME} ${GIT_COMMIT} ${BUILD_NUMBER} ${COMMIT_INPROGRESS_STATUS} \"${CONTEXT_BUILD}\" ${BUILD_URL} \"Starting Build\" ${OWNER_REPOSITORY} ${USER_ACCESS} ${ACCESS_TOKEN}"
+                            echo "---------------------- Clonning RX Repo ----------------------"
+                            sh "./pipelines/utils/build-update.sh ${REPOSITORY_NAME} ${COMMIT_INPROGRESS_STATUS} \"RX Setup\" ${ACCESS_TOKEN} ${GIT_COMMIT} ${BUILD_URL} \"${CONTEXT_BUILD}\""
+
+                            echo "---------------------- Setup RX Repo ----------------------"
                             sh """
-                            export DOCKER_HOST=/var/run/docker.sock
-                            export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
                             git clone --branch ${BRANCH_NAME_RX} ${RX_URL_REPO}
-                            cd etendo_rx
+                            cd ${RX_DIR}
                             cp gradle.properties.template gradle.properties
                             sed -i 's/^githubUser=.*/githubUser=${GITHUB_USER}/' gradle.properties
                             sed -i 's/^githubToken=.*/githubToken=${GITHUB_TOKEN}/' gradle.properties
                             sed -i 's/^grpc.enabled=.*/grpc.enabled=true/' gradle.properties
                             sed -i 's/^data-rest.enabled=.*/data-rest.enabled=true/' gradle.properties
                             echo "\nrx.checkModuleVersion=false" >> gradle.properties
-                            mkdir -p modules
                             ./gradlew :setup
                             """
+                            echo "---------------------- Setting up Environment Variables ----------------------"
+                            env.EXIST_JACOCO_REPORT = FALSE
+                            env.STATUSTEST = "1"
                             env.STATUSRX = "1"
-                            echo '...Environment TESTS SUCCESSFUL...'
+
+                            echo "---------------------- Clone and Setup RX Repo Successful ----------------------"
+                            currentBuild.result = SUCCESS
                         } catch (Exception e) {
+                            echo "---------------------- Clone and Setup RX Repo Failed ----------------------"
                             echo 'Exception occurred: ' + e.toString()
-                            echo '...Environment TEST FAILED...'
-                            currentBuild.result = 'UNSTABLE'
-                            unstable('Environment TESTS FAILED!')
-                            env.STATUSTEST = "0"
+                            currentBuild.result = FAILED
+                            error('Clone and Setup RX Repo Failed')
                             env.STATUSRX = "0"
                         }
                     }
                 }
             }
         }
-        stage ('Build Environment Etendo Core') {
+        stage ('Build Environment Etendo Core') { // MARK: - Build Environment Etendo Core
             when {
                 expression {
-                    env.BUILD_CLASSIC == "true" && env.STATUSRX == "1"
-                }
-            }
-            steps {
-                withCredentials([sshUserPrivateKey(credentialsId: 'my-credentials', keyFileVariable: 'keyfile')]) {
-                    withCredentials([usernamePassword(credentialsId: "koodu_credentials", passwordVariable: 'GIT_PASSWORD', usernameVariable: 'GIT_USERNAME')]) {
-                        sh 'mkdir -p ~/.ssh && ssh-keyscan bitbucket.org >> ~/.ssh/known_hosts'
-                        sh """
-                        git config user.name "$GIT_USERNAME"
-                        git config user.email "$GIT_USERNAME"
-                        """
-
-                        // Clone Etendo Core
-                        sh 'git clone --branch develop ${CORE_URL_REPO}'
-                        // Setup environment
-                        sh 'printenv'
-                        script {
-                            try {
-                                echo 'Building Etendo Core'
-                                dir("etendo_core") {
-                                    sh """
-                                    echo -e "context.name=${CONTEXT_NAME}\n
-                                    bbdd.sid=${BBDD_SID}\n
-                                    bbdd.port=${BBDD_PORT}\n
-                                    bbdd.systemUser=${BBDD_SYSTEMUSER}\n
-                                    bbdd.systemPassword=${BBDD_SYSTEMPASS}\n
-                                    bbdd.user=${BBDD_USER}\n
-                                    bbdd.password=${BBDD_PASSWORD}\n
-                                    nexusUser=${NEXUS_USER}\n
-                                    nexusPassword=${NEXUS_PASSWORD}\n
-                                    githubUser=${GITHUB_USER}\n
-                                    githubToken=${GITHUB_TOKEN}\n
-                                    allow.root=true\n
-                                    org.gradle.jvmargs=-Dfile.encoding=UTF-8" > gradle.properties
-                                    """
-                                    sh './gradlew prepareConfig --info --stacktrace'
-                                    sh './gradlew setup --info --stacktrace'
-                                    sh './gradlew expandModules --info --stacktrace'
-                                    sh """
-                                    cd modules
-                                    GIT_SSH_COMMAND=\"ssh -i ${keyfile} -o \"UserKnownHostsFile=/dev/null\" -o \"StrictHostKeyChecking=no\"\" git clone git@bitbucket.org:koodu_software/com.etendoerp.etendorx.git
-                                    cd com.etendoerp.etendorx
-                                    git checkout ${GIT_COMMIT}
-                                    cd ../..
-                                    """
-                                    sh './gradlew install -PignoreConsistency=true --info --stacktrace'
-                                    sh './gradlew smartbuild -PignoreConsistency=true --info --stacktrace'
-                                    echo 'Build of Etendo Core Finished'
-                                    env.STATUSCORE = "1"
-                                    currentBuild.result = 'SUCCESS'
-                                }
-                            } catch (Exception e) {
-                                echo 'Build of Etendo Core FAILED'
-                                currentBuild.result = 'FAILED'
-                                error('Build Etendo Core FAILED!')
-                                env.STATUSCORE = "0"
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        stage ('Build Environment Etendo RX') {
-            when {
-                expression {
-                    currentBuild.result == "SUCCESS"
+                    env.BUILD_CLASSIC == TRUE && currentBuild.result == SUCCESS
                 }
             }
             steps {
                 container('compiler') {
                     script {
                         try {
-                            echo 'Building Etendo RX'
-                            sh 'printenv'
+                            sh "./pipelines/utils/build-update.sh ${REPOSITORY_NAME} ${COMMIT_INPROGRESS_STATUS} \"Build Environment Etendo Classic\" ${ACCESS_TOKEN} ${GIT_COMMIT} ${BUILD_URL} \"${CONTEXT_BUILD}\""
+                            withCredentials([sshUserPrivateKey(credentialsId: 'my-credentials', keyFileVariable: 'keyfile')]) {
+                                withCredentials([usernamePassword(credentialsId: "koodu_credentials", passwordVariable: 'GIT_PASSWORD', usernameVariable: 'GIT_USERNAME')]) {
+                                    def sshCmd = "ssh -i ${keyfile} -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no"
+
+                                    echo "---------------------- Clonning Classic Repo ----------------------"
+                                    sh "git clone --branch ${CORE_BRANCH} ${CORE_URL_REPO}"
+
+                                    sh "printenv"
+                                    echo "---------------------- Clonning RX Module Repo ----------------------"
+                                    sh """
+                                    cd ${CLASSIC_DIR}
+                                    mkdir -p modules
+                                    cd modules
+                                    GIT_SSH_COMMAND=\"${sshCmd}\" git clone ${RX_MODULE_SSH}
+                                    cd ${REPOSITORY_NAME}
+                                    git checkout ${GIT_COMMIT}
+                                    cd ../..
+                                    """
+
+                                    dir(CLASSIC_DIR) {
+                                        env.WORKDIR_MODULE = "${pwd()}/modules/${REPOSITORY_NAME}"
+
+                                        echo "--------------- Getting Sonar projectKey of ${REPOSITORY_NAME} ---------------"
+                                        def propertiesContent = readFile "${WORKDIR_MODULE}/sonar-project.properties"
+                                        def lines = propertiesContent.split('\n')
+                                        def projectKey = ""
+                                        lines.each { line ->
+                                            if (line.startsWith('sonar.projectKey=')) {
+                                            projectKey = line.split('=')[1]
+                                            }
+                                        }
+                                        env.PROJECT_KEY = "${projectKey}"
+
+                                        echo "---------------------- Setup Classic Repo ----------------------"
+                                        sh """
+                                        echo -e "context.name=${CONTEXT_NAME}\n
+                                        bbdd.sid=${BBDD_SID}\n
+                                        bbdd.port=${BBDD_PORT}\n
+                                        bbdd.systemUser=${BBDD_SYSTEMUSER}\n
+                                        bbdd.systemPassword=${BBDD_SYSTEMPASS}\n
+                                        bbdd.user=${BBDD_USER}\n
+                                        bbdd.password=${BBDD_PASSWORD}\n
+                                        nexusUser=${NEXUS_USER}\n
+                                        nexusPassword=${NEXUS_PASSWORD}\n
+                                        githubUser=${GITHUB_USER}\n
+                                        githubToken=${GITHUB_TOKEN}\n
+                                        allow.root=true\n
+                                        org.gradle.jvmargs=-Dfile.encoding=UTF-8
+                                        sonarHostUrl=${SONAR_SERVER}
+                                        sonarToken=${SONAR_TOKEN}
+                                        sonarProjectBaseDir=${WORKDIR_MODULE}
+                                        sonarProjectName=${REPOSITORY_NAME}
+                                        sonarProjectKey=${PROJECT_KEY}
+                                        sonarSources=src
+                                        sonarBranchName=${GIT_BRANCH}
+                                        sonarVersion=${GIT_COMMIT}" > gradle.properties
+                                        """
+                                        sh './gradlew prepareConfig --info --stacktrace'
+                                        sh './gradlew setup --info --stacktrace'
+                                        sh './gradlew expandModules --info --stacktrace'
+
+                                        echo "---------------------- Building Classic Environment ----------------------"
+                                        sh './gradlew install -PignoreConsistency=true --info --stacktrace'
+                                        sh './gradlew smartbuild -PignoreConsistency=true --info --stacktrace'
+
+                                        echo "---------------------- Classic Environment Successful ----------------------"
+                                        currentBuild.result = SUCCESS
+                                    }
+                                }
+                            }
+                        } catch (Exception e) {
+                            env.ERROR_MESSAGE = "Build of Classic Environment Failed"
+                            echo "--------------- ${env.ERROR_MESSAGE} ---------------"
+                            echo 'Exception occurred: ' + e.toString()
+                            currentBuild.result = FAILED
+                            error(env.ERROR_MESSAGE)
+                        }
+                    }
+                }
+            }
+        }
+        stage ('Build Environment Etendo RX') { // MARK: - Build Environment Etendo RX
+            when {
+                expression {
+                    currentBuild.result == SUCCESS
+                }
+            }
+            steps {
+                container('compiler') {
+                    script {
+                        try {
+                            sh "./pipelines/utils/build-update.sh ${REPOSITORY_NAME} ${COMMIT_INPROGRESS_STATUS} \"Build Environment Etendo RX\" ${ACCESS_TOKEN} ${GIT_COMMIT} ${BUILD_URL} \"${CONTEXT_BUILD}\""
+                            echo "---------------------- Building Etendo RX Environment ----------------------"
                             sh """
-                            export DOCKER_HOST=/var/run/docker.sock
-                            export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
-                            cd etendo_rx
+                            cd ${RX_DIR}
                             ./gradlew generate.entities --info
                             """
-                            echo 'Build of Etendo RX Finished'
-                            env.STATUSRX = "1"
-                            currentBuild.result = "SUCCESS"
+                            echo "---------------------- Build of Etendo RX Successful ----------------------"
+                            currentBuild.result = SUCCESS
                         } catch (Exception e) {
-                            echo 'Build of Etendo RX FAILED'
-                            currentBuild.result = 'FAILED'
-                            error('Build of Etendo RX FAILED!')
+                            env.ERROR_MESSAGE = "Build of Etendo RX Failed"
+                            echo "--------------- ${env.ERROR_MESSAGE} ---------------"
+                            echo 'Exception occurred: ' + e.toString()
+                            currentBuild.result = FAILED
+                            error(env.ERROR_MESSAGE)
                             env.STATUSRX = "0"
                         }
                     }
                 }
             }
         }
-        stage ("Run Etendo RX module tests") {
+        stage ("Run Etendo RX Module tests") { // MARK: - Run Etendo RX Module tests
             when {
                 expression {
-                    currentBuild.result == "SUCCESS"
+                    currentBuild.result == SUCCESS
+                }
+            }
+            steps {
+                container('compiler') {
+                    script {
+                        try {
+                            sh "./pipelines/utils/build-update.sh ${REPOSITORY_NAME} ${COMMIT_INPROGRESS_STATUS} \"Running Module Tests\" ${ACCESS_TOKEN} ${GIT_COMMIT} ${BUILD_URL} \"${CONTEXT_BUILD}\""
+
+                            echo "---------------------- Starting Etendo RX Module Tests ----------------------"
+                            sh """
+                            cd ${CLASSIC_DIR}
+                            ./gradlew test --tests "com.etendoerp.etendorx.*" jacocoRootReport --info
+                            """
+                            echo "---------------------- RX Module Tests Successful ----------------------"
+                        } catch (Exception e) {
+                            echo "---------------------- RX Module Tests Failed ----------------------"
+                            echo 'Exception occurred: ' + e.toString()
+                            currentBuild.result = UNSTABLE
+                            unstable('RX Module Tests Failed')
+                            env.STATUSTEST = "0"
+                        }
+                        publishHTML([
+                            allowMissing: false,
+                            alwaysLinkToLastBuild: false,
+                            keepAll: true,
+                            reportDir: "${CLASSIC_DIR}/build/reports/tests/test",
+                            reportFiles: '*.html',
+                            reportName: 'ETENDO RX MODULE TESTS REPORT',
+                            reportTitles: ''
+                        ])
+                    }
+                }
+            }
+        }
+        stage('SonarQube Analysis') { // MARK: - SonarQube Analysis
+            when {
+                expression {
+                    currentBuild.result == SUCCESS
                 }
             }
             steps {
                 script {
-                    try {
-                        sh "./pipelines/utils/build-update.sh ${REPOSITORY_NAME} ${GIT_COMMIT} ${BUILD_NUMBER} ${COMMIT_INPROGRESS_STATUS} \"${CONTEXT_BUILD}\" ${BUILD_URL} \"Running Tests\" ${OWNER_REPOSITORY} ${USER_ACCESS} ${ACCESS_TOKEN}"
-                        env.STATUSTEST = "1"
-                        echo "Starting Etendo RX module tests"
-                        sh """
-                        cd etendo_core
-                        ./gradlew test --tests "com.etendoerp.etendorx.*" --info
-                        """
-                        echo '...ETENDO RX MODULE TESTS SUCCESSFUL...'
-                    } catch (Exception e) {
-                        echo 'Exception occurred: ' + e.toString()
-                        echo '...ETENDO RX MODULE TESTS FAILED...'
-                        currentBuild.result = 'UNSTABLE'
-                        unstable('ETENDO RX MODULE TESTS FAILED!')
-                        env.STATUSTEST = "0"
+                    container('compiler') {
+                        try {
+                            sh "./pipelines/utils/build-update.sh ${REPOSITORY_NAME} ${COMMIT_INPROGRESS_STATUS} \"Running SonarQube Analysis\" ${ACCESS_TOKEN} ${GIT_COMMIT} ${BUILD_URL} \"${CONTEXT_BUILD}\""
+
+                            echo "---------------------- Running SonarQube ----------------------"
+                            sh """
+                            cd ${CLASSIC_DIR}
+                            ./gradlew sonar --stacktrace --info
+                            """
+                            echo "---------------------- Getting SonarQube Report URL ----------------------"
+                            def branchName = URLEncoder.encode(GIT_BRANCH, 'UTF-8')
+                            def projectUrl = "${SONAR_SERVER}/dashboard?id=${PROJECT_KEY}&branch=${branchName}"
+                            env.PROJECT_URL = "${projectUrl}"
+                            echo "Sonar Project URL: ${PROJECT_URL}"
+
+                            echo "--------------- Execution SonarQube Succesful ---------------"
+                        } catch (Exception e) {
+                            env.ERROR_MESSAGE = "Execution SonarQube Failed"
+                            echo "--------------- ${env.ERROR_MESSAGE} ---------------"
+                            echo "Exception occurred: " + e.toString()
+                            currentBuild.result = FAILED
+                            error(env.ERROR_MESSAGE)
+                        }
                     }
-                    publishHTML([
-                        allowMissing: false,
-                        alwaysLinkToLastBuild: false,
-                        keepAll: true,
-                        reportDir: 'etendo_core/build/reports/tests/test',
-                        reportFiles: '*.html',
-                        reportName: 'ETENDO RX MODULE TESTS REPORT',
-                        reportTitles: ''
-                    ])
                 }
             }
         }
-        stage ("Run Das Tests") {
+        stage ("Run Das Tests") { // MARK: - Run Das Tests
             when {
                 expression {
                     env.STATUSRX == "1"
@@ -300,39 +375,42 @@ spec:
                 container("compiler") {
                     script {
                         try {
-                            echo "Starting Das tests"
-                            sh """
-                            export DOCKER_HOST=/var/run/docker.sock
-                            export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
-                            cd etendo_rx
-                            ./gradlew :com.etendorx.das:test --info --tests com.etendorx.das.test.RepositoryTest
-                            ./gradlew :com.etendorx.das:test --info --tests com.etendorx.das.test.RestCallTest
-                            ./gradlew :com.etendorx.das:test --info --tests com.etendorx.das.test.DefaultFiltersTest
-                            ./gradlew :com.etendorx.das:test --info --tests com.etendorx.das.test.eventhandlertest.test.AnnotationTests
-                            ./gradlew :com.etendorx.das:test --info --tests com.etendorx.das.unit.BindedRestControllerTest
-                            ./gradlew :com.etendorx.das:test --info --tests com.etendorx.das.unit.JsonPathEntityRetrieverDefaultTest
-                            ./gradlew :com.etendorx.das:test --info --tests com.etendorx.das.unit.MappingUtilsImplTest
-                            ./gradlew :com.etendorx.das:test --info --tests com.etendorx.das.test.DisableEnableTriggersTest
-                            ./gradlew :com.etendorx.das:test --info --tests com.etendorx.das.test.FieldMappingRestCallTest
-                            ./gradlew :com.etendorx.das:test --info --tests com.etendorx.das.integration.PropertyMetadataTest
-                            ./gradlew :com.etendorx.das:test --info --tests com.etendorx.das.unit.BaseDTORepositoryDefaultTests
-                            ./gradlew :com.etendorx.das:test --info --tests com.etendorx.das.unit.JsonPathConverterBaseTests
-                            ./gradlew :com.etendorx.das:test --info --tests com.etendorx.entities.mapper.lib.JsonPathEntityRetrieverBaseTests
-                            """
-                            echo '...DAS TESTS SUCCESSFUL...'
+                            sh "./pipelines/utils/build-update.sh ${REPOSITORY_NAME} ${COMMIT_INPROGRESS_STATUS} \"Running Das Tests\" ${ACCESS_TOKEN} ${GIT_COMMIT} ${BUILD_URL} \"${CONTEXT_BUILD}\""
+                            echo "---------------------- Running Das Tests ----------------------"
+                            def tests = [
+                                "com.etendorx.das.test.RepositoryTest",
+                                "com.etendorx.das.test.RestCallTest",
+                                "com.etendorx.das.test.DefaultFiltersTest",
+                                "com.etendorx.das.test.eventhandlertest.test.AnnotationTests",
+                                "com.etendorx.das.unit.BindedRestControllerTest",
+                                "com.etendorx.das.unit.JsonPathEntityRetrieverDefaultTest",
+                                "com.etendorx.das.unit.MappingUtilsImplTest",
+                                "com.etendorx.das.test.DisableEnableTriggersTest",
+                                "com.etendorx.das.test.FieldMappingRestCallTest",
+                                "com.etendorx.das.integration.PropertyMetadataTest",
+                                "com.etendorx.das.unit.BaseDTORepositoryDefaultTests",
+                                "com.etendorx.das.unit.JsonPathConverterBaseTests",
+                                "com.etendorx.entities.mapper.lib.JsonPathEntityRetrieverBaseTests"
+                            ]
+                            dir(RX_DIR) {
+                                tests.each { test ->
+                                    sh "./gradlew :com.etendorx.das:test --info --tests ${test}"
+                                }
+                            }
+                            echo "---------------------- Das Tests Successful ----------------------"
                         } catch (Exception e) {
+                            echo "---------------------- Das Tests Failed ----------------------"
                             echo 'Exception occurred: ' + e.toString()
-                            echo '...DAS TEST FAILED...'
-                            currentBuild.result = 'UNSTABLE'
-                            unstable('DAS TESTS FAILED!')
+                            currentBuild.result = UNSTABLE
+                            unstable('Das Tests Failed')
                             env.STATUSTEST = "0"
                         }
-                        if(fileExists('etendo_rx/modules_core/com.etendorx.das/build/reports/tests/test')) {
+                        if(fileExists("${RX_DIR}/modules_core/com.etendorx.das/build/reports/tests/test")) {
                             publishHTML([
                                 allowMissing: false,
                                 alwaysLinkToLastBuild: false,
                                 keepAll: true,
-                                reportDir: 'etendo_rx/modules_core/com.etendorx.das/build/reports/tests/test',
+                                reportDir: "${RX_DIR}/modules_core/com.etendorx.das/build/reports/tests/test",
                                 reportFiles: '*.html',
                                 reportName: 'DAS TESTS REPORT',
                                 reportTitles: ''
@@ -343,7 +421,7 @@ spec:
             }
         }
     }
-    post {
+    post { // MARK: - Post Actions
         fixed {
             mail to: EMAIL_ADDRESS,
             subject: "✅ FIXED - ${currentBuild.fullDisplayName}",
@@ -379,10 +457,10 @@ spec:
         }
         failure {
             script {
-                sh './pipelines/utils/build-update.sh $REPOSITORY_NAME $GIT_COMMIT $BUILD_NUMBER $COMMIT_FAILED_STATUS \"${CONTEXT_BUILD}\" $BUILD_URL "Build failed" $OWNER_REPOSITORY $USER_ACCESS $ACCESS_TOKEN'
+                sh "./pipelines/utils/build-update.sh ${REPOSITORY_NAME} ${COMMIT_FAILED_STATUS} \"Build Failed\" ${ACCESS_TOKEN} ${GIT_COMMIT} ${BUILD_URL} \"${CONTEXT_BUILD}\""
+                echo "---------------------- Failed Build Environments ----------------------"
                 echo "Failed Build Environments"
             }
-            cleanWs deleteDirs: true
             mail to: EMAIL_ADDRESS,
             subject: "⛔ ERROR - ${currentBuild.fullDisplayName}",
             mimeType: "text/html",
@@ -415,10 +493,9 @@ spec:
         }
         unstable {
             script {
-                sh './pipelines/utils/build-update.sh $REPOSITORY_NAME $GIT_COMMIT $BUILD_NUMBER $COMMIT_FAILED_STATUS \"${CONTEXT_BUILD}\" $BUILD_URL "Test execution failed" $OWNER_REPOSITORY $USER_ACCESS $ACCESS_TOKEN'
-                echo "Failed Test"
+                sh "./pipelines/utils/build-update.sh ${REPOSITORY_NAME} ${COMMIT_FAILED_STATUS} \"Test Execution Failed\" ${ACCESS_TOKEN} ${GIT_COMMIT} ${BUILD_URL} \"${CONTEXT_BUILD}\""
+                echo "---------------------- Failed Tests ----------------------"
             }
-            cleanWs deleteDirs: true
             mail to: EMAIL_ADDRESS,
             subject: "⚠️ TESTS FAILED - ${currentBuild.fullDisplayName}",
             mimeType: "text/html",
@@ -451,8 +528,8 @@ spec:
         }
         success {
             script {
-                sh './pipelines/utils/build-update.sh $REPOSITORY_NAME $GIT_COMMIT $BUILD_NUMBER $COMMIT_SUCCESS_STATUS \"${CONTEXT_BUILD}\" $BUILD_URL "Test finalized successfully" $OWNER_REPOSITORY $USER_ACCESS $ACCESS_TOKEN'
-                echo "Successful Test"
+                sh "./pipelines/utils/build-update.sh ${REPOSITORY_NAME} ${COMMIT_SUCCESS_STATUS} \"Test Finalized Successfully\" ${ACCESS_TOKEN} ${GIT_COMMIT} ${BUILD_URL} \"${CONTEXT_BUILD}\""
+                echo "---------------------- DONE ----------------------"
             }
         }
     }
