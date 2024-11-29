@@ -3,7 +3,10 @@ package com.etendoerp.etendorx.services;
 import com.etendoerp.etendorx.services.wrapper.EtendoRequestWrapper;
 import com.etendoerp.etendorx.services.wrapper.RequestField;
 import com.etendoerp.openapi.data.OpenAPIRequest;
+import io.swagger.v3.oas.models.OpenAPI;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.codehaus.jettison.json.JSONObject;
 import org.hibernate.criterion.Restrictions;
 import org.openbravo.base.exception.OBException;
@@ -12,6 +15,7 @@ import org.openbravo.base.secureApp.LoginUtils.RoleDefaults;
 import org.openbravo.base.secureApp.VariablesSecureApp;
 import org.openbravo.base.weld.WeldUtils;
 import org.openbravo.dal.core.OBContext;
+import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.model.ad.ui.Field;
 import org.openbravo.model.ad.ui.Tab;
@@ -28,6 +32,8 @@ import java.util.List;
 import java.util.Map;
 
 public class DataSourceServlet implements WebService {
+
+  private static final Logger log = LogManager.getLogger();
 
   public static final String DATASOURCE_SERVLET_PATH = "/org.openbravo.service.datasource/";
 
@@ -51,6 +57,9 @@ public class DataSourceServlet implements WebService {
           OBContext.getOBContext().getLanguage().getLanguage(),
           OBContext.getOBContext().isRTL() ? "Y" : "N", defaults.role, defaults.client,
           OBContext.getOBContext().getCurrentOrganization().getId(), defaults.warehouse);
+    } catch (OBException e) {
+      log.error("Error in DataSourceServlet", e);
+      throw new OBException(e);
     } finally {
       OBContext.restorePreviousMode();
     }
@@ -82,8 +91,10 @@ public class DataSourceServlet implements WebService {
             OBContext.getOBContext().isRTL() ? "Y" : "N", defaults.role, defaults.client,
             OBContext.getOBContext().getCurrentOrganization().getId(), defaults.warehouse);
 
-        String tabId = request.getParameter("tabId");
-        tab = OBDal.getInstance().get(Tab.class, tabId);
+        OBCriteria<OpenAPIRequest> crit = OBDal.getInstance().createCriteria(OpenAPIRequest.class);
+        crit.add(Restrictions.eq("name", path.substring(1)));
+        OpenAPIRequest req = (OpenAPIRequest) crit.setMaxResults(1).uniqueResult();
+        tab = req.getETRXOpenAPITabList().get(0).getRelatedTabs();
         for (Field field : tab.getADFieldList()) {
           String name = normalizedName(field.getName());
           fieldList.add(new RequestField(name, field.getColumn().getDBColumnName()));
@@ -152,18 +163,19 @@ public class DataSourceServlet implements WebService {
       // new request
       servlet.doPost(newRequest, response);
     } catch (Exception e) {
+      log.error("Error in DataSourceServlet", e);
       try {
-      response.setContentType("application/json");
-      response.setCharacterEncoding("UTF-8");
-      response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+        response.setContentType("application/json");
+        response.setCharacterEncoding("UTF-8");
+        response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
 
-      String jsonErrorResponse = "{" + "\"error\": \"Internal Server Error\"," + "\"message\": \"" + (
-          e.getMessage() != null ?
-              e.getMessage() :
-              "An unexpected error occurred.") + "\"," + "\"status\": 500," + "\"timestamp\": \"" + java.time.Instant.now()
-          .toString() + "\"" + "}";
-
-      response.getWriter().write(jsonErrorResponse);
+        JSONObject jsonErrorResponse = new JSONObject();
+        jsonErrorResponse.put("error", "Internal Server Error");
+        jsonErrorResponse.put("message", e.getMessage() != null ? e.getMessage() : "An unexpected error occurred.");
+        jsonErrorResponse.put("status", 500);
+        response.getWriter().write(jsonErrorResponse.toString());
+        response.getWriter().flush();
+        response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
       } catch (Exception ex) {
         throw new OBException(ex);
       }
@@ -204,15 +216,20 @@ public class DataSourceServlet implements WebService {
     }
     String dataSourceName = parts[parts.length - 1];
 
-    OpenAPIRequest apiRequest = (OpenAPIRequest) OBDal.getInstance().createCriteria(OpenAPIRequest.class)
+    OpenAPIRequest apiRequest = (OpenAPIRequest) OBDal.getInstance()
+        .createCriteria(OpenAPIRequest.class)
         .add(Restrictions.eq("name", dataSourceName))
         .setMaxResults(1)
         .uniqueResult();
 
-    String requestName = apiRequest.getETRXOpenAPITabList().get(0).getRelatedTabs().getTable().getName();
-    return newUri.append("/org.openbravo.service.datasource/")
-        .append(requestName)
-        .toString();
+    String requestName;
+    try {
+      OBContext.setAdminMode();
+      requestName = apiRequest.getETRXOpenAPITabList().get(0).getRelatedTabs().getTable().getName();
+    } finally {
+      OBContext.restorePreviousMode();
+    }
+    return newUri.append("/org.openbravo.service.datasource/").append(requestName).toString();
   }
 
   @Override

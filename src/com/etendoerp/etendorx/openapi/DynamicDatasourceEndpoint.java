@@ -60,7 +60,11 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
       if (tag == null) {
         return true;
       }
-      return getTags().contains(tag);
+      if(getTags().contains(tag)) {
+        requestedTag = tag;
+        return true;
+      }
+      return false;
     } finally {
       OBContext.restorePreviousMode();
     }
@@ -71,17 +75,20 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
     try {
       OBContext.setAdminMode();
       getFlows().forEach(flow -> {
-        var endpoints = flow.getETAPIOpenApiFlowPointList();
-        for (OpenApiFlowPoint endpoint : endpoints) {
-          if(!endpoint.getEtapiOpenapiReq().getETRXOpenAPITabList().isEmpty()) {
-            addDefinition(openAPI, flow.getName(), endpoint.getEtapiOpenapiReq().getName(), endpoint.getEtapiOpenapiReq().getETRXOpenAPITabList().get(0).getRelatedTabs());
+        if (requestedTag == null || StringUtils.equals(requestedTag, flow.getName())) {
+          var endpoints = flow.getETAPIOpenApiFlowPointList();
+          for (OpenApiFlowPoint endpoint : endpoints) {
+            if (!endpoint.getEtapiOpenapiReq().getETRXOpenAPITabList().isEmpty()) {
+              addDefinition(openAPI, flow.getName(), endpoint.getEtapiOpenapiReq().getName(),
+                  endpoint.getEtapiOpenapiReq().getETRXOpenAPITabList().get(0).getRelatedTabs());
+            }
           }
+          Tag tag = new Tag().name(flow.getName()).description(flow.getDescription());
+          if (openAPI.getTags() == null) {
+            openAPI.setTags(new ArrayList<>());
+          }
+          openAPI.getTags().add(tag);
         }
-        Tag tag = new Tag().name(flow.getName()).description(flow.getDescription());
-        if(openAPI.getTags() == null) {
-          openAPI.setTags(new ArrayList<>());
-        }
-        openAPI.getTags().add(tag);
       });
     } finally {
       OBContext.restorePreviousMode();
