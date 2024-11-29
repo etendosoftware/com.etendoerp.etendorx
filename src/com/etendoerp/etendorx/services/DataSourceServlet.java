@@ -27,13 +27,18 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Servlet that handles data source requests.
+ */
 public class DataSourceServlet implements WebService {
 
-  public static final String DATASOURCE_SERVLET_PATH = "/org.openbravo.service.datasource/";
-
   /**
-   * Calls have to be like this in order to OB DataSourceServlet class to not fail because of the uri not having its servlet path:
-   * http://localhost:8080/etendo/sws/com.etendoerp.etendorx.datasource/DATASOURCENAME
+   * Handles GET requests.
+   *
+   * @param path The request path.
+   * @param request The HTTP request.
+   * @param response The HTTP response.
+   * @throws Exception If an error occurs.
    */
   @Override
   public void doGet(String path, HttpServletRequest request, HttpServletResponse response)
@@ -64,6 +69,13 @@ public class DataSourceServlet implements WebService {
 
   }
 
+  /**
+   * Handles POST requests.
+   *
+   * @param path The request path.
+   * @param request The HTTP request.
+   * @param response The HTTP response.
+   */
   @Override
   public void doPost(String path, HttpServletRequest request, HttpServletResponse response) {
     try {
@@ -170,22 +182,45 @@ public class DataSourceServlet implements WebService {
     }
   }
 
+  /**
+   * Normalizes the name of a field.
+   *
+   * @param name The original name.
+   * @return The normalized name.
+   */
   public static String normalizedName(String name) {
     if (StringUtils.equals(name, "AD_Role_ID")) {
       return "role";
     }
+
+    if (StringUtils.isBlank(name)) {
+      return ""; // Return an empty string for null, empty, or blank input
+    }
+
     StringBuilder retName = new StringBuilder();
-    String[] parts = name.replaceAll("\\.", "").replaceAll("-", "").split(" ");
+    String[] parts = StringUtils.replaceChars(name, ".-", "").split(" ");
+
     for (int i = 0; i < parts.length; i++) {
-      if (i == 0) {
-        retName.append(parts[i].substring(0, 1).toLowerCase()).append(parts[i].substring(1));
-      } else {
-        retName.append(parts[i].substring(0, 1).toUpperCase()).append(parts[i].substring(1));
+      if (StringUtils.isNotEmpty(parts[i])) { // Null-safe check for each part
+        if (i == 0) {
+          retName.append(StringUtils.lowerCase(StringUtils.substring(parts[i], 0, 1)))
+              .append(StringUtils.substring(parts[i], 1));
+        } else {
+          retName.append(StringUtils.upperCase(StringUtils.substring(parts[i], 0, 1)))
+              .append(StringUtils.substring(parts[i], 1));
+        }
       }
     }
     return retName.toString();
   }
 
+  /**
+   * Normalizes the key of a field.
+   *
+   * @param fieldList The list of request fields.
+   * @param key The original key.
+   * @return The normalized key.
+   */
   private String normalizedKey(List<RequestField> fieldList, String key) {
     String normalizedKey = key;
     for (RequestField field : fieldList) {
@@ -196,6 +231,12 @@ public class DataSourceServlet implements WebService {
     return normalizedKey;
   }
 
+  /**
+   * Converts the request URI to a new format.
+   *
+   * @param requestURI The original request URI.
+   * @return The converted URI.
+   */
   private String convertURI(String requestURI) {
     String[] parts = requestURI.split("/");
     StringBuilder newUri = new StringBuilder();
@@ -210,19 +251,39 @@ public class DataSourceServlet implements WebService {
         .uniqueResult();
 
     String requestName = apiRequest.getETRXOpenAPITabList().get(0).getRelatedTabs().getTable().getName();
-    return newUri.append("/org.openbravo.service.datasource/")
+    return newUri.append(DataSourceConstants.DATASOURCE_SERVLET_PATH)
         .append(requestName)
         .toString();
   }
 
+  /**
+   * Handles DELETE requests.
+   *
+   * @param path The request path.
+   * @param request The HTTP request.
+   * @param response The HTTP response.
+   * @throws Exception If an error occurs.
+   */
   @Override
   public void doDelete(String path, HttpServletRequest request, HttpServletResponse response)
       throws Exception {
+    // Method not implemented
+    throw new UnsupportedOperationException("DELETE method not supported.");
   }
 
+  /**
+   * Handles PUT requests.
+   *
+   * @param path The request path.
+   * @param request The HTTP request.
+   * @param response The HTTP response.
+   * @throws Exception If an error occurs.
+   */
   @Override
   public void doPut(String path, HttpServletRequest request, HttpServletResponse response)
       throws Exception {
+    // Method not implemented
+    throw new UnsupportedOperationException("PUT method not supported.");
   }
 
 }

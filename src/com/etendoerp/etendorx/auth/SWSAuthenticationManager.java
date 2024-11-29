@@ -22,6 +22,9 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
 
   private static final Logger log4j = LogManager.getLogger();
 
+  /**
+   * Default constructor.
+   */
   public SWSAuthenticationManager() {
     super();
   }
