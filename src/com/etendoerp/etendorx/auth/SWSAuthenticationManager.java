@@ -5,35 +5,25 @@ import com.smf.securewebservices.utils.SecureWebServicesUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.openbravo.authentication.AuthenticationException;
-import org.openbravo.authentication.AuthenticationExpirationPasswordException;
-import org.openbravo.authentication.AuthenticationManager;
 import org.openbravo.authentication.basic.DefaultAuthenticationManager;
-import org.openbravo.base.HttpBaseUtils;
 import org.openbravo.base.exception.OBException;
-import org.openbravo.base.secureApp.AllowedCrossDomainsHandler;
-import org.openbravo.base.secureApp.LoginUtils;
-import org.openbravo.base.secureApp.VariablesHistory;
-import org.openbravo.base.secureApp.VariablesSecureApp;
+import org.openbravo.base.provider.OBProvider;
 import org.openbravo.dal.core.OBContext;
-import org.openbravo.dal.service.OBDal;
-import org.openbravo.database.ConnectionProvider;
 import org.openbravo.database.SessionInfo;
-import org.openbravo.erpCommon.utility.OBError;
-import org.openbravo.erpCommon.utility.Utility;
-import org.openbravo.model.ad.access.User;
-import org.openbravo.service.db.DalConnectionProvider;
-import org.openbravo.service.web.BaseWebServiceServlet;
-import org.openbravo.service.web.WebService;
 
-import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 
+/**
+ * The default servlet which catches all requests for a webservice. This servlet finds the WebService
+ * instance implementing the requested service by calling the {@link OBProvider} with the top segment
+ * in the path. When the WebService implementation is found the request is forwarded to that service.
+ */
 public class SWSAuthenticationManager extends DefaultAuthenticationManager {
 
   private static final Logger log4j = LogManager.getLogger();
 
   public SWSAuthenticationManager() {
+    super();
   }
 
   @Override
@@ -41,8 +31,8 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
 
     String authStr = request.getHeader("Authorization");
     String token = null;
-    if (authStr != null && authStr.startsWith("Bearer ")) {
-      token = authStr.substring(7);
+    if (StringUtils.startsWith(authStr, "Bearer ")) {
+      token = StringUtils.substring(authStr, 7);
     }
     if(token != null) {
       try {
@@ -53,7 +43,7 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
           String orgId = decodedToken.getClaim("organization").asString();
           String warehouseId = decodedToken.getClaim("warehouse").asString();
           String clientId = decodedToken.getClaim("client").asString();
-          if (userId == null || userId.isEmpty() || roleId == null || roleId.isEmpty() || orgId == null || orgId.isEmpty() || warehouseId == null || warehouseId.isEmpty() || clientId == null || clientId.isEmpty()) {
+          if (StringUtils.isEmpty(userId) || StringUtils.isEmpty(roleId) || StringUtils.isEmpty(orgId) || StringUtils.isEmpty(warehouseId) || StringUtils.isEmpty(clientId)) {
             throw new OBException("SWS - Token is not valid");
           }
           log4j.debug("SWS accessed by userId " + userId);
@@ -71,7 +61,7 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
           }
         }
       } catch (Exception e) {
-        throw new RuntimeException(e);
+        throw new OBException(e);
       }
     }
     return super.doWebServiceAuthenticate(request);
