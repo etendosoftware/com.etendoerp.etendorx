@@ -199,6 +199,17 @@ spec:
                                     git checkout ${GIT_COMMIT}
                                     cd ../..
                                     """
+                                    echo "---------------------- (TEMP) Clonning RX Module Repo ----------------------"
+                                    echo " This module is added temporally until the functionality is finished"
+                                    sh """
+                                    cd ${CLASSIC_DIR}
+                                    mkdir -p modules
+                                    cd modules
+                                    GIT_SSH_COMMAND=\"${sshCmd}\" git clone git@github.com:etendosoftware/com.etendoerp.openapi.git
+                                    cd com.etendoerp.openapi
+                                    git checkout feature/ETP-671
+                                    cd ../..
+                                    """
 
                                     dir(CLASSIC_DIR) {
                                         env.WORKDIR_MODULE = "${pwd()}/modules/${REPOSITORY_NAME}"
