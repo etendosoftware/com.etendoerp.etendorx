@@ -43,7 +43,7 @@ import static com.etendoerp.etendorx.services.DataSourceServlet.normalizedName;
 @ApplicationScoped
 public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
 
-  private String requestedTag = null;
+  private ThreadLocal<String> requestedTag = new ThreadLocal<>();
 
   private static final List<String> extraFields = List.of("_identifier", "$ref", "active",
       "creationDate", "createdBy", "createdBy$_identifier", "updated", "updatedBy",
@@ -81,7 +81,7 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
         return true;
       }
       if(getTags().contains(tag)) {
-        requestedTag = tag;
+        requestedTag.set(tag);
         return true;
       }
       return false;
@@ -100,7 +100,7 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
     try {
       OBContext.setAdminMode();
       getFlows().forEach(flow -> {
-        if (requestedTag == null || StringUtils.equals(requestedTag, flow.getName())) {
+        if (requestedTag.get() == null || StringUtils.equals(requestedTag.get(), flow.getName())) {
           var endpoints = flow.getETAPIOpenApiFlowPointList();
           for (OpenApiFlowPoint endpoint : endpoints) {
             if (!endpoint.getEtapiOpenapiReq().getETRXOpenAPITabList().isEmpty()) {
@@ -116,6 +116,7 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
         }
       });
     } finally {
+      requestedTag.remove();
       OBContext.restorePreviousMode();
     }
   }

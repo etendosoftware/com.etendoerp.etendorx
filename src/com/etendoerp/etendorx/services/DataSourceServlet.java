@@ -6,6 +6,7 @@ import com.etendoerp.etendorx.services.wrapper.EtendoResponseWrapper;
 import com.etendoerp.etendorx.services.wrapper.RequestField;
 import com.etendoerp.openapi.data.OpenAPIRequest;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.http.entity.ContentType;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.codehaus.jettison.json.JSONException;
@@ -43,21 +44,31 @@ import java.util.Map;
 public class DataSourceServlet implements WebService {
 
   private static final Logger log = LogManager.getLogger();
+  public static final String ERROR_IN_DATA_SOURCE_SERVLET = "Error in DataSourceServlet";
+  public static final String RESPONSE = "response";
+  public static final String DATA = "data";
+
+  /**
+   * Gets the DataSourceServlet instance.
+   *
+   * @return the DataSourceServlet instance
+   */
+  private static org.openbravo.service.datasource.DataSourceServlet getDataSourceServlet() {
+    return WeldUtils.getInstanceFromStaticBeanManager(
+        org.openbravo.service.datasource.DataSourceServlet.class);
+  }
 
   /**
    * Handles HTTP GET requests.
-   * @param path
-   *          the HttpRequest.getPathInfo(), the part of the url after the context path
-   * @param request
-   *          the HttpServletRequest
-   * @param response
-   *          the HttpServletResponse
+   *
+   * @param path     the HttpRequest.getPathInfo(), the part of the url after the context path
+   * @param request  the HttpServletRequest
+   * @param response the HttpServletResponse
    * @throws Exception
    */
   @Override
   public void doGet(String path, HttpServletRequest request, HttpServletResponse response)
       throws Exception {
-    String dataSourceName;
     try {
       OBContext.setAdminMode();
       DalConnectionProvider conn = new DalConnectionProvider();
@@ -70,46 +81,39 @@ public class DataSourceServlet implements WebService {
           OBContext.getOBContext().getLanguage().getLanguage(),
           OBContext.getOBContext().isRTL() ? "Y" : "N", defaults.role, defaults.client,
           OBContext.getOBContext().getCurrentOrganization().getId(), defaults.warehouse);
-      dataSourceName = convertURI(path);
-    } catch (OpenAPINotFoundException e) {
+      String dataSourceName = convertURI(path);
+
+      var newRequest = new EtendoRequestWrapper(request, dataSourceName, "");
+      var newResponse = new EtendoResponseWrapper(response);
+      getDataSourceServlet().doGet(newRequest, newResponse);
+      JSONObject capturedResponse = newResponse.getCapturedContent();
+      if (!capturedResponse.has(RESPONSE) || capturedResponse.getJSONObject(RESPONSE)
+          .getJSONArray(DATA)
+          .length() == 0) {
+        throw new ResourceNotFoundException("Record not found");
+      }
+      response.setContentType(ContentType.APPLICATION_JSON.getMimeType());
+      response.setCharacterEncoding("UTF-8");
+      response.getWriter().write(capturedResponse.toString());
+    } catch (OpenAPINotFoundThrowable e) {
       handleNotFoundException(response);
-      return;
-    } catch (OBException e) {
-      log.error("Error in DataSourceServlet", e);
+    } catch (OBException | IOException e) {
+      log.error(ERROR_IN_DATA_SOURCE_SERVLET, e);
       throw new OBException(e);
     } finally {
       OBContext.restorePreviousMode();
-    }
-
-    var newRequest = new EtendoRequestWrapper(request, dataSourceName, "");
-    var newResponse = new EtendoResponseWrapper(response);
-    WeldUtils.getInstanceFromStaticBeanManager(
-        org.openbravo.service.datasource.DataSourceServlet.class).doGet(newRequest, newResponse);
-    try {
-      JSONObject capturedResponse = new JSONObject(newResponse.getCapturedContent());
-      String responseString = capturedResponse.toString();
-      if (!capturedResponse.has("response")) {
-        throw new OBException("Error in DataSourceServlet");
-      }
-      if (capturedResponse.getJSONObject("response").getJSONArray("data").length() == 0) {
-        throw new ResourceNotFoundException("Record not found");
-      }
-      response.setContentType("application/json");
-      response.setCharacterEncoding("UTF-8");
-      response.getWriter().write(responseString);
-    } catch (IOException e) {
-      throw new OBException(e);
     }
   }
 
   /**
    * Handles HTTP POST requests.
+   *
    * @param response
    * @throws IOException
    */
   private static void handleNotFoundException(HttpServletResponse response) throws IOException {
     response.setStatus(HttpServletResponse.SC_NOT_FOUND);
-    response.setContentType("application/json");
+    response.setContentType(ContentType.APPLICATION_JSON.getMimeType());
     response.getWriter()
         .write(
             "{\"error\": \"Not Found\", \"message\": \"The requested resource was not found.\"}");
@@ -118,6 +122,7 @@ public class DataSourceServlet implements WebService {
 
   /**
    * Creates the payload for the POST request.
+   *
    * @param request
    * @return
    */
@@ -143,10 +148,10 @@ public class DataSourceServlet implements WebService {
       newJsonBody.put("operationType", "add");
       newJsonBody.put("componentId", "isc_OBViewForm_0");
       newJsonBody.put("csrfToken", csrf);
-      newJsonBody.put("data", jsonBody);
+      newJsonBody.put(DATA, jsonBody);
       return newJsonBody;
     } catch (JSONException | IOException e) {
-      log.error("Error in DataSourceServlet", e);
+      log.error(ERROR_IN_DATA_SOURCE_SERVLET, e);
       throw new OBException(e);
     }
   }
@@ -154,18 +159,23 @@ public class DataSourceServlet implements WebService {
   /**
    * Dispatches the POST request to the DataSourceServlet.
    *
-   * @param path
-   *          the HttpRequest.getPathInfo(), the part of the url after the context path
-   * @param request
-   *          the HttpServletRequest
-   * @param response
-   *          the HttpServletResponse
+   * @param path     the HttpRequest.getPathInfo(), the part of the url after the context path
+   * @param request  the HttpServletRequest
+   * @param response the HttpServletResponse
    */
   @Override
   public void doPost(String path, HttpServletRequest request, HttpServletResponse response) {
     upsertEntity(OpenAPIConstants.POST, path, request, response);
   }
 
+  /**
+   * Upserts the entity depending on the method.
+   *
+   * @param method
+   * @param path
+   * @param request
+   * @param response
+   */
   private void upsertEntity(String method, String path, HttpServletRequest request,
       HttpServletResponse response) {
     try {
@@ -173,55 +183,62 @@ public class DataSourceServlet implements WebService {
       Tab tab = getTab(path, request, response, fieldList);
       if (tab == null) {
         handleNotFoundException(response);
-      }
-      String newUri;
-      try {
-        newUri = convertURI(path);
-      } catch (OpenAPINotFoundException e) {
-        handleNotFoundException(response);
         return;
       }
+      String newUri = convertURI(path);
 
-      var servlet = WeldUtils.getInstanceFromStaticBeanManager(
-          org.openbravo.service.datasource.DataSourceServlet.class);
+      var servlet = getDataSourceServlet();
 
-      EtendoRequestWrapper newRequest;
-      try {
-        newRequest = getEtendoRequestWrapper(method, request, response, tab, createPayLoad(request),
-            fieldList, newUri, path);
-      } catch (OpenAPINotFoundException e) {
-        handleNotFoundException(response);
-        return;
-      }
-      if (OpenAPIConstants.POST.equals(method)) {
+      if (StringUtils.equals(OpenAPIConstants.POST, method)) {
+        EtendoRequestWrapper newRequest = getEtendoPostWrapper(method, request, tab,
+            createPayLoad(request), fieldList, newUri);
         servlet.doPost(newRequest, response);
-      } else if (OpenAPIConstants.PUT.equals(method)) {
+      } else if (StringUtils.equals(OpenAPIConstants.PUT, method)) {
+        EtendoRequestWrapper newRequest = getEtendoPutWrapper(request, response,
+            createPayLoad(request), fieldList, newUri, path);
         servlet.doPut(newRequest, response);
       } else {
         throw new UnsupportedOperationException("Method not supported: " + method);
       }
     } catch (Exception e) {
-      log.error("Error in DataSourceServlet", e);
+      log.error(ERROR_IN_DATA_SOURCE_SERVLET, e);
+      handleInternalServerError(response, e);
+    } catch (OpenAPINotFoundThrowable e) {
       try {
-        response.setContentType("application/json");
-        response.setCharacterEncoding("UTF-8");
-        response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-
-        JSONObject jsonErrorResponse = new JSONObject();
-        jsonErrorResponse.put("error", "Internal Server Error");
-        jsonErrorResponse.put("message",
-            e.getMessage() != null ? e.getMessage() : "An unexpected error occurred.");
-        jsonErrorResponse.put("status", 500);
-        response.getWriter().write(jsonErrorResponse.toString());
-        response.getWriter().flush();
-      } catch (Exception ex) {
+        handleNotFoundException(response);
+      } catch (IOException ex) {
         throw new OBException(ex);
       }
     }
   }
 
   /**
+   * Handles the internal server error.
+   *
+   * @param response
+   * @param e
+   */
+  private void handleInternalServerError(HttpServletResponse response, Exception e) {
+    try {
+      response.setContentType("application/json");
+      response.setCharacterEncoding("UTF-8");
+      response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+
+      JSONObject jsonErrorResponse = new JSONObject();
+      jsonErrorResponse.put("error", "Internal Server Error");
+      jsonErrorResponse.put("message",
+          e.getMessage() != null ? e.getMessage() : "An unexpected error occurred.");
+      jsonErrorResponse.put("status", 500);
+      response.getWriter().write(jsonErrorResponse.toString());
+      response.getWriter().flush();
+    } catch (Exception ex) {
+      throw new OBException(ex);
+    }
+  }
+
+  /**
    * Gets the tab for the given path.
+   *
    * @param path
    * @param request
    * @param response
@@ -268,11 +285,34 @@ public class DataSourceServlet implements WebService {
   }
 
   /**
-   * Gets the EtendoRequestWrapper for the given parameters.
+   * Creates the payload for the POST request.
    * @param method
    * @param request
-   * @param response
    * @param tab
+   * @param newJsonBody
+   * @param fieldList
+   * @param newUri
+   * @return
+   * @throws JSONException
+   * @throws IOException
+   * @throws OpenAPINotFoundThrowable
+   */
+  private EtendoRequestWrapper getEtendoPostWrapper(String method, HttpServletRequest request,
+      Tab tab, JSONObject newJsonBody, List<RequestField> fieldList, String newUri)
+      throws JSONException, IOException, OpenAPINotFoundThrowable {
+    Map<String, Object> parameters = createParameters(method, request, tab.getId());
+    String content = "{}";
+    var formInit = WeldUtils.getInstanceFromStaticBeanManager(EtendoFormInitComponent.class);
+    var formInitResponse = formInit.execute(parameters, content);
+    var values = formInitResponse.getJSONObject("columnValues");
+    applyValues(newJsonBody, fieldList, values);
+    return new EtendoRequestWrapper(request, newUri, newJsonBody.toString());
+  }
+
+  /**
+   * Creates the payload for the PUT request.
+   * @param request
+   * @param response
    * @param newJsonBody
    * @param fieldList
    * @param newUri
@@ -281,13 +321,33 @@ public class DataSourceServlet implements WebService {
    * @throws JSONException
    * @throws IOException
    * @throws ServletException
-   * @throws OpenAPINotFoundException
+   * @throws OpenAPINotFoundThrowable
    */
-  private EtendoRequestWrapper getEtendoRequestWrapper(String method, HttpServletRequest request,
-      HttpServletResponse response, Tab tab, JSONObject newJsonBody, List<RequestField> fieldList,
+  private EtendoRequestWrapper getEtendoPutWrapper(HttpServletRequest request,
+      HttpServletResponse response, JSONObject newJsonBody, List<RequestField> fieldList,
       String newUri, String path)
-      throws JSONException, IOException, ServletException, OpenAPINotFoundException {
-    var formInit = WeldUtils.getInstanceFromStaticBeanManager(EtendoFormInitComponent.class);
+      throws JSONException, IOException, ServletException, OpenAPINotFoundThrowable {
+    String getURI = convertURI(path);
+    var newRequest = new EtendoRequestWrapper(request, getURI, "");
+    var newResponse = new EtendoResponseWrapper(response);
+    getDataSourceServlet().doGet(newRequest, newResponse);
+    JSONObject capturedResponse = newResponse.getCapturedContent();
+    JSONObject values = capturedResponse.getJSONObject(RESPONSE)
+        .getJSONArray(DATA)
+        .getJSONObject(0);
+    applyValues(newJsonBody, fieldList, values);
+    return new EtendoRequestWrapper(request, newUri, newJsonBody.toString());
+  }
+
+  /**
+   * Creates the parameters for the request.
+   * @param method
+   * @param request
+   * @param tabId
+   * @return
+   */
+  private static Map<String, Object> createParameters(String method, HttpServletRequest request,
+      String tabId) {
     Map<String, Object> parameters = new HashMap<>();
     parameters.put("_httpRequest", request);
     parameters.put("_httpSession", request.getSession(false));
@@ -295,51 +355,35 @@ public class DataSourceServlet implements WebService {
     parameters.put("_action",
         "org.openbravo.client.application.window.FormInitializationComponent");
     parameters.put("PARENT_ID", "null");
-    parameters.put("TAB_ID", tab.getId());
+    parameters.put("TAB_ID", tabId);
     parameters.put("ROW_ID", "null");
+    return parameters;
+  }
 
-    String content = "{}";
-    if (method.equals(OpenAPIConstants.PUT)) {
-      String getURI = convertURI(path);
-      var newRequest = new EtendoRequestWrapper(request, getURI, "");
-      var newResponse = new EtendoResponseWrapper(response);
-      WeldUtils.getInstanceFromStaticBeanManager(
-          org.openbravo.service.datasource.DataSourceServlet.class).doGet(newRequest, newResponse);
-      String capturedOutput = newResponse.getCapturedContent();
-      JSONObject capturedResponse = new JSONObject(capturedOutput);
-      JSONObject values = capturedResponse.getJSONObject("response")
-          .getJSONArray("data")
-          .getJSONObject(0);
-      JSONObject data = newJsonBody.getJSONObject("data");
-      var keys = values.keys();
-      while (keys.hasNext()) {
-        String key = (String) keys.next();
-        String normalizedKey = normalizedKey(fieldList, key);
-        Object value = values.get(key);
-        if (!data.has(normalizedKey)) {
-          data.put(normalizedKey, value);
-        }
-      }
-    } else if (method.equals(OpenAPIConstants.POST)) {
-      var formInitResponse = formInit.execute(parameters, content);
-      var values = formInitResponse.getJSONObject("columnValues");
-      var keys = values.keys();
-      JSONObject data = newJsonBody.getJSONObject("data");
-      while (keys.hasNext()) {
-        String key = (String) keys.next();
-        String normalizedKey = normalizedKey(fieldList, key);
-        JSONObject value = values.getJSONObject(key);
-        Object val = value.has("value") ? value.get("value") : null;
-        if (!data.has(normalizedKey)) {
-          data.put(normalizedKey, val);
-        }
+  /**
+   * Applies the values to the JSON body.
+   * @param newJsonBody
+   * @param fieldList
+   * @param values
+   * @throws JSONException
+   */
+  private void applyValues(JSONObject newJsonBody, List<RequestField> fieldList, JSONObject values)
+      throws JSONException {
+    JSONObject data = newJsonBody.getJSONObject(DATA);
+    var keys = values.keys();
+    while (keys.hasNext()) {
+      String key = (String) keys.next();
+      String normalizedKey = normalizedKey(fieldList, key);
+      Object value = values.get(key);
+      if (!data.has(normalizedKey)) {
+        data.put(normalizedKey, value);
       }
     }
-    return new EtendoRequestWrapper(request, newUri, newJsonBody.toString());
   }
 
   /**
    * Normalizes the param name.
+   *
    * @param name
    * @return
    */
@@ -371,6 +415,7 @@ public class DataSourceServlet implements WebService {
 
   /**
    * Normalizes the field key.
+   *
    * @param fieldList
    * @param key
    * @return
@@ -386,6 +431,7 @@ public class DataSourceServlet implements WebService {
 
   /**
    * Extracts the data source and ID from the request URI.
+   *
    * @param requestURI
    * @return
    */
@@ -403,11 +449,12 @@ public class DataSourceServlet implements WebService {
 
   /**
    * Converts the request URI to the new URI.
+   *
    * @param requestURI
    * @return
-   * @throws OpenAPINotFoundException
+   * @throws OpenAPINotFoundThrowable
    */
-  String convertURI(String requestURI) throws OpenAPINotFoundException {
+  String convertURI(String requestURI) throws OpenAPINotFoundThrowable {
     String[] extractedParts = extractDataSourceAndID(requestURI);
     String dataSourceName = extractedParts[0];
 
@@ -420,11 +467,11 @@ public class DataSourceServlet implements WebService {
           .uniqueResult();
 
       if (apiRequest == null) {
-        throw new OpenAPINotFoundException("OpenAPI request not found: " + dataSourceName);
+        throw new OpenAPINotFoundThrowable("OpenAPI request not found: " + dataSourceName);
       }
 
       if (apiRequest.getETRXOpenAPITabList().isEmpty()) {
-        throw new OpenAPINotFoundException(
+        throw new OpenAPINotFoundThrowable(
             "OpenAPI request does not have any related tabs: " + dataSourceName);
       }
 
@@ -446,7 +493,7 @@ public class DataSourceServlet implements WebService {
 
       return newUri.toString();
     } catch (OBException e) {
-      log.error("Error in DataSourceServlet", e);
+      log.error(ERROR_IN_DATA_SOURCE_SERVLET, e);
       throw new OBException(e);
     } finally {
       OBContext.restorePreviousMode();
@@ -455,12 +502,10 @@ public class DataSourceServlet implements WebService {
 
   /**
    * Handles HTTP DELETE requests.
-   * @param path
-   *          the HttpRequest.getPathInfo(), the part of the url after the context path
-   * @param request
-   *          the HttpServletRequest
-   * @param response
-   *          the HttpServletResponse
+   *
+   * @param path     the HttpRequest.getPathInfo(), the part of the url after the context path
+   * @param request  the HttpServletRequest
+   * @param response the HttpServletResponse
    * @throws Exception
    */
   @Override
@@ -471,12 +516,10 @@ public class DataSourceServlet implements WebService {
 
   /**
    * Handles HTTP PUT requests.
-   * @param path
-   *          the HttpRequest.getPathInfo(), the part of the url after the context path
-   * @param request
-   *          the HttpServletRequest
-   * @param response
-   *          the HttpServletResponse
+   *
+   * @param path     the HttpRequest.getPathInfo(), the part of the url after the context path
+   * @param request  the HttpServletRequest
+   * @param response the HttpServletResponse
    * @throws Exception
    */
   @Override

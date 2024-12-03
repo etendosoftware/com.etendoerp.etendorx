@@ -6,6 +6,9 @@ import static com.etendoerp.etendorx.services.DataSourceServlet.extractDataSourc
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+/**
+ * Tests for DataSourceServlet.
+ */
 public class DataSourceServletTest {
   @Test
   void testExtractWithID() {
@@ -30,9 +33,7 @@ public class DataSourceServletTest {
   void testInvalidURIThrowsException() {
     String requestURI = "/etendo/sws/invalid/URI";
 
-    Exception exception = assertThrows(IllegalArgumentException.class, () -> {
-      extractDataSourceAndID(requestURI);
-    });
+    Exception exception = assertThrows(IllegalArgumentException.class, () -> extractDataSourceAndID(requestURI));
 
     assertEquals("Invalid request URI: /etendo/sws/invalid/URI", exception.getMessage());
   }
