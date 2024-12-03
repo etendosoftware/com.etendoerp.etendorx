@@ -27,11 +27,6 @@ public class OpenAPIConstants {
   public static final String PUT = "PUT";
 
   /**
-   * HTTP PATCH method.
-   */
-  public static final String PATCH = "PATCH";
-
-  /**
    * Response key.
    */
   public static final String RESPONSE = "response";
@@ -49,5 +44,5 @@ public class OpenAPIConstants {
   /**
    * Base path for the datasource.
    */
-  static final String BASE_PATH = "/etendo/sws/com.etendoerp.etendorx.datasource/";
+  static final String BASE_PATH = "/sws/com.etendoerp.etendorx.datasource/";
 }

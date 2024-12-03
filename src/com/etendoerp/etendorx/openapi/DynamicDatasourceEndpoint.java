@@ -224,7 +224,7 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
         .parameters(formInitParams)
         .requestBodySchema(formInitRequestSchema)
         .requestBodyExample(formInitRequestExample)
-        .httpMethod(OpenAPIConstants.PATCH)
+        .httpMethod(OpenAPIConstants.PUT)
         .build();
 
     createEndpoint(openAPI, patchConfig);

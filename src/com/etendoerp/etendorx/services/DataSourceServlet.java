@@ -305,7 +305,17 @@ public class DataSourceServlet implements WebService {
     var formInit = WeldUtils.getInstanceFromStaticBeanManager(EtendoFormInitComponent.class);
     var formInitResponse = formInit.execute(parameters, content);
     var values = formInitResponse.getJSONObject("columnValues");
-    applyValues(newJsonBody, fieldList, values);
+    JSONObject data = newJsonBody.getJSONObject(DATA);
+    var keys = values.keys();
+    while (keys.hasNext()) {
+      String key = (String) keys.next();
+      String normalizedKey = normalizedKey(fieldList, key);
+      JSONObject value = values.getJSONObject(key);
+      Object val = value.has("value") ? value.get("value") : null;
+      if (!data.has(normalizedKey)) {
+        data.put(normalizedKey, val);
+      }
+    }
     return new EtendoRequestWrapper(request, newUri, newJsonBody.toString());
   }
 
@@ -335,7 +345,16 @@ public class DataSourceServlet implements WebService {
     JSONObject values = capturedResponse.getJSONObject(RESPONSE)
         .getJSONArray(DATA)
         .getJSONObject(0);
-    applyValues(newJsonBody, fieldList, values);
+    JSONObject data = newJsonBody.getJSONObject(DATA);
+    var keys = values.keys();
+    while (keys.hasNext()) {
+      String key = (String) keys.next();
+      String normalizedKey = normalizedKey(fieldList, key);
+      Object value = values.get(key);
+      if (!data.has(normalizedKey)) {
+        data.put(normalizedKey, value);
+      }
+    }
     return new EtendoRequestWrapper(request, newUri, newJsonBody.toString());
   }
 
@@ -369,16 +388,7 @@ public class DataSourceServlet implements WebService {
    */
   private void applyValues(JSONObject newJsonBody, List<RequestField> fieldList, JSONObject values)
       throws JSONException {
-    JSONObject data = newJsonBody.getJSONObject(DATA);
-    var keys = values.keys();
-    while (keys.hasNext()) {
-      String key = (String) keys.next();
-      String normalizedKey = normalizedKey(fieldList, key);
-      Object value = values.get(key);
-      if (!data.has(normalizedKey)) {
-        data.put(normalizedKey, value);
-      }
-    }
+
   }
 
   /**
