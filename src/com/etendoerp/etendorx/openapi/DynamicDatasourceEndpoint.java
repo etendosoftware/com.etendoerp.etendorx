@@ -43,6 +43,8 @@ import static com.etendoerp.etendorx.services.DataSourceServlet.normalizedName;
 @ApplicationScoped
 public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
 
+  private String requestedTag = null;
+
   private static final List<String> extraFields = List.of("_identifier", "$ref", "active",
       "creationDate", "createdBy", "createdBy$_identifier", "updated", "updatedBy",
       "updatedBy$_identifier");
@@ -196,6 +198,35 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
         .build();
 
     createEndpoint(openAPI, getConfig);
+
+    // GET of a single record
+    EndpointConfig getIDConfig = new EndpointConfig.Builder().tag(tag)
+        .actionValue(entityName + "/{id}")
+        .summary("Obtain a single record")
+        .description("This endpoint is used to obtain a single record.")
+        .responseSchema(formInitResponseSchema)
+        .responseExample(formInitResponseExample.toString())
+        .parameters(formInitParams)
+        .requestBodySchema(formInitRequestSchema)
+        .requestBodyExample(formInitRequestExample)
+        .httpMethod(OpenAPIConstants.GET)
+        .build();
+
+    createEndpoint(openAPI, getIDConfig);
+
+    EndpointConfig patchConfig = new EndpointConfig.Builder().tag(tag)
+        .actionValue(entityName + "/{id}")
+        .summary("Obtain a single record")
+        .description("This endpoint is used to obtain a single record.")
+        .responseSchema(formInitResponseSchema)
+        .responseExample(formInitResponseExample.toString())
+        .parameters(formInitParams)
+        .requestBodySchema(formInitRequestSchema)
+        .requestBodyExample(formInitRequestExample)
+        .httpMethod(OpenAPIConstants.PATCH)
+        .build();
+
+    createEndpoint(openAPI, patchConfig);
   }
 
   /**
@@ -280,6 +311,9 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
         break;
       case "POST":
         pathItem.post(operation);
+        break;
+      case "PUT":
+        pathItem.put(operation);
         break;
       default:
         throw new IllegalArgumentException("HTTP method not supported: " + config.getHttpMethod());

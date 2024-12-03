@@ -22,6 +22,16 @@ public class OpenAPIConstants {
   public static final String POST = "POST";
 
   /**
+   * HTTP PUT method.
+   */
+  public static final String PUT = "PUT";
+
+  /**
+   * HTTP PATCH method.
+   */
+  public static final String PATCH = "PATCH";
+
+  /**
    * Response key.
    */
   public static final String RESPONSE = "response";
