@@ -7,6 +7,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.*;
 
 /**
  * A wrapper class for HttpServletRequest that allows modification of the request body and URI.
@@ -15,43 +16,50 @@ import java.nio.charset.StandardCharsets;
 public class EtendoRequestWrapper extends HttpServletRequestWrapper {
   private final String modifiedBody;
   private final String requestURI;
+  private final Map<String, String[]> modifiedParameters;
 
   /**
-   * Constructs a new EtendoRequestWrapper.
+   * Constructor for EtendoRequestWrapper.
    *
-   * @param originalRequest The original HttpServletRequest.
-   * @param requestURI The new request URI.
-   * @param newBody The new request body.
-   * @throws IOException If an I/O error occurs.
+   * @param originalRequest
+   * @param requestURI
+   * @param newBody
+   * @param newParameters
+   * @throws IOException
    */
-  public EtendoRequestWrapper(HttpServletRequest originalRequest, String requestURI, String newBody) throws IOException {
+  public EtendoRequestWrapper(HttpServletRequest originalRequest, String requestURI, String newBody,
+      Map<String, String[]> newParameters) throws IOException {
     super(originalRequest);
     this.requestURI = requestURI;
     this.modifiedBody = newBody;
+    this.modifiedParameters = new HashMap<>(newParameters);
   }
 
   /**
-   * Returns a BufferedReader for reading the modified request body.
+   * Get the modified request body.
    *
-   * @return A BufferedReader for reading the modified request body.
-   * @throws IOException If an I/O error occurs.
+   * @return
+   * @throws IOException
    */
   @Override
   public BufferedReader getReader() throws IOException {
     return new BufferedReader(new InputStreamReader(
-        new ByteArrayInputStream(modifiedBody.getBytes(StandardCharsets.UTF_8))
-    ));
+        new ByteArrayInputStream(modifiedBody.getBytes(StandardCharsets.UTF_8))));
   }
 
   /**
-   * Returns a ServletInputStream for reading the modified request body.
+   * Get the modified request body as InputStream.
    *
-   * @return A ServletInputStream for reading the modified request body.
-   * @throws IOException If an I/O error occurs.
+   * @return
+   * @throws IOException
    */
   @Override
   public javax.servlet.ServletInputStream getInputStream() throws IOException {
-    ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(modifiedBody.getBytes(StandardCharsets.UTF_8));
+    ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(
+        modifiedBody.getBytes(StandardCharsets.UTF_8));
+    /**
+     * Return a new ServletInputStream that reads from the modified request body.
+     */
     return new javax.servlet.ServletInputStream() {
       @Override
       public int read() throws IOException {
@@ -76,12 +84,66 @@ public class EtendoRequestWrapper extends HttpServletRequestWrapper {
   }
 
   /**
-   * Returns the modified request URI.
+   * Get the modified request URI.
    *
-   * @return The modified request URI.
+   * @return
    */
+  @Override
   public String getRequestURI() {
     return requestURI;
   }
 
+  /**
+   * Get the modified request URL.
+   *
+   * @param name
+   * @return
+   */
+  @Override
+  public String getParameter(String name) {
+    if (modifiedParameters.containsKey(name)) {
+      String[] values = modifiedParameters.get(name);
+      return values != null && values.length > 0 ? values[0] : null;
+    }
+    return super.getParameter(name);
+  }
+
+  /**
+   * Get the modified request parameters.
+   *
+   * @param name
+   * @return
+   */
+  @Override
+  public String[] getParameterValues(String name) {
+    if (modifiedParameters.containsKey(name)) {
+      return modifiedParameters.get(name);
+    }
+    return super.getParameterValues(name);
+  }
+
+  /**
+   * Get the modified request parameters.
+   *
+   * @return
+   */
+  @Override
+  public Map<String, String[]> getParameterMap() {
+    Map<String, String[]> originalParams = super.getParameterMap();
+    Map<String, String[]> combinedParams = new HashMap<>(originalParams);
+    combinedParams.putAll(modifiedParameters); // Override with modified params
+    return Collections.unmodifiableMap(combinedParams);
+  }
+
+  /**
+   * Get the modified request parameter names.
+   *
+   * @return
+   */
+  @Override
+  public Enumeration<String> getParameterNames() {
+    Set<String> paramNames = new HashSet<>(super.getParameterMap().keySet());
+    paramNames.addAll(modifiedParameters.keySet());
+    return Collections.enumeration(paramNames);
+  }
 }

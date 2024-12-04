@@ -23,7 +23,6 @@ import org.codehaus.jettison.json.JSONObject;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBDal;
-import org.openbravo.model.ad.datamodel.Column;
 import org.openbravo.model.ad.ui.Field;
 import org.openbravo.model.ad.ui.Tab;
 
@@ -80,7 +79,7 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
       if (tag == null) {
         return true;
       }
-      if(getTags().contains(tag)) {
+      if (getTags().contains(tag)) {
         requestedTag.set(tag);
         return true;
       }
@@ -166,11 +165,24 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
     String formInitRequestExample = formInitJSON.toString();
     List<Parameter> formInitParams = new ArrayList<>();
 
+    StringBuilder postDescription = new StringBuilder();
+    postDescription.append("When using this POST endpoint, only send the fields you want to ");
+    postDescription.append("explicitly set; do not include fields whose values you do not know or");
+    postDescription.append(" wish to leave as default. The backend will automatically populate ");
+    postDescription.append(" unspecified fields with their default values. For example, if the ");
+    postDescription.append("resource supports fields like name, age (default: 18), and city ");
+    postDescription.append("default: “Unknown”), and you only want to set name, your request ");
+    postDescription.append("should be { \"name\": \"John Doe\" }. Avoid sending null values for ");
+    postDescription.append("unknown fields or including unnecessary fields, such as { \"name\": ");
+    postDescription.append("\"John Doe\", \"age\": null, \"city\": null }, as this could override");
+    postDescription.append("default values. The backend will respond with the complete object, ");
+    postDescription.append("including defaults for fields you did not specify.");
+
     // Create EndpointConfig for POST using the Builder
     EndpointConfig postConfig = new EndpointConfig.Builder().tag(tag)
         .actionValue(entityName)
         .summary("Creates a record with default values")
-        .description("This endpoint is used to create a record with default values.")
+        .description(postDescription.toString())
         .responseSchema(formInitResponseSchema)
         .responseExample(formInitResponseExample.toString())
         .parameters(formInitParams)
@@ -181,20 +193,46 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
 
     createEndpoint(openAPI, postConfig);
 
-    // Add additional parameters
-    formInitParams.add(
+    List<Parameter> getParams = new ArrayList<>();
+    StringBuilder qHelp = new StringBuilder();
+    qHelp.append(
+        "The \"q\" parameter is used to construct search queries that filter data according to specified conditions. ");
+    qHelp.append("These conditions can include: ");
+    qHelp.append(
+        "Equality and Inequality: Use operators like == for equality and != for inequality to match exact values. ");
+    qHelp.append(
+        "Case Sensitivity: Use =c= for case-sensitive matches and =ic= for case-insensitive matches, especially useful for string comparisons. ");
+    qHelp.append(
+        "Range Comparisons: Use operators like >, <, >=, <= to filter data within a certain range. ");
+    qHelp.append(
+        "Null Checks: Use =is=null to find records with null values and =isnot=null for non-null values. ");
+    qHelp.append(
+        "String Matching: Use =sw= for \"starts with\", =ew= for \"ends with\", and =c= for \"contains\". ");
+    qHelp.append("Case-insensitive versions are also available, such as =isw= and =iew=. ");
+    qHelp.append(
+        "Set and Existence Checks: Use =ins= to check if a value is in a set, =nis= for not in a set, and =exists to check for existence. ");
+    qHelp.append(
+        "Logical operators like AND (; or and) and OR (, or or) can be used to combine multiple conditions, ");
+    qHelp.append(
+        "allowing for complex queries that can filter data based on multiple criteria simultaneously. ");
+    qHelp.append(
+        "This flexible querying system enables precise data retrieval tailored to specific needs.");
+    getParams.add(createParameter("q", false, OpenAPIConstants.STRING,
+        "field==A6750F0D15334FB890C254369AC750A8",
+        "Search parameter to retrieve filtered data with a criteria"));
+    getParams.add(
         createParameter("_startRow", true, OpenAPIConstants.STRING, "0", "Starting row to fetch."));
-    formInitParams.add(
+    getParams.add(
         createParameter("_endRow", true, OpenAPIConstants.STRING, "10", "End row to fetch."));
 
     // Create EndpointConfig for GET using the Builder
     EndpointConfig getConfig = new EndpointConfig.Builder().tag(tag)
         .actionValue(entityName)
         .summary("Get data from this entity")
-        .description("This endpoint is used to initialize a form with default values.")
+        .description("This endpoint is used to initialize a form with default values. " + qHelp)
         .responseSchema(formInitResponseSchema)
         .responseExample(formInitResponseExample.toString())
-        .parameters(formInitParams)
+        .parameters(getParams)
         .httpMethod(OpenAPIConstants.GET)
         .build();
 
@@ -217,8 +255,9 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
 
     EndpointConfig patchConfig = new EndpointConfig.Builder().tag(tag)
         .actionValue(entityName + "/{id}")
-        .summary("Obtain a single record")
-        .description("This endpoint is used to obtain a single record.")
+        .summary("Save a single record")
+        .description(
+            "This endpoint is used to save record data. Only send fields which needs changes.")
         .responseSchema(formInitResponseSchema)
         .responseExample(formInitResponseExample.toString())
         .parameters(formInitParams)
@@ -237,14 +276,7 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
    * @return true if the field is mandatory, false otherwise.
    */
   private boolean isMandatory(Field adField) {
-    List<String> references = List.of("");
-    Column column = adField.getColumn();
-    String adReferenceId = column.getReference().getId();
-    boolean hasCallout = references.contains(
-        adReferenceId) && column.isValidateOnNew() && column.getCallout() != null;
-    boolean hasDefaultValue = column.getDefaultValue() != null;
-    boolean isKeyColumn = column.isKeyColumn();
-    return (!hasCallout && !hasDefaultValue && !isKeyColumn);
+    return adField.getColumn().isMandatory();
   }
 
   /**
@@ -392,7 +424,6 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
       if (isMandatory(field)) {
         schema.addProperty(normalizedName(field.getColumn().getName()),
             new Schema<>().type(OpenAPIConstants.STRING).example("N"));
-        required.add(normalizedName(field.getColumn().getName()));
       }
     }
 

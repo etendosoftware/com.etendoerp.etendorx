@@ -5,6 +5,7 @@ import com.etendoerp.etendorx.services.wrapper.EtendoRequestWrapper;
 import com.etendoerp.etendorx.services.wrapper.EtendoResponseWrapper;
 import com.etendoerp.etendorx.services.wrapper.RequestField;
 import com.etendoerp.openapi.data.OpenAPIRequest;
+import com.smf.securewebservices.rsql.OBRestUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.entity.ContentType;
 import org.apache.logging.log4j.LogManager;
@@ -24,7 +25,6 @@ import org.openbravo.dal.service.OBDal;
 import org.openbravo.model.ad.ui.Field;
 import org.openbravo.model.ad.ui.Tab;
 import org.openbravo.service.db.DalConnectionProvider;
-import org.openbravo.service.web.ResourceNotFoundException;
 import org.openbravo.service.web.WebService;
 
 import javax.servlet.ServletException;
@@ -32,6 +32,8 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -83,14 +85,52 @@ public class DataSourceServlet implements WebService {
           OBContext.getOBContext().getCurrentOrganization().getId(), defaults.warehouse);
       String dataSourceName = convertURI(path);
 
-      var newRequest = new EtendoRequestWrapper(request, dataSourceName, "");
+      String rsql = request.getParameter("q");
+      Map<String, String[]> params = new HashMap<>();
+      var paramNames = request.getParameterNames();
+      while (paramNames.hasMoreElements()) {
+        String param = paramNames.nextElement();
+        if (!StringUtils.equals(param, "q")) {
+          params.put(param, new String[] { request.getParameter(param) });
+        }
+      }
+      params.put("isImplicitFilterApplied", new String[] { "false" });
+      params.put("_operationType", new String[] { "fetch" });
+      params.put("_noActiveFilter", new String[] { "true" });
+      params.put("operator", new String[] { "and" });
+      params.put("_constructor", new String[] { "AdvancedCriteria" });
+      if (!StringUtils.isEmpty(rsql)) {
+        // url encode criteria
+        convertCriterion(params, rsql);
+      }
+      if (!params.containsKey("_startRow")) {
+        params.put("_startRow", new String[] { "0" });
+      }
+      if (!params.containsKey("_endRow")) {
+        params.put("_endRow", new String[] { "100" });
+      }
+      params.put("_textMatchStyle", new String[] { "substring" });
+
+      String csrf = "123";
+      request.getSession(false).setAttribute("#CSRF_TOKEN", csrf);
+      params.put("csrfToken", new String[] { csrf });
+
+      var newRequest = new EtendoRequestWrapper(request, dataSourceName, "", params);
       var newResponse = new EtendoResponseWrapper(response);
-      getDataSourceServlet().doGet(newRequest, newResponse);
+      getDataSourceServlet().doPost(newRequest, newResponse);
       JSONObject capturedResponse = newResponse.getCapturedContent();
-      if (!capturedResponse.has(RESPONSE) || capturedResponse.getJSONObject(RESPONSE)
-          .getJSONArray(DATA)
-          .length() == 0) {
-        throw new ResourceNotFoundException("Record not found");
+      if (!capturedResponse.has(RESPONSE) || !capturedResponse.getJSONObject(RESPONSE).has(DATA)) {
+        // Standard error
+        String message = "An error has ocurred";
+        if (capturedResponse.has(RESPONSE) && capturedResponse.getJSONObject(RESPONSE)
+            .has("error") && capturedResponse.getJSONObject(RESPONSE)
+            .getJSONObject("error")
+            .has("message")) {
+          message = capturedResponse.getJSONObject(RESPONSE)
+              .getJSONObject("error")
+              .getString("message");
+        }
+        throw new OBException(message);
       }
       response.setContentType(ContentType.APPLICATION_JSON.getMimeType());
       response.setCharacterEncoding("UTF-8");
@@ -102,6 +142,22 @@ public class DataSourceServlet implements WebService {
       throw new OBException(e);
     } finally {
       OBContext.restorePreviousMode();
+    }
+  }
+
+  /**
+   * Converts the criterion to a list of parameters.
+   *
+   * @param params
+   * @param rsql
+   */
+  private void convertCriterion(Map<String, String[]> params, String rsql) {
+    try {
+      var criteria = OBRestUtils.criteriaFromRSQL(rsql);
+      criteria.put("_constructor", "AdvancedCriteria");
+      params.put("criteria", new String[] { criteria.toString() });
+    } catch (JSONException e) {
+      throw new OBException("Cannot convert RSQL to criteria " + rsql, e);
     }
   }
 
@@ -286,6 +342,7 @@ public class DataSourceServlet implements WebService {
 
   /**
    * Creates the payload for the POST request.
+   *
    * @param method
    * @param request
    * @param tab
@@ -316,11 +373,13 @@ public class DataSourceServlet implements WebService {
         data.put(normalizedKey, val);
       }
     }
-    return new EtendoRequestWrapper(request, newUri, newJsonBody.toString());
+    return new EtendoRequestWrapper(request, newUri, newJsonBody.toString(),
+        request.getParameterMap());
   }
 
   /**
    * Creates the payload for the PUT request.
+   *
    * @param request
    * @param response
    * @param newJsonBody
@@ -338,7 +397,7 @@ public class DataSourceServlet implements WebService {
       String newUri, String path)
       throws JSONException, IOException, ServletException, OpenAPINotFoundThrowable {
     String getURI = convertURI(path);
-    var newRequest = new EtendoRequestWrapper(request, getURI, "");
+    var newRequest = new EtendoRequestWrapper(request, getURI, "", request.getParameterMap());
     var newResponse = new EtendoResponseWrapper(response);
     getDataSourceServlet().doGet(newRequest, newResponse);
     JSONObject capturedResponse = newResponse.getCapturedContent();
@@ -355,11 +414,13 @@ public class DataSourceServlet implements WebService {
         data.put(normalizedKey, value);
       }
     }
-    return new EtendoRequestWrapper(request, newUri, newJsonBody.toString());
+    return new EtendoRequestWrapper(request, newUri, newJsonBody.toString(),
+        request.getParameterMap());
   }
 
   /**
    * Creates the parameters for the request.
+   *
    * @param method
    * @param request
    * @param tabId
@@ -381,6 +442,7 @@ public class DataSourceServlet implements WebService {
 
   /**
    * Applies the values to the JSON body.
+   *
    * @param newJsonBody
    * @param fieldList
    * @param values
