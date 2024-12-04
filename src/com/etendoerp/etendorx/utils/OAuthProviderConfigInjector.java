@@ -5,6 +5,11 @@ import org.codehaus.jettison.json.JSONObject;
 
 import com.etendoerp.etendorx.data.ETRXoAuthProvider;
 
+/**
+ * This interface defines the methods that an OAuthProviderConfigInjector must implement.
+ * An OAuthProviderConfigInjector is responsible for injecting configuration data into a JSONObject.
+ * This configuration data is used to configure an OAuth provider.
+ */
 public interface OAuthProviderConfigInjector {
 
   /**
