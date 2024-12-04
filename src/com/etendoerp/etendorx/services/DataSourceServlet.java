@@ -32,8 +32,6 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.UnsupportedEncodingException;
-import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -46,9 +44,6 @@ import java.util.Map;
 public class DataSourceServlet implements WebService {
 
   private static final Logger log = LogManager.getLogger();
-  public static final String ERROR_IN_DATA_SOURCE_SERVLET = "Error in DataSourceServlet";
-  public static final String RESPONSE = "response";
-  public static final String DATA = "data";
 
   /**
    * Gets the DataSourceServlet instance.
@@ -119,16 +114,19 @@ public class DataSourceServlet implements WebService {
       var newResponse = new EtendoResponseWrapper(response);
       getDataSourceServlet().doPost(newRequest, newResponse);
       JSONObject capturedResponse = newResponse.getCapturedContent();
-      if (!capturedResponse.has(RESPONSE) || !capturedResponse.getJSONObject(RESPONSE).has(DATA)) {
+      if (!capturedResponse.has(DataSourceConstants.RESPONSE) || !capturedResponse.getJSONObject(
+          DataSourceConstants.RESPONSE).has(DataSourceConstants.DATA)) {
         // Standard error
-        String message = "An error has ocurred";
-        if (capturedResponse.has(RESPONSE) && capturedResponse.getJSONObject(RESPONSE)
-            .has("error") && capturedResponse.getJSONObject(RESPONSE)
-            .getJSONObject("error")
-            .has("message")) {
-          message = capturedResponse.getJSONObject(RESPONSE)
-              .getJSONObject("error")
-              .getString("message");
+        String message = DataSourceConstants.ERROR_IN_DATA_SOURCE_SERVLET;
+        if (capturedResponse.has(DataSourceConstants.RESPONSE) && capturedResponse.getJSONObject(
+                DataSourceConstants.RESPONSE)
+            .has(DataSourceConstants.ERROR) && capturedResponse.getJSONObject(
+                DataSourceConstants.RESPONSE)
+            .getJSONObject(DataSourceConstants.ERROR)
+            .has(DataSourceConstants.MESSAGE)) {
+          message = capturedResponse.getJSONObject(DataSourceConstants.RESPONSE)
+              .getJSONObject(DataSourceConstants.ERROR)
+              .getString(DataSourceConstants.MESSAGE);
         }
         throw new OBException(message);
       }
@@ -138,7 +136,7 @@ public class DataSourceServlet implements WebService {
     } catch (OpenAPINotFoundThrowable e) {
       handleNotFoundException(response);
     } catch (OBException | IOException e) {
-      log.error(ERROR_IN_DATA_SOURCE_SERVLET, e);
+      log.error(DataSourceConstants.ERROR_IN_DATA_SOURCE_SERVLET, e);
       throw new OBException(e);
     } finally {
       OBContext.restorePreviousMode();
@@ -204,10 +202,10 @@ public class DataSourceServlet implements WebService {
       newJsonBody.put("operationType", "add");
       newJsonBody.put("componentId", "isc_OBViewForm_0");
       newJsonBody.put("csrfToken", csrf);
-      newJsonBody.put(DATA, jsonBody);
+      newJsonBody.put(DataSourceConstants.DATA, jsonBody);
       return newJsonBody;
     } catch (JSONException | IOException e) {
-      log.error(ERROR_IN_DATA_SOURCE_SERVLET, e);
+      log.error(DataSourceConstants.ERROR_IN_DATA_SOURCE_SERVLET, e);
       throw new OBException(e);
     }
   }
@@ -257,7 +255,7 @@ public class DataSourceServlet implements WebService {
         throw new UnsupportedOperationException("Method not supported: " + method);
       }
     } catch (Exception e) {
-      log.error(ERROR_IN_DATA_SOURCE_SERVLET, e);
+      log.error(DataSourceConstants.ERROR_IN_DATA_SOURCE_SERVLET, e);
       handleInternalServerError(response, e);
     } catch (OpenAPINotFoundThrowable e) {
       try {
@@ -281,8 +279,8 @@ public class DataSourceServlet implements WebService {
       response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
 
       JSONObject jsonErrorResponse = new JSONObject();
-      jsonErrorResponse.put("error", "Internal Server Error");
-      jsonErrorResponse.put("message",
+      jsonErrorResponse.put(DataSourceConstants.ERROR, "Internal Server Error");
+      jsonErrorResponse.put(DataSourceConstants.MESSAGE,
           e.getMessage() != null ? e.getMessage() : "An unexpected error occurred.");
       jsonErrorResponse.put("status", 500);
       response.getWriter().write(jsonErrorResponse.toString());
@@ -362,7 +360,7 @@ public class DataSourceServlet implements WebService {
     var formInit = WeldUtils.getInstanceFromStaticBeanManager(EtendoFormInitComponent.class);
     var formInitResponse = formInit.execute(parameters, content);
     var values = formInitResponse.getJSONObject("columnValues");
-    JSONObject data = newJsonBody.getJSONObject(DATA);
+    JSONObject data = newJsonBody.getJSONObject(DataSourceConstants.DATA);
     var keys = values.keys();
     while (keys.hasNext()) {
       String key = (String) keys.next();
@@ -401,10 +399,10 @@ public class DataSourceServlet implements WebService {
     var newResponse = new EtendoResponseWrapper(response);
     getDataSourceServlet().doGet(newRequest, newResponse);
     JSONObject capturedResponse = newResponse.getCapturedContent();
-    JSONObject values = capturedResponse.getJSONObject(RESPONSE)
-        .getJSONArray(DATA)
+    JSONObject values = capturedResponse.getJSONObject(DataSourceConstants.RESPONSE)
+        .getJSONArray(DataSourceConstants.DATA)
         .getJSONObject(0);
-    JSONObject data = newJsonBody.getJSONObject(DATA);
+    JSONObject data = newJsonBody.getJSONObject(DataSourceConstants.DATA);
     var keys = values.keys();
     while (keys.hasNext()) {
       String key = (String) keys.next();
@@ -438,19 +436,6 @@ public class DataSourceServlet implements WebService {
     parameters.put("TAB_ID", tabId);
     parameters.put("ROW_ID", "null");
     return parameters;
-  }
-
-  /**
-   * Applies the values to the JSON body.
-   *
-   * @param newJsonBody
-   * @param fieldList
-   * @param values
-   * @throws JSONException
-   */
-  private void applyValues(JSONObject newJsonBody, List<RequestField> fieldList, JSONObject values)
-      throws JSONException {
-
   }
 
   /**
@@ -565,7 +550,7 @@ public class DataSourceServlet implements WebService {
 
       return newUri.toString();
     } catch (OBException e) {
-      log.error(ERROR_IN_DATA_SOURCE_SERVLET, e);
+      log.error(DataSourceConstants.ERROR_IN_DATA_SOURCE_SERVLET, e);
       throw new OBException(e);
     } finally {
       OBContext.restorePreviousMode();

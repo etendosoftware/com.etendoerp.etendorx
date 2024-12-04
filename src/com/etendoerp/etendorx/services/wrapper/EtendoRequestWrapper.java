@@ -7,7 +7,12 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.Collections;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * A wrapper class for HttpServletRequest that allows modification of the request body and URI.
@@ -20,12 +25,11 @@ public class EtendoRequestWrapper extends HttpServletRequestWrapper {
 
   /**
    * Constructor for EtendoRequestWrapper.
-   *
-   * @param originalRequest
-   * @param requestURI
-   * @param newBody
-   * @param newParameters
-   * @throws IOException
+   * @param originalRequest The original request.
+   * @param requestURI The modified request URI.
+   * @param newBody The modified request body.
+   * @param newParameters The modified request parameters.
+   * @throws IOException If an I/O error occurs.
    */
   public EtendoRequestWrapper(HttpServletRequest originalRequest, String requestURI, String newBody,
       Map<String, String[]> newParameters) throws IOException {
