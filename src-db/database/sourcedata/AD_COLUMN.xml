@@ -4079,7 +4079,9 @@ and fl.identifies_univocally = 'Y')]]></SQLLOGIC>
 <!--45DA254275B140C68F3017562BF78CAE-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
 <!--45DA254275B140C68F3017562BF78CAE-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
 <!--45DA254275B140C68F3017562BF78CAE-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
-<!--45DA254275B140C68F3017562BF78CAE-->  <NAME><![CDATA[External_Name]]></NAME>
+<!--45DA254275B140C68F3017562BF78CAE-->  <NAME><![CDATA[External Name]]></NAME>
+<!--45DA254275B140C68F3017562BF78CAE-->  <DESCRIPTION><![CDATA[External Name holds the name of an external entity involved in the integration, used to maintain proper linkage between systems.]]></DESCRIPTION>
+<!--45DA254275B140C68F3017562BF78CAE-->  <HELP><![CDATA[This field stores the name of an external entity related to the integration. Ensure the name matches the external system's reference for consistency.]]></HELP>
 <!--45DA254275B140C68F3017562BF78CAE-->  <COLUMNNAME><![CDATA[External_Name]]></COLUMNNAME>
 <!--45DA254275B140C68F3017562BF78CAE-->  <AD_TABLE_ID><![CDATA[6D6794FDE2564B26897706A11DB5BCCB]]></AD_TABLE_ID>
 <!--45DA254275B140C68F3017562BF78CAE-->  <AD_REFERENCE_ID><![CDATA[10]]></AD_REFERENCE_ID>

@@ -19,7 +19,9 @@ public interface OAuthProviderConfigInjector {
    * @param sourceJSON the JSONObject that contains the configuration data to be injected
    * @throws JSONException if an error occurs while injecting the configuration data
    */
-  void injectConfig(JSONObject sourceJSON) throws JSONException;
+  default void injectConfig(JSONObject sourceJSON) throws JSONException {
+    throw new UnsupportedOperationException("Method not implemented");
+  }
 
   /**
    * Injects configuration data into the provided JSONObject.
@@ -29,5 +31,7 @@ public interface OAuthProviderConfigInjector {
    * @param provider the ETRXoAuthProvider that contains additional configuration data to be injected
    * @throws JSONException if an error occurs while injecting the configuration data
    */
-  void injectConfig(JSONObject sourceJSON, ETRXoAuthProvider provider) throws JSONException;
+  default void injectConfig(JSONObject sourceJSON, ETRXoAuthProvider provider) throws JSONException {
+    throw new UnsupportedOperationException("Method not implemented");
+  }
 }
