@@ -99,7 +99,6 @@ public class BuildConfig extends HttpBaseServlet {
         User sysUser = OBDal.getInstance().get(User.class, SYS_USER_ID);
         String sysToken = SecureWebServicesUtils.generateToken(sysUser);
         sourceJSON.put("token", sysToken);
-        log.info("Token generated for auth: " + sysToken);
         sourceJSON.put(PRIVATE_KEY, keys.getString(PRIVATE_KEY));
       }
       sourceJSON.put(PUBLIC_KEY, keys.getString(PUBLIC_KEY));
