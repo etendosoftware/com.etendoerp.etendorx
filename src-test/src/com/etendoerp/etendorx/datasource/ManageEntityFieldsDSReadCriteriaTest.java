@@ -18,6 +18,8 @@ import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
 import org.mockito.junit.MockitoJUnitRunner;
 
+import com.etendoerp.etendorx.TestUtils;
+
 /**
  * Test class for the {@code readCriteria} method in {@link ManageEntityFieldsDS}.
  * <p>
@@ -33,7 +35,6 @@ public class ManageEntityFieldsDSReadCriteriaTest {
 
   private Method readCriteriaMethod;
   private Class<?> entityFieldSelectedFiltersClass;
-  private Constructor<?> entityFieldSelectedFiltersConstructor;
 
   /**
    * Sets up the test environment by initializing the required methods and classes via reflection.
@@ -50,7 +51,7 @@ public class ManageEntityFieldsDSReadCriteriaTest {
 
     entityFieldSelectedFiltersClass = Class.forName(
         "com.etendoerp.etendorx.datasource.ManageEntityFieldsDS$EntityFieldSelectedFilters");
-    entityFieldSelectedFiltersConstructor = entityFieldSelectedFiltersClass.getDeclaredConstructor(
+    Constructor<?> entityFieldSelectedFiltersConstructor = entityFieldSelectedFiltersClass.getDeclaredConstructor(
         ManageEntityFieldsDS.class);
     entityFieldSelectedFiltersConstructor.setAccessible(true);
   }
@@ -66,14 +67,14 @@ public class ManageEntityFieldsDSReadCriteriaTest {
   @Test
   public void testReadCriteriaSimpleCriteria() throws Exception {
     Map<String, String> parameters = new HashMap<>();
-    parameters.put("criteria", createSimpleCriteriaJson());
+    parameters.put(TestUtils.CRITERIA, createSimpleCriteriaJson());
 
     Object result = readCriteriaMethod.invoke(
         manageEntityFieldsDS,
         parameters
     );
 
-    assertNotNull("Result should not be null", result);
+    assertNotNull(TestUtils.RESULT_SHOULD_NOT_BE_NULL, result);
     assertTrue(entityFieldSelectedFiltersClass.isInstance(result));
 
     Method getNameMethod = entityFieldSelectedFiltersClass.getDeclaredMethod("getName");
@@ -96,14 +97,14 @@ public class ManageEntityFieldsDSReadCriteriaTest {
   @Test
   public void testReadCriteriaAdvancedCriteria() throws Exception {
     Map<String, String> parameters = new HashMap<>();
-    parameters.put("criteria", createAdvancedCriteriaJson());
+    parameters.put(TestUtils.CRITERIA, createAdvancedCriteriaJson());
 
     Object result = readCriteriaMethod.invoke(
         manageEntityFieldsDS,
         parameters
     );
 
-    assertNotNull("Result should not be null", result);
+    assertNotNull(TestUtils.RESULT_SHOULD_NOT_BE_NULL, result);
     assertTrue(entityFieldSelectedFiltersClass.isInstance(result));
 
     Method getNameMethod = entityFieldSelectedFiltersClass.getDeclaredMethod("getName");
@@ -126,14 +127,14 @@ public class ManageEntityFieldsDSReadCriteriaTest {
   @Test
   public void testReadCriteriaWithModuleFilter() throws Exception {
     Map<String, String> parameters = new HashMap<>();
-    parameters.put("criteria", createModuleFilterCriteriaJson());
+    parameters.put(TestUtils.CRITERIA, createModuleFilterCriteriaJson());
 
     Object result = readCriteriaMethod.invoke(
         manageEntityFieldsDS,
         parameters
     );
 
-    assertNotNull("Result should not be null", result);
+    assertNotNull(TestUtils.RESULT_SHOULD_NOT_BE_NULL, result);
 
     Method getModuleIdsMethod = entityFieldSelectedFiltersClass.getDeclaredMethod("getModuleIds");
     getModuleIdsMethod.setAccessible(true);
@@ -153,15 +154,15 @@ public class ManageEntityFieldsDSReadCriteriaTest {
   private String createSimpleCriteriaJson() throws Exception {
     JSONArray criteriaArray = new JSONArray();
     JSONObject criteria = new JSONObject();
-    criteria.put("fieldName", "name");
-    criteria.put("value", "Test Name");
-    criteria.put("operator", "equals");
+    criteria.put(TestUtils.FIELD_NAME, "name");
+    criteria.put(TestUtils.VALUE, "Test Name");
+    criteria.put(TestUtils.OPERATOR, TestUtils.EQUALS);
     criteriaArray.put(criteria);
 
     JSONObject ismandatoryCriteria = new JSONObject();
-    ismandatoryCriteria.put("fieldName", "ismandatory");
-    ismandatoryCriteria.put("value", true);
-    ismandatoryCriteria.put("operator", "equals");
+    ismandatoryCriteria.put(TestUtils.FIELD_NAME, "ismandatory");
+    ismandatoryCriteria.put(TestUtils.VALUE, true);
+    ismandatoryCriteria.put(TestUtils.OPERATOR, TestUtils.EQUALS);
     criteriaArray.put(ismandatoryCriteria);
 
     return criteriaArray.toString();
@@ -179,18 +180,18 @@ public class ManageEntityFieldsDSReadCriteriaTest {
 
     JSONArray innerCriteria = new JSONArray();
     JSONObject criteria = new JSONObject();
-    criteria.put("fieldName", "name");
-    criteria.put("value", "Advanced Test");
-    criteria.put("operator", "equals");
+    criteria.put(TestUtils.FIELD_NAME, "name");
+    criteria.put(TestUtils.VALUE, "Advanced Test");
+    criteria.put(TestUtils.OPERATOR, TestUtils.EQUALS);
     innerCriteria.put(criteria);
 
     JSONObject identifiesCriteria = new JSONObject();
-    identifiesCriteria.put("fieldName", "identifiesUnivocally");
-    identifiesCriteria.put("value", true);
-    identifiesCriteria.put("operator", "equals");
+    identifiesCriteria.put(TestUtils.FIELD_NAME, "identifiesUnivocally");
+    identifiesCriteria.put(TestUtils.VALUE, true);
+    identifiesCriteria.put(TestUtils.OPERATOR, TestUtils.EQUALS);
     innerCriteria.put(identifiesCriteria);
 
-    advancedCriteria.put("criteria", innerCriteria.toString());
+    advancedCriteria.put(TestUtils.CRITERIA, innerCriteria.toString());
 
     JSONArray outerArray = new JSONArray();
     outerArray.put(advancedCriteria);
@@ -206,9 +207,9 @@ public class ManageEntityFieldsDSReadCriteriaTest {
   private String createModuleFilterCriteriaJson() throws Exception {
     JSONArray criteriaArray = new JSONArray();
     JSONObject criteria = new JSONObject();
-    criteria.put("fieldName", "module");
-    criteria.put("value", "testModuleId");
-    criteria.put("operator", "equals");
+    criteria.put(TestUtils.FIELD_NAME, "module");
+    criteria.put(TestUtils.VALUE, "testModuleId");
+    criteria.put(TestUtils.OPERATOR, TestUtils.EQUALS);
     criteriaArray.put(criteria);
     return criteriaArray.toString();
   }

@@ -24,6 +24,8 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
+
+import com.etendoerp.etendorx.TestUtils;
 import com.etendoerp.etendorx.data.ETRXProjectionEntity;
 
 /**
@@ -92,10 +94,10 @@ public class ManageEntityFieldsDSProjectionEntityTest {
     mainEntity.setId(entityId);
 
     when(relatedEntity1.getId()).thenReturn("related-1");
-    when(relatedEntity1.getIdentifier()).thenReturn("Related Entity 1");
+    when(relatedEntity1.getIdentifier()).thenReturn(TestUtils.RELATED_ENTITY_1);
 
     when(relatedEntity2.getId()).thenReturn("related-2");
-    when(relatedEntity2.getIdentifier()).thenReturn("Related Entity 2");
+    when(relatedEntity2.getIdentifier()).thenReturn(TestUtils.RELATED_ENTITY_2);
 
     List<ETRXProjectionEntity> mockRelatedEntities = Arrays.asList(relatedEntity1, relatedEntity2);
 
@@ -117,14 +119,14 @@ public class ManageEntityFieldsDSProjectionEntityTest {
 
         Map<String, Object> firstResult = result.get(0);
         assertEquals("related-1", firstResult.get("id"));
-        assertEquals("Related Entity 1", firstResult.get("name"));
-        assertEquals("Related Entity 1", firstResult.get("_identifier"));
+        assertEquals(TestUtils.RELATED_ENTITY_1, firstResult.get("name"));
+        assertEquals(TestUtils.RELATED_ENTITY_1, firstResult.get("_identifier"));
         assertEquals(ETRXProjectionEntity.ENTITY_NAME, firstResult.get("_entityName"));
 
         Map<String, Object> secondResult = result.get(1);
         assertEquals("related-2", secondResult.get("id"));
-        assertEquals("Related Entity 2", secondResult.get("name"));
-        assertEquals("Related Entity 2", secondResult.get("_identifier"));
+        assertEquals(TestUtils.RELATED_ENTITY_2, secondResult.get("name"));
+        assertEquals(TestUtils.RELATED_ENTITY_2, secondResult.get("_identifier"));
         assertEquals(ETRXProjectionEntity.ENTITY_NAME, secondResult.get("_entityName"));
 
         obContextMock.verify(OBContext::setAdminMode);

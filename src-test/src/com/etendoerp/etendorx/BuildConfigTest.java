@@ -24,6 +24,7 @@ import org.codehaus.jettison.json.JSONObject;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.junit.MockitoJUnitRunner;
@@ -45,6 +46,7 @@ import com.smf.securewebservices.SWSConfig;
  */
 @RunWith(MockitoJUnitRunner.class)
 public class BuildConfigTest {
+
 
     private BuildConfig buildConfig;
 
@@ -86,8 +88,8 @@ public class BuildConfigTest {
      */
     @Test
     public void testGetURIFromRequest() throws Exception {
-        String servletPath = "/etendorx/config";
-        String requestURL = "http://localhost:8080" + servletPath + "/auth";
+        String servletPath = TestUtils.DEFAULT_CONFIG_PATH;
+        String requestURL = "http://localhost:8080" + servletPath + TestUtils.AUTH;
         when(request.getServletPath()).thenReturn(servletPath);
         when(request.getRequestURL()).thenReturn(new StringBuffer(requestURL));
 
@@ -95,7 +97,7 @@ public class BuildConfigTest {
         method.setAccessible(true);
         String result = (String) method.invoke(buildConfig, request);
 
-        assertEquals("/auth", result);
+        assertEquals(TestUtils.AUTH, result);
     }
 
     /**
@@ -187,8 +189,8 @@ public class BuildConfigTest {
         method.setAccessible(true);
         method.invoke(buildConfig, response, errorMessage);
 
-        verify(response).setContentType("application/json");
-        verify(response).setCharacterEncoding("utf-8");
+        verify(response).setContentType(TestUtils.APPLICATION_JSON);
+        verify(response).setCharacterEncoding(TestUtils.UTF_8);
         verify(response).setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
         verify(writer).write(anyString());
     }
@@ -206,8 +208,7 @@ public class BuildConfigTest {
              MockedStatic<Preferences> mockedPreferences = mockStatic(Preferences.class);
              MockedStatic<RXConfigUtils> mockedRXConfig = mockStatic(RXConfigUtils.class)) {
 
-            String servletPath = "/etendorx/config";
-            String requestURL = "http://localhost:8080" + servletPath + "/auth";
+          String requestURL = "http://localhost:8080" + TestUtils.DEFAULT_CONFIG_PATH + TestUtils.AUTH;
 
             mockedSWSConfig.when(SWSConfig::getInstance).thenReturn(swsConfig);
 
@@ -218,8 +219,8 @@ public class BuildConfigTest {
 
             buildConfig.doGet(request, response);
 
-            verify(response).setContentType("application/json");
-            verify(response).setCharacterEncoding("utf-8");
+            verify(response).setContentType(TestUtils.APPLICATION_JSON);
+            verify(response).setCharacterEncoding(TestUtils.UTF_8);
         }
     }
 
@@ -246,9 +247,14 @@ public class BuildConfigTest {
         method.setAccessible(true);
         method.invoke(buildConfig, response, result, sourceJSON, indexFound);
 
-        verify(response).setContentType("application/json");
-        verify(response).setCharacterEncoding("utf-8");
-        verify(writer).write(anyString());
+        verify(response).setContentType(TestUtils.APPLICATION_JSON);
+        verify(response).setCharacterEncoding(TestUtils.UTF_8);
+        ArgumentCaptor<String> responseCaptor = ArgumentCaptor.forClass(String.class);
+        verify(writer).write(responseCaptor.capture());
+        String jsonResponse = responseCaptor.getValue();
+        JSONObject jsonResponseObject = new JSONObject(jsonResponse);
+        assertTrue(jsonResponseObject.has("propertySources"));
+        assertEquals(1, jsonResponseObject.getJSONArray("propertySources").length());
     }
 
 }

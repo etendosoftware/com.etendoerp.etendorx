@@ -28,6 +28,8 @@ import org.openbravo.model.ad.datamodel.Table;
 import org.openbravo.test.base.OBBaseTest;
 import org.openbravo.userinterface.selector.Selector;
 
+import com.etendoerp.etendorx.TestUtils;
+
 /**
  * Unit tests for the ETRXSelectorFieldPropertyDataSource class.
  * This test suite verifies the behavior of methods that handle selector field properties
@@ -67,7 +69,7 @@ public class ETRXSelectorFieldPropertyDataSourceTest extends OBBaseTest {
   public void setUp() {
     MockitoAnnotations.openMocks(this);
 
-    when(mockTable.getName()).thenReturn("TestTable");
+    when(mockTable.getName()).thenReturn(TestUtils.TEST_TABLE);
 
     when(mockEntity.getProperties()).thenReturn(new ArrayList<>());
   }
@@ -90,8 +92,8 @@ public class ETRXSelectorFieldPropertyDataSourceTest extends OBBaseTest {
 
       when(mockOBDal.get(Selector.class, TEST_SELECTOR_ID)).thenReturn(mockSelector);
       when(mockSelector.getTable()).thenReturn(mockTable);
-      when(mockTable.getName()).thenReturn("TestTable");
-      when(mockModelProvider.getEntity("TestTable")).thenReturn(mockEntity);
+      when(mockTable.getName()).thenReturn(TestUtils.TEST_TABLE);
+      when(mockModelProvider.getEntity(TestUtils.TEST_TABLE)).thenReturn(mockEntity);
 
       Entity result = dataSource.getBaseEntity(parameters);
 

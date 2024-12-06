@@ -1,5 +1,5 @@
 package com.etendoerp.etendorx.actionhandler;
-
+import com.etendoerp.etendorx.TestUtils;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -47,11 +47,7 @@ import com.etendoerp.etendorx.datasource.ManageEntityFieldConstants;
 @RunWith(MockitoJUnitRunner.class)
 public class EntityFieldManagementTest {
 
-  public static final String TEST_ID = "test-id";
-  public static final String DM = "DM";
-  public static final String JM = "JM";
-  public static final String MODULE_ID = "module-id";
-  public static final String TEST_NAME= "TestName";
+
   /**
    * Rule to expect exceptions in test cases.
    */
@@ -122,7 +118,7 @@ public class EntityFieldManagementTest {
     mockedMessageUtils = mockStatic(OBMessageUtils.class);
 
     mockedOBDal.when(OBDal::getInstance).thenReturn(obDal);
-    when(obDal.get(ETRXEntityField.class, TEST_ID)).thenReturn(entityField);
+    when(obDal.get(ETRXEntityField.class, TestUtils.TEST_ID)).thenReturn(entityField);
     when(module.isInDevelopment()).thenReturn(true);
     when(entityField.getModule()).thenReturn(module);
 
@@ -165,14 +161,14 @@ public class EntityFieldManagementTest {
    */
   @Test
   public void testUpdateEntityFieldNoChanges() throws Exception {
-    JSONObject properties = createBaseJsonObject(TEST_ID);
-    properties.put(ManageEntityFieldConstants.FIELDMAPPING, DM);
-    properties.put(ManageEntityFieldConstants.NAME, TEST_NAME);
+    JSONObject properties = createBaseJsonObject(TestUtils.TEST_ID);
+    properties.put(ManageEntityFieldConstants.FIELDMAPPING, TestUtils.DM);
+    properties.put(ManageEntityFieldConstants.NAME, TestUtils.TEST_NAME);
     properties.put(ManageEntityFieldConstants.PROPERTY, "testProperty");
     properties.put(ManageEntityFieldConstants.LINE, "10");
 
-    when(entityField.getFieldMapping()).thenReturn(DM);
-    when(entityField.getName()).thenReturn(TEST_NAME);
+    when(entityField.getFieldMapping()).thenReturn(TestUtils.DM);
+    when(entityField.getName()).thenReturn(TestUtils.TEST_NAME);
     when(entityField.getProperty()).thenReturn("testProperty");
     when(entityField.getLine()).thenReturn(10L);
     when(entityField.isIdentifiesUnivocally()).thenReturn(false);
@@ -190,15 +186,15 @@ public class EntityFieldManagementTest {
    */
   @Test
   public void testUpdateEntityFieldWithChanges() throws Exception {
-    JSONObject properties = createBaseJsonObject(TEST_ID);
-    properties.put(ManageEntityFieldConstants.FIELDMAPPING, JM);
+    JSONObject properties = createBaseJsonObject(TestUtils.TEST_ID);
+    properties.put(ManageEntityFieldConstants.FIELDMAPPING, TestUtils.JM);
     properties.put(ManageEntityFieldConstants.NAME, "newName");
     properties.put(ManageEntityFieldConstants.PROPERTY, "newProperty");
     properties.put(ManageEntityFieldConstants.LINE, "20");
     properties.put(ManageEntityFieldConstants.IDENTIFIESUNIVOCALLY, true);
     properties.put(ManageEntityFieldConstants.ISMANDATORY, true);
 
-    when(entityField.getFieldMapping()).thenReturn(DM);
+    when(entityField.getFieldMapping()).thenReturn(TestUtils.DM);
     when(entityField.getName()).thenReturn("oldName");
     when(entityField.getProperty()).thenReturn("oldProperty");
     when(entityField.getLine()).thenReturn(10L);
@@ -214,7 +210,7 @@ public class EntityFieldManagementTest {
       throw e;
     }
 
-    verify(entityField).setFieldMapping(JM);
+    verify(entityField).setFieldMapping(TestUtils.JM);
     verify(entityField).setProperty(null);
     verify(entityField).setName("newName");
     verify(entityField).setLine(20L);
@@ -233,13 +229,9 @@ public class EntityFieldManagementTest {
     thrown.expect(InvocationTargetException.class);
 
     JSONObject properties = new JSONObject();
-    properties.put(ManageEntityFieldConstants.NAME, TEST_NAME);
+    properties.put(ManageEntityFieldConstants.NAME, TestUtils.TEST_NAME);
 
-    try {
-      updateEntityFieldMethod.invoke(manageEntityMappings, properties);
-    } catch (InvocationTargetException e) {
-      throw e;
-    }
+    updateEntityFieldMethod.invoke(manageEntityMappings, properties);
   }
 
   /**
@@ -250,7 +242,7 @@ public class EntityFieldManagementTest {
    */
   @Test
   public void testUpdateEntityFieldModuleNotInDevelopment() throws Exception {
-    JSONObject properties = createBaseJsonObject(TEST_ID);
+    JSONObject properties = createBaseJsonObject(TestUtils.TEST_ID);
     properties.put(ManageEntityFieldConstants.MODULE, "new-module-id");
 
     String errorMessage = "Module not in development";
@@ -279,11 +271,11 @@ public class EntityFieldManagementTest {
    */
   @Test
   public void testCreateEntityFieldModuleNotInDevelopment() throws Exception {
-    JSONObject properties = createBaseJsonObject(TEST_ID);
-    properties.put(ManageEntityFieldConstants.MODULE,MODULE_ID);
+    JSONObject properties = createBaseJsonObject(TestUtils.TEST_ID);
+    properties.put(ManageEntityFieldConstants.MODULE,TestUtils.MODULE_ID);
 
     when(module.isInDevelopment()).thenReturn(false);
-    when(obDal.get(Module.class,MODULE_ID)).thenReturn(module);
+    when(obDal.get(Module.class,TestUtils.MODULE_ID)).thenReturn(module);
 
     String errorMessage = "Module not in development";
     mockedMessageUtils.when(() -> OBMessageUtils.messageBD("20533")).thenReturn(errorMessage);
@@ -308,14 +300,14 @@ public class EntityFieldManagementTest {
    */
   @Test
   public void testCreateEntityFieldSuccess() throws Exception {
-    JSONObject properties = createBaseJsonObject(TEST_ID);
-    properties.put(ManageEntityFieldConstants.MODULE,MODULE_ID);
-    properties.put(ManageEntityFieldConstants.FIELDMAPPING, DM);
-    properties.put(ManageEntityFieldConstants.NAME, TEST_NAME);
+    JSONObject properties = createBaseJsonObject(TestUtils.TEST_ID);
+    properties.put(ManageEntityFieldConstants.MODULE,TestUtils.MODULE_ID);
+    properties.put(ManageEntityFieldConstants.FIELDMAPPING, TestUtils.DM);
+    properties.put(ManageEntityFieldConstants.NAME, TestUtils.TEST_NAME);
     properties.put(ManageEntityFieldConstants.LINE, "10");
 
     when(module.isInDevelopment()).thenReturn(true);
-    when(obDal.get(Module.class,MODULE_ID)).thenReturn(module);
+    when(obDal.get(Module.class,TestUtils.MODULE_ID)).thenReturn(module);
 
     when(OBProvider.getInstance()).thenReturn(mock(OBProvider.class));
     when(OBProvider.getInstance().get(ETRXEntityField.class)).thenReturn(entityField);
@@ -326,8 +318,8 @@ public class EntityFieldManagementTest {
     verify(entityField).setOrganization(organization);
     verify(entityField).setEtrxProjectionEntity(projectionEntity);
     verify(entityField).setModule(module);
-    verify(entityField).setFieldMapping(DM);
-    verify(entityField).setName(TEST_NAME);
+    verify(entityField).setFieldMapping(TestUtils.DM);
+    verify(entityField).setName(TestUtils.TEST_NAME);
     verify(entityField).setLine(10L);
     verify(obDal).save(entityField);
   }
@@ -340,13 +332,13 @@ public class EntityFieldManagementTest {
    */
   @Test
   public void testCreateEntityFieldJavaMapping() throws Exception {
-    JSONObject properties = createBaseJsonObject(TEST_ID);
-    properties.put(ManageEntityFieldConstants.MODULE,MODULE_ID);
-    properties.put(ManageEntityFieldConstants.FIELDMAPPING, JM);
+    JSONObject properties = createBaseJsonObject(TestUtils.TEST_ID);
+    properties.put(ManageEntityFieldConstants.MODULE,TestUtils.MODULE_ID);
+    properties.put(ManageEntityFieldConstants.FIELDMAPPING, TestUtils.JM);
     properties.put(ManageEntityFieldConstants.PROPERTY, "someProperty");
 
     when(module.isInDevelopment()).thenReturn(true);
-    when(obDal.get(Module.class,MODULE_ID)).thenReturn(module);
+    when(obDal.get(Module.class,TestUtils.MODULE_ID)).thenReturn(module);
 
     when(OBProvider.getInstance()).thenReturn(mock(OBProvider.class));
     when(OBProvider.getInstance().get(ETRXEntityField.class)).thenReturn(entityField);

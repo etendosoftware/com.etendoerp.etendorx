@@ -21,6 +21,8 @@ import org.openbravo.client.kernel.event.EntityNewEvent;
 import org.openbravo.client.kernel.event.EntityPersistenceEvent;
 import org.openbravo.client.kernel.event.EntityUpdateEvent;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
+
+import com.etendoerp.etendorx.TestUtils;
 import com.etendoerp.etendorx.data.ETRXProjection;
 
 /**
@@ -30,8 +32,6 @@ import com.etendoerp.etendorx.data.ETRXProjection;
 @RunWith(MockitoJUnitRunner.Silent.class)
 public class ProjectionEventHandlerTest {
 
-  private static final String VALID_PROJECTION_NAME = "Valid";
-  private static final String TOO_SHORT_NAME = "ab";
 
   /**
    * Testable subclass of {@link ProjectionEventHandler} for unit testing purposes.
@@ -60,7 +60,7 @@ public class ProjectionEventHandlerTest {
    */
   @Test
   public void testValidProjectionNameWithValidName() {
-    String validName = VALID_PROJECTION_NAME;
+    String validName = TestUtils.VALID_PROJECTION_NAME;
     assertTrue(handler.validProjectionName(validName));
   }
 
@@ -95,7 +95,7 @@ public class ProjectionEventHandlerTest {
    */
   @Test
   public void testValidProjectionNameWithTooShortName() {
-    String tooShortName = TOO_SHORT_NAME;
+    String tooShortName = TestUtils.TOO_SHORT_NAME;
     assertFalse(handler.validProjectionName(tooShortName));
   }
 
@@ -154,7 +154,7 @@ public class ProjectionEventHandlerTest {
   @Test
   public void testOnUpdateWithValidNameShouldNotThrowException() {
     EntityUpdateEvent event = mock(EntityUpdateEvent.class);
-    when(projection.getName()).thenReturn(VALID_PROJECTION_NAME);
+    when(projection.getName()).thenReturn(TestUtils.VALID_PROJECTION_NAME);
     when(event.getTargetInstance()).thenReturn(projection);
 
     handler = spy(new TestableProjectionEventHandler());
@@ -170,7 +170,7 @@ public class ProjectionEventHandlerTest {
   @Test
   public void testOnSaveWithValidNameShouldNotThrowException() {
     EntityNewEvent event = mock(EntityNewEvent.class);
-    when(projection.getName()).thenReturn(VALID_PROJECTION_NAME);
+    when(projection.getName()).thenReturn(TestUtils.VALID_PROJECTION_NAME);
     when(event.getTargetInstance()).thenReturn(projection);
 
     handler = spy(new TestableProjectionEventHandler());
@@ -187,7 +187,7 @@ public class ProjectionEventHandlerTest {
   public void testOnUpdateWithInvalidNameShouldThrowException() {
     try (MockedStatic<OBMessageUtils> mockedUtils = mockStatic(OBMessageUtils.class)) {
       EntityUpdateEvent event = mock(EntityUpdateEvent.class);
-      when(projection.getName()).thenReturn(TOO_SHORT_NAME);
+      when(projection.getName()).thenReturn(TestUtils.TOO_SHORT_NAME);
       when(event.getTargetInstance()).thenReturn(projection);
 
       mockedUtils.when(() -> OBMessageUtils.getI18NMessage(

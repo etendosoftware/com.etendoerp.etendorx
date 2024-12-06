@@ -26,6 +26,12 @@ public class OAuthProviderConfigInjectorRegistryTest {
 
     /**
      * Resets the injectors list before each test by using reflection to clear the static list.
+     * @throws Exception if an error occurs while accessing or modifying the injectors field
+     *         through reflection, such as:
+     *         <ul>
+     *           <li>{@link NoSuchFieldException} if the field cannot be found</li>
+     *           <li>{@link IllegalAccessException} if the field cannot be accessed</li>
+     *         </ul>
      */
     @Before
     public void setUp() throws Exception {
@@ -66,6 +72,8 @@ public class OAuthProviderConfigInjectorRegistryTest {
         @Override
         public void injectConfig(JSONObject sourceJSON, ETRXoAuthProvider provider) throws JSONException {
 
+            // This method intentionally left empty as no configuration injection is needed for this implementation
+
         }
     }
 
@@ -79,6 +87,7 @@ public class OAuthProviderConfigInjectorRegistryTest {
 
         @Override
         public void injectConfig(JSONObject sourceJSON, ETRXoAuthProvider provider) throws JSONException {
+            // This method is intentionally empty since no configuration injection is required for this implementation
 
         }
     }

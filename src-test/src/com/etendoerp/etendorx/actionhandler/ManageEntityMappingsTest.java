@@ -33,6 +33,7 @@ import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
 import org.openbravo.model.ad.module.Module;
 
+import com.etendoerp.etendorx.TestUtils;
 import com.etendoerp.etendorx.data.ConstantValue;
 import com.etendoerp.etendorx.data.ETRXEntityField;
 import com.etendoerp.etendorx.data.ETRXJavaMapping;
@@ -49,10 +50,6 @@ import com.etendoerp.etendorx.datasource.ManageEntityFieldConstants;
 @RunWith(MockitoJUnitRunner.class)
 public class ManageEntityMappingsTest {
 
-  private static final String NEW_MODULE_ID = "newModuleId";
-  private static final String ERROR_MESSAGE_KEY = "error.message";
-  private static final String PARSED_ERROR_MESSAGE = "Parsed error message";
-  private static final String NEW_ID = "newId";
 
   @Mock
   private OBCriteria<ETRXEntityField> mockCriteria;
@@ -72,8 +69,12 @@ public class ManageEntityMappingsTest {
 
   /**
    * Sets up the mocks and prepares the environment for tests.
-   * This method initializes Mockito annotations, creates static mocks for OBDal and OBMessageUtils,
-   * and uses reflection to access private methods for testing.
+   * <p>
+   * This method initializes Mockito annotations, creates static mocks for {@code OBDal} and
+   * {@code OBMessageUtils}, and uses reflection to access private methods for testing.
+   * </p>
+   *
+   * @throws Exception if any error occurs during the initialization process.
    */
   @Before
   public void setUp() throws Exception {
@@ -143,8 +144,8 @@ public class ManageEntityMappingsTest {
     List<ETRXEntityField> entityFields = Collections.singletonList(entityToDelete);
     when(mockCriteria.list()).thenReturn(entityFields);
 
-    when(OBMessageUtils.messageBD(anyString())).thenReturn(ERROR_MESSAGE_KEY);
-    when(OBMessageUtils.parseTranslation(anyString(), any())).thenReturn(PARSED_ERROR_MESSAGE);
+    when(OBMessageUtils.messageBD(anyString())).thenReturn(TestUtils.ERROR_MESSAGE_KEY);
+    when(OBMessageUtils.parseTranslation(anyString(), any())).thenReturn(TestUtils.PARSED_ERROR_MESSAGE);
 
     JSONArray selection = new JSONArray();
 
@@ -242,8 +243,8 @@ public class ManageEntityMappingsTest {
     when(moduleOBCriteria.setMaxResults(1)).thenReturn(moduleOBCriteria);
     when(moduleOBCriteria.uniqueResult()).thenReturn(null);
 
-    when(OBMessageUtils.messageBD(anyString())).thenReturn(ERROR_MESSAGE_KEY);
-    when(OBMessageUtils.parseTranslation(anyString(), any())).thenReturn(PARSED_ERROR_MESSAGE);
+    when(OBMessageUtils.messageBD(anyString())).thenReturn(TestUtils.ERROR_MESSAGE_KEY);
+    when(OBMessageUtils.parseTranslation(anyString(), any())).thenReturn(TestUtils.PARSED_ERROR_MESSAGE);
 
     manageEntityMappings.checkModuleIsInDevelopment(mockModule, false);
   }
@@ -271,7 +272,7 @@ public class ManageEntityMappingsTest {
   @Test
   public void testCheckUpdateModuleNoChanges() throws Exception {
     Method checkUpdateModuleMethod = ManageEntityMappings.class.getDeclaredMethod(
-        "checkUpdateModule",
+        TestUtils.CHECK_UPDATE_MODULE,
         JSONObject.class,
         ETRXEntityField.class
     );
@@ -299,7 +300,7 @@ public class ManageEntityMappingsTest {
   @Test(expected = OBException.class)
   public void testCheckUpdateModuleCurrentModuleNotInDevelopment() throws Exception {
     Method checkUpdateModuleMethod = ManageEntityMappings.class.getDeclaredMethod(
-        "checkUpdateModule",
+        TestUtils.CHECK_UPDATE_MODULE,
         JSONObject.class,
         ETRXEntityField.class
     );
@@ -307,14 +308,14 @@ public class ManageEntityMappingsTest {
 
     ETRXEntityField entityField = mock(ETRXEntityField.class);
     when(entityField.getModule()).thenReturn(mockModule);
-    when(mockModule.getId()).thenReturn("currentModuleId");
+    when(mockModule.getId()).thenReturn(TestUtils.CURRENT_MODULE_ID);
     when(mockModule.isInDevelopment()).thenReturn(false);
 
     JSONObject entityMappingProperties = new JSONObject();
-    entityMappingProperties.put(ManageEntityFieldConstants.MODULE, NEW_MODULE_ID);
+    entityMappingProperties.put(ManageEntityFieldConstants.MODULE, TestUtils.NEW_MODULE_ID);
 
-    when(OBMessageUtils.messageBD(anyString())).thenReturn(ERROR_MESSAGE_KEY);
-    when(OBMessageUtils.parseTranslation(anyString(), any())).thenReturn(PARSED_ERROR_MESSAGE);
+    when(OBMessageUtils.messageBD(anyString())).thenReturn(TestUtils.ERROR_MESSAGE_KEY);
+    when(OBMessageUtils.parseTranslation(anyString(), any())).thenReturn(TestUtils.PARSED_ERROR_MESSAGE);
 
     try {
       checkUpdateModuleMethod.invoke(manageEntityMappings, entityMappingProperties, entityField);
@@ -334,7 +335,7 @@ public class ManageEntityMappingsTest {
   @Test(expected = OBException.class)
   public void testCheckUpdateModuleNewModuleNotInDevelopment() throws Exception {
     Method checkUpdateModuleMethod = ManageEntityMappings.class.getDeclaredMethod(
-        "checkUpdateModule",
+        TestUtils.CHECK_UPDATE_MODULE,
         JSONObject.class,
         ETRXEntityField.class
     );
@@ -342,19 +343,19 @@ public class ManageEntityMappingsTest {
 
     ETRXEntityField entityField = mock(ETRXEntityField.class);
     when(entityField.getModule()).thenReturn(mockModule);
-    when(mockModule.getId()).thenReturn("currentModuleId");
+    when(mockModule.getId()).thenReturn(TestUtils.CURRENT_MODULE_ID);
     when(mockModule.isInDevelopment()).thenReturn(true);
 
     Module newModule = mock(Module.class);
     when(newModule.isInDevelopment()).thenReturn(false);
 
     JSONObject entityMappingProperties = new JSONObject();
-    entityMappingProperties.put(ManageEntityFieldConstants.MODULE, NEW_MODULE_ID);
+    entityMappingProperties.put(ManageEntityFieldConstants.MODULE, TestUtils.NEW_MODULE_ID);
 
     when(OBDal.getInstance().get(eq(Module.class), anyString())).thenReturn(newModule);
 
-    when(OBMessageUtils.messageBD(anyString())).thenReturn(ERROR_MESSAGE_KEY);
-    when(OBMessageUtils.parseTranslation(anyString(), any())).thenReturn(PARSED_ERROR_MESSAGE);
+    when(OBMessageUtils.messageBD(anyString())).thenReturn(TestUtils.ERROR_MESSAGE_KEY);
+    when(OBMessageUtils.parseTranslation(anyString(), any())).thenReturn(TestUtils.PARSED_ERROR_MESSAGE);
 
     try {
       checkUpdateModuleMethod.invoke(manageEntityMappings, entityMappingProperties, entityField);
@@ -375,7 +376,7 @@ public class ManageEntityMappingsTest {
   @Test
   public void testCheckUpdateModuleSuccessful() throws Exception {
     Method checkUpdateModuleMethod = ManageEntityMappings.class.getDeclaredMethod(
-        "checkUpdateModule",
+        TestUtils.CHECK_UPDATE_MODULE,
         JSONObject.class,
         ETRXEntityField.class
     );
@@ -383,14 +384,14 @@ public class ManageEntityMappingsTest {
 
     ETRXEntityField entityField = mock(ETRXEntityField.class);
     when(entityField.getModule()).thenReturn(mockModule);
-    when(mockModule.getId()).thenReturn("currentModuleId");
+    when(mockModule.getId()).thenReturn(TestUtils.CURRENT_MODULE_ID);
     when(mockModule.isInDevelopment()).thenReturn(true);
 
     Module newModule = mock(Module.class);
     when(newModule.isInDevelopment()).thenReturn(true);
 
     JSONObject entityMappingProperties = new JSONObject();
-    entityMappingProperties.put(ManageEntityFieldConstants.MODULE, NEW_MODULE_ID);
+    entityMappingProperties.put(ManageEntityFieldConstants.MODULE, TestUtils.NEW_MODULE_ID);
 
     when(OBDal.getInstance().get(eq(Module.class), anyString())).thenReturn(newModule);
 
@@ -408,7 +409,7 @@ public class ManageEntityMappingsTest {
   @Test
   public void testCheckUpdateConstantValueNoChange() throws Exception {
     Method checkUpdateConstantValueMethod = ManageEntityMappings.class.getDeclaredMethod(
-        "checkUpdateEtrxConstantValue",
+        TestUtils.CHECK_UPDATE_ETRX_CONSTANT_VALUE,
         JSONObject.class,
         ETRXEntityField.class
     );
@@ -436,7 +437,7 @@ public class ManageEntityMappingsTest {
   @Test
   public void testCheckUpdateConstantValueFromNull() throws Exception {
     Method checkUpdateConstantValueMethod = ManageEntityMappings.class.getDeclaredMethod(
-        "checkUpdateEtrxConstantValue",
+        TestUtils.CHECK_UPDATE_ETRX_CONSTANT_VALUE,
         JSONObject.class,
         ETRXEntityField.class
     );
@@ -466,7 +467,7 @@ public class ManageEntityMappingsTest {
   @Test
   public void testCheckUpdateConstantValueChanged() throws Exception {
     Method checkUpdateConstantValueMethod = ManageEntityMappings.class.getDeclaredMethod(
-        "checkUpdateEtrxConstantValue",
+        TestUtils.CHECK_UPDATE_ETRX_CONSTANT_VALUE,
         JSONObject.class,
         ETRXEntityField.class
     );
@@ -498,7 +499,7 @@ public class ManageEntityMappingsTest {
   @Test
   public void testCheckUpdateConstantValueEmpty() throws Exception {
     Method checkUpdateConstantValueMethod = ManageEntityMappings.class.getDeclaredMethod(
-        "checkUpdateEtrxConstantValue",
+        TestUtils.CHECK_UPDATE_ETRX_CONSTANT_VALUE,
         JSONObject.class,
         ETRXEntityField.class
     );
@@ -523,7 +524,7 @@ public class ManageEntityMappingsTest {
   @Test
   public void testCheckUpdateProjectionEntityRelatedNoChange() throws Exception {
     Method checkUpdateProjectionEntityMethod = ManageEntityMappings.class.getDeclaredMethod(
-        "checkUpdateEtrxProjectionEntityRelated",
+        TestUtils.CHECK_UPDATE_ETRX_PROJECTION_ENTITY_RELATED,
         JSONObject.class,
         ETRXEntityField.class
     );
@@ -551,7 +552,7 @@ public class ManageEntityMappingsTest {
   @Test
   public void testCheckUpdateProjectionEntityFromNull() throws Exception {
     Method checkUpdateProjectionEntityMethod = ManageEntityMappings.class.getDeclaredMethod(
-        "checkUpdateEtrxProjectionEntityRelated",
+        TestUtils.CHECK_UPDATE_ETRX_PROJECTION_ENTITY_RELATED,
         JSONObject.class,
         ETRXEntityField.class
     );
@@ -563,7 +564,7 @@ public class ManageEntityMappingsTest {
     ETRXProjectionEntity newProjectionEntity = mock(ETRXProjectionEntity.class);
 
     JSONObject entityMappingProperties = new JSONObject();
-    entityMappingProperties.put(ManageEntityFieldConstants.ETRXPROJECTIONENTITYRELATED, NEW_ID);
+    entityMappingProperties.put(ManageEntityFieldConstants.ETRXPROJECTIONENTITYRELATED, TestUtils.NEW_ID);
 
     when(OBDal.getInstance().get(eq(ETRXProjectionEntity.class), anyString())).thenReturn(newProjectionEntity);
 
@@ -581,7 +582,7 @@ public class ManageEntityMappingsTest {
   @Test
   public void testCheckUpdateProjectionEntityChanged() throws Exception {
     Method checkUpdateProjectionEntityMethod = ManageEntityMappings.class.getDeclaredMethod(
-        "checkUpdateEtrxProjectionEntityRelated",
+        TestUtils.CHECK_UPDATE_ETRX_PROJECTION_ENTITY_RELATED,
         JSONObject.class,
         ETRXEntityField.class
     );
@@ -595,7 +596,7 @@ public class ManageEntityMappingsTest {
     ETRXProjectionEntity newProjectionEntity = mock(ETRXProjectionEntity.class);
 
     JSONObject entityMappingProperties = new JSONObject();
-    entityMappingProperties.put(ManageEntityFieldConstants.ETRXPROJECTIONENTITYRELATED, NEW_ID);
+    entityMappingProperties.put(ManageEntityFieldConstants.ETRXPROJECTIONENTITYRELATED, TestUtils.NEW_ID);
 
     when(OBDal.getInstance().get(eq(ETRXProjectionEntity.class), anyString())).thenReturn(newProjectionEntity);
 
@@ -613,7 +614,7 @@ public class ManageEntityMappingsTest {
   @Test
   public void testCheckUpdateJavaMappingNoChange() throws Exception {
     Method checkUpdateJavaMappingMethod = ManageEntityMappings.class.getDeclaredMethod(
-        "checkUpdateJavaMapping",
+        TestUtils.CHECK_UPDATE_JAVA_MAPPING,
         JSONObject.class,
         ETRXEntityField.class
     );
@@ -641,7 +642,7 @@ public class ManageEntityMappingsTest {
   @Test
   public void testCheckUpdateJavaMappingFromNull() throws Exception {
     Method checkUpdateJavaMappingMethod = ManageEntityMappings.class.getDeclaredMethod(
-        "checkUpdateJavaMapping",
+        TestUtils.CHECK_UPDATE_JAVA_MAPPING,
         JSONObject.class,
         ETRXEntityField.class
     );
@@ -653,7 +654,7 @@ public class ManageEntityMappingsTest {
     ETRXJavaMapping newJavaMapping = mock(ETRXJavaMapping.class);
 
     JSONObject entityMappingProperties = new JSONObject();
-    entityMappingProperties.put(ManageEntityFieldConstants.JAVAMAPPING, NEW_ID);
+    entityMappingProperties.put(ManageEntityFieldConstants.JAVAMAPPING, TestUtils.NEW_ID);
 
     when(OBDal.getInstance().get(eq(ETRXJavaMapping.class), anyString())).thenReturn(newJavaMapping);
 
@@ -671,7 +672,7 @@ public class ManageEntityMappingsTest {
   @Test
   public void testCheckUpdateJavaMappingChanged() throws Exception {
     Method checkUpdateJavaMappingMethod = ManageEntityMappings.class.getDeclaredMethod(
-        "checkUpdateJavaMapping",
+        TestUtils.CHECK_UPDATE_JAVA_MAPPING,
         JSONObject.class,
         ETRXEntityField.class
     );
@@ -685,7 +686,7 @@ public class ManageEntityMappingsTest {
     ETRXJavaMapping newJavaMapping = mock(ETRXJavaMapping.class);
 
     JSONObject entityMappingProperties = new JSONObject();
-    entityMappingProperties.put(ManageEntityFieldConstants.JAVAMAPPING, NEW_ID);
+    entityMappingProperties.put(ManageEntityFieldConstants.JAVAMAPPING, TestUtils.NEW_ID);
 
     when(OBDal.getInstance().get(eq(ETRXJavaMapping.class), anyString())).thenReturn(newJavaMapping);
 

@@ -20,6 +20,8 @@ import org.openbravo.client.kernel.event.EntityNewEvent;
 import org.openbravo.client.kernel.event.EntityPersistenceEvent;
 import org.openbravo.client.kernel.event.EntityUpdateEvent;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
+
+import com.etendoerp.etendorx.TestUtils;
 import com.etendoerp.etendorx.data.EntityMapping;
 
 /**
@@ -28,9 +30,6 @@ import com.etendoerp.etendorx.data.EntityMapping;
  */
 @RunWith(MockitoJUnitRunner.Silent.class)
 public class CheckEntityInEntityMappingEventHandlerTest {
-
-  private static final String VALID_ENTITY = "ValidEntity";
-  private static final String INVALID_ENTITY = "InvalidEntity";
 
   /**
    * A testable subclass of {@link CheckEntityInEntityMappingEventHandler} for overriding
@@ -94,10 +93,10 @@ public class CheckEntityInEntityMappingEventHandlerTest {
       EntityUpdateEvent event = mock(EntityUpdateEvent.class);
       ModelProvider providerInstance = mock(ModelProvider.class);
 
-      when(entityMapping.getMappingEntity()).thenReturn(VALID_ENTITY);
+      when(entityMapping.getMappingEntity()).thenReturn(TestUtils.VALID_ENTITY);
       when(event.getTargetInstance()).thenReturn(entityMapping);
       mockedProvider.when(ModelProvider::getInstance).thenReturn(providerInstance);
-      when(providerInstance.getEntity(eq(VALID_ENTITY), eq(false))).thenReturn(mockEntity);
+      when(providerInstance.getEntity(eq(TestUtils.VALID_ENTITY), eq(false))).thenReturn(mockEntity);
 
       handler = spy(new TestableCheckEntityInEntityMappingEventHandler());
       doReturn(true).when(handler).isValidEvent(any(EntityUpdateEvent.class));
@@ -115,10 +114,10 @@ public class CheckEntityInEntityMappingEventHandlerTest {
       EntityNewEvent event = mock(EntityNewEvent.class);
       ModelProvider providerInstance = mock(ModelProvider.class);
 
-      when(entityMapping.getMappingEntity()).thenReturn(VALID_ENTITY);
+      when(entityMapping.getMappingEntity()).thenReturn(TestUtils.VALID_ENTITY);
       when(event.getTargetInstance()).thenReturn(entityMapping);
       mockedProvider.when(ModelProvider::getInstance).thenReturn(providerInstance);
-      when(providerInstance.getEntity(eq(VALID_ENTITY), eq(false))).thenReturn(mockEntity);
+      when(providerInstance.getEntity(eq(TestUtils.VALID_ENTITY), eq(false))).thenReturn(mockEntity);
 
       handler = spy(new TestableCheckEntityInEntityMappingEventHandler());
       doReturn(true).when(handler).isValidEvent(any(EntityNewEvent.class));
@@ -138,10 +137,10 @@ public class CheckEntityInEntityMappingEventHandlerTest {
       EntityUpdateEvent event = mock(EntityUpdateEvent.class);
       ModelProvider providerInstance = mock(ModelProvider.class);
 
-      when(entityMapping.getMappingEntity()).thenReturn(INVALID_ENTITY);
+      when(entityMapping.getMappingEntity()).thenReturn(TestUtils.INVALID_ENTITY);
       when(event.getTargetInstance()).thenReturn(entityMapping);
       mockedProvider.when(ModelProvider::getInstance).thenReturn(providerInstance);
-      when(providerInstance.getEntity(eq(INVALID_ENTITY), eq(false))).thenReturn(null);
+      when(providerInstance.getEntity(eq(TestUtils.INVALID_ENTITY), eq(false))).thenReturn(null);
 
       mockedUtils.when(() -> OBMessageUtils.getI18NMessage(
               eq("ETRX_WrongEntityName"),
@@ -166,10 +165,10 @@ public class CheckEntityInEntityMappingEventHandlerTest {
       EntityNewEvent event = mock(EntityNewEvent.class);
       ModelProvider providerInstance = mock(ModelProvider.class);
 
-      when(entityMapping.getMappingEntity()).thenReturn(INVALID_ENTITY);
+      when(entityMapping.getMappingEntity()).thenReturn(TestUtils.INVALID_ENTITY);
       when(event.getTargetInstance()).thenReturn(entityMapping);
       mockedProvider.when(ModelProvider::getInstance).thenReturn(providerInstance);
-      when(providerInstance.getEntity(eq(INVALID_ENTITY), eq(false))).thenReturn(null);
+      when(providerInstance.getEntity(eq(TestUtils.INVALID_ENTITY), eq(false))).thenReturn(null);
 
       mockedUtils.when(() -> OBMessageUtils.getI18NMessage(
               eq("ETRX_WrongEntityName"),

@@ -12,6 +12,8 @@ import org.mockito.MockitoAnnotations;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.openbravo.erpCommon.ad_callouts.SimpleCallout;
 
+import com.etendoerp.etendorx.TestUtils;
+
 /**
  * Test class for EntityProjectionChange callout.
  * Validates the behavior of the callout when building projection names.
@@ -25,24 +27,28 @@ public class EntityProjectionChangeTest {
   @Mock
   private SimpleCallout.CalloutInfo mockInfo;
 
-  private static final String MAPPING_TYPE = "E";
-  private static final String EXTERNAL_NAME = "TestExternalName";
-  private static final String PROJECTION_ID = "testProjectionId";
-
   /**
-   * Sets up the test environment before each test.
+   * Sets up the test environment before each test method.
+   * Initialize mocks and configures default return values
+   * for input parameters.
+   *
+   * @throws Exception if an error occurs during setup
    */
   @Before
   public void setUp() throws Exception {
     MockitoAnnotations.openMocks(this);
 
-    when(mockInfo.getStringParameter("inpmappingType")).thenReturn(MAPPING_TYPE);
-    when(mockInfo.getStringParameter("inpexternalName")).thenReturn(EXTERNAL_NAME);
-    when(mockInfo.getStringParameter("inpetrxProjectionId")).thenReturn(PROJECTION_ID);
+    when(mockInfo.getStringParameter(TestUtils.INP_MAPPING_TYPE)).thenReturn(TestUtils.MAPPING_TYPE);
+    when(mockInfo.getStringParameter(TestUtils.INP_EXTERNAL_NAME)).thenReturn(TestUtils.EXTERNAL_NAME);
+    when(mockInfo.getStringParameter(TestUtils.INP_ETRX_PROJECTION_ID)).thenReturn(TestUtils.PROJECTION_ID);
   }
 
   /**
-   * Tests the execute method with all parameters present.
+   * Tests callout execution with all parameters provided.
+   * Verifies that {@link EntityProjectionUtils#buildName}
+   * is correctly called with the expected parameters when all values are supplied.
+   *
+   * @throws Exception if an error occurs during testing
    */
   @Test
   public void testExecuteWithAllParameters() throws Exception {
@@ -50,22 +56,26 @@ public class EntityProjectionChangeTest {
       callout.execute(mockInfo);
 
       utilsMock.verify(() -> EntityProjectionUtils.buildName(
-          EXTERNAL_NAME,
-          MAPPING_TYPE,
-          PROJECTION_ID,
+          TestUtils.EXTERNAL_NAME,
+          TestUtils.MAPPING_TYPE,
+          TestUtils.PROJECTION_ID,
           mockInfo
       ));
     }
   }
 
   /**
-   * Tests the execute method with null parameters.
+   * Tests callout execution with null parameters.
+   * Checks that {@link EntityProjectionUtils#buildName}
+   * is invoked correctly when all input parameters are null.
+   *
+   * @throws Exception if an error occurs during testing
    */
   @Test
   public void testExecuteWithNullParameters() throws Exception {
-    when(mockInfo.getStringParameter("inpmappingType")).thenReturn(null);
-    when(mockInfo.getStringParameter("inpexternalName")).thenReturn(null);
-    when(mockInfo.getStringParameter("inpetrxProjectionId")).thenReturn(null);
+    when(mockInfo.getStringParameter(TestUtils.INP_MAPPING_TYPE)).thenReturn(null);
+    when(mockInfo.getStringParameter(TestUtils.INP_EXTERNAL_NAME)).thenReturn(null);
+    when(mockInfo.getStringParameter(TestUtils.INP_ETRX_PROJECTION_ID)).thenReturn(null);
 
     try (MockedStatic<EntityProjectionUtils> utilsMock = mockStatic(EntityProjectionUtils.class)) {
       callout.execute(mockInfo);
@@ -80,13 +90,17 @@ public class EntityProjectionChangeTest {
   }
 
   /**
-   * Tests the execute method with empty string parameters.
+   * Tests callout execution with empty parameters.
+   * Verifies that {@link EntityProjectionUtils#buildName}
+   * is called correctly when all input parameters are empty strings.
+   *
+   * @throws Exception if an error occurs during testing
    */
   @Test
   public void testExecuteWithEmptyParameters() throws Exception {
-    when(mockInfo.getStringParameter("inpmappingType")).thenReturn("");
-    when(mockInfo.getStringParameter("inpexternalName")).thenReturn("");
-    when(mockInfo.getStringParameter("inpetrxProjectionId")).thenReturn("");
+    when(mockInfo.getStringParameter(TestUtils.INP_MAPPING_TYPE)).thenReturn("");
+    when(mockInfo.getStringParameter(TestUtils.INP_EXTERNAL_NAME)).thenReturn("");
+    when(mockInfo.getStringParameter(TestUtils.INP_ETRX_PROJECTION_ID)).thenReturn("");
 
     try (MockedStatic<EntityProjectionUtils> utilsMock = mockStatic(EntityProjectionUtils.class)) {
       callout.execute(mockInfo);

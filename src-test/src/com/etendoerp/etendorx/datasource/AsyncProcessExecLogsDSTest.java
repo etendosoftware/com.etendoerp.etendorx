@@ -1,5 +1,6 @@
 package com.etendoerp.etendorx.datasource;
 
+import com.etendoerp.etendorx.TestUtils;
 import com.etendoerp.etendorx.utils.AsyncProcessUtil;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -25,8 +26,6 @@ public class AsyncProcessExecLogsDSTest {
   @InjectMocks
   private AsyncProcessExecLogsDS asyncProcessExecLogsDS;
 
-  private static final String ETRX_ASYNC_PROC_ID = "@ETRX_Async_Proc.id@";
-  private static final  String ASYNC_PROC_TEST_ID = "1";
 
   /**
    * Tests the {@code getCount} method of {@link AsyncProcessExecLogsDS}.
@@ -35,7 +34,7 @@ public class AsyncProcessExecLogsDSTest {
   @Test
   public void testGetCount() {
     Map<String, String> parameters = new HashMap<>();
-    parameters.put(ETRX_ASYNC_PROC_ID, ASYNC_PROC_TEST_ID);
+    parameters.put(TestUtils.ETRX_ASYNC_PROC_ID, TestUtils.ASYNC_PROC_TEST_ID);
     List<Map<String, Object>> mockData = getMockData();
 
     try (MockedStatic<AsyncProcessUtil> mockedAsyncProcessUtil = mockStatic(AsyncProcessUtil.class)) {
@@ -54,7 +53,7 @@ public class AsyncProcessExecLogsDSTest {
   @Test
   public void testGetData() {
     Map<String, String> parameters = new HashMap<>();
-    parameters.put(ETRX_ASYNC_PROC_ID, ASYNC_PROC_TEST_ID);
+    parameters.put(TestUtils.ETRX_ASYNC_PROC_ID, TestUtils.ASYNC_PROC_TEST_ID);
     int startRow = 0;
     int endRow = 10;
     List<Map<String, Object>> mockData = getMockData();

@@ -32,6 +32,7 @@ import org.openbravo.model.ad.module.Module;
 import org.hibernate.Session;
 import org.hibernate.query.Query;
 
+import com.etendoerp.etendorx.TestUtils;
 import com.etendoerp.etendorx.data.ETRXProjection;
 import com.etendoerp.etendorx.data.ETRXProjectionEntity;
 
@@ -43,8 +44,6 @@ import com.etendoerp.etendorx.data.ETRXProjectionEntity;
 @RunWith(MockitoJUnitRunner.class)
 public class ManageEntityFieldsDSTest {
 
-  private static final String TEST_PROJECTION_ID = "testProjectionId";
-  private static final String TEST_MODULE = "Test Module";
 
   private ManageEntityFieldsDS dataSource;
 
@@ -76,6 +75,8 @@ public class ManageEntityFieldsDSTest {
   /**
    * Initializes the test environment before each test.
    * Sets up mocked static dependencies and injects mock objects.
+   * @throws NoSuchMethodException if the 'getId' method cannot be found
+   *         in the {@link ManageEntityFieldsDS} class through reflection
    */
   @Before
   public void setUp() throws NoSuchMethodException {
@@ -93,7 +94,7 @@ public class ManageEntityFieldsDSTest {
 
     when(mockDal.getSession()).thenReturn(mockSession);
 
-    when(mockProjectionEntity.getId()).thenReturn(TEST_PROJECTION_ID);
+    when(mockProjectionEntity.getId()).thenReturn(TestUtils.TEST_PROJECTION_ID);
     when(mockProjectionEntity.getProjection()).thenReturn(mock(ETRXProjection.class));
     when(mockProjectionEntity.getProjection().getModule()).thenReturn(mockModule);
   }
@@ -105,15 +106,15 @@ public class ManageEntityFieldsDSTest {
   @Test
   public void testGetDataWithDistinctModule() {
     Map<String, String> parameters = new HashMap<>();
-    parameters.put("@ETRX_Projection_Entity.id@", TEST_PROJECTION_ID);
+    parameters.put("@ETRX_Projection_Entity.id@", TestUtils.TEST_PROJECTION_ID);
     parameters.put("_distinct", "module");
 
     when(mockModule.getId()).thenReturn("testModuleId");
-    when(mockModule.getIdentifier()).thenReturn(TEST_MODULE);
+    when(mockModule.getIdentifier()).thenReturn(TestUtils.TEST_MODULE);
     when(mockModule.isInDevelopment()).thenReturn(true);
 
-    when(mockDal.get(ETRXProjectionEntity.class, TEST_PROJECTION_ID)).thenReturn(mockProjectionEntity);
-    when(mockProjectionEntity.getId()).thenReturn(TEST_PROJECTION_ID);
+    when(mockDal.get(ETRXProjectionEntity.class, TestUtils.TEST_PROJECTION_ID)).thenReturn(mockProjectionEntity);
+    when(mockProjectionEntity.getId()).thenReturn(TestUtils.TEST_PROJECTION_ID);
     when(mockProjectionEntity.getProjection().getModule()).thenReturn(mockModule);
 
     Query<Module> moduleQuery = mock(Query.class);
@@ -129,8 +130,8 @@ public class ManageEntityFieldsDSTest {
 
     Map<String, Object> moduleData = result.get(0);
     assertEquals("testModuleId", moduleData.get("id"));
-    assertEquals(TEST_MODULE, moduleData.get("name"));
-    assertEquals(TEST_MODULE, moduleData.get("_identifier"));
+    assertEquals(TestUtils.TEST_MODULE, moduleData.get("name"));
+    assertEquals(TestUtils.TEST_MODULE, moduleData.get("_identifier"));
     assertEquals(Module.ENTITY_NAME, moduleData.get("_entityName"));
   }
 

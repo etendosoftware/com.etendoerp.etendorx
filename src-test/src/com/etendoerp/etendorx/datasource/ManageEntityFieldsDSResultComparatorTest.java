@@ -13,6 +13,8 @@ import org.junit.runner.RunWith;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.openbravo.model.ad.module.Module;
 import org.openbravo.test.base.OBBaseTest;
+
+import com.etendoerp.etendorx.TestUtils;
 import com.etendoerp.etendorx.data.ConstantValue;
 import com.etendoerp.etendorx.data.ETRXJavaMapping;
 import com.etendoerp.etendorx.data.ETRXProjectionEntity;
@@ -25,10 +27,7 @@ import com.etendoerp.etendorx.data.ETRXProjectionEntity;
 public class ManageEntityFieldsDSResultComparatorTest extends OBBaseTest {
   private Constructor<?> comparatorConstructor;
   private Comparator<Map<String, Object>> comparator;
-  private Class<?> comparatorClass;
 
-  private static final String ALPHA = "Alpha";
-  private static final String BETA = "Beta" ;
 
   /**
    * Sets up the test environment.
@@ -39,7 +38,7 @@ public class ManageEntityFieldsDSResultComparatorTest extends OBBaseTest {
   @Before
   public void setUp() throws Exception {
     super.setUp();
-    comparatorClass = Class.forName("com.etendoerp.etendorx.datasource.ManageEntityFieldsDS$ResultComparator");
+    Class<?> comparatorClass = Class.forName("com.etendoerp.etendorx.datasource.ManageEntityFieldsDS$ResultComparator");
     comparatorConstructor = comparatorClass.getDeclaredConstructor(String.class);
     comparatorConstructor.setAccessible(true);
   }
@@ -101,8 +100,8 @@ public class ManageEntityFieldsDSResultComparatorTest extends OBBaseTest {
     Map<String, Object> map1 = new HashMap<>();
     Map<String, Object> map2 = new HashMap<>();
 
-    map1.put(ManageEntityFieldConstants.NAME, ALPHA);
-    map2.put(ManageEntityFieldConstants.NAME, BETA);
+    map1.put(ManageEntityFieldConstants.NAME, TestUtils.ALPHA);
+    map2.put(ManageEntityFieldConstants.NAME, TestUtils.BETA);
 
     comparator = createComparator(ManageEntityFieldConstants.NAME);
     assertEquals(-1, comparator.compare(map1, map2));
@@ -120,8 +119,8 @@ public class ManageEntityFieldsDSResultComparatorTest extends OBBaseTest {
 
     Module module1 = mock(Module.class);
     Module module2 = mock(Module.class);
-    when(module1.getIdentifier()).thenReturn(ALPHA);
-    when(module2.getIdentifier()).thenReturn(BETA);
+    when(module1.getIdentifier()).thenReturn(TestUtils.ALPHA);
+    when(module2.getIdentifier()).thenReturn(TestUtils.BETA);
 
     map1.put(ManageEntityFieldConstants.MODULE, module1);
     map2.put(ManageEntityFieldConstants.MODULE, module2);
@@ -142,8 +141,8 @@ public class ManageEntityFieldsDSResultComparatorTest extends OBBaseTest {
 
     ETRXJavaMapping mapping1 = mock(ETRXJavaMapping.class);
     ETRXJavaMapping mapping2 = mock(ETRXJavaMapping.class);
-    when(mapping1.getIdentifier()).thenReturn(ALPHA);
-    when(mapping2.getIdentifier()).thenReturn(BETA);
+    when(mapping1.getIdentifier()).thenReturn(TestUtils.ALPHA);
+    when(mapping2.getIdentifier()).thenReturn(TestUtils.BETA);
 
     map1.put(ManageEntityFieldConstants.JAVAMAPPING, mapping1);
     map2.put(ManageEntityFieldConstants.JAVAMAPPING, mapping2);
@@ -164,8 +163,8 @@ public class ManageEntityFieldsDSResultComparatorTest extends OBBaseTest {
 
     ETRXProjectionEntity entity1 = mock(ETRXProjectionEntity.class);
     ETRXProjectionEntity entity2 = mock(ETRXProjectionEntity.class);
-    when(entity1.getIdentifier()).thenReturn(ALPHA);
-    when(entity2.getIdentifier()).thenReturn(BETA);
+    when(entity1.getIdentifier()).thenReturn(TestUtils.ALPHA);
+    when(entity2.getIdentifier()).thenReturn(TestUtils.BETA);
 
     map1.put(ManageEntityFieldConstants.ETRXPROJECTIONENTITYRELATED, entity1);
     map2.put(ManageEntityFieldConstants.ETRXPROJECTIONENTITYRELATED, entity2);
@@ -186,8 +185,8 @@ public class ManageEntityFieldsDSResultComparatorTest extends OBBaseTest {
 
     ConstantValue value1 = mock(ConstantValue.class);
     ConstantValue value2 = mock(ConstantValue.class);
-    when(value1.getIdentifier()).thenReturn(ALPHA);
-    when(value2.getIdentifier()).thenReturn(BETA);
+    when(value1.getIdentifier()).thenReturn(TestUtils.ALPHA);
+    when(value2.getIdentifier()).thenReturn(TestUtils.BETA);
 
     map1.put(ManageEntityFieldConstants.ETRXCONSTANTVALUE, value1);
     map2.put(ManageEntityFieldConstants.ETRXCONSTANTVALUE, value2);

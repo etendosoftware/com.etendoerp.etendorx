@@ -25,11 +25,6 @@ import com.etendoerp.etendorx.utils.RXConfigUtils;
  */
 public class GetTokenURLTest {
 
-    private static final String JSON_KEY_MESSAGE = "message";
-    private static final String JSON_KEY_SEVERITY = "severity";
-    private static final String JSON_KEY_TITLE = "title";
-    private static final String ERROR_SEVERITY = "error";
-    private static final String ERROR_TITLE = "ERROR";
 
     private GetTokenURL getTokenURL;
 
@@ -104,8 +99,16 @@ public class GetTokenURLTest {
 
             assertNotNull(result);
             assertTrue(result.has("auth_url"));
-            assertEquals(publicURL + authEndpoint + value + "?userId=" + userId + "&etrxOauthProviderId=" + oAuthProviderId,
-                result.getString("auth_url"));
+
+          String urlBuilder = publicURL +
+              authEndpoint +
+              value +
+              "?userId=" +
+              userId +
+              "&etrxOauthProviderId=" +
+              oAuthProviderId;
+
+            assertEquals(urlBuilder, result.getString("auth_url"));
         }
     }
 
@@ -140,10 +143,10 @@ public class GetTokenURLTest {
             JSONObject result = getTokenURL.execute(new HashMap<>(), content.toString());
 
             assertNotNull(result);
-            assertTrue(result.has(JSON_KEY_MESSAGE));
-            JSONObject message = result.getJSONObject(JSON_KEY_MESSAGE);
-            assertEquals(ERROR_SEVERITY, message.getString(JSON_KEY_SEVERITY));
-            assertEquals(ERROR_TITLE, message.getString(JSON_KEY_TITLE));
+            assertTrue(result.has(TestUtils.JSON_KEY_MESSAGE));
+            JSONObject message = result.getJSONObject(TestUtils.JSON_KEY_MESSAGE);
+            assertEquals(TestUtils.ERROR_SEVERITY, message.getString(TestUtils.JSON_KEY_SEVERITY));
+            assertEquals(TestUtils.ERROR_TITLE, message.getString(TestUtils.JSON_KEY_TITLE));
             assertEquals(errorMessage, message.getString("text"));
         }
     }
@@ -165,10 +168,10 @@ public class GetTokenURLTest {
             JSONObject result = getTokenURL.execute(new HashMap<>(), invalidContent);
 
             assertNotNull(result);
-            assertTrue(result.has(JSON_KEY_MESSAGE));
-            JSONObject message = result.getJSONObject(JSON_KEY_MESSAGE);
-            assertEquals(ERROR_SEVERITY, message.getString(JSON_KEY_SEVERITY));
-            assertEquals(ERROR_TITLE, message.getString(JSON_KEY_TITLE));
+            assertTrue(result.has(TestUtils.JSON_KEY_MESSAGE));
+            JSONObject message = result.getJSONObject(TestUtils.JSON_KEY_MESSAGE);
+            assertEquals(TestUtils.ERROR_SEVERITY, message.getString(TestUtils.JSON_KEY_SEVERITY));
+            assertEquals(TestUtils.ERROR_TITLE, message.getString(TestUtils.JSON_KEY_TITLE));
         }
     }
 }

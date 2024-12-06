@@ -28,6 +28,7 @@ import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.etendoerp.etendorx.TestUtils;
 import com.etendoerp.etendorx.data.ETRXJavaMapping;
 import com.etendoerp.etendorx.data.ETRXProjectionEntity;
 
@@ -91,10 +92,10 @@ public class ManageEntityFieldsDSJavaMappingTest {
     when(projectionEntity.getId()).thenReturn("test-projection-id");
 
     when(javaMapping1.getId()).thenReturn("java-mapping-1");
-    when(javaMapping1.getIdentifier()).thenReturn("Java Mapping 1");
+    when(javaMapping1.getIdentifier()).thenReturn(TestUtils.JAVA_MAPPING_1);
 
     when(javaMapping2.getId()).thenReturn("java-mapping-2");
-    when(javaMapping2.getIdentifier()).thenReturn("Java Mapping 2");
+    when(javaMapping2.getIdentifier()).thenReturn(TestUtils.JAVA_MAPPING_2);
 
     List<ETRXJavaMapping> mockJavaMappings = Arrays.asList(javaMapping1, javaMapping2);
 
@@ -116,14 +117,14 @@ public class ManageEntityFieldsDSJavaMappingTest {
 
         Map<String, Object> firstResult = result.get(0);
         assertEquals("java-mapping-1", firstResult.get("id"));
-        assertEquals("Java Mapping 1", firstResult.get("name"));
-        assertEquals("Java Mapping 1", firstResult.get("_identifier"));
+        assertEquals(TestUtils.JAVA_MAPPING_1, firstResult.get("name"));
+        assertEquals(TestUtils.JAVA_MAPPING_1, firstResult.get("_identifier"));
         assertEquals(ETRXJavaMapping.ENTITY_NAME, firstResult.get("_entityName"));
 
         Map<String, Object> secondResult = result.get(1);
         assertEquals("java-mapping-2", secondResult.get("id"));
-        assertEquals("Java Mapping 2", secondResult.get("name"));
-        assertEquals("Java Mapping 2", secondResult.get("_identifier"));
+        assertEquals(TestUtils.JAVA_MAPPING_2, secondResult.get("name"));
+        assertEquals(TestUtils.JAVA_MAPPING_2, secondResult.get("_identifier"));
         assertEquals(ETRXJavaMapping.ENTITY_NAME, secondResult.get("_entityName"));
 
         obContextMock.verify(OBContext::setAdminMode);

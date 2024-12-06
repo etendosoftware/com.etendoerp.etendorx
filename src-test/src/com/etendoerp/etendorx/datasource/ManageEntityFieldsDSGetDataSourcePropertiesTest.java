@@ -14,6 +14,8 @@ import org.openbravo.base.weld.test.WeldBaseTest;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.service.datasource.DataSourceProperty;
 
+import com.etendoerp.etendorx.TestUtils;
+
 /**
  * Test class for verifying the behavior of the Entity Fields Management DataSource.
  * Performs unit tests for methods related to retrieving data source properties
@@ -24,7 +26,6 @@ public class ManageEntityFieldsDSGetDataSourcePropertiesTest extends WeldBaseTes
 
   private ManageEntityFieldsDS dataSource;
   private Method getStringPropertyMethod;
-  private Method getListPropertyMethod;
   private Method getIdPropertyMethod;
 
   /**
@@ -47,7 +48,8 @@ public class ManageEntityFieldsDSGetDataSourcePropertiesTest extends WeldBaseTes
     getStringPropertyMethod = ManageEntityFieldsDS.class.getDeclaredMethod("getStringProperty", String.class);
     getStringPropertyMethod.setAccessible(true);
 
-    getListPropertyMethod = ManageEntityFieldsDS.class.getDeclaredMethod("getListProperty", String.class, String.class);
+    Method getListPropertyMethod = ManageEntityFieldsDS.class.getDeclaredMethod("getListProperty", String.class,
+        String.class);
     getListPropertyMethod.setAccessible(true);
 
     getIdPropertyMethod = ManageEntityFieldsDS.class.getDeclaredMethod("getIdProperty", String.class);
@@ -69,7 +71,7 @@ public class ManageEntityFieldsDSGetDataSourcePropertiesTest extends WeldBaseTes
       Map<String, Object> parameters = new HashMap<>();
       List<DataSourceProperty> result = dataSource.getDataSourceProperties(parameters);
 
-      assertNotNull("Result should not be null", result);
+      assertNotNull(TestUtils.RESULT_SHOULD_NOT_BE_NULL, result);
       assertEquals("Should return 4 properties", 4, result.size());
 
       assertEquals("First property should be ID", ManageEntityFieldConstants.ID,
@@ -100,7 +102,7 @@ public class ManageEntityFieldsDSGetDataSourcePropertiesTest extends WeldBaseTes
 
       DataSourceProperty result = (DataSourceProperty) getStringPropertyMethod.invoke(dataSource, "testName");
 
-      assertNotNull("Result should not be null", result);
+      assertNotNull(TestUtils.RESULT_SHOULD_NOT_BE_NULL, result);
       assertEquals("Property name should match", "testName", result.getName());
 
     } finally {
@@ -127,7 +129,7 @@ public class ManageEntityFieldsDSGetDataSourcePropertiesTest extends WeldBaseTes
 
       DataSourceProperty result = (DataSourceProperty) getIdPropertyMethod.invoke(dataSource, testName);
 
-      assertNotNull("Result should not be null", result);
+      assertNotNull(TestUtils.RESULT_SHOULD_NOT_BE_NULL, result);
       assertEquals("Property name should match", testName, result.getName());
       assertEquals("Should be marked as ID property", true, result.isId());
 

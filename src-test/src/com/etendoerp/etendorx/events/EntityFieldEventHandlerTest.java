@@ -24,6 +24,7 @@ import org.openbravo.client.kernel.event.EntityPersistenceEvent;
 import org.openbravo.client.kernel.event.EntityUpdateEvent;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
 
+import com.etendoerp.etendorx.TestUtils;
 import com.etendoerp.etendorx.data.ETRXEntityField;
 import com.etendoerp.etendorx.data.ETRXProjectionEntity;
 
@@ -38,6 +39,18 @@ public class EntityFieldEventHandlerTest {
     private ETRXEntityField entityField;
     private ETRXProjectionEntity projectionEntity;
 
+    /**
+     * Initializes the test environment before each test method.
+     * This setup method prepares the test objects by:
+     * <ul>
+     *   <li>Creating an instance of the testable event handler</li>
+     *   <li>Creating a mock for the ETRXEntityField</li>
+     *   <li>Creating a mock for the ETRXProjectionEntity</li>
+     * </ul>
+     *
+     * These mocked objects will be used across different test scenarios
+     * to simulate and verify the behavior of the entity field event handler.
+     */
     @Before
     public void setUp() {
         handler = new TestableEntityFieldEventHandler();
@@ -107,7 +120,7 @@ public class EntityFieldEventHandlerTest {
      */
     @Test
     public void testValidateEntityFieldWithWMappingTypeAndValidProperty() {
-        when(entityField.getFieldMapping()).thenReturn("Other");
+        when(entityField.getFieldMapping()).thenReturn(TestUtils.OTHER);
         when(entityField.getProperty()).thenReturn("property.with.dots");
         when(entityField.getEtrxProjectionEntity()).thenReturn(projectionEntity);
         when(projectionEntity.getMappingType()).thenReturn("W");
@@ -120,10 +133,10 @@ public class EntityFieldEventHandlerTest {
      */
     @Test
     public void testValidateEntityFieldWithNonWMappingType() {
-        when(entityField.getFieldMapping()).thenReturn("Other");
+        when(entityField.getFieldMapping()).thenReturn(TestUtils.OTHER);
         when(entityField.getProperty()).thenReturn("property.with.many.dots");
         when(entityField.getEtrxProjectionEntity()).thenReturn(projectionEntity);
-        when(projectionEntity.getMappingType()).thenReturn("Other");
+        when(projectionEntity.getMappingType()).thenReturn(TestUtils.OTHER);
 
         handler.validateEntityField(entityField);
     }
@@ -134,7 +147,7 @@ public class EntityFieldEventHandlerTest {
     @Test(expected = OBException.class)
     public void testValidateEntityFieldWithWMappingTypeAndInvalidProperty() {
         try (MockedStatic<OBMessageUtils> mockedUtils = mockStatic(OBMessageUtils.class)) {
-            when(entityField.getFieldMapping()).thenReturn("Other");
+            when(entityField.getFieldMapping()).thenReturn(TestUtils.OTHER);
             when(entityField.getProperty()).thenReturn("property.with.too.many.dots");
             when(entityField.getEtrxProjectionEntity()).thenReturn(projectionEntity);
             when(projectionEntity.getMappingType()).thenReturn("W");

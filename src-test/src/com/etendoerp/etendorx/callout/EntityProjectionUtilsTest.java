@@ -16,6 +16,8 @@ import org.mockito.MockedStatic;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.openbravo.erpCommon.ad_callouts.SimpleCallout;
 import org.openbravo.dal.service.OBDal;
+
+import com.etendoerp.etendorx.TestUtils;
 import com.etendoerp.etendorx.data.ETRXProjection;
 
 /**
@@ -34,16 +36,14 @@ public class EntityProjectionUtilsTest {
   @Mock
   private OBDal mockOBDal;
 
-  private static final String PROJECTION_ID = "testProjectionId";
-  private static final String EXTERNAL_NAME = "TestExternalName";
-  private static final String PROJECTION_NAME = "ProjectionName";
+
 
   /**
    * Sets up the test environment before each test.
    */
   @Before
   public void setUp() {
-    when(mockProjection.getName()).thenReturn(PROJECTION_NAME);
+    when(mockProjection.getName()).thenReturn(TestUtils.PROJECTION_NAME);
   }
 
   /**
@@ -51,15 +51,15 @@ public class EntityProjectionUtilsTest {
    */
   @Test
   public void testBuildNameWithWriteMapping() {
-    String expectedName = PROJECTION_NAME.toUpperCase() + " - " + EXTERNAL_NAME + " - Write";
+    String expectedName = TestUtils.PROJECTION_NAME.toUpperCase() + " - " + TestUtils.EXTERNAL_NAME + " - Write";
 
     try (MockedStatic<OBDal> obDalMock = mockStatic(OBDal.class)) {
       obDalMock.when(OBDal::getInstance).thenReturn(mockOBDal);
-      when(mockOBDal.get(ETRXProjection.class, PROJECTION_ID)).thenReturn(mockProjection);
+      when(mockOBDal.get(ETRXProjection.class, TestUtils.PROJECTION_ID)).thenReturn(mockProjection);
 
-      EntityProjectionUtils.buildName(EXTERNAL_NAME, "W", PROJECTION_ID, mockInfo);
+      EntityProjectionUtils.buildName(TestUtils.EXTERNAL_NAME, "W", TestUtils.PROJECTION_ID, mockInfo);
 
-      verify(mockInfo).addResult("inpname", expectedName);
+      verify(mockInfo).addResult(TestUtils.INP_NAME, expectedName);
       verify(mockProjection).getName();
     }
   }
@@ -69,15 +69,15 @@ public class EntityProjectionUtilsTest {
    */
   @Test
   public void testBuildNameWithReadMapping() {
-    String expectedName = PROJECTION_NAME.toUpperCase() + " - " + EXTERNAL_NAME + " - Read";
+    String expectedName = TestUtils.PROJECTION_NAME.toUpperCase() + " - " + TestUtils.EXTERNAL_NAME + " - Read";
 
     try (MockedStatic<OBDal> obDalMock = mockStatic(OBDal.class)) {
       obDalMock.when(OBDal::getInstance).thenReturn(mockOBDal);
-      when(mockOBDal.get(ETRXProjection.class, PROJECTION_ID)).thenReturn(mockProjection);
+      when(mockOBDal.get(ETRXProjection.class, TestUtils.PROJECTION_ID)).thenReturn(mockProjection);
 
-      EntityProjectionUtils.buildName(EXTERNAL_NAME, "R", PROJECTION_ID, mockInfo);
+      EntityProjectionUtils.buildName(TestUtils.EXTERNAL_NAME, "R", TestUtils.PROJECTION_ID, mockInfo);
 
-      verify(mockInfo).addResult("inpname", expectedName);
+      verify(mockInfo).addResult(TestUtils.INP_NAME, expectedName);
       verify(mockProjection).getName();
     }
   }
@@ -87,15 +87,15 @@ public class EntityProjectionUtilsTest {
    */
   @Test
   public void testBuildNameWithOtherMapping() {
-    String expectedName = PROJECTION_NAME.toUpperCase() + " - " + EXTERNAL_NAME;
+    String expectedName = TestUtils.PROJECTION_NAME.toUpperCase() + " - " + TestUtils.EXTERNAL_NAME;
 
     try (MockedStatic<OBDal> obDalMock = mockStatic(OBDal.class)) {
       obDalMock.when(OBDal::getInstance).thenReturn(mockOBDal);
-      when(mockOBDal.get(ETRXProjection.class, PROJECTION_ID)).thenReturn(mockProjection);
+      when(mockOBDal.get(ETRXProjection.class, TestUtils.PROJECTION_ID)).thenReturn(mockProjection);
 
-      EntityProjectionUtils.buildName(EXTERNAL_NAME, "E", PROJECTION_ID, mockInfo);
+      EntityProjectionUtils.buildName(TestUtils.EXTERNAL_NAME, "E", TestUtils.PROJECTION_ID, mockInfo);
 
-      verify(mockInfo).addResult("inpname", expectedName);
+      verify(mockInfo).addResult(TestUtils.INP_NAME, expectedName);
       verify(mockProjection).getName();
     }
   }
@@ -106,7 +106,7 @@ public class EntityProjectionUtilsTest {
   @Test
   public void testBuildNameWithEmptyExternalName() {
     try (MockedStatic<OBDal> obDalMock = mockStatic(OBDal.class)) {
-      EntityProjectionUtils.buildName("", "W", PROJECTION_ID, mockInfo);
+      EntityProjectionUtils.buildName("", "W", TestUtils.PROJECTION_ID, mockInfo);
 
       verify(mockInfo, never()).addResult(anyString(), anyString());
       verify(mockOBDal, never()).get((Class<Object>) any(), any());
@@ -119,7 +119,7 @@ public class EntityProjectionUtilsTest {
   @Test
   public void testBuildNameWithEmptyMappingType() {
     try (MockedStatic<OBDal> obDalMock = mockStatic(OBDal.class)) {
-      EntityProjectionUtils.buildName(EXTERNAL_NAME, "", PROJECTION_ID, mockInfo);
+      EntityProjectionUtils.buildName(TestUtils.EXTERNAL_NAME, "", TestUtils.PROJECTION_ID, mockInfo);
 
       verify(mockInfo, never()).addResult(anyString(), anyString());
       verify(mockOBDal, never()).get((Class<Object>) any(), any());
@@ -132,7 +132,7 @@ public class EntityProjectionUtilsTest {
   @Test
   public void testBuildNameWithNullParameters() {
     try (MockedStatic<OBDal> obDalMock = mockStatic(OBDal.class)) {
-      EntityProjectionUtils.buildName(null, null, PROJECTION_ID, mockInfo);
+      EntityProjectionUtils.buildName(null, null, TestUtils.PROJECTION_ID, mockInfo);
 
       verify(mockInfo, never()).addResult(anyString(), anyString());
       verify(mockOBDal, never()).get((Class<Object>) any(), any());

@@ -19,6 +19,8 @@ import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.ad_callouts.SimpleCallout;
 import org.openbravo.model.ad.datamodel.Table;
 
+import com.etendoerp.etendorx.TestUtils;
+
 /**
  * Test class for {@link EntityProjectionAdTableChange}.
  * This class ensures that the {@code execute} method behaves as expected
@@ -26,6 +28,7 @@ import org.openbravo.model.ad.datamodel.Table;
  */
 @RunWith(MockitoJUnitRunner.class)
 public class EntityProjectionAdTableChangeTest {
+
 
   @InjectMocks
   private EntityProjectionAdTableChange callout;
@@ -54,10 +57,10 @@ public class EntityProjectionAdTableChangeTest {
   public void setUp() throws Exception {
     MockitoAnnotations.openMocks(this);
 
-    when(mockInfo.getStringParameter("inpadTableId")).thenReturn(TABLE_ID);
+    when(mockInfo.getStringParameter(TestUtils.INP_AD_TABLE_ID)).thenReturn(TABLE_ID);
     when(mockInfo.getStringParameter("inpmappingType")).thenReturn(MAPPING_TYPE);
     when(mockInfo.getStringParameter("inpetrxProjectionId")).thenReturn(PROJECTION_ID);
-    when(mockInfo.getStringParameter("inpexternalName")).thenReturn(EXTERNAL_NAME);
+    when(mockInfo.getStringParameter(TestUtils.INP_EXTERNAL_NAME)).thenReturn(EXTERNAL_NAME);
 
     when(mockTable.getName()).thenReturn(TABLE_NAME);
   }
@@ -78,7 +81,7 @@ public class EntityProjectionAdTableChangeTest {
 
       callout.execute(mockInfo);
 
-      verify(mockInfo).addResult("inpexternalName", TABLE_NAME);
+      verify(mockInfo).addResult(TestUtils.INP_EXTERNAL_NAME, TABLE_NAME);
 
       utilsMock.verify(() -> EntityProjectionUtils.buildName(
           TABLE_NAME,
@@ -97,12 +100,12 @@ public class EntityProjectionAdTableChangeTest {
    */
   @Test
   public void testExecuteWithEmptyTableId() throws Exception {
-    when(mockInfo.getStringParameter("inpadTableId")).thenReturn("");
+    when(mockInfo.getStringParameter(TestUtils.INP_AD_TABLE_ID)).thenReturn("");
 
     try (MockedStatic<EntityProjectionUtils> utilsMock = mockStatic(EntityProjectionUtils.class)) {
       callout.execute(mockInfo);
 
-      verify(mockInfo, never()).addResult(eq("inpexternalName"), anyString());
+      verify(mockInfo, never()).addResult(eq(TestUtils.INP_EXTERNAL_NAME), anyString());
 
       utilsMock.verify(() -> EntityProjectionUtils.buildName(
           EXTERNAL_NAME,
@@ -121,12 +124,12 @@ public class EntityProjectionAdTableChangeTest {
    */
   @Test
   public void testExecuteWithNullTableId() throws Exception {
-    when(mockInfo.getStringParameter("inpadTableId")).thenReturn(null);
+    when(mockInfo.getStringParameter(TestUtils.INP_AD_TABLE_ID)).thenReturn(null);
 
     try (MockedStatic<EntityProjectionUtils> utilsMock = mockStatic(EntityProjectionUtils.class)) {
       callout.execute(mockInfo);
 
-      verify(mockInfo, never()).addResult(eq("inpexternalName"), anyString());
+      verify(mockInfo, never()).addResult(eq(TestUtils.INP_EXTERNAL_NAME), anyString());
 
       utilsMock.verify(() -> EntityProjectionUtils.buildName(
           EXTERNAL_NAME,

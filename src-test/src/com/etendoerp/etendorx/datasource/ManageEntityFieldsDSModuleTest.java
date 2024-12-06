@@ -31,6 +31,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.etendoerp.etendorx.TestUtils;
 import com.etendoerp.etendorx.data.ETRXProjection;
 import com.etendoerp.etendorx.data.ETRXProjectionEntity;
 import org.openbravo.model.ad.module.Module;
@@ -113,8 +114,8 @@ public class ManageEntityFieldsDSModuleTest {
    */
   @Test
   public void testGetModuleFilterDataWithResultsAndDevModule() throws Exception {
-    when(module1.getId()).thenReturn("module-1");
-    when(module1.getIdentifier()).thenReturn("Module 1");
+    when(module1.getId()).thenReturn(TestUtils.MODULE_1);
+    when(module1.getIdentifier()).thenReturn(TestUtils.MODULE_1_NAME);
     when(module2.getId()).thenReturn("module-2");
     when(module2.getIdentifier()).thenReturn("Module 2");
 
@@ -129,7 +130,7 @@ public class ManageEntityFieldsDSModuleTest {
         obDalMock.when(OBDal::getInstance).thenReturn(obDal);
         when(obDal.getSession()).thenReturn(session);
         when(session.createQuery(anyString(), eq(Module.class))).thenReturn(query);
-        when(query.setParameter(eq("etrxProjectionEntityId"), any())).thenReturn(query);
+        when(query.setParameter(eq(TestUtils.ETRX_PROJECTION_ENTITY_ID), any())).thenReturn(query);
         when(query.list()).thenReturn(mockModules);
 
         @SuppressWarnings("unchecked")
@@ -141,8 +142,8 @@ public class ManageEntityFieldsDSModuleTest {
         assertEquals(3, result.size());
 
         Map<String, Object> firstResult = result.get(0);
-        assertEquals("module-1", firstResult.get("id"));
-        assertEquals("Module 1", firstResult.get("name"));
+        assertEquals(TestUtils.MODULE_1, firstResult.get("id"));
+        assertEquals(TestUtils.MODULE_1_NAME, firstResult.get("name"));
         assertEquals(Module.ENTITY_NAME, firstResult.get("_entityName"));
 
         Map<String, Object> projModuleResult = result.get(2);
@@ -166,8 +167,8 @@ public class ManageEntityFieldsDSModuleTest {
    */
   @Test
   public void testGetModuleFilterDataWithNonDevModuleAndCriteria() throws Exception {
-    when(module1.getId()).thenReturn("module-1");
-    when(module1.getIdentifier()).thenReturn("Module 1");
+    when(module1.getId()).thenReturn(TestUtils.MODULE_1);
+    when(module1.getIdentifier()).thenReturn(TestUtils.MODULE_1_NAME);
 
     when(projectionModule.isInDevelopment()).thenReturn(false);
 
@@ -180,7 +181,7 @@ public class ManageEntityFieldsDSModuleTest {
         obDalMock.when(OBDal::getInstance).thenReturn(obDal);
         when(obDal.getSession()).thenReturn(session);
         when(session.createQuery(anyString(), eq(Module.class))).thenReturn(query);
-        when(query.setParameter(eq("etrxProjectionEntityId"), any())).thenReturn(query);
+        when(query.setParameter(eq(TestUtils.ETRX_PROJECTION_ENTITY_ID), any())).thenReturn(query);
         when(query.list()).thenReturn(List.of(module1));
 
         when(obDal.createCriteria(Module.class)).thenReturn(obCriteria);
@@ -198,7 +199,7 @@ public class ManageEntityFieldsDSModuleTest {
         assertEquals(2, result.size());
 
         Map<String, Object> firstResult = result.get(0);
-        assertEquals("module-1", firstResult.get("id"));
+        assertEquals(TestUtils.MODULE_1, firstResult.get("id"));
 
         Map<String, Object> devModuleResult = result.get(1);
         assertEquals("dev-module", devModuleResult.get("id"));
@@ -228,7 +229,7 @@ public class ManageEntityFieldsDSModuleTest {
         obDalMock.when(OBDal::getInstance).thenReturn(obDal);
         when(obDal.getSession()).thenReturn(session);
         when(session.createQuery(anyString(), eq(Module.class))).thenReturn(query);
-        when(query.setParameter(eq("etrxProjectionEntityId"), any())).thenReturn(query);
+        when(query.setParameter(eq(TestUtils.ETRX_PROJECTION_ENTITY_ID), any())).thenReturn(query);
         when(query.list()).thenReturn(List.of());
 
         when(obDal.createCriteria(Module.class)).thenReturn(obCriteria);

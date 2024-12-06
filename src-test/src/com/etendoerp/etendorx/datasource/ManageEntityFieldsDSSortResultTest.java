@@ -15,6 +15,8 @@ package com.etendoerp.etendorx.datasource;
  import static org.junit.Assert.assertEquals;
  import static org.junit.Assert.assertTrue;
 
+ import com.etendoerp.etendorx.TestUtils;
+
 /**
  * Test class for testing the filter and sorting functionality of ManageEntityFieldsDS.
  * This test suite uses Mockito for unit testing the private method 'applyFiltersAndSort'
@@ -58,7 +60,7 @@ public class ManageEntityFieldsDSSortResultTest {
     Map<String, String> parameters = new HashMap<>();
     List<Map<String, Object>> testData = new ArrayList<>();
     Map<String, Object> row1 = new HashMap<>();
-    row1.put(ManageEntityFieldConstants.NAME, "test_field");
+    row1.put(ManageEntityFieldConstants.NAME, TestUtils.TEST_FIELD);
     testData.add(row1);
 
     @SuppressWarnings("unchecked")
@@ -114,7 +116,7 @@ public class ManageEntityFieldsDSSortResultTest {
 
     List<Map<String, Object>> testData = new ArrayList<>();
     Map<String, Object> row1 = new HashMap<>();
-    row1.put(ManageEntityFieldConstants.NAME, "test_field");
+    row1.put(ManageEntityFieldConstants.NAME, TestUtils.TEST_FIELD);
     testData.add(row1);
 
     @SuppressWarnings("unchecked")
@@ -144,7 +146,7 @@ public class ManageEntityFieldsDSSortResultTest {
     List<Map<String, Object>> testData = new ArrayList<>();
     Map<String, Object> row1 = new HashMap<>();
     row1.put(ManageEntityFieldConstants.ISMANDATORY, true);
-    row1.put(ManageEntityFieldConstants.NAME, "test_field");
+    row1.put(ManageEntityFieldConstants.NAME, TestUtils.TEST_FIELD);
     testData.add(row1);
 
     @SuppressWarnings("unchecked")

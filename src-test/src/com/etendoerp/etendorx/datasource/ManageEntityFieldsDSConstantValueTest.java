@@ -25,12 +25,12 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
+import com.etendoerp.etendorx.TestUtils;
 import com.etendoerp.etendorx.data.ConstantValue;
 import com.etendoerp.etendorx.data.ETRXProjectionEntity;
 
 /**
  * Test class for the ManageEntityFieldsDS (Data Source) focusing on Constant Value filter data retrieval.
- *
  * This test class uses Mockito to create mocks and verify the behavior of the getConstantValueFilterData method
  * under different scenarios, such as when results are present and when no results are found.
  * @since 2024-12-04
@@ -90,10 +90,10 @@ public class ManageEntityFieldsDSConstantValueTest {
     projectionEntity.setId(entityId);
 
     when(constantValue1.getId()).thenReturn("cv-1");
-    when(constantValue1.getIdentifier()).thenReturn("Constant 1");
+    when(constantValue1.getIdentifier()).thenReturn(TestUtils.CONSTANT_ONE);
 
     when(constantValue2.getId()).thenReturn("cv-2");
-    when(constantValue2.getIdentifier()).thenReturn("Constant 2");
+    when(constantValue2.getIdentifier()).thenReturn(TestUtils.CONSTANT_TWO);
 
     List<ConstantValue> mockConstantValues = Arrays.asList(constantValue1, constantValue2);
 
@@ -115,14 +115,14 @@ public class ManageEntityFieldsDSConstantValueTest {
 
         Map<String, Object> firstResult = result.get(0);
         assertEquals("cv-1", firstResult.get("id"));
-        assertEquals("Constant 1", firstResult.get("name"));
-        assertEquals("Constant 1", firstResult.get("_identifier"));
+        assertEquals(TestUtils.CONSTANT_ONE, firstResult.get("name"));
+        assertEquals(TestUtils.CONSTANT_ONE, firstResult.get("_identifier"));
         assertEquals(ConstantValue.ENTITY_NAME, firstResult.get("_entityName"));
 
         Map<String, Object> secondResult = result.get(1);
         assertEquals("cv-2", secondResult.get("id"));
-        assertEquals("Constant 2", secondResult.get("name"));
-        assertEquals("Constant 2", secondResult.get("_identifier"));
+        assertEquals(TestUtils.CONSTANT_TWO, secondResult.get("name"));
+        assertEquals(TestUtils.CONSTANT_TWO, secondResult.get("_identifier"));
         assertEquals(ConstantValue.ENTITY_NAME, secondResult.get("_entityName"));
 
         obContextMock.verify(OBContext::setAdminMode);

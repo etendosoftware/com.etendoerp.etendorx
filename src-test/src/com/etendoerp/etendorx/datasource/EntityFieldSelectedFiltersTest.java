@@ -20,6 +20,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.junit.MockitoJUnitRunner;
 
+import com.etendoerp.etendorx.TestUtils;
 import com.etendoerp.etendorx.data.ETRXEntityField;
 
 /**
@@ -34,8 +35,6 @@ public class EntityFieldSelectedFiltersTest {
 
   private Object filters;
   private Class<?> filtersClass;
-  private static final String TEST_ID = "test-id";
-  private static final String SECOND_TEST_ID = "test-id-2";
 
   /**
    * Sets up the test environment by initializing the {@code EntityFieldSelectedFilters} class
@@ -59,7 +58,7 @@ public class EntityFieldSelectedFiltersTest {
   @Test
   public void testCollectionInitialization() throws Exception {
     assertNotNull("SelectedMappingValues should be initialized",
-        filtersClass.getMethod("getSelectedMappingValues").invoke(filters));
+        filtersClass.getMethod(TestUtils.GET_SELECTED_MAPPING_VALUES).invoke(filters));
     assertNotNull("SelectedIds should be initialized",
         filtersClass.getMethod("getSelectedIds").invoke(filters));
     assertNotNull("ModuleIds should be initialized",
@@ -116,7 +115,7 @@ public class EntityFieldSelectedFiltersTest {
 
     @SuppressWarnings("unchecked")
     Map<String, List<ETRXEntityField>> result = (Map<String, List<ETRXEntityField>>)
-        filtersClass.getMethod("getSelectedMappingValues").invoke(filters);
+        filtersClass.getMethod(TestUtils.GET_SELECTED_MAPPING_VALUES).invoke(filters);
 
     assertEquals("Map should contain correct number of entries", 2, result.size());
     assertEquals("First list should have correct size", 2, result.get("key1").size());
@@ -134,7 +133,7 @@ public class EntityFieldSelectedFiltersTest {
       Method setter = filtersClass.getDeclaredMethod("set" + property, String.class);
       Method getter = filtersClass.getDeclaredMethod("get" + property);
 
-      setter.invoke(filters, new Object[]{null});
+      setter.invoke(filters, (Object[]) new Object[]{null});
       Object result = getter.invoke(filters);
 
       assertNull(property + " should be null", result);
@@ -249,7 +248,7 @@ public class EntityFieldSelectedFiltersTest {
 
     @SuppressWarnings("unchecked")
     Map<String, List<ETRXEntityField>> result = (Map<String, List<ETRXEntityField>>)
-        filtersClass.getMethod("getSelectedMappingValues").invoke(filters);
+        filtersClass.getMethod(TestUtils.GET_SELECTED_MAPPING_VALUES).invoke(filters);
 
     assertTrue("Should contain empty list", result.get("emptyKey").isEmpty());
     assertNull("Should contain null value", result.get("nullKey"));

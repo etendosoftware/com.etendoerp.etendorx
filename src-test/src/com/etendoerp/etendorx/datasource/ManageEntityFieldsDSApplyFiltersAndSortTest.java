@@ -19,6 +19,8 @@ import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.etendoerp.etendorx.TestUtils;
+
 
 /**
  * Test class for testing the filter and sorting functionality of ManageEntityFieldsDS.
@@ -63,7 +65,7 @@ public class ManageEntityFieldsDSApplyFiltersAndSortTest {
   @Test
   public void testIsMandatoryFilter() throws Exception {
     Map<String, String> parameters = new HashMap<>();
-    parameters.put("criteria", "[{\"fieldName\":\"ismandatory\",\"value\":true,\"operator\":\"equals\"}]");
+    parameters.put(TestUtils.CRITERIA, "[{\"fieldName\":\"ismandatory\",\"value\":true,\"operator\":\"equals\"}]");
 
     List<Map<String, Object>> testData = new ArrayList<>();
     Map<String, Object> row1 = new HashMap<>();
@@ -93,11 +95,11 @@ public class ManageEntityFieldsDSApplyFiltersAndSortTest {
   @Test
   public void testNameFilter() throws Exception {
     Map<String, String> parameters = new HashMap<>();
-    parameters.put("criteria", "[{\"fieldName\":\"name\",\"value\":\"test\",\"operator\":\"contains\"}]");
+    parameters.put(TestUtils.CRITERIA, "[{\"fieldName\":\"name\",\"value\":\"test\",\"operator\":\"contains\"}]");
 
     List<Map<String, Object>> testData = new ArrayList<>();
     Map<String, Object> row1 = new HashMap<>();
-    row1.put(ManageEntityFieldConstants.NAME, "test_field");
+    row1.put(ManageEntityFieldConstants.NAME, TestUtils.TEST_FIELD);
     Map<String, Object> row2 = new HashMap<>();
     row2.put(ManageEntityFieldConstants.NAME, "other_field");
     testData.addAll(Arrays.asList(row1, row2));
@@ -110,7 +112,7 @@ public class ManageEntityFieldsDSApplyFiltersAndSortTest {
     );
 
     assertEquals(1, result.size());
-    assertEquals("test_field", result.get(0).get(ManageEntityFieldConstants.NAME));
+    assertEquals(TestUtils.TEST_FIELD, result.get(0).get(ManageEntityFieldConstants.NAME));
   }
 
   /**
@@ -125,7 +127,7 @@ public class ManageEntityFieldsDSApplyFiltersAndSortTest {
     when(mockModule.getId()).thenReturn(moduleId);
 
     Map<String, String> parameters = new HashMap<>();
-    parameters.put("criteria", "[{\"fieldName\":\"module\",\"value\":\"" + moduleId + "\",\"operator\":\"equals\"}]");
+    parameters.put(TestUtils.CRITERIA, "[{\"fieldName\":\"module\",\"value\":\"" + moduleId + "\",\"operator\":\"equals\"}]");
 
     List<Map<String, Object>> testData = new ArrayList<>();
     Map<String, Object> row1 = new HashMap<>();
@@ -155,7 +157,7 @@ public class ManageEntityFieldsDSApplyFiltersAndSortTest {
   @Test
   public void testMultipleFilters() throws Exception {
     Map<String, String> parameters = new HashMap<>();
-    parameters.put("criteria", "[" +
+    parameters.put(TestUtils.CRITERIA, "[" +
         "{\"fieldName\":\"ismandatory\",\"value\":true,\"operator\":\"equals\"}," +
         "{\"fieldName\":\"name\",\"value\":\"test\",\"operator\":\"contains\"}" +
         "]");
@@ -163,7 +165,7 @@ public class ManageEntityFieldsDSApplyFiltersAndSortTest {
     List<Map<String, Object>> testData = new ArrayList<>();
     Map<String, Object> row1 = new HashMap<>();
     row1.put(ManageEntityFieldConstants.ISMANDATORY, true);
-    row1.put(ManageEntityFieldConstants.NAME, "test_field");
+    row1.put(ManageEntityFieldConstants.NAME, TestUtils.TEST_FIELD);
     Map<String, Object> row2 = new HashMap<>();
     row2.put(ManageEntityFieldConstants.ISMANDATORY, true);
     row2.put(ManageEntityFieldConstants.NAME, "other_field");
@@ -181,7 +183,7 @@ public class ManageEntityFieldsDSApplyFiltersAndSortTest {
 
     assertEquals(1, result.size());
     assertEquals(true, result.get(0).get(ManageEntityFieldConstants.ISMANDATORY));
-    assertEquals("test_field", result.get(0).get(ManageEntityFieldConstants.NAME));
+    assertEquals(TestUtils.TEST_FIELD, result.get(0).get(ManageEntityFieldConstants.NAME));
   }
 
   /**
@@ -194,7 +196,7 @@ public class ManageEntityFieldsDSApplyFiltersAndSortTest {
   @Test
   public void testEmptyFilters() throws Exception {
     Map<String, String> parameters = new HashMap<>();
-    parameters.put("criteria", "[]");
+    parameters.put(TestUtils.CRITERIA, "[]");
 
     List<Map<String, Object>> testData = new ArrayList<>();
     Map<String, Object> row1 = new HashMap<>();

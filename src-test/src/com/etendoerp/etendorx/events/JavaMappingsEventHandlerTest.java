@@ -22,17 +22,39 @@ import org.openbravo.client.kernel.event.EntityPersistenceEvent;
 import org.openbravo.client.kernel.event.EntityUpdateEvent;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
 
+import com.etendoerp.etendorx.TestUtils;
 import com.etendoerp.etendorx.data.ETRXJavaMapping;
 
+/**
+ * Test class for the JavaMappingsEventHandler.
+ * This test class verifies the behavior of the JavaMappingsEventHandler
+ * using Mockito's silent runner, which suppresses unnecessary logging
+ * during test execution.
+ * The test class includes:
+ * <ul>
+ *   <li>Constants for test data and validation messages</li>
+ *   <li>Mocked objects for testing event handling scenarios</li>
+ *   <li>Setup method to prepare test environment</li>
+ * </ul>
+ *
+ * Uses {@link MockitoJUnitRunner.Silent} to run tests with reduced noise
+ * and improved readability.
+ */
 @RunWith(MockitoJUnitRunner.Silent.class)
 public class JavaMappingsEventHandlerTest {
 
-    private static final String INVALID_PROJECTION_MESSAGE = "JavaMappingsEventHandler.invalidQualifier";
-    private static final String VALID_QUALIFIER = "ValidQualifier";
 
     private TestableJavaMappingsEventHandler handler;
     private ETRXJavaMapping javaMapping;
 
+    /**
+     * Prepares the test environment before each test method.
+     * Initializes:
+     * <ul>
+     *   <li>A new testable Java mappings event handler</li>
+     *   <li>A mocked ETRXJavaMapping entity</li>
+     * </ul>
+     */
     @Before
     public void setUp() {
         handler = new TestableJavaMappingsEventHandler();
@@ -44,7 +66,7 @@ public class JavaMappingsEventHandlerTest {
      */
     @Test
     public void testValidateJavaMappingsQualifierWithValidQualifier() {
-        assertTrue(handler.validateJavaMappingsQualifier(VALID_QUALIFIER));
+        assertTrue(handler.validateJavaMappingsQualifier(TestUtils.VALID_QUALIFIER));
     }
 
     /**
@@ -113,8 +135,8 @@ public class JavaMappingsEventHandlerTest {
     @Test
     public void testOnUpdateWithValidQualifier() {
         EntityUpdateEvent event = mock(EntityUpdateEvent.class);
-        when(javaMapping.getQualifier()).thenReturn(VALID_QUALIFIER);
-        when(javaMapping.getName()).thenReturn("TestMapping");
+        when(javaMapping.getQualifier()).thenReturn(TestUtils.VALID_QUALIFIER);
+        when(javaMapping.getName()).thenReturn(TestUtils.TEST_MAPPING);
         when(event.getTargetInstance()).thenReturn(javaMapping);
 
         handler = spy(new TestableJavaMappingsEventHandler());
@@ -129,8 +151,8 @@ public class JavaMappingsEventHandlerTest {
     @Test
     public void testOnSaveWithValidQualifier() {
         EntityNewEvent event = mock(EntityNewEvent.class);
-        when(javaMapping.getQualifier()).thenReturn(VALID_QUALIFIER);
-        when(javaMapping.getName()).thenReturn("TestMapping");
+        when(javaMapping.getQualifier()).thenReturn(TestUtils.VALID_QUALIFIER);
+        when(javaMapping.getName()).thenReturn(TestUtils.TEST_MAPPING);
         when(event.getTargetInstance()).thenReturn(javaMapping);
 
         handler = spy(new TestableJavaMappingsEventHandler());
@@ -147,11 +169,11 @@ public class JavaMappingsEventHandlerTest {
         try (MockedStatic<OBMessageUtils> mockedUtils = mockStatic(OBMessageUtils.class)) {
             EntityUpdateEvent event = mock(EntityUpdateEvent.class);
             when(javaMapping.getQualifier()).thenReturn("123");
-            when(javaMapping.getName()).thenReturn("TestMapping");
+            when(javaMapping.getName()).thenReturn(TestUtils.TEST_MAPPING);
             when(event.getTargetInstance()).thenReturn(javaMapping);
 
             mockedUtils.when(() -> OBMessageUtils.getI18NMessage(
-                    eq(INVALID_PROJECTION_MESSAGE),
+                    eq(TestUtils.INVALID_PROJECTION_MESSAGE),
                     any(String[].class)))
                 .thenReturn("Invalid qualifier");
 
@@ -170,11 +192,11 @@ public class JavaMappingsEventHandlerTest {
         try (MockedStatic<OBMessageUtils> mockedUtils = mockStatic(OBMessageUtils.class)) {
             EntityNewEvent event = mock(EntityNewEvent.class);
             when(javaMapping.getQualifier()).thenReturn("a1");
-            when(javaMapping.getName()).thenReturn("TestMapping");
+            when(javaMapping.getName()).thenReturn(TestUtils.TEST_MAPPING);
             when(event.getTargetInstance()).thenReturn(javaMapping);
 
             mockedUtils.when(() -> OBMessageUtils.getI18NMessage(
-                    eq(INVALID_PROJECTION_MESSAGE),
+                    eq(TestUtils.INVALID_PROJECTION_MESSAGE),
                     any(String[].class)))
                 .thenReturn("Invalid qualifier");
 

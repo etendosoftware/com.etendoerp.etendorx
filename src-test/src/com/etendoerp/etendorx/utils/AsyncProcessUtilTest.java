@@ -25,6 +25,7 @@ import org.mockito.junit.MockitoJUnitRunner;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.base.session.OBPropertiesProvider;
 
+import com.etendoerp.etendorx.TestUtils;
 import com.fasterxml.jackson.core.JsonProcessingException;
 /**
  * Unit tests for the AsyncProcessUtil class.
@@ -34,9 +35,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 @RunWith(MockitoJUnitRunner.class)
 public class AsyncProcessUtilTest {
 
-  private static final String TEST_ASYNC_URL = "http://test.com/";
-  private static final String TEST_ASYNC_TOKEN = "test-token";
-  private static final String TEST_URI = "test-uri";
 
   @Mock
   private OBPropertiesProvider mockPropertiesProvider;
@@ -56,8 +54,8 @@ public class AsyncProcessUtilTest {
   @Before
   public void setUp() {
     mockProperties = new Properties();
-    mockProperties.setProperty("async.url", TEST_ASYNC_URL);
-    mockProperties.setProperty("async.token", TEST_ASYNC_TOKEN);
+    mockProperties.setProperty("async.url", TestUtils.TEST_ASYNC_URL);
+    mockProperties.setProperty("async.token", TestUtils.TEST_ASYNC_TOKEN);
 
     System.clearProperty("ASYNC_URL");
     System.clearProperty("ASYNC_TOKEN");
@@ -89,12 +87,12 @@ public class AsyncProcessUtilTest {
       when(mockPropertiesProvider.getOpenbravoProperties()).thenReturn(mockProperties);
       mockedProvider.when(OBPropertiesProvider::getInstance).thenReturn(mockPropertiesProvider);
 
-      HttpRequest request = AsyncProcessUtil.getRequest(TEST_URI);
+      HttpRequest request = AsyncProcessUtil.getRequest(TestUtils.TEST_URI);
 
       assertNotNull("Request should not be null", request);
-      assertEquals(TEST_ASYNC_URL + TEST_URI, request.uri().toString());
+      assertEquals(TestUtils.TEST_ASYNC_URL + TestUtils.TEST_URI, request.uri().toString());
       assertTrue(request.headers().map().containsKey("Authorization"));
-      assertEquals("Bearer " + TEST_ASYNC_TOKEN,
+      assertEquals("Bearer " + TestUtils.TEST_ASYNC_TOKEN,
           request.headers().firstValue("Authorization").orElse(""));
     }
   }
@@ -119,7 +117,7 @@ public class AsyncProcessUtilTest {
       when(mockPropertiesProvider.getOpenbravoProperties()).thenReturn(mockProperties);
       mockedProvider.when(OBPropertiesProvider::getInstance).thenReturn(mockPropertiesProvider);
 
-      List<Map<String, Object>> result = AsyncProcessUtil.getList(TEST_URI);
+      List<Map<String, Object>> result = AsyncProcessUtil.getList(TestUtils.TEST_URI);
 
       assertNotNull("Result should not be null", result);
       assertEquals("Should have 1 element", 1, result.size());
@@ -139,7 +137,10 @@ public class AsyncProcessUtilTest {
       try {
         when(mockClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
             .thenThrow(new IOException("Test IO Exception"));
-      } catch (IOException | InterruptedException e) {
+      } catch (IOException e) {
+        fail("Mock setup failed: " + e.getMessage());
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
         fail("Mock setup failed: " + e.getMessage());
       }
 
@@ -148,7 +149,7 @@ public class AsyncProcessUtilTest {
       mockedHttpClient.when(HttpClient::newHttpClient).thenReturn(mockClient);
 
       try {
-        AsyncProcessUtil.getList(TEST_URI);
+        AsyncProcessUtil.getList(TestUtils.TEST_URI);
         fail("Should throw OBException");
       } catch (OBException e) {
         assertTrue("Exception cause should be IOException",
@@ -169,16 +170,18 @@ public class AsyncProcessUtilTest {
       try {
         when(mockClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
             .thenThrow(new InterruptedException("Test Interrupted Exception"));
-      } catch (IOException | InterruptedException e) {
+      } catch (IOException e) {
         fail("Mock setup failed: " + e.getMessage());
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        throw new RuntimeException(e);
       }
-
       when(mockPropertiesProvider.getOpenbravoProperties()).thenReturn(mockProperties);
       mockedProvider.when(OBPropertiesProvider::getInstance).thenReturn(mockPropertiesProvider);
       mockedHttpClient.when(HttpClient::newHttpClient).thenReturn(mockClient);
 
       try {
-        AsyncProcessUtil.getList(TEST_URI);
+        AsyncProcessUtil.getList(TestUtils.TEST_URI);
         fail("Should throw OBException");
       } catch (OBException e) {
         assertTrue("Exception cause should be InterruptedException",
