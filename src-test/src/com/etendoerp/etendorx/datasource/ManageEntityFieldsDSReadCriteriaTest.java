@@ -156,13 +156,13 @@ public class ManageEntityFieldsDSReadCriteriaTest {
     JSONObject criteria = new JSONObject();
     criteria.put(TestUtils.FIELD_NAME, "name");
     criteria.put(TestUtils.VALUE, "Test Name");
-    criteria.put(TestUtils.OPERATOR, TestUtils.EQUALS);
+    criteria.put(TestUtils.OPERATOR, TestUtils.IS_EQUAL_TO);
     criteriaArray.put(criteria);
 
     JSONObject ismandatoryCriteria = new JSONObject();
     ismandatoryCriteria.put(TestUtils.FIELD_NAME, "ismandatory");
     ismandatoryCriteria.put(TestUtils.VALUE, true);
-    ismandatoryCriteria.put(TestUtils.OPERATOR, TestUtils.EQUALS);
+    ismandatoryCriteria.put(TestUtils.OPERATOR, TestUtils.IS_EQUAL_TO);
     criteriaArray.put(ismandatoryCriteria);
 
     return criteriaArray.toString();
@@ -182,13 +182,13 @@ public class ManageEntityFieldsDSReadCriteriaTest {
     JSONObject criteria = new JSONObject();
     criteria.put(TestUtils.FIELD_NAME, "name");
     criteria.put(TestUtils.VALUE, "Advanced Test");
-    criteria.put(TestUtils.OPERATOR, TestUtils.EQUALS);
+    criteria.put(TestUtils.OPERATOR, TestUtils.IS_EQUAL_TO);
     innerCriteria.put(criteria);
 
     JSONObject identifiesCriteria = new JSONObject();
     identifiesCriteria.put(TestUtils.FIELD_NAME, "identifiesUnivocally");
     identifiesCriteria.put(TestUtils.VALUE, true);
-    identifiesCriteria.put(TestUtils.OPERATOR, TestUtils.EQUALS);
+    identifiesCriteria.put(TestUtils.OPERATOR, TestUtils.IS_EQUAL_TO);
     innerCriteria.put(identifiesCriteria);
 
     advancedCriteria.put(TestUtils.CRITERIA, innerCriteria.toString());
@@ -209,7 +209,7 @@ public class ManageEntityFieldsDSReadCriteriaTest {
     JSONObject criteria = new JSONObject();
     criteria.put(TestUtils.FIELD_NAME, "module");
     criteria.put(TestUtils.VALUE, "testModuleId");
-    criteria.put(TestUtils.OPERATOR, TestUtils.EQUALS);
+    criteria.put(TestUtils.OPERATOR, TestUtils.IS_EQUAL_TO);
     criteriaArray.put(criteria);
     return criteriaArray.toString();
   }

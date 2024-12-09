@@ -89,7 +89,7 @@ public class ManageEntityFieldsDSAddCriteriaTest {
   @Test
   public void testAddSelectedId() throws Exception {
     when(mockCriteria.getString(TestUtils.FIELD_NAME)).thenReturn(ManageEntityFieldConstants.ID);
-    when(mockCriteria.getString(TestUtils.OPERATOR)).thenReturn(TestUtils.EQUALS);
+    when(mockCriteria.getString(TestUtils.OPERATOR)).thenReturn(TestUtils.IS_EQUAL_TO);
     when(mockCriteria.has(VALUE)).thenReturn(true);
     when(mockCriteria.getString(VALUE)).thenReturn(TestUtils.TEST_ID);
 
@@ -110,7 +110,7 @@ public class ManageEntityFieldsDSAddCriteriaTest {
   @Test
   public void testSetModuleIds() throws Exception {
     when(mockCriteria.getString(TestUtils.FIELD_NAME)).thenReturn(ManageEntityFieldConstants.MODULE);
-    when(mockCriteria.getString(TestUtils.OPERATOR)).thenReturn(TestUtils.EQUALS);
+    when(mockCriteria.getString(TestUtils.OPERATOR)).thenReturn(TestUtils.IS_EQUAL_TO);
     when(mockCriteria.has(VALUE)).thenReturn(true);
     when(mockCriteria.getString(VALUE)).thenReturn("moduleId");
 
@@ -132,7 +132,7 @@ public class ManageEntityFieldsDSAddCriteriaTest {
   @Test
   public void testSetFieldMapping() throws Exception {
     when(mockCriteria.getString(TestUtils.FIELD_NAME)).thenReturn(ManageEntityFieldConstants.FIELDMAPPING);
-    when(mockCriteria.getString(TestUtils.OPERATOR)).thenReturn(TestUtils.EQUALS);
+    when(mockCriteria.getString(TestUtils.OPERATOR)).thenReturn(TestUtils.IS_EQUAL_TO);
     when(mockCriteria.has(VALUE)).thenReturn(true);
     when(mockCriteria.getString(VALUE)).thenReturn("[\"value1\",\"value2\"]");
 
@@ -154,7 +154,7 @@ public class ManageEntityFieldsDSAddCriteriaTest {
   @Test
   public void testSetIsMandatory() throws Exception {
     when(mockCriteria.getString(TestUtils.FIELD_NAME)).thenReturn(ManageEntityFieldConstants.ISMANDATORY);
-    when(mockCriteria.getString(TestUtils.OPERATOR)).thenReturn(TestUtils.EQUALS);
+    when(mockCriteria.getString(TestUtils.OPERATOR)).thenReturn(TestUtils.IS_EQUAL_TO);
     when(mockCriteria.has(VALUE)).thenReturn(true);
     when(mockCriteria.getString(VALUE)).thenReturn("true");
     when(mockCriteria.getBoolean(VALUE)).thenReturn(true);
@@ -174,7 +174,7 @@ public class ManageEntityFieldsDSAddCriteriaTest {
   @Test
   public void testSetIsMandatoryInvalidValue() throws Exception {
     when(mockCriteria.getString(TestUtils.FIELD_NAME)).thenReturn(ManageEntityFieldConstants.ISMANDATORY);
-    when(mockCriteria.getString(TestUtils.OPERATOR)).thenReturn(TestUtils.EQUALS);
+    when(mockCriteria.getString(TestUtils.OPERATOR)).thenReturn(TestUtils.IS_EQUAL_TO);
     when(mockCriteria.has(VALUE)).thenReturn(true);
     when(mockCriteria.getString(VALUE)).thenReturn("invalid");
 
@@ -194,7 +194,7 @@ public class ManageEntityFieldsDSAddCriteriaTest {
   @Test
   public void testSetIdentifiesUnivocally() throws Exception {
     when(mockCriteria.getString(TestUtils.FIELD_NAME)).thenReturn(ManageEntityFieldConstants.IDENTIFIESUNIVOCALLY);
-    when(mockCriteria.getString(TestUtils.OPERATOR)).thenReturn(TestUtils.EQUALS);
+    when(mockCriteria.getString(TestUtils.OPERATOR)).thenReturn(TestUtils.IS_EQUAL_TO);
     when(mockCriteria.has(VALUE)).thenReturn(true);
     when(mockCriteria.getString(VALUE)).thenReturn("true");
     when(mockCriteria.getBoolean(VALUE)).thenReturn(true);
@@ -223,7 +223,7 @@ public class ManageEntityFieldsDSAddCriteriaTest {
 
     for (String[] testCase : testCases) {
       when(mockCriteria.getString(TestUtils.FIELD_NAME)).thenReturn(testCase[0]);
-      when(mockCriteria.getString(TestUtils.OPERATOR)).thenReturn(TestUtils.EQUALS);
+      when(mockCriteria.getString(TestUtils.OPERATOR)).thenReturn(TestUtils.IS_EQUAL_TO);
       when(mockCriteria.has(VALUE)).thenReturn(true);
       when(mockCriteria.getString(VALUE)).thenReturn(testCase[1]);
 
@@ -245,7 +245,7 @@ public class ManageEntityFieldsDSAddCriteriaTest {
   @Test
   public void testEntityFieldCreated() throws Exception {
     when(mockCriteria.getString(TestUtils.FIELD_NAME)).thenReturn(ManageEntityFieldConstants.ENTITYFIELDCREATED);
-    when(mockCriteria.getString(TestUtils.OPERATOR)).thenReturn(TestUtils.EQUALS);
+    when(mockCriteria.getString(TestUtils.OPERATOR)).thenReturn(TestUtils.IS_EQUAL_TO);
     when(mockCriteria.has(VALUE)).thenReturn(true);
     when(mockCriteria.getString(VALUE)).thenReturn("true");
     when(mockCriteria.getBoolean(VALUE)).thenReturn(true);
@@ -273,7 +273,7 @@ public class ManageEntityFieldsDSAddCriteriaTest {
 
     for (String[] testCase : testCases) {
       when(mockCriteria.getString(TestUtils.FIELD_NAME)).thenReturn(testCase[0]);
-      when(mockCriteria.getString(TestUtils.OPERATOR)).thenReturn(TestUtils.EQUALS);
+      when(mockCriteria.getString(TestUtils.OPERATOR)).thenReturn(TestUtils.IS_EQUAL_TO);
       when(mockCriteria.has(VALUE)).thenReturn(true);
       when(mockCriteria.getString(VALUE)).thenReturn(TestUtils.TEST_ID);
 
@@ -295,7 +295,7 @@ public class ManageEntityFieldsDSAddCriteriaTest {
   @Test
   public void testNoValuePresent() throws Exception {
     when(mockCriteria.getString(TestUtils.FIELD_NAME)).thenReturn(ManageEntityFieldConstants.NAME);
-    when(mockCriteria.getString(TestUtils.OPERATOR)).thenReturn(TestUtils.EQUALS);
+    when(mockCriteria.getString(TestUtils.OPERATOR)).thenReturn(TestUtils.IS_EQUAL_TO);
     when(mockCriteria.has(VALUE)).thenReturn(false);
 
     addCriteriaMethod.invoke(dataSource, filters, mockCriteria);

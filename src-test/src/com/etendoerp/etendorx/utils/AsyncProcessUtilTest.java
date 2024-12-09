@@ -138,10 +138,10 @@ public class AsyncProcessUtilTest {
         when(mockClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
             .thenThrow(new IOException("Test IO Exception"));
       } catch (IOException e) {
-        fail("Mock setup failed: " + e.getMessage());
+        fail(TestUtils.MOCK_SETUP_FAILED + e.getMessage());
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
-        fail("Mock setup failed: " + e.getMessage());
+        fail(TestUtils.MOCK_SETUP_FAILED + e.getMessage());
       }
 
       when(mockPropertiesProvider.getOpenbravoProperties()).thenReturn(mockProperties);
@@ -171,7 +171,7 @@ public class AsyncProcessUtilTest {
         when(mockClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
             .thenThrow(new InterruptedException("Test Interrupted Exception"));
       } catch (IOException e) {
-        fail("Mock setup failed: " + e.getMessage());
+        fail(TestUtils.MOCK_SETUP_FAILED + e.getMessage());
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
         throw new RuntimeException(e);

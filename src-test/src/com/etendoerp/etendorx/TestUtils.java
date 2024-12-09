@@ -1,6 +1,17 @@
 package com.etendoerp.etendorx;
 
+
+/**
+ * Utility class containing constant values used for testing purposes across the etendorx application.
+ * This class provides standardized test data, configuration values, and common strings
+ * used in test scenarios.
+ */
 public class TestUtils {
+
+  // Private constructor to prevent instantiation
+  private TestUtils() {
+    throw new IllegalStateException("Utility class");
+  }
 
   public static final String TEST_ASYNC_URL = "http://test.com/";
   public static final String TEST_ASYNC_TOKEN = "test-token";
@@ -30,7 +41,7 @@ public class TestUtils {
   public static final String CRITERIA = "criteria";
   public static final String RESULT_SHOULD_NOT_BE_NULL = "Result should not be null";
   public static final String FIELD_NAME = "fieldName";
-  public static final String EQUALS = "equals";
+  public static final String IS_EQUAL_TO = "equals";
   public static final String RELATED_ENTITY_1 = "Related Entity 1";
   public static final String RELATED_ENTITY_2 = "Related Entity 2";
   public static final String MODULE_1 = "module-1";
@@ -70,5 +81,6 @@ public class TestUtils {
   public static final String JM = "JM";
   public static final String MODULE_ID = "module-id";
   public static final String TEST_NAME= "TestName";
+  public static final String MOCK_SETUP_FAILED = "Mock setup failed: ";
 
 }

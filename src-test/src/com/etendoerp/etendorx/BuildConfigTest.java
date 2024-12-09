@@ -208,9 +208,7 @@ public class BuildConfigTest {
              MockedStatic<Preferences> mockedPreferences = mockStatic(Preferences.class);
              MockedStatic<RXConfigUtils> mockedRXConfig = mockStatic(RXConfigUtils.class)) {
 
-          String requestURL = "http://localhost:8080" + TestUtils.DEFAULT_CONFIG_PATH + TestUtils.AUTH;
-
-            mockedSWSConfig.when(SWSConfig::getInstance).thenReturn(swsConfig);
+          mockedSWSConfig.when(SWSConfig::getInstance).thenReturn(swsConfig);
 
             mockedPreferences.when(() -> Preferences.getPreferenceValue(anyString(), anyBoolean(),
                 (Client) any(), any(), any(), any(), any())).thenReturn("ES256");
@@ -237,7 +235,7 @@ public class BuildConfigTest {
         JSONObject propSource = new JSONObject();
         propSource.put("source", new JSONObject());
         propSources.put(propSource);
-        result.put("propertySources", propSources);
+        result.put(TestUtils.PROPERTY_SOURCES, propSources);
 
         JSONObject sourceJSON = new JSONObject();
         Integer indexFound = 0;
@@ -253,8 +251,8 @@ public class BuildConfigTest {
         verify(writer).write(responseCaptor.capture());
         String jsonResponse = responseCaptor.getValue();
         JSONObject jsonResponseObject = new JSONObject(jsonResponse);
-        assertTrue(jsonResponseObject.has("propertySources"));
-        assertEquals(1, jsonResponseObject.getJSONArray("propertySources").length());
+        assertTrue(jsonResponseObject.has(TestUtils.PROPERTY_SOURCES));
+        assertEquals(1, jsonResponseObject.getJSONArray(TestUtils.PROPERTY_SOURCES).length());
     }
 
 }
