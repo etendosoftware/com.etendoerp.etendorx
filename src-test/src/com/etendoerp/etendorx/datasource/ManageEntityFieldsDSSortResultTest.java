@@ -112,7 +112,7 @@ public class ManageEntityFieldsDSSortResultTest {
   @Test
   public void testApplyFiltersAndSortNameFilter() throws Exception {
     Map<String, String> parameters = new HashMap<>();
-    parameters.put("name", "test");
+    parameters.put(TestUtils.NAME, "test");
 
     List<Map<String, Object>> testData = new ArrayList<>();
     Map<String, Object> row1 = new HashMap<>();
@@ -141,7 +141,7 @@ public class ManageEntityFieldsDSSortResultTest {
   public void testApplyFiltersAndSortMultipleFilters() throws Exception {
     Map<String, String> parameters = new HashMap<>();
     parameters.put("ismandatory", "true");
-    parameters.put("name", "test");
+    parameters.put(TestUtils.NAME, "test");
 
     List<Map<String, Object>> testData = new ArrayList<>();
     Map<String, Object> row1 = new HashMap<>();

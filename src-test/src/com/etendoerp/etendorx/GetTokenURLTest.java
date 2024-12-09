@@ -83,7 +83,7 @@ public class GetTokenURLTest {
 
             mockedOBContext.when(OBContext::getOBContext).thenReturn(obContext);
             mockedOBDal.when(OBDal::getInstance).thenReturn(obDal);
-            mockedAuthUtils.when(() -> RXConfigUtils.getRXConfig("auth")).thenReturn(rxConfig);
+            mockedAuthUtils.when(() -> RXConfigUtils.getRXConfig(TestUtils.AUTH)).thenReturn(rxConfig);
 
             when(obContext.getUser()).thenReturn(user);
             when(user.getId()).thenReturn(userId);
@@ -131,7 +131,7 @@ public class GetTokenURLTest {
 
             mockedOBContext.when(OBContext::getOBContext).thenReturn(obContext);
             mockedOBDal.when(OBDal::getInstance).thenReturn(obDal);
-            mockedAuthUtils.when(() -> RXConfigUtils.getRXConfig("auth")).thenReturn(null);
+            mockedAuthUtils.when(() -> RXConfigUtils.getRXConfig(TestUtils.AUTH)).thenReturn(null);
             mockedOBMessageUtils.when(() -> OBMessageUtils.getI18NMessage("ETRX_NoConfigAuthFound"))
                 .thenReturn(errorMessage);
 

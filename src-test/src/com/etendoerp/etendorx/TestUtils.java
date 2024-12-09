@@ -21,7 +21,6 @@ public class TestUtils {
   public static final String JSON_KEY_TITLE = "title";
   public static final String ERROR_SEVERITY = "error";
   public static final String ERROR_TITLE = "ERROR";
-  public static final String AUTH = "/auth";
   public static final String APPLICATION_JSON = "application/json";
   public static final String UTF_8 = "utf-8";
   public static final String DEFAULT_CONFIG_PATH = "/etendorx/config";
@@ -82,5 +81,9 @@ public class TestUtils {
   public static final String MODULE_ID = "module-id";
   public static final String TEST_NAME= "TestName";
   public static final String MOCK_SETUP_FAILED = "Mock setup failed: ";
+  public static final String SOURCE = "source";
+  public static final String NAME = "name";
+  public static final String AUTH_ENDPOINT = "/auth" ;
+  public static final String AUTH = "auth" ;
 
 }

@@ -89,7 +89,7 @@ public class BuildConfigTest {
     @Test
     public void testGetURIFromRequest() throws Exception {
         String servletPath = TestUtils.DEFAULT_CONFIG_PATH;
-        String requestURL = "http://localhost:8080" + servletPath + TestUtils.AUTH;
+        String requestURL = "http://localhost:8080" + servletPath + TestUtils.AUTH_ENDPOINT;
         when(request.getServletPath()).thenReturn(servletPath);
         when(request.getRequestURL()).thenReturn(new StringBuffer(requestURL));
 
@@ -97,7 +97,7 @@ public class BuildConfigTest {
         method.setAccessible(true);
         String result = (String) method.invoke(buildConfig, request);
 
-        assertEquals(TestUtils.AUTH, result);
+        assertEquals(TestUtils.AUTH_ENDPOINT, result);
     }
 
     /**
@@ -110,19 +110,19 @@ public class BuildConfigTest {
     public void testFindSource() throws Exception {
         JSONArray propSource = new JSONArray();
         JSONObject sourceObj = new JSONObject();
-        sourceObj.put("name", "auth");
+        sourceObj.put(TestUtils.NAME, TestUtils.AUTH);
         JSONObject source = new JSONObject();
-        source.put("key", "value");
-        sourceObj.put("source", source);
+        source.put("key", TestUtils.VALUE);
+        sourceObj.put(TestUtils.SOURCE, source);
         propSource.put(sourceObj);
 
         Method method = BuildConfig.class.getDeclaredMethod("findSource", JSONArray.class, String.class);
         method.setAccessible(true);
         SimpleEntry<Integer, JSONObject> result =
-            (SimpleEntry<Integer, JSONObject>) method.invoke(buildConfig, propSource, "auth");
+            (SimpleEntry<Integer, JSONObject>) method.invoke(buildConfig, propSource, TestUtils.AUTH);
 
         assertEquals(0, result.getKey().intValue());
-        assertEquals("value", result.getValue().getString("key"));
+        assertEquals(TestUtils.VALUE, result.getValue().getString("key"));
     }
 
     /**
@@ -233,7 +233,7 @@ public class BuildConfigTest {
         JSONObject result = new JSONObject();
         JSONArray propSources = new JSONArray();
         JSONObject propSource = new JSONObject();
-        propSource.put("source", new JSONObject());
+        propSource.put(TestUtils.SOURCE, new JSONObject());
         propSources.put(propSource);
         result.put(TestUtils.PROPERTY_SOURCES, propSources);
 

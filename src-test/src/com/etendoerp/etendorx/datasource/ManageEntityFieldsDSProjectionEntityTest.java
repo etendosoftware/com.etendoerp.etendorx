@@ -119,13 +119,13 @@ public class ManageEntityFieldsDSProjectionEntityTest {
 
         Map<String, Object> firstResult = result.get(0);
         assertEquals("related-1", firstResult.get("id"));
-        assertEquals(TestUtils.RELATED_ENTITY_1, firstResult.get("name"));
+        assertEquals(TestUtils.RELATED_ENTITY_1, firstResult.get(TestUtils.NAME));
         assertEquals(TestUtils.RELATED_ENTITY_1, firstResult.get("_identifier"));
         assertEquals(ETRXProjectionEntity.ENTITY_NAME, firstResult.get("_entityName"));
 
         Map<String, Object> secondResult = result.get(1);
         assertEquals("related-2", secondResult.get("id"));
-        assertEquals(TestUtils.RELATED_ENTITY_2, secondResult.get("name"));
+        assertEquals(TestUtils.RELATED_ENTITY_2, secondResult.get(TestUtils.NAME));
         assertEquals(TestUtils.RELATED_ENTITY_2, secondResult.get("_identifier"));
         assertEquals(ETRXProjectionEntity.ENTITY_NAME, secondResult.get("_entityName"));
 

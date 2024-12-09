@@ -117,13 +117,13 @@ public class ManageEntityFieldsDSJavaMappingTest {
 
         Map<String, Object> firstResult = result.get(0);
         assertEquals("java-mapping-1", firstResult.get("id"));
-        assertEquals(TestUtils.JAVA_MAPPING_1, firstResult.get("name"));
+        assertEquals(TestUtils.JAVA_MAPPING_1, firstResult.get(TestUtils.NAME));
         assertEquals(TestUtils.JAVA_MAPPING_1, firstResult.get("_identifier"));
         assertEquals(ETRXJavaMapping.ENTITY_NAME, firstResult.get("_entityName"));
 
         Map<String, Object> secondResult = result.get(1);
         assertEquals("java-mapping-2", secondResult.get("id"));
-        assertEquals(TestUtils.JAVA_MAPPING_2, secondResult.get("name"));
+        assertEquals(TestUtils.JAVA_MAPPING_2, secondResult.get(TestUtils.NAME));
         assertEquals(TestUtils.JAVA_MAPPING_2, secondResult.get("_identifier"));
         assertEquals(ETRXJavaMapping.ENTITY_NAME, secondResult.get("_entityName"));
 

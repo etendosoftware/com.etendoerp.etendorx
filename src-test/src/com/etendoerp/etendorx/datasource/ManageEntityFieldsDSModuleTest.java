@@ -143,12 +143,12 @@ public class ManageEntityFieldsDSModuleTest {
 
         Map<String, Object> firstResult = result.get(0);
         assertEquals(TestUtils.MODULE_1, firstResult.get("id"));
-        assertEquals(TestUtils.MODULE_1_NAME, firstResult.get("name"));
+        assertEquals(TestUtils.MODULE_1_NAME, firstResult.get(TestUtils.NAME));
         assertEquals(Module.ENTITY_NAME, firstResult.get("_entityName"));
 
         Map<String, Object> projModuleResult = result.get(2);
         assertEquals("proj-module", projModuleResult.get("id"));
-        assertEquals("Projection Module", projModuleResult.get("name"));
+        assertEquals("Projection Module", projModuleResult.get(TestUtils.NAME));
 
         obContextMock.verify(OBContext::setAdminMode);
         obContextMock.verify(OBContext::restorePreviousMode);
@@ -203,7 +203,7 @@ public class ManageEntityFieldsDSModuleTest {
 
         Map<String, Object> devModuleResult = result.get(1);
         assertEquals("dev-module", devModuleResult.get("id"));
-        assertEquals("Dev Module", devModuleResult.get("name"));
+        assertEquals("Dev Module", devModuleResult.get(TestUtils.NAME));
 
         verify(obCriteria, times(3)).add(any(Criterion.class));
         verify(obCriteria).setMaxResults(1);

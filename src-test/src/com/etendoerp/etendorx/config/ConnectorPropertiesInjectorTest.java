@@ -77,11 +77,11 @@ public class ConnectorPropertiesInjectorTest {
    */
   private JSONObject createWorkerJSON() throws Exception {
     JSONObject sourceJSON = new JSONObject();
-    sourceJSON.put("name", "worker");
+    sourceJSON.put(TestUtils.NAME, "worker");
 
     JSONObject source = new JSONObject();
     JSONArray propertySources = new JSONArray();
-    propertySources.put(new JSONObject().put("source", source));
+    propertySources.put(new JSONObject().put(TestUtils.SOURCE, source));
     sourceJSON.put(TestUtils.PROPERTY_SOURCES, propertySources);
 
     return sourceJSON;
@@ -117,7 +117,7 @@ public class ConnectorPropertiesInjectorTest {
 
       JSONObject resultSource = sourceJSON.getJSONArray(TestUtils.PROPERTY_SOURCES)
           .getJSONObject(0)
-          .getJSONObject("source");
+          .getJSONObject(TestUtils.SOURCE);
 
       assertEquals(connectorId, resultSource.getString("connector.instance"));
       assertEquals(expectedToken, resultSource.getString("token"));
@@ -154,7 +154,7 @@ public class ConnectorPropertiesInjectorTest {
   @Test
   public void testInjectConfigNonWorkerService() throws Exception {
     JSONObject sourceJSON = new JSONObject();
-    sourceJSON.put("name", "other-service");
+    sourceJSON.put(TestUtils.NAME, "other-service");
 
     injector.injectConfig(sourceJSON);
 

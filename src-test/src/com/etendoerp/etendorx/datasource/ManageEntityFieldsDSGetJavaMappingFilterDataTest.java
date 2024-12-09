@@ -23,6 +23,7 @@ import org.mockito.junit.MockitoJUnitRunner;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBDal;
 
+import com.etendoerp.etendorx.TestUtils;
 import com.etendoerp.etendorx.data.ETRXJavaMapping;
 import com.etendoerp.etendorx.data.ETRXProjectionEntity;
 
@@ -130,7 +131,7 @@ public class ManageEntityFieldsDSGetJavaMappingFilterDataTest {
     assertEquals("Should return one record", 1, result.size());
     Map<String, Object> dataRecord = result.get(0);
     assertEquals("Should have correct id", expectedId, dataRecord.get("id"));
-    assertEquals("Should have correct name", expectedIdentifier, dataRecord.get("name"));
+    assertEquals("Should have correct name", expectedIdentifier, dataRecord.get(TestUtils.NAME));
     assertEquals("Should have correct identifier", expectedIdentifier, dataRecord.get("_identifier"));
     assertEquals("Should have correct entity name", ETRXJavaMapping.ENTITY_NAME, dataRecord.get("_entityName"));
   }

@@ -154,7 +154,7 @@ public class ManageEntityFieldsDSReadCriteriaTest {
   private String createSimpleCriteriaJson() throws Exception {
     JSONArray criteriaArray = new JSONArray();
     JSONObject criteria = new JSONObject();
-    criteria.put(TestUtils.FIELD_NAME, "name");
+    criteria.put(TestUtils.FIELD_NAME, TestUtils.NAME);
     criteria.put(TestUtils.VALUE, "Test Name");
     criteria.put(TestUtils.OPERATOR, TestUtils.IS_EQUAL_TO);
     criteriaArray.put(criteria);
@@ -180,7 +180,7 @@ public class ManageEntityFieldsDSReadCriteriaTest {
 
     JSONArray innerCriteria = new JSONArray();
     JSONObject criteria = new JSONObject();
-    criteria.put(TestUtils.FIELD_NAME, "name");
+    criteria.put(TestUtils.FIELD_NAME, TestUtils.NAME);
     criteria.put(TestUtils.VALUE, "Advanced Test");
     criteria.put(TestUtils.OPERATOR, TestUtils.IS_EQUAL_TO);
     innerCriteria.put(criteria);
