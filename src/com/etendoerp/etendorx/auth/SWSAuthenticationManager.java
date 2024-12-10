@@ -91,6 +91,11 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
   protected String doAuthenticate(HttpServletRequest request, HttpServletResponse response)
       throws AuthenticationException, ServletException, IOException {
 
+    response.setHeader("Access-Control-Allow-Origin", "*");
+    response.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS,PUT,DELETE");
+    response.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    response.setHeader("Access-Control-Allow-Credentials", "true");
+
     final VariablesSecureApp vars = new VariablesSecureApp(request);
     String receivedUser = vars.getStringParameter("user");
 
@@ -133,10 +138,6 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
         vars.setSessionValue("#AD_SESSION_ID", sessionId);
         vars.setSessionValue("#LogginIn", "Y");
 
-        response.setHeader("Access-Control-Allow-Origin", "*");
-        response.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS,PUT,DELETE");
-        response.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-        response.setHeader("Access-Control-Allow-Credentials", "true");
         return userId;
       }
     } finally {
