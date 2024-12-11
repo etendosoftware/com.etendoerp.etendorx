@@ -129,7 +129,7 @@ public class EntityFieldSelectedFiltersTest {
    */
   @Test
   public void testNullHandling() throws Exception {
-    for (String property : Arrays.asList(TestUtils.NAME, "Jsonpath", "Property", "Line")) {
+    for (String property : Arrays.asList("Name", "Jsonpath", "Property", "Line")) {
       Method setter = filtersClass.getDeclaredMethod("set" + property, String.class);
       Method getter = filtersClass.getDeclaredMethod("get" + property);
 
