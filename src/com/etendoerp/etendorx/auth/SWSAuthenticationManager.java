@@ -57,11 +57,11 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
       try {
         DecodedJWT decodedToken = SecureWebServicesUtils.decodeToken(token);
         if (decodedToken != null) {
-          String userId = decodedToken.getClaim("ad_user_id").asString();
-          String roleId = decodedToken.getClaim("ad_role_id").asString();
-          String orgId = decodedToken.getClaim("ad_org_id").asString();
+          String userId = decodedToken.getClaim("user").asString();
+          String roleId = decodedToken.getClaim("role").asString();
+          String orgId = decodedToken.getClaim("organization").asString();
           String warehouseId = decodedToken.getClaim("warehouse").asString();
-          String clientId = decodedToken.getClaim("ad_client_id").asString();
+          String clientId = decodedToken.getClaim("client").asString();
           if (StringUtils.isEmpty(userId) || StringUtils.isEmpty(roleId) || StringUtils.isEmpty(
               orgId) || StringUtils.isEmpty(warehouseId) || StringUtils.isEmpty(clientId)) {
             throw new OBException("SWS - Token is not valid");
@@ -87,23 +87,34 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
     return super.doWebServiceAuthenticate(request);
   }
 
+  protected void setCORSHeaders(HttpServletRequest request, HttpServletResponse response)
+      throws ServletException, IOException {
+
+    String origin = request.getHeader("Origin");
+
+    if (origin != null && !origin.equals("")) {
+      response.setHeader("Access-Control-Allow-Origin", origin);
+      response.setHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
+      response.setHeader("Access-Control-Allow-Credentials", "true");
+      response.setHeader("Access-Control-Allow-Headers",
+          "Content-Type, origin, accept, X-Requested-With");
+      response.setHeader("Access-Control-Max-Age", "1000");
+    }
+  }
+
   @Override
   protected String doAuthenticate(HttpServletRequest request, HttpServletResponse response)
       throws AuthenticationException, ServletException, IOException {
 
-    response.setHeader("Access-Control-Allow-Origin", "*");
-    response.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS,PUT,DELETE");
-    response.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-    response.setHeader("Access-Control-Allow-Credentials", "true");
-
-    final VariablesSecureApp vars = new VariablesSecureApp(request);
-    String receivedUser = vars.getStringParameter("user");
-
-    String token = vars.getStringParameter("access_token");
+    String token = request.getParameter("access_token");
     if (StringUtils.isEmpty(token)) {
       return super.doAuthenticate(request, response);
     }
+    String receivedUser = request.getParameter("user");
 
+    setCORSHeaders(request, response);
+
+    final VariablesSecureApp vars = new VariablesSecureApp(request);
     TokenVerifier.isValid(token,
       OBPropertiesProvider.getInstance().getOpenbravoProperties().getProperty("OAUTH2_SECRET"));
 
