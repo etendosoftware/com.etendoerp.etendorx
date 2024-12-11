@@ -93,7 +93,7 @@ public class GetTokenURLTest {
             when(rxConfig.getPublicURL()).thenReturn(publicURL);
 
             JSONObject content = new JSONObject();
-            content.put("id", oAuthProviderId);
+            content.put(TestUtils.ID, oAuthProviderId);
 
             JSONObject result = getTokenURL.execute(new HashMap<>(), content.toString());
 
@@ -138,7 +138,7 @@ public class GetTokenURLTest {
             when(obDal.get(ETRXoAuthProvider.class, oAuthProviderId)).thenReturn(oauthProvider);
 
             JSONObject content = new JSONObject();
-            content.put("id", oAuthProviderId);
+            content.put(TestUtils.ID, oAuthProviderId);
 
             JSONObject result = getTokenURL.execute(new HashMap<>(), content.toString());
 

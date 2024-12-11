@@ -114,13 +114,13 @@ public class ManageEntityFieldsDSConstantValueTest {
         assertEquals(2, result.size());
 
         Map<String, Object> firstResult = result.get(0);
-        assertEquals("cv-1", firstResult.get("id"));
+        assertEquals("cv-1", firstResult.get(TestUtils.ID));
         assertEquals(TestUtils.CONSTANT_ONE, firstResult.get("name"));
         assertEquals(TestUtils.CONSTANT_ONE, firstResult.get("_identifier"));
         assertEquals(ConstantValue.ENTITY_NAME, firstResult.get("_entityName"));
 
         Map<String, Object> secondResult = result.get(1);
-        assertEquals("cv-2", secondResult.get("id"));
+        assertEquals("cv-2", secondResult.get(TestUtils.ID));
         assertEquals(TestUtils.CONSTANT_TWO, secondResult.get("name"));
         assertEquals(TestUtils.CONSTANT_TWO, secondResult.get("_identifier"));
         assertEquals(ConstantValue.ENTITY_NAME, secondResult.get("_entityName"));

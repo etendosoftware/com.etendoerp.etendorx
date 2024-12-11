@@ -85,5 +85,18 @@ public class TestUtils {
   public static final String NAME = "name";
   public static final String AUTH_ENDPOINT = "/auth" ;
   public static final String AUTH = "auth" ;
+  public static final String AD_IMAGE_ID = "AD_Image_ID" ;
+  public static final String TEST_SELECTOR_ID = "testSelectorId";
+  public static final String TEST_TABLE_ID = "testTableId";
+  public static final String ETRX_WRONG_ENTITY_NAME = "ETRX_WrongEntityName";
+  public static final String GET_JAVA_MAPPING_IDS = "getJavaMappingIds";
+  public static final String GET_MODULE_IDS = "getModuleIds";
+  public static final String ID = "id";
+  public static final String STATE = "state";
+  public static final String TIME = "time";
+  public static final String DESCRIPTION = "description";
+  public static final String PARAMS = "params";
+  public static final String LOG = "log";
+  public static final String LAST_UPDATE = "lastUpdate" ;
 
 }

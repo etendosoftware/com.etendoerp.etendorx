@@ -142,12 +142,12 @@ public class ManageEntityFieldsDSModuleTest {
         assertEquals(3, result.size());
 
         Map<String, Object> firstResult = result.get(0);
-        assertEquals(TestUtils.MODULE_1, firstResult.get("id"));
+        assertEquals(TestUtils.MODULE_1, firstResult.get(TestUtils.ID));
         assertEquals(TestUtils.MODULE_1_NAME, firstResult.get(TestUtils.NAME));
         assertEquals(Module.ENTITY_NAME, firstResult.get("_entityName"));
 
         Map<String, Object> projModuleResult = result.get(2);
-        assertEquals("proj-module", projModuleResult.get("id"));
+        assertEquals("proj-module", projModuleResult.get(TestUtils.ID));
         assertEquals("Projection Module", projModuleResult.get(TestUtils.NAME));
 
         obContextMock.verify(OBContext::setAdminMode);
@@ -199,10 +199,10 @@ public class ManageEntityFieldsDSModuleTest {
         assertEquals(2, result.size());
 
         Map<String, Object> firstResult = result.get(0);
-        assertEquals(TestUtils.MODULE_1, firstResult.get("id"));
+        assertEquals(TestUtils.MODULE_1, firstResult.get(TestUtils.ID));
 
         Map<String, Object> devModuleResult = result.get(1);
-        assertEquals("dev-module", devModuleResult.get("id"));
+        assertEquals("dev-module", devModuleResult.get(TestUtils.ID));
         assertEquals("Dev Module", devModuleResult.get(TestUtils.NAME));
 
         verify(obCriteria, times(3)).add(any(Criterion.class));

@@ -62,11 +62,11 @@ public class EntityFieldSelectedFiltersTest {
     assertNotNull("SelectedIds should be initialized",
         filtersClass.getMethod("getSelectedIds").invoke(filters));
     assertNotNull("ModuleIds should be initialized",
-        filtersClass.getMethod("getModuleIds").invoke(filters));
+        filtersClass.getMethod(TestUtils.GET_MODULE_IDS).invoke(filters));
     assertNotNull("FieldMappingIds should be initialized",
         filtersClass.getMethod("getFieldMappingIds").invoke(filters));
     assertNotNull("JavaMappingIds should be initialized",
-        filtersClass.getMethod("getJavaMappingIds").invoke(filters));
+        filtersClass.getMethod(TestUtils.GET_JAVA_MAPPING_IDS).invoke(filters));
   }
 
   /**
@@ -88,7 +88,7 @@ public class EntityFieldSelectedFiltersTest {
     }
 
     for (String methodName : Arrays.asList(
-        "getSelectedIds", "getModuleIds", "getJavaMappingIds",
+        "getSelectedIds", TestUtils.GET_MODULE_IDS, TestUtils.GET_JAVA_MAPPING_IDS,
         "getFieldMappingIds", "getEtrxProjectionEntityRelatedIds", "getEtrxConstantValueIds")) {
       @SuppressWarnings("unchecked")
       List<String> collection = (List<String>) filtersClass.getMethod(methodName).invoke(filters);
@@ -129,7 +129,7 @@ public class EntityFieldSelectedFiltersTest {
    */
   @Test
   public void testNullHandling() throws Exception {
-    for (String property : Arrays.asList("Name", "Jsonpath", "Property", "Line")) {
+    for (String property : Arrays.asList(TestUtils.NAME, "Jsonpath", "Property", "Line")) {
       Method setter = filtersClass.getDeclaredMethod("set" + property, String.class);
       Method getter = filtersClass.getDeclaredMethod("get" + property);
 

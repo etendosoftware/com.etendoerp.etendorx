@@ -117,7 +117,7 @@ public class ManageEntityFieldsDSAddCriteriaTest {
     addCriteriaMethod.invoke(dataSource, filters, mockCriteria);
 
     @SuppressWarnings("unchecked")
-    List<String> moduleIds = (List<String>) filtersClass.getMethod("getModuleIds").invoke(filters);
+    List<String> moduleIds = (List<String>) filtersClass.getMethod(TestUtils.GET_MODULE_IDS).invoke(filters);
     assertTrue(moduleIds.contains("moduleId"));
   }
 
@@ -266,7 +266,7 @@ public class ManageEntityFieldsDSAddCriteriaTest {
   @Test
   public void testAddRelatedIds() throws Exception {
     String[][] testCases = {
-        {ManageEntityFieldConstants.JAVAMAPPING, "getJavaMappingIds"},
+        {ManageEntityFieldConstants.JAVAMAPPING, TestUtils.GET_JAVA_MAPPING_IDS},
         {ManageEntityFieldConstants.ETRXPROJECTIONENTITYRELATED, "getEtrxProjectionEntityRelatedIds"},
         {ManageEntityFieldConstants.ETRXCONSTANTVALUE, "getEtrxConstantValueIds"}
     };

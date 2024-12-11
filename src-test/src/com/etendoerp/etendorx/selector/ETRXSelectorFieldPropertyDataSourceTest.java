@@ -59,8 +59,7 @@ public class ETRXSelectorFieldPropertyDataSourceTest extends OBBaseTest {
   @Mock
   private Table mockTable;
 
-  private static final String TEST_SELECTOR_ID = "testSelectorId";
-  private static final String TEST_TABLE_ID = "testTableId";
+
 
   /**
    * Sets up the test environment by initializing mocks and setting up basic behaviors.
@@ -82,7 +81,7 @@ public class ETRXSelectorFieldPropertyDataSourceTest extends OBBaseTest {
   public void testGetBaseEntityWithValidSelector() {
     // Arrange
     Map<String, String> parameters = new HashMap<>();
-    parameters.put("inpobuiselSelectorId", TEST_SELECTOR_ID);
+    parameters.put("inpobuiselSelectorId", TestUtils.TEST_SELECTOR_ID);
 
     try (MockedStatic<OBDal> obDalMock = mockStatic(OBDal.class);
          MockedStatic<ModelProvider> modelProviderMock = mockStatic(ModelProvider.class)) {
@@ -90,7 +89,7 @@ public class ETRXSelectorFieldPropertyDataSourceTest extends OBBaseTest {
       obDalMock.when(OBDal::getInstance).thenReturn(mockOBDal);
       modelProviderMock.when(ModelProvider::getInstance).thenReturn(mockModelProvider);
 
-      when(mockOBDal.get(Selector.class, TEST_SELECTOR_ID)).thenReturn(mockSelector);
+      when(mockOBDal.get(Selector.class, TestUtils.TEST_SELECTOR_ID)).thenReturn(mockSelector);
       when(mockSelector.getTable()).thenReturn(mockTable);
       when(mockTable.getName()).thenReturn(TestUtils.TEST_TABLE);
       when(mockModelProvider.getEntity(TestUtils.TEST_TABLE)).thenReturn(mockEntity);
@@ -109,7 +108,7 @@ public class ETRXSelectorFieldPropertyDataSourceTest extends OBBaseTest {
   @Test
   public void testCheckFetchDatasourceAccessWithValidAccess() {
     Map<String, String> parameters = new HashMap<>();
-    parameters.put("inpTableId", TEST_TABLE_ID);
+    parameters.put("inpTableId", TestUtils.TEST_TABLE_ID);
 
     try (MockedStatic<OBContext> contextMock = mockStatic(OBContext.class);
          MockedStatic<ModelProvider> modelProviderMock = mockStatic(ModelProvider.class)) {
@@ -117,7 +116,7 @@ public class ETRXSelectorFieldPropertyDataSourceTest extends OBBaseTest {
       contextMock.when(OBContext::getOBContext).thenReturn(mockContext);
       modelProviderMock.when(ModelProvider::getInstance).thenReturn(mockModelProvider);
 
-      when(mockModelProvider.getEntityByTableId(TEST_TABLE_ID)).thenReturn(mockEntity);
+      when(mockModelProvider.getEntityByTableId(TestUtils.TEST_TABLE_ID)).thenReturn(mockEntity);
       when(mockContext.getEntityAccessChecker()).thenReturn(mock(org.openbravo.dal.security.EntityAccessChecker.class));
 
       dataSource.checkFetchDatasourceAccess(parameters);
@@ -139,7 +138,7 @@ public class ETRXSelectorFieldPropertyDataSourceTest extends OBBaseTest {
 
     when(imageProperty.getName()).thenReturn("imageProperty");
     when(imageProperty.getReferencedProperty()).thenReturn(referencedProperty);
-    when(referencedProperty.getColumnName()).thenReturn("AD_Image_ID");
+    when(referencedProperty.getColumnName()).thenReturn(TestUtils.AD_IMAGE_ID);
 
     List<Property> properties = new ArrayList<>();
     properties.add(normalProperty);

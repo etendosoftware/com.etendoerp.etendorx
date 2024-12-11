@@ -1,5 +1,6 @@
 package com.etendoerp.etendorx.datasource;
 
+import com.etendoerp.etendorx.TestUtils;
 import com.etendoerp.etendorx.utils.AsyncProcessUtil;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -94,17 +95,17 @@ public class AsyncProcessLogsDSTest {
   private List<Map<String, Object>> getMockData() {
     List<Map<String, Object>> mockData = new ArrayList<>();
     Map<String, Object> row1 = new HashMap<>();
-    row1.put("id", "1");
-    row1.put("state", "RUNNING");
-    row1.put("lastUpdate", "2023-04-01 10:00:00");
-    row1.put("description", "Test process 1");
+    row1.put(TestUtils.ID, "1");
+    row1.put(TestUtils.STATE, "RUNNING");
+    row1.put(TestUtils.LAST_UPDATE, "2023-04-01 10:00:00");
+    row1.put(TestUtils.DESCRIPTION, "Test process 1");
     mockData.add(row1);
 
     Map<String, Object> row2 = new HashMap<>();
-    row2.put("id", "2");
-    row2.put("state", "COMPLETED");
-    row2.put("lastUpdate", "2023-04-02 15:30:00");
-    row2.put("description", "Test process 2");
+    row2.put(TestUtils.ID, "2");
+    row2.put(TestUtils.STATE, "COMPLETED");
+    row2.put(TestUtils.LAST_UPDATE, "2023-04-02 15:30:00");
+    row2.put(TestUtils.DESCRIPTION, "Test process 2");
     mockData.add(row2);
 
     return mockData;

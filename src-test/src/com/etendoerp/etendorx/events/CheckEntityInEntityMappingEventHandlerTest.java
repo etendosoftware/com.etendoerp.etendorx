@@ -143,7 +143,7 @@ public class CheckEntityInEntityMappingEventHandlerTest {
       when(providerInstance.getEntity(eq(TestUtils.INVALID_ENTITY), eq(false))).thenReturn(null);
 
       mockedUtils.when(() -> OBMessageUtils.getI18NMessage(
-              eq("ETRX_WrongEntityName"),
+              eq(TestUtils.ETRX_WRONG_ENTITY_NAME),
               any(String[].class)))
           .thenReturn("Entity not found");
 
@@ -171,7 +171,7 @@ public class CheckEntityInEntityMappingEventHandlerTest {
       when(providerInstance.getEntity(eq(TestUtils.INVALID_ENTITY), eq(false))).thenReturn(null);
 
       mockedUtils.when(() -> OBMessageUtils.getI18NMessage(
-              eq("ETRX_WrongEntityName"),
+              eq(TestUtils.ETRX_WRONG_ENTITY_NAME),
               any(String[].class)))
           .thenReturn("Entity not found");
 

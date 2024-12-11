@@ -129,7 +129,7 @@ public class ManageEntityFieldsDSTest {
     assertEquals(1, result.size());
 
     Map<String, Object> moduleData = result.get(0);
-    assertEquals("testModuleId", moduleData.get("id"));
+    assertEquals("testModuleId", moduleData.get(TestUtils.ID));
     assertEquals(TestUtils.TEST_MODULE, moduleData.get(TestUtils.NAME));
     assertEquals(TestUtils.TEST_MODULE, moduleData.get("_identifier"));
     assertEquals(Module.ENTITY_NAME, moduleData.get("_entityName"));

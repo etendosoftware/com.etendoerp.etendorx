@@ -104,7 +104,7 @@ public class ManageEntityFieldsDSJavaMappingTest {
         obDalMock.when(OBDal::getInstance).thenReturn(obDal);
         when(obDal.getSession()).thenReturn(session);
         when(session.createQuery(anyString(), eq(ETRXJavaMapping.class))).thenReturn(query);
-        when(query.setParameter(eq("etrxProjectionEntityId"), any())).thenReturn(query);
+        when(query.setParameter(eq(TestUtils.ETRX_PROJECTION_ENTITY_ID), any())).thenReturn(query);
         when(query.list()).thenReturn(mockJavaMappings);
 
         @SuppressWarnings("unchecked")
@@ -116,13 +116,13 @@ public class ManageEntityFieldsDSJavaMappingTest {
         assertEquals(2, result.size());
 
         Map<String, Object> firstResult = result.get(0);
-        assertEquals("java-mapping-1", firstResult.get("id"));
+        assertEquals("java-mapping-1", firstResult.get(TestUtils.ID));
         assertEquals(TestUtils.JAVA_MAPPING_1, firstResult.get(TestUtils.NAME));
         assertEquals(TestUtils.JAVA_MAPPING_1, firstResult.get("_identifier"));
         assertEquals(ETRXJavaMapping.ENTITY_NAME, firstResult.get("_entityName"));
 
         Map<String, Object> secondResult = result.get(1);
-        assertEquals("java-mapping-2", secondResult.get("id"));
+        assertEquals("java-mapping-2", secondResult.get(TestUtils.ID));
         assertEquals(TestUtils.JAVA_MAPPING_2, secondResult.get(TestUtils.NAME));
         assertEquals(TestUtils.JAVA_MAPPING_2, secondResult.get("_identifier"));
         assertEquals(ETRXJavaMapping.ENTITY_NAME, secondResult.get("_entityName"));
@@ -153,7 +153,7 @@ public class ManageEntityFieldsDSJavaMappingTest {
         obDalMock.when(OBDal::getInstance).thenReturn(obDal);
         when(obDal.getSession()).thenReturn(session);
         when(session.createQuery(anyString(), eq(ETRXJavaMapping.class))).thenReturn(query);
-        when(query.setParameter(eq("etrxProjectionEntityId"), any())).thenReturn(query);
+        when(query.setParameter(eq(TestUtils.ETRX_PROJECTION_ENTITY_ID), any())).thenReturn(query);
         when(query.list()).thenReturn(List.of());
 
         @SuppressWarnings("unchecked")
