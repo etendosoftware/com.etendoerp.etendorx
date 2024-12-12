@@ -1,8 +1,10 @@
 package com.etendoerp.etendorx.openapi;
 
+import com.etendoerp.openapi.data.OpenAPIRequest;
 import com.etendoerp.openapi.data.OpenApiFlow;
 import com.etendoerp.openapi.data.OpenApiFlowPoint;
 import com.etendoerp.openapi.model.OpenAPIEndpoint;
+
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.Operation;
 import io.swagger.v3.oas.models.PathItem;
@@ -16,6 +18,7 @@ import io.swagger.v3.oas.models.parameters.RequestBody;
 import io.swagger.v3.oas.models.responses.ApiResponse;
 import io.swagger.v3.oas.models.responses.ApiResponses;
 import io.swagger.v3.oas.models.tags.Tag;
+
 import org.apache.commons.lang3.StringUtils;
 import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
@@ -27,6 +30,7 @@ import org.openbravo.model.ad.ui.Field;
 import org.openbravo.model.ad.ui.Tab;
 
 import javax.enterprise.context.ApplicationScoped;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -69,7 +73,8 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
   /**
    * Checks if the provided tag is valid.
    *
-   * @param tag the tag to check.
+   * @param tag
+   *     the tag to check.
    * @return true if the tag is valid, false otherwise.
    */
   @Override
@@ -92,19 +97,23 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
   /**
    * Adds OpenAPI documentation for the dynamic datasources.
    *
-   * @param openAPI the OpenAPI object to add documentation to.
+   * @param openAPI
+   *     the OpenAPI object to add documentation to.
    */
   @Override
   public void add(OpenAPI openAPI) {
     try {
       OBContext.setAdminMode();
+      HashMap<String, String> descriptions = new HashMap<>();
       getFlows().forEach(flow -> {
         if (requestedTag.get() == null || StringUtils.equals(requestedTag.get(), flow.getName())) {
           var endpoints = flow.getETAPIOpenApiFlowPointList();
           for (OpenApiFlowPoint endpoint : endpoints) {
-            if (!endpoint.getEtapiOpenapiReq().getETRXOpenAPITabList().isEmpty()) {
-              addDefinition(openAPI, flow.getName(), endpoint.getEtapiOpenapiReq().getName(),
-                  endpoint.getEtapiOpenapiReq().getETRXOpenAPITabList().get(0).getRelatedTabs());
+            OpenAPIRequest etapiOpenapiReq = endpoint.getEtapiOpenapiReq();
+            if (!etapiOpenapiReq.getETRXOpenAPITabList().isEmpty()) {
+              descriptions.put(etapiOpenapiReq.getName(), etapiOpenapiReq.getDescription());
+              addDefinition(openAPI, flow.getName(), etapiOpenapiReq.getName(),
+                  etapiOpenapiReq.getETRXOpenAPITabList().get(0).getRelatedTabs());
             }
           }
           Tag tag = new Tag().name(flow.getName()).description(flow.getDescription());
@@ -114,6 +123,13 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
           openAPI.getTags().add(tag);
         }
       });
+      var info = openAPI.getInfo();
+      StringBuilder sb = new StringBuilder();
+      sb.append("Dynamic Datasource API endpoints descriptions:\n");
+      for (String key : descriptions.keySet()) {
+        sb.append(key).append(": ").append(descriptions.get(key)).append("\n");
+      }
+      info.setDescription(String.format("%s\n%s", info.getDescription(), sb.toString()));
     } finally {
       requestedTag.remove();
       OBContext.restorePreviousMode();
@@ -123,10 +139,14 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
   /**
    * Adds a definition to the OpenAPI object.
    *
-   * @param openAPI    the OpenAPI object to add the definition to.
-   * @param tag        the tag for the definition.
-   * @param entityName the name of the entity.
-   * @param tab        the Tab object containing the fields.
+   * @param openAPI
+   *     the OpenAPI object to add the definition to.
+   * @param tag
+   *     the tag for the definition.
+   * @param entityName
+   *     the name of the entity.
+   * @param tab
+   *     the Tab object containing the fields.
    */
   private void addDefinition(OpenAPI openAPI, String tag, String entityName, Tab tab) {
 
@@ -272,7 +292,8 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
   /**
    * Checks if a field is mandatory.
    *
-   * @param adField the field to check.
+   * @param adField
+   *     the field to check.
    * @return true if the field is mandatory, false otherwise.
    */
   private boolean isMandatory(Field adField) {
@@ -282,7 +303,8 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
   /**
    * Converts a field to a normalized name.
    *
-   * @param field the field to convert.
+   * @param field
+   *     the field to convert.
    * @return the normalized name of the field.
    */
   private String convertField(Field field) {
@@ -292,8 +314,10 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
   /**
    * Creates an endpoint in the OpenAPI object.
    *
-   * @param openAPI the OpenAPI object to add the endpoint to.
-   * @param config  the configuration for the endpoint.
+   * @param openAPI
+   *     the OpenAPI object to add the endpoint to.
+   * @param config
+   *     the configuration for the endpoint.
    */
   private void createEndpoint(OpenAPI openAPI, EndpointConfig config) {
 
@@ -360,9 +384,12 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
   /**
    * Creates an ApiResponse object.
    *
-   * @param description the description of the response.
-   * @param schema      the schema of the response.
-   * @param example     the example of the response.
+   * @param description
+   *     the description of the response.
+   * @param schema
+   *     the schema of the response.
+   * @param example
+   *     the example of the response.
    * @return the created ApiResponse object.
    */
   private ApiResponse createApiResponse(String description, Schema<?> schema, String example) {
@@ -374,11 +401,16 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
   /**
    * Creates a Parameter object.
    *
-   * @param name        the name of the parameter.
-   * @param required    whether the parameter is required.
-   * @param type        the type of the parameter.
-   * @param example     the example of the parameter.
-   * @param description the description of the parameter.
+   * @param name
+   *     the name of the parameter.
+   * @param required
+   *     whether the parameter is required.
+   * @param type
+   *     the type of the parameter.
+   * @param example
+   *     the example of the parameter.
+   * @param description
+   *     the description of the parameter.
    * @return the created Parameter object.
    */
   private Parameter createParameter(String name, boolean required, String type, String example,
@@ -393,9 +425,12 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
   /**
    * Adds a schema to the OpenAPI object.
    *
-   * @param openAPI the OpenAPI object to add the schema to.
-   * @param key     the key for the schema.
-   * @param schema  the schema to add.
+   * @param openAPI
+   *     the OpenAPI object to add the schema to.
+   * @param key
+   *     the key for the schema.
+   * @param schema
+   *     the schema to add.
    */
   private void addSchema(OpenAPI openAPI, String key, Schema<?> schema) {
     if (openAPI.getComponents() == null) {
@@ -412,7 +447,8 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
   /**
    * Defines the schema for the form initialization request.
    *
-   * @param fields the list of fields.
+   * @param fields
+   *     the list of fields.
    * @return the defined schema.
    */
   private Schema<?> defineFormInitRequestSchema(List<Field> fields) {
@@ -435,7 +471,8 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
   /**
    * Defines the schema for the form initialization response.
    *
-   * @param fields the list of fields.
+   * @param fields
+   *     the list of fields.
    * @return the defined schema.
    */
   private Schema<?> defineFormInitResponseSchema(List<Field> fields) {
@@ -453,7 +490,8 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
   /**
    * Defines the schema for a data item.
    *
-   * @param fields the list of fields.
+   * @param fields
+   *     the list of fields.
    * @return the defined schema.
    */
   private Schema<?> defineDataItemSchema(List<Field> fields) {
@@ -474,7 +512,8 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
   /**
    * Defines the schema for the response.
    *
-   * @param fields the list of fields.
+   * @param fields
+   *     the list of fields.
    * @return the defined schema.
    */
   private Schema<?> defineResponseSchema(List<Field> fields) {
