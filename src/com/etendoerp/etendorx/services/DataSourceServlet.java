@@ -6,6 +6,7 @@ import com.etendoerp.etendorx.services.wrapper.EtendoResponseWrapper;
 import com.etendoerp.etendorx.services.wrapper.RequestField;
 import com.etendoerp.openapi.data.OpenAPIRequest;
 import com.smf.securewebservices.rsql.OBRestUtils;
+
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.entity.ContentType;
 import org.apache.logging.log4j.LogManager;
@@ -30,6 +31,7 @@ import org.openbravo.service.web.WebService;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -58,9 +60,12 @@ public class DataSourceServlet implements WebService {
   /**
    * Handles HTTP GET requests.
    *
-   * @param path     the HttpRequest.getPathInfo(), the part of the url after the context path
-   * @param request  the HttpServletRequest
-   * @param response the HttpServletResponse
+   * @param path
+   *     the HttpRequest.getPathInfo(), the part of the url after the context path
+   * @param request
+   *     the HttpServletRequest
+   * @param response
+   *     the HttpServletResponse
    * @throws Exception
    */
   @Override
@@ -86,29 +91,29 @@ public class DataSourceServlet implements WebService {
       while (paramNames.hasMoreElements()) {
         String param = paramNames.nextElement();
         if (!StringUtils.equals(param, "q")) {
-          params.put(param, new String[] { request.getParameter(param) });
+          params.put(param, new String[]{ request.getParameter(param) });
         }
       }
-      params.put("isImplicitFilterApplied", new String[] { "false" });
-      params.put("_operationType", new String[] { "fetch" });
-      params.put("_noActiveFilter", new String[] { "true" });
-      params.put("operator", new String[] { "and" });
-      params.put("_constructor", new String[] { "AdvancedCriteria" });
+      params.put("isImplicitFilterApplied", new String[]{ "false" });
+      params.put("_operationType", new String[]{ "fetch" });
+      params.put("_noActiveFilter", new String[]{ "true" });
+      params.put("operator", new String[]{ "and" });
+      params.put("_constructor", new String[]{ "AdvancedCriteria" });
       if (!StringUtils.isEmpty(rsql)) {
         // url encode criteria
         convertCriterion(params, rsql);
       }
       if (!params.containsKey("_startRow")) {
-        params.put("_startRow", new String[] { "0" });
+        params.put("_startRow", new String[]{ "0" });
       }
       if (!params.containsKey("_endRow")) {
-        params.put("_endRow", new String[] { "100" });
+        params.put("_endRow", new String[]{ "100" });
       }
-      params.put("_textMatchStyle", new String[] { "substring" });
+      params.put("_textMatchStyle", new String[]{ "substring" });
 
       String csrf = "123";
       request.getSession(false).setAttribute("#CSRF_TOKEN", csrf);
-      params.put("csrfToken", new String[] { csrf });
+      params.put("csrfToken", new String[]{ csrf });
 
       var newRequest = new EtendoRequestWrapper(request, dataSourceName, "", params);
       var newResponse = new EtendoResponseWrapper(response);
@@ -153,7 +158,7 @@ public class DataSourceServlet implements WebService {
     try {
       var criteria = OBRestUtils.criteriaFromRSQL(rsql);
       criteria.put("_constructor", "AdvancedCriteria");
-      params.put("criteria", new String[] { criteria.toString() });
+      params.put("criteria", new String[]{ criteria.toString() });
     } catch (JSONException e) {
       throw new OBException("Cannot convert RSQL to criteria " + rsql, e);
     }
@@ -178,7 +183,6 @@ public class DataSourceServlet implements WebService {
    * Creates the payload for the POST request.
    *
    * @param request
-   * @return
    */
   private JSONObject createPayLoad(HttpServletRequest request) {
     String csrf = "123";
@@ -213,9 +217,12 @@ public class DataSourceServlet implements WebService {
   /**
    * Dispatches the POST request to the DataSourceServlet.
    *
-   * @param path     the HttpRequest.getPathInfo(), the part of the url after the context path
-   * @param request  the HttpServletRequest
-   * @param response the HttpServletResponse
+   * @param path
+   *     the HttpRequest.getPathInfo(), the part of the url after the context path
+   * @param request
+   *     the HttpServletRequest
+   * @param response
+   *     the HttpServletResponse
    */
   @Override
   public void doPost(String path, HttpServletRequest request, HttpServletResponse response) {
@@ -297,7 +304,6 @@ public class DataSourceServlet implements WebService {
    * @param request
    * @param response
    * @param fieldList
-   * @return
    * @throws ServletException
    * @throws DefaultValidationException
    * @throws IOException
@@ -347,7 +353,6 @@ public class DataSourceServlet implements WebService {
    * @param newJsonBody
    * @param fieldList
    * @param newUri
-   * @return
    * @throws JSONException
    * @throws IOException
    * @throws OpenAPINotFoundThrowable
@@ -384,7 +389,6 @@ public class DataSourceServlet implements WebService {
    * @param fieldList
    * @param newUri
    * @param path
-   * @return
    * @throws JSONException
    * @throws IOException
    * @throws ServletException
@@ -422,7 +426,6 @@ public class DataSourceServlet implements WebService {
    * @param method
    * @param request
    * @param tabId
-   * @return
    */
   private static Map<String, Object> createParameters(String method, HttpServletRequest request,
       String tabId) {
@@ -439,10 +442,9 @@ public class DataSourceServlet implements WebService {
   }
 
   /**
-   * Normalizes the param name.
+   * Normalizes the param name. The first word is in lower case and the rest in upper case.
    *
    * @param name
-   * @return
    */
   public static String normalizedName(String name) {
     if (StringUtils.equals(name, "AD_Role_ID")) {
@@ -454,7 +456,12 @@ public class DataSourceServlet implements WebService {
     }
 
     StringBuilder retName = new StringBuilder();
-    String[] parts = StringUtils.replaceChars(name, ".-", "").split(" ");
+    String removeSpecialChars = StringUtils.replaceChars(name, ".-/", "");
+    //remove multiple Spaces, replacing with single
+    while (removeSpecialChars.contains("  ")) {
+      removeSpecialChars = StringUtils.replace(removeSpecialChars, "  ", " ");
+    }
+    String[] parts = removeSpecialChars.split(" ");
 
     for (int i = 0; i < parts.length; i++) {
       if (StringUtils.isNotEmpty(parts[i])) {
@@ -475,7 +482,6 @@ public class DataSourceServlet implements WebService {
    *
    * @param fieldList
    * @param key
-   * @return
    */
   private String normalizedKey(List<RequestField> fieldList, String key) {
     for (RequestField field : fieldList) {
@@ -490,7 +496,6 @@ public class DataSourceServlet implements WebService {
    * Extracts the data source and ID from the request URI.
    *
    * @param requestURI
-   * @return
    */
   static String[] extractDataSourceAndID(String requestURI) {
     String[] parts = requestURI.split("/");
@@ -501,14 +506,13 @@ public class DataSourceServlet implements WebService {
     String dataSourceName = parts[1];
     String id = (parts.length > 2) ? parts[2] : null;
 
-    return id != null ? new String[] { dataSourceName, id } : new String[] { dataSourceName };
+    return id != null ? new String[]{ dataSourceName, id } : new String[]{ dataSourceName };
   }
 
   /**
    * Converts the request URI to the new URI.
    *
    * @param requestURI
-   * @return
    * @throws OpenAPINotFoundThrowable
    */
   String convertURI(String requestURI) throws OpenAPINotFoundThrowable {
@@ -560,9 +564,12 @@ public class DataSourceServlet implements WebService {
   /**
    * Handles HTTP DELETE requests.
    *
-   * @param path     the HttpRequest.getPathInfo(), the part of the url after the context path
-   * @param request  the HttpServletRequest
-   * @param response the HttpServletResponse
+   * @param path
+   *     the HttpRequest.getPathInfo(), the part of the url after the context path
+   * @param request
+   *     the HttpServletRequest
+   * @param response
+   *     the HttpServletResponse
    * @throws Exception
    */
   @Override
@@ -574,9 +581,12 @@ public class DataSourceServlet implements WebService {
   /**
    * Handles HTTP PUT requests.
    *
-   * @param path     the HttpRequest.getPathInfo(), the part of the url after the context path
-   * @param request  the HttpServletRequest
-   * @param response the HttpServletResponse
+   * @param path
+   *     the HttpRequest.getPathInfo(), the part of the url after the context path
+   * @param request
+   *     the HttpServletRequest
+   * @param response
+   *     the HttpServletResponse
    * @throws Exception
    */
   @Override
