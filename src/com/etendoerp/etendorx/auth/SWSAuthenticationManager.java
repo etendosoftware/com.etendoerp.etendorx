@@ -55,6 +55,7 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
     }
     if (token != null) {
       try {
+        log4j.debug(" Decoding token " + token);
         DecodedJWT decodedToken = SecureWebServicesUtils.decodeToken(token);
         if (decodedToken != null) {
           String userId = decodedToken.getClaim("user").asString();
