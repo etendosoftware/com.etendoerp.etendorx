@@ -55,7 +55,7 @@
       <foreign-key foreignTable="AD_ORG" name="ETRX_CONFIG_ADORG">
         <reference local="AD_ORG_ID" foreign="AD_ORG_ID"/>
       </foreign-key>
-      <check name="ETRX_ISACTIVE_CHECK"><![CDATA[ISACTIVE IN ('Y', 'N')]]></check>
-      <check name="ETRX_UPDATE_CONFIG_CHECK"><![CDATA[UPDATEABLE_CONFIGS IN ('Y', 'N')]]></check>
+      <check name="ETRX_CONFIG_ISACTIVE"><![CDATA[ISACTIVE IN ('Y', 'N')]]></check>
+      <check name="ETRX_CONFIG_UPDATE"><![CDATA[UPDATEABLE_CONFIGS IN ('Y', 'N')]]></check>
     </table>
   </database>
