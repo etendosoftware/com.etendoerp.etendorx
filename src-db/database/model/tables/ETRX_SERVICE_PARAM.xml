@@ -54,6 +54,6 @@
       <foreign-key foreignTable="AD_ORG" name="ETRX_SERVICE_PARAM_ORG">
         <reference local="AD_ORG_ID" foreign="AD_ORG_ID"/>
       </foreign-key>
-      <check name="ETRX_ISACTIVE_CHECK"><![CDATA[ISACTIVE IN ('Y', 'N')]]></check>
+      <check name="ETRX_SERVICE_PARAM_CHECK"><![CDATA[ISACTIVE IN ('Y', 'N')]]></check>
     </table>
   </database>
