@@ -230,6 +230,8 @@
 <!--21104599E1494D31A125B989AFDEE167-->  <COLUMNNAME><![CDATA[Mapping_Type]]></COLUMNNAME>
 <!--21104599E1494D31A125B989AFDEE167-->  <NAME><![CDATA[Mapping Type]]></NAME>
 <!--21104599E1494D31A125B989AFDEE167-->  <PRINTNAME><![CDATA[Mapping Type]]></PRINTNAME>
+<!--21104599E1494D31A125B989AFDEE167-->  <DESCRIPTION><![CDATA[Mapping Type defines whether the integration handles outbound data (Etendo to external system) or inbound data (External system to Etendo) to ensure proper data flow between systems.]]></DESCRIPTION>
+<!--21104599E1494D31A125B989AFDEE167-->  <HELP><![CDATA[This field specifies the direction of the integration. Use 'Etendo to external system' for data sent to an external system or 'External system to Etendo' for data received from an external system.]]></HELP>
 <!--21104599E1494D31A125B989AFDEE167-->  <AD_MODULE_ID><![CDATA[BC7B2F721FD249F5A360C6AAD2A7EBF7]]></AD_MODULE_ID>
 <!--21104599E1494D31A125B989AFDEE167-->  <ISGLOSSARY><![CDATA[N]]></ISGLOSSARY>
 <!--21104599E1494D31A125B989AFDEE167--></AD_ELEMENT>
