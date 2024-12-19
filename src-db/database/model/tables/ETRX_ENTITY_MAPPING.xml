@@ -5,59 +5,55 @@
         <default/>
         <onCreateDefault/>
       </column>
-      <column name="AD_CLIENT_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+      <column name="AD_CLIENT_ID" primaryKey="false" required="true" type="VARCHAR" size="32" autoIncrement="false">
         <default/>
         <onCreateDefault/>
       </column>
-      <column name="AD_ORG_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+      <column name="AD_ORG_ID" primaryKey="false" required="true" type="VARCHAR" size="32" autoIncrement="false">
         <default/>
         <onCreateDefault/>
       </column>
-      <column name="ISACTIVE" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
+      <column name="ISACTIVE" primaryKey="false" required="true" type="CHAR" size="1" autoIncrement="false">
         <default><![CDATA[Y]]></default>
         <onCreateDefault/>
       </column>
-      <column name="CREATED" primaryKey="false" required="false" type="TIMESTAMP" size="7" autoIncrement="false">
+      <column name="CREATED" primaryKey="false" required="true" type="TIMESTAMP" size="7" autoIncrement="false">
         <default><![CDATA[SYSDATE]]></default>
         <onCreateDefault/>
       </column>
-      <column name="CREATEDBY" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+      <column name="CREATEDBY" primaryKey="false" required="true" type="VARCHAR" size="32" autoIncrement="false">
         <default/>
         <onCreateDefault/>
       </column>
-      <column name="UPDATED" primaryKey="false" required="false" type="TIMESTAMP" size="7" autoIncrement="false">
+      <column name="UPDATED" primaryKey="false" required="true" type="TIMESTAMP" size="7" autoIncrement="false">
         <default><![CDATA[SYSDATE]]></default>
         <onCreateDefault/>
       </column>
-      <column name="UPDATEDBY" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+      <column name="UPDATEDBY" primaryKey="false" required="true" type="VARCHAR" size="32" autoIncrement="false">
         <default/>
         <onCreateDefault/>
       </column>
-      <column name="AD_MODULE_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+      <column name="AD_MODULE_ID" primaryKey="false" required="true" type="VARCHAR" size="32" autoIncrement="false">
         <default/>
         <onCreateDefault/>
       </column>
-      <column name="MAPPED_ENTITY" primaryKey="false" required="false" type="VARCHAR" size="60" autoIncrement="false">
+      <column name="MAPPED_ENTITY" primaryKey="false" required="true" type="VARCHAR" size="60" autoIncrement="false">
         <default/>
         <onCreateDefault/>
       </column>
-      <column name="MAPPING_ENTITY" primaryKey="false" required="false" type="VARCHAR" size="200" autoIncrement="false">
+      <column name="MAPPING_ENTITY" primaryKey="false" required="true" type="VARCHAR" size="200" autoIncrement="false">
         <default/>
         <onCreateDefault/>
       </column>
-      <column name="INTEGRATION_DIRECTION" primaryKey="false" required="false" type="VARCHAR" size="60" autoIncrement="false">
-        <default/>
-        <onCreateDefault/>
-      </column>
-      <column name="ISFIRSTLEVEL" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
+      <column name="ISFIRSTLEVEL" primaryKey="false" required="true" type="CHAR" size="1" autoIncrement="false">
         <default><![CDATA[Y]]></default>
         <onCreateDefault/>
       </column>
-      <column name="ETRX_PROJECTION_ENTITY_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+      <column name="ETRX_PROJECTION_ENTITY_ID" primaryKey="false" required="true" type="VARCHAR" size="32" autoIncrement="false">
         <default/>
         <onCreateDefault/>
       </column>
-      <column name="EXTERNAL_IDENTIFIER_RETRIEVER" primaryKey="false" required="false" type="VARCHAR" size="60" autoIncrement="false">
+      <column name="EXTERNAL_IDENTIFIER_RETRIEVER" primaryKey="false" required="true" type="VARCHAR" size="60" autoIncrement="false">
         <default><![CDATA[IRU]]></default>
         <onCreateDefault/>
       </column>

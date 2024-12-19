@@ -46,7 +46,7 @@
 <!--D04300F10D70438ABF07344C13DA53F5-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
 <!--D04300F10D70438ABF07344C13DA53F5-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--D04300F10D70438ABF07344C13DA53F5-->  <ETRX_REPOSITORY_ID><![CDATA[A847010DF7294C9D803EAD7B3F08B551]]></ETRX_REPOSITORY_ID>
-<!--D04300F10D70438ABF07344C13DA53F5-->  <QUERY><![CDATA[SELECT im FROM ETRX_Instance_Mapping im WHERE im.instanceConnector.id = :instanceConnector and im.etrxEntityMapping.integrationDirection = :integrationDirection and etrxEntityMapping.projectionEntity.tableEntity.name = :tableName ]]></QUERY>
+<!--D04300F10D70438ABF07344C13DA53F5-->  <QUERY><![CDATA[SELECT im FROM ETRX_Instance_Mapping im WHERE im.instanceConnector.id = :instanceConnector and im.etrxEntityMapping.mappingType = :mappingType and etrxEntityMapping.projectionEntity.tableEntity.name = :tableName ]]></QUERY>
 <!--D04300F10D70438ABF07344C13DA53F5-->  <METHOD><![CDATA[searchByInstanceConnector]]></METHOD>
 <!--D04300F10D70438ABF07344C13DA53F5--></ETRX_ENTITY_SEARCH>
 
