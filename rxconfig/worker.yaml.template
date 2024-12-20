@@ -1,0 +1,6 @@
+server:
+  port: 0
+
+bootstrap_server: kafka:9092
+async-api-url: http://localhost:8099
+spring.kafka.bootstrap-servers: kafka:9092

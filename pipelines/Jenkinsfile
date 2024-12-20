@@ -29,7 +29,7 @@ pipeline {
         RX_DIR              = 'etendo_rx'
         CLASSIC_DIR         = 'etendo_core'
         CORE_BRANCH         = 'develop'
-
+        
         COMMIT_AUTHOR_NAME  = sh(returnStdout: true, script: "git log -1 --pretty=format:'%an'").trim()
         COMMIT_AUTHOR_EMAIL = sh(returnStdout: true, script: "git log -1 --pretty=format:'%ae'").trim()
 
@@ -230,7 +230,6 @@ spec:
                                         githubToken=${GITHUB_TOKEN}\n
                                         allow.root=true\n
                                         org.gradle.jvmargs=-Dfile.encoding=UTF-8
-
                                         sonarHostUrl=${SONAR_SERVER}
                                         sonarToken=${SONAR_TOKEN}
                                         sonarProjectBaseDir=${WORKDIR_MODULE}
@@ -349,7 +348,6 @@ spec:
                             cd ${CLASSIC_DIR}
                             ./gradlew sonar --stacktrace --info
                             """
-
                             echo "---------------------- Getting SonarQube Report URL ----------------------"
                             def branchName = URLEncoder.encode(GIT_BRANCH, 'UTF-8')
                             def projectUrl = "${SONAR_SERVER}/dashboard?id=${PROJECT_KEY}&branch=${branchName}"

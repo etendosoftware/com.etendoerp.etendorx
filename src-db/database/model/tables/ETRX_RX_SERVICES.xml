@@ -37,7 +37,7 @@
         <default/>
         <onCreateDefault/>
       </column>
-      <column name="SECRET" primaryKey="false" required="true" type="VARCHAR" size="255" autoIncrement="false">
+      <column name="SECRET" primaryKey="false" required="false" type="VARCHAR" size="255" autoIncrement="false">
         <default/>
         <onCreateDefault/>
       </column>

@@ -45,10 +45,6 @@
         <default/>
         <onCreateDefault/>
       </column>
-      <column name="INTEGRATION_DIRECTION" primaryKey="false" required="true" type="VARCHAR" size="60" autoIncrement="false">
-        <default/>
-        <onCreateDefault/>
-      </column>
       <column name="ISFIRSTLEVEL" primaryKey="false" required="true" type="CHAR" size="1" autoIncrement="false">
         <default><![CDATA[Y]]></default>
         <onCreateDefault/>
@@ -63,6 +59,10 @@
       </column>
       <column name="ETRX_DISABLE_TRIGGERS" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
         <default><![CDATA[Y]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="MAPPING_TYPE" primaryKey="false" required="true" type="VARCHAR" size="60" autoIncrement="false">
+        <default/>
         <onCreateDefault/>
       </column>
       <foreign-key foreignTable="ETRX_PROJECTION_ENTITY" name="ETRX_ENTITY_MAP_PROJECTION">

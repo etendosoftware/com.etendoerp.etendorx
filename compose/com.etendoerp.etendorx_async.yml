@@ -20,6 +20,7 @@ services:
     ports:
       - "9092:9092"
       - "29092:29092"
+      - "9997:9997"
     environment:
       KAFKA_BROKER_ID: '1'
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
@@ -28,6 +29,8 @@ services:
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: '1'
+      JMX_PORT: 9997
+      KAFKA_JMX_OPTS: -Dcom.sun.management.jmxremote=true -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Djava.net.preferIPv4Stack=true -Dcom.sun.management.jmxremote.local.only=false -Dcom.sun.management.jmxremote.rmi.port=9997
     networks:
       - etendo
     depends_on:
@@ -61,6 +64,7 @@ services:
     image: etendo/dynamic-gradle:1.0.0
     ports:
       - "8099:8099"
+      - "5024:8000"
     environment:
       - DEPENDENCIES=com.etendorx:asyncprocess:${ETENDORX_VERSION}
       - REPO_URL=${ETENDORX_REPOSITORY_URL}
