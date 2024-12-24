@@ -15,11 +15,6 @@
  */
 package com.etendoerp.etendorx.utils;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.openbravo.base.exception.OBException;
-import org.openbravo.base.session.OBPropertiesProvider;
-
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -29,9 +24,14 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.List;
 import java.util.Map;
-import java.util.function.IntConsumer;
-import java.util.function.UnaryOperator;
-import java.util.stream.Collectors;
+
+import org.openbravo.base.exception.OBException;
+import org.openbravo.dal.core.OBContext;
+
+import com.etendoerp.etendorx.data.ETRXConfig;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.smf.securewebservices.utils.SecureWebServicesUtils;
 
 /**
  * Utility class for handling asynchronous processes.
@@ -51,27 +51,21 @@ public class AsyncProcessUtil {
    * @return the created HTTP request
    */
   public static HttpRequest getRequest(String uri) {
-    OBPropertiesProvider obPropertiesProvider = OBPropertiesProvider.getInstance();
-    String asyncUrl = "";
-    if(System.getenv("ASYNC_URL") != null) {
-      asyncUrl = System.getenv("ASYNC_URL");
-    } else {
-      asyncUrl = obPropertiesProvider.getOpenbravoProperties().getProperty("async.url");
+    ETRXConfig eTRXConfig = RXConfigUtils.getRXConfig("asyncprocess");
+    String asyncUrl = eTRXConfig.getServiceURL();
+    try {
+      String asyncToken = SecureWebServicesUtils.generateToken(OBContext.getOBContext().getUser());
+      return HttpRequest.newBuilder()
+          .uri(URI.create(
+              asyncUrl + uri))
+          .header("Content-Type", "application/json")
+          .header("Authorization",
+              "Bearer " + asyncToken)
+          .GET()
+          .build();
+    } catch (Exception e) {
+      throw new OBException(e.getMessage(), true);
     }
-    String asyncToken = "";
-    if(System.getenv("ASYNC_TOKEN") != null) {
-      asyncToken = System.getenv("ASYNC_TOKEN");
-    } else {
-      asyncToken = obPropertiesProvider.getOpenbravoProperties().getProperty("async.token");
-    }
-    return HttpRequest.newBuilder()
-        .uri(URI.create(
-            asyncUrl + uri))
-        .header("Content-Type", "application/json")
-        .header("Authorization",
-            "Bearer " + asyncToken)
-        .GET()
-        .build();
   }
 
   /**
@@ -105,8 +99,6 @@ public class AsyncProcessUtil {
    * applies a transformation to each map, and returns the resulting list.
    *
    * @param uri the URI to send the request to
-   * @param rowCount a consumer that accepts the number of rows in the response
-   * @param convertRow a function that transforms a map
    * @return the list of transformed maps
    * @throws OBException if an error occurs during the HTTP request or the parsing of the response
    */

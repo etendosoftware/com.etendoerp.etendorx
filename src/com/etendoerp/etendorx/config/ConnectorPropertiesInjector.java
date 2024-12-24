@@ -35,10 +35,8 @@ public class ConnectorPropertiesInjector implements OAuthProviderConfigInjector 
   public void injectConfig(JSONObject sourceJSON) throws JSONException {
     try {
       if (StringUtils.equals(WORKER_SERVICE, sourceJSON.getString("name"))) {
-        InstanceConnector instanceConnector = (InstanceConnector) OBDal.getInstance().createCriteria(
-                InstanceConnector.class)
-            .setMaxResults(1)
-            .uniqueResult();
+        var jsonObject = sourceJSON.getJSONArray("propertySources").getJSONObject(0).getJSONObject("source");
+        InstanceConnector instanceConnector = OBDal.getInstance().get(InstanceConnector.class, jsonObject.getString("connector.instance"));
         if (instanceConnector == null) {
           String dbMessage = Utility.messageBD(new DalConnectionProvider(), "ETRX_NoConnectorInstance",
               OBContext.getOBContext().getLanguage().getLanguage());
@@ -50,7 +48,6 @@ public class ConnectorPropertiesInjector implements OAuthProviderConfigInjector 
         JSONObject propertySources = sourceJSON.getJSONArray("propertySources")
             .getJSONObject(0)
             .getJSONObject("source");
-        propertySources.put("connector.instance", instanceConnector.getId());
         propertySources.put("token", token);
         propertySources.put("classic.token", token);
       }
