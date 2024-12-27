@@ -589,8 +589,11 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
 
     for (Field field : fields) {
       if (isMandatory(field)) {
+        boolean isNumber = StringUtils.equalsIgnoreCase(field.getColumn().getReference().getId(), "22");
         schema.addProperty(normalizedName(field.getColumn().getName()),
-            new Schema<>().type(OpenAPIConstants.STRING).example("N"));
+            isNumber ? new Schema<>().type(OpenAPIConstants.NUMBER).example(0) :
+                new Schema<>().type(OpenAPIConstants.STRING).example("N")
+        );
       }
     }
 

@@ -456,7 +456,10 @@ public class DataSourceServlet implements WebService {
     }
 
     StringBuilder retName = new StringBuilder();
-    String removeSpecialChars = StringUtils.replaceChars(name, ".-/", "");
+    String removeSpecialChars = StringUtils.replaceEach(name,
+        new String[]{ "!", "@", "#", "$", "%", "^", "&", "*", "(", ")", "_", "+", "=", "~" },
+        new String[]{ "", "", "", "", "", "", "", "", "", "", "", "", "", "" }
+    );
     //remove multiple Spaces, replacing with single
     while (removeSpecialChars.contains("  ")) {
       removeSpecialChars = StringUtils.replace(removeSpecialChars, "  ", " ");
