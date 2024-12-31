@@ -1,8 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <provider>
-  <bean>
-      <name>datasource</name>
-      <class>com.etendoerp.etendorx.services.DataSourceServlet</class>
-      <singleton>true</singleton>
-  </bean>
+    <bean>
+        <name>datasource</name>
+        <class>com.etendoerp.etendorx.services.DataSourceServlet</class>
+        <singleton>true</singleton>
+    </bean>
+    <bean>
+        <name>imageUpload</name>
+        <class>com.etendoerp.etendorx.services.ImageUploadServlet</class>
+        <singleton>true</singleton>
+    </bean>
 </provider>
