@@ -1,11 +1,7 @@
 package com.etendoerp.etendorx;
 
 import java.io.IOException;
-import java.io.OutputStream;
 import java.net.ConnectException;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 import org.apache.commons.lang.mutable.MutableBoolean;
@@ -19,6 +15,7 @@ import org.openbravo.erpCommon.utility.OBMessageUtils;
 
 import com.etendoerp.etendorx.data.ETRXConfig;
 import com.etendoerp.etendorx.data.ETRXoAuthProvider;
+import com.etendoerp.etendorx.utils.RXServiceManagementUtils;
 import com.smf.jobs.Action;
 import com.smf.jobs.ActionResult;
 import com.smf.jobs.Result;
@@ -30,7 +27,6 @@ public class RefreshOAuthConfigs extends Action {
 
   private static final Logger log = LogManager.getLogger();
   private static final String ACTUATOR_RESTART = "/actuator/restart";
-  private static final String POST = "POST";
 
   /**
    * This method is used to perform the action of refreshing OAuth configurations.
@@ -63,7 +59,7 @@ public class RefreshOAuthConfigs extends Action {
     try {
       for(ETRXConfig actualService : rxConfig) {
         serviceName = actualService.getServiceName();
-        performRestart(actualService.getServiceURL() + ACTUATOR_RESTART, actionResult);
+        RXServiceManagementUtils.performRestart(actualService.getServiceURL() + ACTUATOR_RESTART, actionResult);
         sucRestServices.append(String.format("%s Has been restarted.", serviceName));
       }
 
@@ -79,72 +75,6 @@ public class RefreshOAuthConfigs extends Action {
     }
 
     return actionResult;
-  }
-
-  /**
-   * This method is used to create a connection to the authentication server and perform a restart.
-   *
-   * @param urlStr the URL string to make the connection
-   * @param actionResult the ActionResult to update the result
-   * @throws IOException if an I/O error occurs
-   */
-  private void performRestart(String urlStr, ActionResult actionResult) throws IOException {
-    URL url = new URL(urlStr);
-    HttpURLConnection connection = createConnection(url);
-
-    try {
-      sendPostRequest(connection);
-      checkResponse(connection, actionResult);
-    } finally {
-      connection.disconnect();
-    }
-  }
-
-  /**
-   * This method is used to create a connection to the authentication server.
-   *
-   * @param url the url to make the connection
-   * @return a HttpURLConnection to the authentication server
-   * @throws IOException if an I/O error occurs while creating the connection
-   */
-  private HttpURLConnection createConnection(URL url) throws IOException {
-    log.debug("URL to restart server: {}", url);
-    HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-    connection.setRequestMethod(POST);
-    connection.setDoOutput(true);
-    connection.setRequestProperty("Content-Type", "application/json");
-    return connection;
-  }
-
-  /**
-   * This method is used to send a POST request to the authentication server.
-   *
-   * @param connection the HttpURLConnection to the authentication server
-   * @throws IOException if an I/O error occurs while sending the request
-   */
-  private void sendPostRequest(HttpURLConnection connection) throws IOException {
-    try (OutputStream os = connection.getOutputStream()) {
-      byte[] input = "{}".getBytes(StandardCharsets.UTF_8);
-      os.write(input, 0, input.length);
-    }
-  }
-
-  /**
-   * This method is used to check the response from the authentication server.
-   * If the response code is not HTTP_OK, it sets the ActionResult type to ERROR.
-   *
-   * @param connection the HttpURLConnection to the authentication server
-   * @param actionResult the ActionResult for the action
-   * @throws IOException if an I/O error occurs while getting the response code
-   */
-  private void checkResponse(HttpURLConnection connection, ActionResult actionResult) throws IOException {
-    int responseCode = connection.getResponseCode();
-    if (responseCode != HttpURLConnection.HTTP_OK) {
-      String responseMessage = connection.getResponseMessage();
-      log.error("Response Code: {}, Message: {}", responseCode, responseMessage);
-      actionResult.setType(Result.Type.ERROR);
-      actionResult.setMessage(responseMessage);
-    }
   }
 
   /**
