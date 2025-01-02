@@ -78,6 +78,14 @@ public class BuildConfig extends HttpBaseServlet {
       final String service = serviceURI.split("/")[1];
       final JSONObject defaultConfig = getDefaultConfigToJsonObject(serviceURI);
       SimpleEntry<Integer, JSONObject> sourceEntry = findSource(defaultConfig.getJSONArray("propertySources"), service);
+      ETRXConfig rxConfig = RXConfigUtils.getRXConfig(service);
+      if (rxConfig == null) {
+        String dbMessage = Utility.messageBD(new DalConnectionProvider(), "ETRX_NoConfigFound",
+            OBContext.getOBContext().getLanguage().getLanguage());
+        throw new OBException(StringUtils.replace(dbMessage, "%s" , service));
+      }
+      JSONObject sourceJSON = sourceEntry.getValue();
+      addRXParams(sourceJSON, rxConfig);
       // No need (for now) to check the services to be updated due to only those who needs the config
       // will change the url to get the config from config server to this endpoint.
       List<OAuthProviderConfigInjector> allInjectors = OAuthProviderConfigInjectorRegistry.getInjectors();
@@ -93,7 +101,6 @@ public class BuildConfig extends HttpBaseServlet {
             OBContext.getOBContext().getLanguage().getLanguage()) + algorithmPref;
         throw new UnsupportedOperationException(errorMessage);
       }
-      JSONObject sourceJSON = sourceEntry.getValue();
       JSONObject keys = new JSONObject(swsConfig.getPrivateKey());
       if (StringUtils.equals(AUTH_SERVICE, service)) {
         User sysUser = OBDal.getInstance().get(User.class, SYS_USER_ID);
@@ -101,16 +108,11 @@ public class BuildConfig extends HttpBaseServlet {
         sourceJSON.put("token", sysToken);
         sourceJSON.put(PRIVATE_KEY, keys.getString(PRIVATE_KEY));
       }
-      sourceJSON.put(PUBLIC_KEY, keys.getString(PUBLIC_KEY));
+      var publicKey = StringUtils.replace(keys.getString(PUBLIC_KEY),"-----BEGIN PUBLIC KEY-----","");
+      publicKey = StringUtils.replace(publicKey,"-----END PUBLIC KEY-----","");
+      sourceJSON.put(PUBLIC_KEY, publicKey);
 
-      ETRXConfig rxConfig = RXConfigUtils.getRXConfig(service);
-      if (rxConfig == null) {
-        String dbMessage = Utility.messageBD(new DalConnectionProvider(), "ETRX_NoConfigFound",
-            OBContext.getOBContext().getLanguage().getLanguage());
-        throw new OBException(StringUtils.replace(dbMessage, "%s" , service));
-      }
       updateSourceWithOAuthProviders(sourceEntry.getValue(), allInjectors, rxConfig.getPublicURL());
-      addRXParams(sourceJSON, rxConfig);
       sendResponse(response, defaultConfig, sourceEntry.getValue(), sourceEntry.getKey());
     } catch (Exception e) {
       log.error(e.getMessage(), e);
