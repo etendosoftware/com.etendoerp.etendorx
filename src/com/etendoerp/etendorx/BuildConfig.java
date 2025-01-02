@@ -56,6 +56,9 @@ public class BuildConfig extends HttpBaseServlet {
   private static final String PRIVATE_KEY = "private-key";
   private static final String PUBLIC_KEY = "public-key";
   private static final String SYS_USER_ID = "0";
+  private static final String APPLICATIONS = "applications";
+  private static final String BEGIN_PUBLIC_KEY = "-----BEGIN PUBLIC KEY-----";
+  private static final String END_PUBLIC_KEY = "-----END PUBLIC KEY-----";
 
   /**
    * This method handles the GET request. It fetches the default configuration,
@@ -75,7 +78,8 @@ public class BuildConfig extends HttpBaseServlet {
             OBContext.getOBContext().getLanguage().getLanguage()));
       }
       final String serviceURI = getURIFromRequest(request);
-      final String service = serviceURI.split("/")[1];
+      final String service = StringUtils.equals(APPLICATIONS, serviceURI.split("/")[1]) ?
+          CONFIG_SERVICE : serviceURI.split("/")[1];
       final JSONObject defaultConfig = getDefaultConfigToJsonObject(serviceURI);
       SimpleEntry<Integer, JSONObject> sourceEntry = findSource(defaultConfig.getJSONArray("propertySources"), service);
       ETRXConfig rxConfig = RXConfigUtils.getRXConfig(service);
@@ -94,7 +98,9 @@ public class BuildConfig extends HttpBaseServlet {
       }
       String algorithmPref = Preferences.getPreferenceValue("SMFSWS_EncryptionAlgorithm", true,
           OBContext.getOBContext().getCurrentClient(),
-          OBContext.getOBContext().getCurrentOrganization(), OBContext.getOBContext().getUser(), OBContext.getOBContext().getRole(),
+          OBContext.getOBContext().getCurrentOrganization(),
+          OBContext.getOBContext().getUser(),
+          OBContext.getOBContext().getRole(),
           null);
       if (!StringUtils.equals(ES256_ALGORITHM, algorithmPref)) {
         String errorMessage = Utility.messageBD(new DalConnectionProvider(), "ETRX_WrongAlgorithm",
@@ -108,10 +114,9 @@ public class BuildConfig extends HttpBaseServlet {
         sourceJSON.put("token", sysToken);
         sourceJSON.put(PRIVATE_KEY, keys.getString(PRIVATE_KEY));
       }
-      var publicKey = StringUtils.replace(keys.getString(PUBLIC_KEY),"-----BEGIN PUBLIC KEY-----","");
-      publicKey = StringUtils.replace(publicKey,"-----END PUBLIC KEY-----","");
+      var publicKey = StringUtils.replace(keys.getString(PUBLIC_KEY), BEGIN_PUBLIC_KEY,"");
+      publicKey = StringUtils.replace(publicKey, END_PUBLIC_KEY,"");
       sourceJSON.put(PUBLIC_KEY, publicKey);
-
       updateSourceWithOAuthProviders(sourceEntry.getValue(), allInjectors, rxConfig.getPublicURL());
       sendResponse(response, defaultConfig, sourceEntry.getValue(), sourceEntry.getKey());
     } catch (Exception e) {
