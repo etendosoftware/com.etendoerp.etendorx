@@ -37,6 +37,11 @@ public class OpenAPIConstants {
   public static final String STRING = "string";
 
   /**
+   * number type.
+   */
+  public static final String NUMBER = "number";
+
+  /**
    * Object type.
    */
   public static final String OBJECT = "object";

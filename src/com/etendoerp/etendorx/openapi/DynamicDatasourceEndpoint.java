@@ -35,6 +35,7 @@ import javax.enterprise.context.ApplicationScoped;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
@@ -589,8 +590,12 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
 
     for (Field field : fields) {
       if (isMandatory(field)) {
+        Set<String> numberReferences = Set.of("22", "29","800008");
+        boolean isNumber = numberReferences.contains(field.getColumn().getReference().getId());
         schema.addProperty(normalizedName(field.getColumn().getName()),
-            new Schema<>().type(OpenAPIConstants.STRING).example("N"));
+            isNumber ? new Schema<>().type(OpenAPIConstants.NUMBER).example(0) :
+                new Schema<>().type(OpenAPIConstants.STRING).example("N")
+        );
       }
     }
 
