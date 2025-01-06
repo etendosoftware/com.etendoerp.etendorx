@@ -97,11 +97,15 @@ public class DataSourceServlet implements WebService {
       params.put("isImplicitFilterApplied", new String[]{ "false" });
       params.put("_operationType", new String[]{ "fetch" });
       params.put("_noActiveFilter", new String[]{ "true" });
-      params.put("operator", new String[]{ "and" });
-      params.put("_constructor", new String[]{ "AdvancedCriteria" });
-      if (!StringUtils.isEmpty(rsql)) {
-        // url encode criteria
-        convertCriterion(params, rsql);
+      if (params.get("q") != null) {
+        params.put("operator", new String[]{ "and" });
+        params.put("_constructor", new String[]{ "AdvancedCriteria" });
+        if (!StringUtils.isEmpty(rsql)) {
+          // url encode criteria
+          convertCriterion(params, rsql);
+        }
+
+        params.put("_textMatchStyle", new String[]{ "substring" });
       }
       if (!params.containsKey("_startRow")) {
         params.put("_startRow", new String[]{ "0" });
@@ -109,8 +113,11 @@ public class DataSourceServlet implements WebService {
       if (!params.containsKey("_endRow")) {
         params.put("_endRow", new String[]{ "100" });
       }
-      params.put("_textMatchStyle", new String[]{ "substring" });
-
+      String[] extractedParts = extractDataSourceAndID(path);
+      String dtsn = extractedParts[0];
+      Tab tabByDataSourceName = getTabByDataSourceName(dtsn);
+      params.put("tabId", new String[]{ tabByDataSourceName.getId() });
+      params.put("windowId", new String[]{ tabByDataSourceName.getWindow().getId() });
       String csrf = "123";
       request.getSession(false).setAttribute("#CSRF_TOKEN", csrf);
       params.put("csrfToken", new String[]{ csrf });
@@ -519,29 +526,12 @@ public class DataSourceServlet implements WebService {
    * @throws OpenAPINotFoundThrowable
    */
   String convertURI(String requestURI) throws OpenAPINotFoundThrowable {
-    String[] extractedParts = extractDataSourceAndID(requestURI);
-    String dataSourceName = extractedParts[0];
-
     try {
       OBContext.setAdminMode();
-      OpenAPIRequest apiRequest = (OpenAPIRequest) OBDal.getInstance()
-          .createCriteria(OpenAPIRequest.class)
-          .add(Restrictions.eq("name", dataSourceName))
-          .setMaxResults(1)
-          .uniqueResult();
-
-      if (apiRequest == null) {
-        throw new OpenAPINotFoundThrowable("OpenAPI request not found: " + dataSourceName);
-      }
-
-      if (apiRequest.getETRXOpenAPITabList().isEmpty()) {
-        throw new OpenAPINotFoundThrowable(
-            "OpenAPI request does not have any related tabs: " + dataSourceName);
-      }
-
-      String requestName = apiRequest.getETRXOpenAPITabList()
-          .get(0)
-          .getRelatedTabs()
+      String[] extractedParts = extractDataSourceAndID(requestURI);
+      String dataSourceName = extractedParts[0];
+      Tab tab = getTabByDataSourceName(dataSourceName);
+      String requestName = tab
           .getTable()
           .getName();
 
@@ -562,6 +552,28 @@ public class DataSourceServlet implements WebService {
     } finally {
       OBContext.restorePreviousMode();
     }
+  }
+
+  private static Tab getTabByDataSourceName(String dataSourceName) throws OpenAPINotFoundThrowable {
+    OpenAPIRequest apiRequest = (OpenAPIRequest) OBDal.getInstance()
+        .createCriteria(OpenAPIRequest.class)
+        .add(Restrictions.eq("name", dataSourceName))
+        .setMaxResults(1)
+        .uniqueResult();
+
+    if (apiRequest == null) {
+      throw new OpenAPINotFoundThrowable("OpenAPI request not found: " + dataSourceName);
+    }
+
+    if (apiRequest.getETRXOpenAPITabList().isEmpty()) {
+      throw new OpenAPINotFoundThrowable(
+          "OpenAPI request does not have any related tabs: " + dataSourceName);
+    }
+
+    Tab tab = apiRequest.getETRXOpenAPITabList()
+        .get(0)
+        .getRelatedTabs();
+    return tab;
   }
 
   /**

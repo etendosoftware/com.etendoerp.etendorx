@@ -29,6 +29,8 @@ import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.model.ad.ui.Field;
 import org.openbravo.model.ad.ui.Tab;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.enterprise.context.ApplicationScoped;
 
@@ -66,6 +68,7 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
       + "This flexible querying system enables precise data retrieval tailored to specific needs."
       + " If a search term has spaces, it should be enclosed in simple quotes. For example, to search for a name "
       + "containing the words \"John Doe\", use q=name=sw='John Doe'. ";
+  private static final Logger log = LoggerFactory.getLogger(DynamicDatasourceEndpoint.class);
 
   private ThreadLocal<String> requestedTag = new ThreadLocal<>();
 
@@ -590,7 +593,7 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
 
     for (Field field : fields) {
       if (isMandatory(field)) {
-        Set<String> numberReferences = Set.of("22", "29","800008");
+        Set<String> numberReferences = Set.of("22", "29", "800008");
         boolean isNumber = numberReferences.contains(field.getColumn().getReference().getId());
         schema.addProperty(normalizedName(field.getColumn().getName()),
             isNumber ? new Schema<>().type(OpenAPIConstants.NUMBER).example(0) :

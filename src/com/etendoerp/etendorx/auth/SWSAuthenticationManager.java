@@ -3,6 +3,7 @@ package com.etendoerp.etendorx.auth;
 import com.auth0.jwt.interfaces.DecodedJWT;
 import com.etendoerp.etendorx.utils.TokenVerifier;
 import com.smf.securewebservices.utils.SecureWebServicesUtils;
+
 import org.apache.commons.lang.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -27,6 +28,7 @@ import org.openbravo.service.web.BaseWebServiceServlet;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+
 import java.io.IOException;
 
 /**
@@ -117,7 +119,7 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
 
     final VariablesSecureApp vars = new VariablesSecureApp(request);
     TokenVerifier.isValid(token,
-      OBPropertiesProvider.getInstance().getOpenbravoProperties().getProperty("OAUTH2_SECRET"));
+        OBPropertiesProvider.getInstance().getOpenbravoProperties().getProperty("OAUTH2_SECRET"));
 
     String userId;
     try {
