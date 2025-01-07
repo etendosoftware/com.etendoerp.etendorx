@@ -83,7 +83,8 @@ public class DataSourceServlet implements WebService {
           OBContext.getOBContext().getLanguage().getLanguage(),
           OBContext.getOBContext().isRTL() ? "Y" : "N", defaults.role, defaults.client,
           OBContext.getOBContext().getCurrentOrganization().getId(), defaults.warehouse);
-      String dataSourceName = convertURI(path);
+      String[] extractedParts = extractDataSourceAndID(path);
+      String dataSourceName = convertURI(extractedParts);
 
       String rsql = request.getParameter("q");
       Map<String, String[]> params = new HashMap<>();
@@ -97,7 +98,7 @@ public class DataSourceServlet implements WebService {
       params.put("isImplicitFilterApplied", new String[]{ "false" });
       params.put("_operationType", new String[]{ "fetch" });
       params.put("_noActiveFilter", new String[]{ "true" });
-      if (params.get("q") != null) {
+      if (params.get("q") != null && params.get("q").length > 0) {
         params.put("operator", new String[]{ "and" });
         params.put("_constructor", new String[]{ "AdvancedCriteria" });
         if (!StringUtils.isEmpty(rsql)) {
@@ -113,7 +114,6 @@ public class DataSourceServlet implements WebService {
       if (!params.containsKey("_endRow")) {
         params.put("_endRow", new String[]{ "100" });
       }
-      String[] extractedParts = extractDataSourceAndID(path);
       String dtsn = extractedParts[0];
       Tab tabByDataSourceName = getTabByDataSourceName(dtsn);
       params.put("tabId", new String[]{ tabByDataSourceName.getId() });
@@ -253,7 +253,7 @@ public class DataSourceServlet implements WebService {
         handleNotFoundException(response);
         return;
       }
-      String newUri = convertURI(path);
+      String newUri = convertURI(extractDataSourceAndID(path));
 
       var servlet = getDataSourceServlet();
 
@@ -405,7 +405,7 @@ public class DataSourceServlet implements WebService {
       HttpServletResponse response, JSONObject newJsonBody, List<RequestField> fieldList,
       String newUri, String path)
       throws JSONException, IOException, ServletException, OpenAPINotFoundThrowable {
-    String getURI = convertURI(path);
+    String getURI = convertURI(extractDataSourceAndID(path));
     var newRequest = new EtendoRequestWrapper(request, getURI, "", request.getParameterMap());
     var newResponse = new EtendoResponseWrapper(response);
     getDataSourceServlet().doGet(newRequest, newResponse);
@@ -506,6 +506,8 @@ public class DataSourceServlet implements WebService {
    * Extracts the data source and ID from the request URI.
    *
    * @param requestURI
+   *
+   * @return the extracted parts, being the first part the data source name and the second part the ID
    */
   static String[] extractDataSourceAndID(String requestURI) {
     String[] parts = requestURI.split("/");
@@ -522,13 +524,13 @@ public class DataSourceServlet implements WebService {
   /**
    * Converts the request URI to the new URI.
    *
-   * @param requestURI
+   * @param extractedParts the extracted parts from the request URI, the first part is the data source name and
+   *                      the second part is the ID
    * @throws OpenAPINotFoundThrowable
    */
-  String convertURI(String requestURI) throws OpenAPINotFoundThrowable {
+  String convertURI(String[] extractedParts) throws OpenAPINotFoundThrowable {
     try {
       OBContext.setAdminMode();
-      String[] extractedParts = extractDataSourceAndID(requestURI);
       String dataSourceName = extractedParts[0];
       Tab tab = getTabByDataSourceName(dataSourceName);
       String requestName = tab

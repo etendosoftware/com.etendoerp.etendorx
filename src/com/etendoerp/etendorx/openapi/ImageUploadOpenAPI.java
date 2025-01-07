@@ -25,9 +25,8 @@ public class ImageUploadOpenAPI extends OpenAPIDefaultRequest {
     return "/sws/com.etendoerp.etendorx.imageUpload/";
   }
 
-
   @Override
-  Operation getPOSTEndpoint() {
+  public Operation getPOSTEndpoint() {
     //PathItem
     Operation endpoint = new Operation();
     endpoint.setSummary("Upload an image to EtendoERP");
