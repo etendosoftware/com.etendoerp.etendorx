@@ -1,7 +1,13 @@
 package com.etendoerp.etendorx.auth;
 
+import com.auth0.jwt.JWT;
+import com.auth0.jwt.JWTVerifier;
+import com.auth0.jwt.algorithms.Algorithm;
+import com.auth0.jwt.interfaces.Claim;
 import com.auth0.jwt.interfaces.DecodedJWT;
 import com.etendoerp.etendorx.utils.TokenVerifier;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.smf.securewebservices.utils.SecureWebServicesUtils;
 
 import org.apache.commons.lang.StringUtils;
@@ -30,6 +36,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
+import java.util.Map;
 
 /**
  * The default servlet which catches all requests for a webservice. This servlet finds the WebService
@@ -105,6 +112,12 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
     }
   }
 
+  private static DecodedJWT decodeToken(String token, String secret, String issuer) throws Exception {
+    Algorithm algorithm = Algorithm.HMAC256(secret);
+    JWTVerifier verifier = JWT.require(algorithm).withIssuer(issuer).build();
+    return verifier.verify(token);
+  }
+
   @Override
   protected String doAuthenticate(HttpServletRequest request, HttpServletResponse response)
       throws AuthenticationException, ServletException, IOException {
@@ -118,8 +131,23 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
     setCORSHeaders(request, response);
 
     final VariablesSecureApp vars = new VariablesSecureApp(request);
-    TokenVerifier.isValid(token,
-        OBPropertiesProvider.getInstance().getOpenbravoProperties().getProperty("OAUTH2_SECRET"));
+    final String secret = OBPropertiesProvider.getInstance().getOpenbravoProperties().getProperty("OAUTH2_SECRET");
+    final String issuer = OBPropertiesProvider.getInstance().getOpenbravoProperties().getProperty("OAUTH2_ISSUER");
+    TokenVerifier.isValid(token, secret);
+    Map<String, Object> userMetadata = null;
+    // get jwt token claim
+    try {
+      DecodedJWT decodedToken = decodeToken(token, secret, issuer);
+      Object userMeta = decodedToken.getClaim("user_metadata").as(Object.class);
+      if(userMeta instanceof Map) {
+        userMetadata = (Map<String, Object>) userMeta;
+      }
+      if(userMetadata == null) {
+        throw new OBException("SWS - Token is not valid");
+      }
+    } catch (Exception e) {
+      throw new OBException("SWS - Token is not valid");
+    }
 
     String userId;
     try {
@@ -152,6 +180,9 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
         vars.setSessionValue("#AD_SESSION_ID", sessionId);
         vars.setSessionValue("#LogginIn", "Y");
 
+        adUser.setFirstName((String) userMetadata.get("name"));
+        OBDal.getInstance().save(adUser);
+        OBDal.getInstance().flush();
         return userId;
       }
     } finally {
