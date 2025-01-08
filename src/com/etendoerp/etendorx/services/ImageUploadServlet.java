@@ -55,7 +55,7 @@ public class ImageUploadServlet implements WebService {
     String base64Image = body.getString("base64Image");
 
     String filename = body.getString("filename");
-    String columnId = body.optString("columnId");
+    String columnId = body.optString("columnID");
 
     //mime from filename
     String extension = filename.substring(filename.lastIndexOf(".") + 1);

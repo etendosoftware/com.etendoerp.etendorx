@@ -2,11 +2,10 @@ package com.etendoerp.etendorx.openapi;
 
 import java.util.List;
 
-import org.apache.log4j.Logger;
+import com.etendoerp.openapi.OpenAPIDefaultRequest;
 
 import io.swagger.v3.oas.models.media.Content;
 import io.swagger.v3.oas.models.Operation;
-import io.swagger.v3.oas.models.PathItem;
 import io.swagger.v3.oas.models.media.MediaType;
 import io.swagger.v3.oas.models.media.Schema;
 import io.swagger.v3.oas.models.media.StringSchema;
@@ -26,9 +25,8 @@ public class ImageUploadOpenAPI extends OpenAPIDefaultRequest {
     return "/sws/com.etendoerp.etendorx.imageUpload/";
   }
 
-
   @Override
-  Operation getPOSTEndpoint() {
+  public Operation getPOSTEndpoint() {
     //PathItem
     Operation endpoint = new Operation();
     endpoint.setSummary("Upload an image to EtendoERP");
