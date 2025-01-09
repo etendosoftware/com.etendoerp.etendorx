@@ -98,7 +98,7 @@ public class DataSourceServlet implements WebService {
       params.put("isImplicitFilterApplied", new String[]{ "false" });
       params.put("_operationType", new String[]{ "fetch" });
       params.put("_noActiveFilter", new String[]{ "true" });
-      if (params.get("q") != null && params.get("q").length > 0) {
+      if (StringUtils.isNotEmpty(rsql)) {
         params.put("operator", new String[]{ "and" });
         params.put("_constructor", new String[]{ "AdvancedCriteria" });
         if (!StringUtils.isEmpty(rsql)) {
