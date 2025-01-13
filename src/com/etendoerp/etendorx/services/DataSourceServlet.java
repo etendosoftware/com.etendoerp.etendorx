@@ -52,7 +52,7 @@ public class DataSourceServlet implements WebService {
    *
    * @return the DataSourceServlet instance
    */
-  private static org.openbravo.service.datasource.DataSourceServlet getDataSourceServlet() {
+  static org.openbravo.service.datasource.DataSourceServlet getDataSourceServlet() {
     return WeldUtils.getInstanceFromStaticBeanManager(
         org.openbravo.service.datasource.DataSourceServlet.class);
   }
@@ -556,7 +556,7 @@ public class DataSourceServlet implements WebService {
     }
   }
 
-  private static Tab getTabByDataSourceName(String dataSourceName) throws OpenAPINotFoundThrowable {
+  static Tab getTabByDataSourceName(String dataSourceName) throws OpenAPINotFoundThrowable {
     OpenAPIRequest apiRequest = (OpenAPIRequest) OBDal.getInstance()
         .createCriteria(OpenAPIRequest.class)
         .add(Restrictions.eq("name", dataSourceName))
