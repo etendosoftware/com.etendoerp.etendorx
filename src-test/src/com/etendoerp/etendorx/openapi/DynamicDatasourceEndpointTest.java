@@ -1,9 +1,19 @@
 package com.etendoerp.etendorx.openapi;
 
-import io.swagger.v3.oas.models.OpenAPI;
-import io.swagger.v3.oas.models.info.Info;
-import io.swagger.v3.oas.models.media.Schema;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.when;
 
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+import org.apache.commons.lang.StringUtils;
 import org.codehaus.jettison.json.JSONObject;
 import org.jetbrains.annotations.NotNull;
 import org.junit.After;
@@ -23,36 +33,33 @@ import org.openbravo.model.ad.domain.Reference;
 import org.openbravo.model.ad.ui.Field;
 import org.openbravo.model.ad.ui.Tab;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
-
-import static org.junit.Assert.*;
-import static org.mockito.Mockito.*;
-
 import com.etendoerp.etendorx.data.OpenAPITab;
 import com.etendoerp.openapi.data.OpenAPIRequest;
 import com.etendoerp.openapi.data.OpenApiFlow;
 import com.etendoerp.openapi.data.OpenApiFlowPoint;
 
+import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.info.Info;
+import io.swagger.v3.oas.models.media.Schema;
+
+/**
+ * Unit tests for the DynamicDatasourceEndpoint class.
+ */
 @RunWith(MockitoJUnitRunner.class)
 public class DynamicDatasourceEndpointTest extends WeldBaseTest {
 
+  public static final String EXISTING_TAG = "existingTag";
   private DynamicDatasourceEndpoint dynamicDatasourceEndpoint;
 
   @Mock
   private OpenAPI mockOpenAPI;
 
-  @Mock
-  private Tab mockTab;
-
-  @Mock
-  private Field mockField;
-
   private MockedStatic<OBDal> mockedOBDal;
   private MockedStatic<OBContext> mockedOBContext;
 
+  /**
+   * Sets up the test environment before each test.
+   */
   @Before
   public void setUp() {
     MockitoAnnotations.openMocks(this);
@@ -73,6 +80,9 @@ public class DynamicDatasourceEndpointTest extends WeldBaseTest {
     when(mockCriteria.list()).thenReturn(Collections.emptyList());
   }
 
+  /**
+   * Cleans up the test environment after each test.
+   */
   @After
   public void tearDown() {
     if (mockedOBDal != null) {
@@ -83,32 +93,41 @@ public class DynamicDatasourceEndpointTest extends WeldBaseTest {
     }
   }
 
+  /**
+   * Tests the isValid method with a null tag.
+   */
   @Test
   public void testIsValid_NullTag() {
     assertTrue(dynamicDatasourceEndpoint.isValid(null));
   }
 
+  /**
+   * Tests the isValid method with an existing tag.
+   */
   @Test
   public void testIsValid_ExistingTag() {
     // Given
     OpenApiFlow flow = mock(OpenApiFlow.class);
-    when(flow.getName()).thenReturn("existingTag");
+    when(flow.getName()).thenReturn(EXISTING_TAG);
     List<OpenApiFlow> flows = List.of(flow);
     mockedOBDal.when(() -> OBDal.getInstance().createCriteria(OpenApiFlow.class).list())
         .thenReturn(flows);
 
     // When
-    boolean result = dynamicDatasourceEndpoint.isValid("existingTag");
+    boolean result = dynamicDatasourceEndpoint.isValid(EXISTING_TAG);
 
     // Then
     assertTrue(result);
   }
 
+  /**
+   * Tests the isValid method with a non-existing tag.
+   */
   @Test
   public void testIsValid_NonExistingTag() {
     // Given
     OpenApiFlow flow = mock(OpenApiFlow.class);
-    when(flow.getName()).thenReturn("existingTag");
+    when(flow.getName()).thenReturn(EXISTING_TAG);
     List<OpenApiFlow> flows = List.of(flow);
     mockedOBDal.when(() -> OBDal.getInstance().createCriteria(OpenApiFlow.class).list())
         .thenReturn(flows);
@@ -120,6 +139,9 @@ public class DynamicDatasourceEndpointTest extends WeldBaseTest {
     assertFalse(result);
   }
 
+  /**
+   * Tests the add method with flows.
+   */
   @Test
   public void testAdd_WithFlows() {
     // Given
@@ -134,9 +156,15 @@ public class DynamicDatasourceEndpointTest extends WeldBaseTest {
     assertNotNull(myOpenAPI.getTags());
     assertEquals(1, myOpenAPI.getTags().size());
     assertEquals("TestFlow", myOpenAPI.getTags().get(0).getName());
-    assertTrue(myOpenAPI.getInfo().getDescription().contains("Description of EntityName"));
+    System.out.println(myOpenAPI.getInfo().getDescription());
+    assertTrue(StringUtils.contains(myOpenAPI.getInfo().getDescription(), "Description of EntityName"));
   }
 
+  /**
+   * Mocks an OpenApiFlow object for testing.
+   *
+   * @return a mocked OpenApiFlow object
+   */
   private OpenApiFlow getMockedOpenApiFlow() {
     OpenApiFlow mockFlow = mock(OpenApiFlow.class);
     when(mockFlow.getName()).thenReturn("TestFlow");
@@ -154,6 +182,11 @@ public class DynamicDatasourceEndpointTest extends WeldBaseTest {
     return mockFlow;
   }
 
+  /**
+   * Mocks a Tab object for testing.
+   *
+   * @return a mocked Tab object
+   */
   private Tab getMockedTab() {
     Tab mockTab = mock(Tab.class);
     Field mockedField = getMockedField();
@@ -161,19 +194,16 @@ public class DynamicDatasourceEndpointTest extends WeldBaseTest {
     return mockTab;
   }
 
+  /**
+   * Tests the addDefinition method to ensure it creates schema and endpoints.
+   */
   @Test
   public void testAddDefinition_CreatesSchemaAndEndpoints() {
     // Given
     OpenAPIRequest mockRequest = getMockedRequest();
-
     OpenApiFlowPoint mockFlowPoint = getMockedOpenApiFlowPoint();
 
-
-    // Mock tab fields
-
-
     // When
-
     OpenAPI myOpenAPi = new OpenAPI();
     dynamicDatasourceEndpoint.addDefinition(myOpenAPi, "EntityName", mockRequest, mockFlowPoint);
 
@@ -184,14 +214,15 @@ public class DynamicDatasourceEndpointTest extends WeldBaseTest {
     assertNotNull(myOpenAPi.getComponents().getSchemas().get("FormInitResponse"));
   }
 
+  /**
+   * Mocks an OpenAPIRequest object for testing.
+   *
+   * @return a mocked OpenAPIRequest object
+   */
   private @NotNull OpenAPIRequest getMockedRequest() {
-
     OpenAPITab mockOpenApiTab = mock(OpenAPITab.class);
-
-
     Tab mockedTab = getMockedTab();
     when(mockOpenApiTab.getRelatedTabs()).thenReturn(mockedTab);
-
 
     OpenAPIRequest mockRequest = mock(OpenAPIRequest.class);
     when(mockRequest.getName()).thenReturn("EntityName");
@@ -201,6 +232,11 @@ public class DynamicDatasourceEndpointTest extends WeldBaseTest {
     return mockRequest;
   }
 
+  /**
+   * Mocks a Field object for testing.
+   *
+   * @return a mocked Field object
+   */
   private Field getMockedField() {
     Reference mockRef = mock(Reference.class);
     when(mockRef.getId()).thenReturn("TestRefId");
@@ -213,10 +249,14 @@ public class DynamicDatasourceEndpointTest extends WeldBaseTest {
     Field mockField1 = mock(Field.class);
     when(mockField1.getColumn()).thenReturn(mockCol);
 
-
     return mockField1;
   }
 
+  /**
+   * Mocks an OpenApiFlowPoint object for testing.
+   *
+   * @return a mocked OpenApiFlowPoint object
+   */
   private @NotNull OpenApiFlowPoint getMockedOpenApiFlowPoint() {
     OpenApiFlowPoint mockFlowPoint = mock(OpenApiFlowPoint.class);
     when(mockFlowPoint.isPost()).thenReturn(true);
@@ -226,6 +266,9 @@ public class DynamicDatasourceEndpointTest extends WeldBaseTest {
     return mockFlowPoint;
   }
 
+  /**
+   * Tests the fullfillDescription method to ensure it updates the OpenAPI info.
+   */
   @Test
   public void testFullfillDescription_UpdatesInfo() {
     // Given
@@ -239,12 +282,15 @@ public class DynamicDatasourceEndpointTest extends WeldBaseTest {
 
     // Then
     String description = mockOpenAPI.getInfo().getDescription();
-    assertTrue(description.contains("Dynamic Datasource API endpoints descriptions:"));
-    assertTrue(description.contains("Description for endpoint1"));
-    assertTrue(description.contains("Description for endpoint2"));
-    assertTrue(description.contains("## Q Parameter:"));
+    assertTrue(StringUtils.contains(description, "Dynamic Datasource API endpoints descriptions:"));
+    assertTrue(StringUtils.contains(description, "Description for endpoint1"));
+    assertTrue(StringUtils.contains(description, "Description for endpoint2"));
+    assertTrue(StringUtils.contains(description, "## Q Parameter:"));
   }
 
+  /**
+   * Tests the createGETEndpoint method to ensure it creates a GET endpoint.
+   */
   @Test
   public void testCreateGETEndpoint() {
     // Given
@@ -260,11 +306,13 @@ public class DynamicDatasourceEndpointTest extends WeldBaseTest {
     assertNotNull(myNewOpenAPI.getPaths().get("/sws/com.etendoerp.etendorx.datasource/TestEntity").getGet());
   }
 
+  /**
+   * Tests the defineFormInitRequestSchema method to ensure it creates the schema.
+   */
   @Test
   public void testDefineFormInitRequestSchema_CreatesSchema() {
     // Given
     Field mockedField = getMockedField();
-
     List<Field> fields = List.of(mockedField);
 
     // When
@@ -274,10 +322,12 @@ public class DynamicDatasourceEndpointTest extends WeldBaseTest {
     assertNotNull(schema.getProperties().get("testColumn"));
   }
 
+  /**
+   * Tests the defineResponseSchema method to ensure it creates the schema.
+   */
   @Test
   public void testDefineResponseSchema() {
     // Given
-
     List<Field> fields = List.of(getMockedField());
 
     // When
@@ -287,6 +337,4 @@ public class DynamicDatasourceEndpointTest extends WeldBaseTest {
     assertNotNull(schema.getProperties().get("status"));
     assertNotNull(schema.getProperties().get("data"));
   }
-
-
 }
