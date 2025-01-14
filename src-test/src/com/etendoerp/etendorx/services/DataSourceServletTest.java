@@ -8,15 +8,21 @@ import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.io.PrintWriter;
 import java.util.Collections;
 
+import javax.servlet.ReadListener;
+import javax.servlet.ServletInputStream;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
 import org.apache.http.entity.ContentType;
 import org.codehaus.jettison.json.JSONArray;
+import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.junit.Before;
 import org.junit.Rule;
@@ -235,5 +241,52 @@ public class DataSourceServletTest extends WeldBaseTest {
   public void doGet_InvalidURI_ThrowsIllegalArgumentException() throws Exception {
     expectedException.expect(IllegalArgumentException.class);
     dataSourceServlet.doGet("/datasource/users/123/extra", mockRequest, mockResponse);
+  }
+
+
+  @Test
+  public void createPayLoadSuccess() throws IOException, JSONException {
+
+    // Given
+    String jsonInput = "{\"field1\":\"value1\"}";
+    InputStream inputStream = new ByteArrayInputStream(jsonInput.getBytes());
+    ServletInputStream servletInputStream = new ServletInputStream() {
+      @Override
+      public boolean isFinished() {
+        return false;
+      }
+
+      @Override
+      public boolean isReady() {
+        return false;
+      }
+
+      @Override
+      public void setReadListener(ReadListener readListener) {
+
+      }
+
+      @Override
+      public int read() throws IOException {
+        return inputStream.read();
+      }
+    };
+    when(mockRequest.getInputStream()).thenReturn(servletInputStream);
+    when(mockRequest.getParameter("componentId")).thenReturn("isc_OBViewForm_0");
+    when(mockRequest.getParameter("dataSource")).thenReturn("isc_OBViewDataSource_0");
+    when(mockRequest.getParameter("operationType")).thenReturn("add");
+    when(mockRequest.getParameter("csrfToken")).thenReturn("123");
+
+
+    // When
+    JSONObject result = new DataSourceServlet().createPayLoad(mockRequest);
+
+    // Then
+    assertEquals("isc_OBViewDataSource_0", result.getString("dataSource"));
+    assertEquals("add", result.getString("operationType"));
+    assertEquals("isc_OBViewForm_0", result.getString("componentId"));
+    assertEquals("123", result.getString("csrfToken"));
+    JSONObject data = result.getJSONObject(DataSourceConstants.DATA);
+    assertEquals("value1", data.getString("field1"));
   }
 }

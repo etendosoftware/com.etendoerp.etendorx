@@ -50,6 +50,10 @@ import com.etendoerp.etendorx.utils.TokenVerifier;
  */
 public class SWSAuthenticationManagerTest extends WeldBaseTest {
 
+  public static final String TEST_SECRET = "testSecret";
+  public static final String AUTHORIZATION = "Authorization";
+  public static final String USER_ID_123 = "userId123";
+  public static final String EXAMPLE_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyLCJpc3MiOiJpc3N1ZXIiLCJ1c2VyX21ldGFkYXRhIjp7Im5hbWUiOiJ0ZXN0VXNlciJ9fQ.I8eODDNFArRF4up9iLpLjAdizOy8obNTtTgiRpEyGk0";
   @Mock
   private HttpServletRequest mockRequest;
 
@@ -77,7 +81,6 @@ public class SWSAuthenticationManagerTest extends WeldBaseTest {
   @InjectMocks
   private SWSAuthenticationManager authManager;
 
-  private AutoCloseable mocks;
 
   @Rule
   public ExpectedException expectedException = ExpectedException.none();
@@ -90,7 +93,7 @@ public class SWSAuthenticationManagerTest extends WeldBaseTest {
    */
   @Before
   public void setUp() throws Exception {
-    mocks = MockitoAnnotations.openMocks(this);
+    MockitoAnnotations.openMocks(this);
     OBContext.setOBContext(TestConstants.Users.SYSTEM, TestConstants.Roles.SYS_ADMIN,
         TestConstants.Clients.SYSTEM, TestConstants.Orgs.MAIN);
     VariablesSecureApp vars = new VariablesSecureApp(OBContext.getOBContext().getUser().getId(),
@@ -114,7 +117,7 @@ public class SWSAuthenticationManagerTest extends WeldBaseTest {
          MockedStatic<OBContext> staticMockOBContext = mockStatic(OBContext.class)
         ) {
       staticMockSWSConfigSingleton.when(com.smf.securewebservices.SWSConfig::getInstance).thenReturn(mockSWSConfig);
-      when(mockSWSConfig.getPrivateKey()).thenReturn("testSecret");
+      when(mockSWSConfig.getPrivateKey()).thenReturn(TEST_SECRET);
       when(mockSWSConfig.getExpirationTime()).thenReturn(1000L);
       staticMockOBContext.when(OBContext::getOBContext).thenReturn(obContextMock);
       staticMockOBContext.when(() -> OBContext.setOBContext((OBContext) any())).thenAnswer(invocation -> null);
@@ -128,7 +131,7 @@ public class SWSAuthenticationManagerTest extends WeldBaseTest {
       String warehouseId = "testWarehouseId";
       String clientId = "testClientId";
 
-      String testSecret = "testSecret";
+      String testSecret = TEST_SECRET;
       Algorithm algorithm = Algorithm.HMAC256(testSecret);
       String token = JWT.create()
           .withClaim("user", userId)
@@ -140,7 +143,7 @@ public class SWSAuthenticationManagerTest extends WeldBaseTest {
           .sign(algorithm);
 
       // Setup mocks
-      when(mockRequest.getHeader("Authorization")).thenReturn("Bearer " + token);
+      when(mockRequest.getHeader(AUTHORIZATION)).thenReturn("Bearer " + token);
 
       // Invoke method
       String result = authManager.doWebServiceAuthenticate(mockRequest);
@@ -159,13 +162,13 @@ public class SWSAuthenticationManagerTest extends WeldBaseTest {
   @Test(expected = OBException.class)
   public void testDoWebServiceAuthenticate_InvalidToken() throws Exception {
     // Prepare an invalid token with missing claims
-    Algorithm algorithm = Algorithm.HMAC256("testSecret");
+    Algorithm algorithm = Algorithm.HMAC256(TEST_SECRET);
     String token = JWT.create()
         .withClaim("user", "")
         .sign(algorithm);
 
     // Setup mocks
-    when(mockRequest.getHeader("Authorization")).thenReturn("Bearer " + token);
+    when(mockRequest.getHeader(AUTHORIZATION)).thenReturn("Bearer " + token);
 
     // Invoke method
     authManager.doWebServiceAuthenticate(mockRequest);
@@ -248,7 +251,7 @@ public class SWSAuthenticationManagerTest extends WeldBaseTest {
   @Test
   public void testDoWebServiceAuthenticate_NoToken() throws Exception {
     // Setup mocks
-    when(mockRequest.getHeader("Authorization")).thenReturn(null);
+    when(mockRequest.getHeader(AUTHORIZATION)).thenReturn(null);
 
     // Invoke method
     String result = authManager.doWebServiceAuthenticate(mockRequest);
@@ -269,12 +272,11 @@ public class SWSAuthenticationManagerTest extends WeldBaseTest {
     HttpServletRequest request = mock(HttpServletRequest.class);
     HttpServletResponse response = mock(HttpServletResponse.class);
     HttpSession session = mock(HttpSession.class);
-    VariablesSecureApp vars = mock(VariablesSecureApp.class);
     User mockUser = mock(User.class);
     OBCriteria<User> criteria = mock(OBCriteria.class);
     Properties props = mock(Properties.class);
 
-    when(request.getParameter("access_token")).thenReturn(getExampleToken());
+    when(request.getParameter("access_token")).thenReturn(EXAMPLE_TOKEN);
     when(request.getParameter("user")).thenReturn("testUser");
     when(request.getSession(true)).thenReturn(session);
     OBPropertiesProvider.setInstance(mockPropertiesProvider);
@@ -288,7 +290,7 @@ public class SWSAuthenticationManagerTest extends WeldBaseTest {
     when(criteria.setFilterOnReadableOrganization(false)).thenReturn(criteria);
     when(criteria.setMaxResults(1)).thenReturn(criteria);
     when(criteria.uniqueResult()).thenReturn(mockUser);
-    when(mockUser.getId()).thenReturn("userId123");
+    when(mockUser.getId()).thenReturn(USER_ID_123);
 
     try (
         MockedStatic<OBDal> obDalMockedStatic = Mockito.mockStatic(OBDal.class)
@@ -302,19 +304,10 @@ public class SWSAuthenticationManagerTest extends WeldBaseTest {
       String result = authManager.doAuthenticate(request, response);
 
       // Assert
-      assertEquals("userId123", result);
-      verify(session).setAttribute("#Authenticated_user", "userId123");
+      assertEquals(USER_ID_123, result);
+      verify(session).setAttribute("#Authenticated_user", USER_ID_123);
       verify(OBDal.getInstance()).save(mockUser);
       verify(OBDal.getInstance()).flush();
     }
-  }
-
-  /**
-   * Generates an example JWT token for testing.
-   *
-   * @return a sample JWT token
-   */
-  private static  String getExampleToken() {
-    return "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyLCJpc3MiOiJpc3N1ZXIiLCJ1c2VyX21ldGFkYXRhIjp7Im5hbWUiOiJ0ZXN0VXNlciJ9fQ.I8eODDNFArRF4up9iLpLjAdizOy8obNTtTgiRpEyGk0";
   }
 }

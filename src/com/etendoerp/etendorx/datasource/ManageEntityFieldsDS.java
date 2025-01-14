@@ -74,12 +74,13 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
       OBContext.setAdminMode(true);
 
       final String strProjectionId = parameters.get("@ETRX_Projection_Entity.id@");
-      final ETRXProjectionEntity projectionEntity = OBDal.getInstance().get(ETRXProjectionEntity.class, strProjectionId);
+      final ETRXProjectionEntity projectionEntity = OBDal.getInstance().get(ETRXProjectionEntity.class,
+          strProjectionId);
 
       if (parameters.get(JsonConstants.DISTINCT_PARAMETER) != null) {
-        result = getDistinctParam(parameters,projectionEntity);
+        result = getDistinctParam(parameters, projectionEntity);
       } else {
-        result = getGridData(parameters,projectionEntity);
+        result = getGridData(parameters, projectionEntity);
       }
     } catch (Exception e) {
       log.error("Error while managing entity fields", e);
@@ -89,7 +90,8 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
     return result;
   }
 
-  private List<Map<String, Object>> getDistinctParam(Map<String, String> parameters, ETRXProjectionEntity projectionEntity){
+  private List<Map<String, Object>> getDistinctParam(Map<String, String> parameters,
+      ETRXProjectionEntity projectionEntity) {
     var distinct = parameters.get(JsonConstants.DISTINCT_PARAMETER);
     List<Map<String, Object>> result = new ArrayList<>();
     log.debug("Distinct param: " + distinct);
@@ -102,13 +104,14 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
     if (StringUtils.equals(ManageEntityFieldConstants.ETRXPROJECTIONENTITYRELATED, distinct)) {
       result = getProjectionEntityRelatedFilterData(projectionEntity);
     }
-    if (StringUtils.equals(ManageEntityFieldConstants.ETRXCONSTANTVALUE,distinct)) {
+    if (StringUtils.equals(ManageEntityFieldConstants.ETRXCONSTANTVALUE, distinct)) {
       result = getConstantValueFilterData(projectionEntity);
     }
     return result;
   }
 
-  private List<Map<String, Object>> getGridData(Map<String, String> parameters, ETRXProjectionEntity projectionEntity) throws JSONException {
+  private List<Map<String, Object>> getGridData(Map<String, String> parameters,
+      ETRXProjectionEntity projectionEntity) throws JSONException {
     List<Map<String, Object>> result = new ArrayList<>();
     OBCriteria<ETRXEntityField> etxEntityFieldOBCCriteria = OBDal.getInstance()
         .createCriteria(ETRXEntityField.class);
@@ -317,7 +320,7 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
           .createQuery(hql, Module.class)
           .setParameter("etrxProjectionEntityId", projectionEntity.getId());
       List<Module> moduleList = moduleQuery.list();
-      for (Module module: moduleList) {
+      for (Module module : moduleList) {
         Map<String, Object> filterRecord = new HashMap<>();
         filterRecord.put("id", module.getId());
         filterRecord.put("name", module.getIdentifier());
@@ -333,7 +336,7 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
         filterRecord.put("_identifier", projectionModule.getIdentifier());
         filterRecord.put("_entityName", Module.ENTITY_NAME);
         result.add(filterRecord);
-      } else if (!projectionModule.isInDevelopment()){
+      } else if (!projectionModule.isInDevelopment()) {
         OBCriteria<Module> moduleOBCriteria = OBDal.getInstance()
             .createCriteria(Module.class);
         moduleOBCriteria.add(Restrictions.eq(Module.PROPERTY_INDEVELOPMENT, true));
@@ -356,103 +359,114 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
     return result;
   }
 
-    private void sortResult(Map<String, String> parameters, List<Map<String, Object>> result) {
-      String strSortBy = parameters.getOrDefault("_sortBy", ManageEntityFieldConstants.LINE);
-      Collections.sort(result, new ResultComparator(strSortBy));
-    }
+  private void sortResult(Map<String, String> parameters, List<Map<String, Object>> result) {
+    String strSortBy = parameters.getOrDefault("_sortBy", ManageEntityFieldConstants.LINE);
+    Collections.sort(result, new ResultComparator(strSortBy));
+  }
 
-    private List<Map<String, Object>> applyFiltersAndSort(Map<String, String> parameters, List<Map<String, Object>> result) throws JSONException {
+  private List<Map<String, Object>> applyFiltersAndSort(Map<String, String> parameters,
+      List<Map<String, Object>> result) throws JSONException {
     EntityFieldSelectedFilters selectedFilters = readCriteria(parameters);
     //IsMandatory Filter
     if (selectedFilters.getIsmandatory() != null) {
       result = result.stream().filter(
           row -> selectedFilters.getIsmandatory() == (boolean) row.get(ManageEntityFieldConstants.ISMANDATORY)).collect(
-              Collectors.toList());
+          Collectors.toList());
     }
     //IdentifiesUnivocally Filter
     if (selectedFilters.getIdentifiesUnivocally() != null) {
       result = result.stream().filter(
-          row-> selectedFilters.getIdentifiesUnivocally() == (boolean) row.get(ManageEntityFieldConstants.IDENTIFIESUNIVOCALLY)).collect(
-              Collectors.toList());
+          row -> selectedFilters.getIdentifiesUnivocally() == (boolean) row.get(
+              ManageEntityFieldConstants.IDENTIFIESUNIVOCALLY)).collect(
+          Collectors.toList());
     }
     //EntityFieldCreated Filter
     if (selectedFilters.getEntityFieldCreated() != null) {
       result = result.stream().filter(
-          row-> selectedFilters.getEntityFieldCreated() == (boolean) row.get(ManageEntityFieldConstants.ENTITYFIELDCREATED)).collect(
-              Collectors.toList());
+          row -> selectedFilters.getEntityFieldCreated() == (boolean) row.get(
+              ManageEntityFieldConstants.ENTITYFIELDCREATED)).collect(
+          Collectors.toList());
     }
     //Name Filter
     if (selectedFilters.getName() != null) {
       result = result.stream().filter(
-          row-> StringUtils.contains(row.get(ManageEntityFieldConstants.NAME).toString(), selectedFilters.getName())).collect(
-              Collectors.toList());
+          row -> StringUtils.contains(row.get(ManageEntityFieldConstants.NAME).toString(),
+              selectedFilters.getName())).collect(
+          Collectors.toList());
     }
     //Line Filter
     if (selectedFilters.getLine() != null) {
       result = result.stream().filter(
-          row-> StringUtils.equals(row.get(ManageEntityFieldConstants.LINE).toString(), selectedFilters.getLine())).collect(
-              Collectors.toList());
+          row -> StringUtils.equals(row.get(ManageEntityFieldConstants.LINE).toString(),
+              selectedFilters.getLine())).collect(
+          Collectors.toList());
     }
     //Jsonpath Filter
     if (selectedFilters.getJsonpath() != null) {
       result = result.stream().filter(
-          row-> StringUtils.contains(row.get(ManageEntityFieldConstants.JSONPATH).toString(), selectedFilters.getJsonpath())).collect(
+          row -> StringUtils.contains(row.get(ManageEntityFieldConstants.JSONPATH).toString(),
+              selectedFilters.getJsonpath())).collect(
           Collectors.toList());
     }
     //Module Filter
     if (!selectedFilters.getModuleIds().isEmpty()) {
       result = result.stream().filter(
-          row-> selectedFilters.getModuleIds().contains(((Module) row.get(ManageEntityFieldConstants.MODULE)).getId())).collect(
+          row -> selectedFilters.getModuleIds().contains(
+              ((Module) row.get(ManageEntityFieldConstants.MODULE)).getId())).collect(
           Collectors.toList());
     }
     //Field Mapping Filter
     if (!selectedFilters.getFieldMappingIds().isEmpty()) {
       result = result.stream().filter(
-          row-> selectedFilters.getFieldMappingIds().contains(row.get(ManageEntityFieldConstants.FIELDMAPPING))).collect(
+          row -> selectedFilters.getFieldMappingIds().contains(
+              row.get(ManageEntityFieldConstants.FIELDMAPPING))).collect(
           Collectors.toList());
     }
     //Java Mapping Filter
     if (!selectedFilters.getJavaMappingIds().isEmpty()) {
       result = result.stream().filter(
-          row-> row.get(ManageEntityFieldConstants.JAVAMAPPING) != null
-              && selectedFilters.getJavaMappingIds().contains(((ETRXJavaMapping) row.get(ManageEntityFieldConstants.JAVAMAPPING)).getId())).collect(
+          row -> row.get(ManageEntityFieldConstants.JAVAMAPPING) != null
+              && selectedFilters.getJavaMappingIds().contains(
+              ((ETRXJavaMapping) row.get(ManageEntityFieldConstants.JAVAMAPPING)).getId())).collect(
           Collectors.toList());
     }
     //Projection Entity Related Filter
     if (!selectedFilters.getEtrxProjectionEntityRelatedIds().isEmpty()) {
       result = result.stream().filter(
-          row-> row.get(ManageEntityFieldConstants.ETRXPROJECTIONENTITYRELATED) != null
-              && selectedFilters.getEtrxProjectionEntityRelatedIds().contains(((ETRXProjectionEntity) row.get(ManageEntityFieldConstants.ETRXPROJECTIONENTITYRELATED)).getId())).collect(
+          row -> row.get(ManageEntityFieldConstants.ETRXPROJECTIONENTITYRELATED) != null
+              && selectedFilters.getEtrxProjectionEntityRelatedIds().contains(((ETRXProjectionEntity) row.get(
+              ManageEntityFieldConstants.ETRXPROJECTIONENTITYRELATED)).getId())).collect(
           Collectors.toList());
     }
     //Constant Value Filter
     if (!selectedFilters.getEtrxConstantValueIds().isEmpty()) {
       result = result.stream().filter(
-          row-> row.get(ManageEntityFieldConstants.ETRXCONSTANTVALUE) != null
-              && selectedFilters.getEtrxConstantValueIds().contains(((ETRXProjectionEntity) row.get(ManageEntityFieldConstants.ETRXCONSTANTVALUE)).getId())).collect(
+          row -> row.get(ManageEntityFieldConstants.ETRXCONSTANTVALUE) != null
+              && selectedFilters.getEtrxConstantValueIds().contains(
+              ((ETRXProjectionEntity) row.get(ManageEntityFieldConstants.ETRXCONSTANTVALUE)).getId())).collect(
           Collectors.toList());
     }
     sortResult(parameters, result);
     return result;
   }
 
-  private String getId() {
+   static String getId() {
     String id;
     //@formatter:off
     final String sql =
         "select get_uuid()";
     //@formatter:on
     try {
-        id = (String) OBDal.getInstance()
-            .getSession().createSQLQuery(sql)
-              .setMaxResults(1).uniqueResult();
+      id = (String) OBDal.getInstance()
+          .getSession().createSQLQuery(sql)
+          .setMaxResults(1).uniqueResult();
     } catch (final Exception e) {
       throw new OBException(e.getMessage(), e.getCause());
     }
     return id;
   }
 
-  private Long getMaxValueLineNo(ETRXProjectionEntity projectionEntity) {
+  static Long getMaxValueLineNo(ETRXProjectionEntity projectionEntity) {
     //@formatter:off
     final String hql =
         " select coalesce(max(ef.line), 0) as maxSeqNo " +
@@ -471,8 +485,9 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
     return 0l;
   }
 
-  private boolean isValidEntityReference(Property property){
-    if (property.isOneToMany() || StringUtils.isNotBlank(property.getSqlLogic()) || StringUtils.equals(property.getName(),"_computedColumns")){
+  private boolean isValidEntityReference(Property property) {
+    if (property.isOneToMany() || StringUtils.isNotBlank(property.getSqlLogic()) || StringUtils.equals(
+        property.getName(), "_computedColumns")) {
       return false;
     }
     if (property.getReferencedProperty() != null
@@ -530,7 +545,7 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
       selectedFilters.setName(value);
     } else if (StringUtils.equals(fieldName, ManageEntityFieldConstants.ISMANDATORY)) {
       var isBoolean = StringUtils.equalsIgnoreCase(value, Boolean.TRUE.toString()) || StringUtils.equalsIgnoreCase(
-          value,Boolean.FALSE.toString());
+          value, Boolean.FALSE.toString());
       selectedFilters.setIsmandatory(isBoolean ? criteria.getBoolean("value") : null);
     } else if (StringUtils.equals(fieldName, ManageEntityFieldConstants.IDENTIFIESUNIVOCALLY)) {
       var isBoolean = StringUtils.equalsIgnoreCase(value, Boolean.TRUE.toString()) || StringUtils.equalsIgnoreCase(
@@ -538,8 +553,8 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
       selectedFilters.setIdentifiesUnivocally(isBoolean ? criteria.getBoolean("value") : null);
     } else if (StringUtils.equals(fieldName, ManageEntityFieldConstants.FIELDMAPPING)) {
       var normalizedValue = value.replace("[", "")
-          .replace("]","")
-          .replace("\"","").split(",");
+          .replace("]", "")
+          .replace("\"", "").split(",");
       selectedFilters.getFieldMappingIds().addAll(List.of(normalizedValue));
     } else if (StringUtils.equals(fieldName, ManageEntityFieldConstants.JAVAMAPPING)) {
       selectedFilters.addJavaMappingIds(value);
@@ -580,7 +595,7 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
       ascending = 1;
       if (StringUtils.startsWith(sortByField, "-")) {
         ascending = -1;
-        this.sortByField = StringUtils.substring(sortByField,1);
+        this.sortByField = StringUtils.substring(sortByField, 1);
       }
     }
 

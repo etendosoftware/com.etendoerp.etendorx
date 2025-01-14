@@ -191,7 +191,7 @@ public class DataSourceServlet implements WebService {
    *
    * @param request
    */
-  private JSONObject createPayLoad(HttpServletRequest request) {
+  JSONObject createPayLoad(HttpServletRequest request) {
     String csrf = "123";
     request.getSession(false).setAttribute("#CSRF_TOKEN", csrf);
 

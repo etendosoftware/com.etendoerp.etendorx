@@ -156,7 +156,6 @@ public class DynamicDatasourceEndpointTest extends WeldBaseTest {
     assertNotNull(myOpenAPI.getTags());
     assertEquals(1, myOpenAPI.getTags().size());
     assertEquals("TestFlow", myOpenAPI.getTags().get(0).getName());
-    System.out.println(myOpenAPI.getInfo().getDescription());
     assertTrue(StringUtils.contains(myOpenAPI.getInfo().getDescription(), "Description of EntityName"));
   }
 
