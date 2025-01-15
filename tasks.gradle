@@ -1,11 +1,15 @@
 def ETENDORX_PRODUCTION_REPOSITORY_URL = "https://maven.pkg.github.com/etendosoftware/com.etendoerp.platform.extensions"
 def ETENDORX_SNAPSHOT_REPOSITORY_URL = "https://repo.futit.cloud/repository/etendo-snapshot-jars"
 project.ext {
-    ETENDORX_VERSION = "2.1.0-SNAPSHOT"
+    ETENDORX_VERSION = "2.2.0"
+}
+
+def isRXDockerized() {
+    return project.hasProperty("docker_com.etendoerp.etendorx") && project.property("docker_com.etendoerp.etendorx").toBoolean()
 }
 
 task "rx.setup" {
-    if(project.hasProperty("docker_com.etendoerp.etendorx") ? project.property("docker_com.etendoerp.etendorx").toBoolean() : false) {
+    if(isRXDockerized()) {
         description = 'Finds all Docker Compose YAML files and copies them to build/compose'
         group = 'Docker'
 
@@ -19,25 +23,38 @@ task "rx.setup" {
 
             def dirs = ['modules', "${buildDir}/etendo/modules"]
             dirs.each { dir ->
-                // Find all Docker Compose YAML files and copy them
-                fileTree(dir: dir, include: '**/rxconfig/*.yaml.template').each { file ->
-                    def destFile = new File(destDir, file.name.replace('.template', ''))
-                    copy {
-                        from file
-                        into destDir
-                        rename { String fileName ->
-                            fileName.replace('.template', '')
+                // Collect .yaml and .yaml.template files
+                def yamlFiles = fileTree(dir: dir, include: '**/rxconfig/*.yaml').collect { it.name }
+                def templateFiles = fileTree(dir: dir, include: '**/rxconfig/*.yaml.template')
+
+                templateFiles.each { template ->
+                    def yamlName = template.name.replace('.template', '')
+                    def destFile = new File(destDir, yamlName)
+
+                    // If the .yaml file doesn't exist, use the template to generate it
+                    if (!yamlFiles.contains(yamlName)) {
+                        println("Using template for missing file: ${yamlName}")
+                        copy {
+                            from template
+                            into destDir
+                            rename { it.replace('.template', '') }
+                        }
+                    } else {
+                        // If the .yaml file exists, copy it directly
+                        println("Using existing .yaml file: ${yamlName}")
+                        copy {
+                            from new File(template.parent, yamlName)
+                            into destDir
                         }
                     }
                     def content = destFile.text
                     content = content.replace('{TOMCAT_URL}', isTomcatEnabled ? 'tomcat' : 'host.docker.internal')
-                    content = content.replace('{BBDD_URL}', isBBDDEnabled ? 'db' : "host.docker.internal")
+                    content = content.replace('{BBDD_URL}', isBBDDEnabled ? 'db' : 'host.docker.internal')
                     content = content.replace('{BBDD_PORT}', isBBDDEnabled ? '5432' : project.property("bbdd.port").toString())
                     content = content.replace('{BBDD_SID}', project.property("bbdd.sid").toString())
                     content = content.replace('{CONTEXT_NAME}', project.property("context.name").toString())
                     content = content.replace('{ETENDORX_BASEPACKAGE}', project.hasProperty("etendorx.basepackage") ? project.property("etendorx.basepackage").toString() : "")
                     content = content.replace('{OBCON_URL}', isTomcatEnabled ? 'obconnsrv' : 'host.docker.internal')
-
                     destFile.text = content
                 }
             }
@@ -90,7 +107,7 @@ task "rx.env.file" {
 task "rx.das.restart" {
     dependsOn "rx.setup"
     doLast {
-        if(project.hasProperty("docker_com.etendoerp.etendorx") ? project.property("docker_com.etendoerp.etendorx").toBoolean() : false) {
+        if(isRXDockerized()) {
             executeDockerComposeCommand("restart das")
         }
     }
@@ -98,14 +115,14 @@ task "rx.das.restart" {
 
 task "rx.das.stop" {
     doLast {
-        if(project.hasProperty("docker_com.etendoerp.etendorx") ? project.property("docker_com.etendoerp.etendorx").toBoolean() : false) {
+        if(isRXDockerized()) {
             executeDockerComposeCommand("stop das")
         }
     }
 }
 
 afterEvaluate {
-    if (tasks.hasProperty("generateEnvFile")) {
+    if (isRXDockerized() && tasks.hasProperty("generateEnvFile")) {
         tasks.named("generateEnvFile").configure { task ->
             task.finalizedBy("rx.env.file")
         }
