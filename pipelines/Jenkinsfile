@@ -245,6 +245,7 @@ spec:
 
                                         echo "---------------------- Building Classic Environment ----------------------"
                                         sh './gradlew install -PignoreConsistency=true --info --stacktrace'
+                                        sh './gradlew update.database -PignoreConsistency=true --info --stacktrace'
                                         sh './gradlew smartbuild -PignoreConsistency=true --info --stacktrace'
 
                                         echo "---------------------- Classic Environment Successful ----------------------"

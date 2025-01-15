@@ -10908,7 +10908,7 @@ Configuration Properties are defined by modules with the purpose other modules a
 <!--C1E349CB1A8A4FD293D9C5E26F95B84B-->  <NAME><![CDATA[Scope]]></NAME>
 <!--C1E349CB1A8A4FD293D9C5E26F95B84B-->  <DESCRIPTION><![CDATA[Scopes (permissions) that the application requests.]]></DESCRIPTION>
 <!--C1E349CB1A8A4FD293D9C5E26F95B84B-->  <HELP><![CDATA[Specify the scopes that your application needs from the OAuth2 provider. These define the permissions your application is requesting, such as access to the user's profile or email.]]></HELP>
-<!--C1E349CB1A8A4FD293D9C5E26F95B84B-->  <COLUMNNAME><![CDATA[Scope]]></COLUMNNAME>
+<!--C1E349CB1A8A4FD293D9C5E26F95B84B-->  <COLUMNNAME><![CDATA[Provider_Scope]]></COLUMNNAME>
 <!--C1E349CB1A8A4FD293D9C5E26F95B84B-->  <AD_TABLE_ID><![CDATA[ADBDD42B864A45FE89E3751B82A16379]]></AD_TABLE_ID>
 <!--C1E349CB1A8A4FD293D9C5E26F95B84B-->  <AD_REFERENCE_ID><![CDATA[10]]></AD_REFERENCE_ID>
 <!--C1E349CB1A8A4FD293D9C5E26F95B84B-->  <FIELDLENGTH><![CDATA[255]]></FIELDLENGTH>

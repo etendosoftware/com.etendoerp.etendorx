@@ -41,7 +41,7 @@
         <default/>
         <onCreateDefault/>
       </column>
-      <column name="SCOPE" primaryKey="false" required="true" type="VARCHAR" size="255" autoIncrement="false">
+      <column name="PROVIDER_SCOPE" primaryKey="false" required="true" type="VARCHAR" size="255" autoIncrement="false">
         <default/>
         <onCreateDefault/>
       </column>
