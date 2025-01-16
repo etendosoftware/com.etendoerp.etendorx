@@ -3,7 +3,6 @@ package com.etendoerp.etendorx.services;
 
 import static com.etendoerp.etendorx.services.ImageUploadServlet.getReadColumnConfig;
 import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -41,6 +40,10 @@ import org.openbravo.model.ad.datamodel.Column;
 import org.openbravo.model.ad.utility.Image;
 import org.openbravo.model.common.enterprise.Organization;
 import org.openbravo.test.base.TestConstants;
+
+/**
+ * Unit tests for the ImageUploadServlet class.
+ */
 
 public class ImageUploadServletTest extends WeldBaseTest {
 

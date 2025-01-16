@@ -50,6 +50,7 @@ import com.smf.securewebservices.SWSConfig;
 public class BuildConfigTest {
 
 
+  public static final String TEST_KEY = "testKey";
   private BuildConfig buildConfig;
 
   @Mock
@@ -142,7 +143,7 @@ public class BuildConfigTest {
     JSONObject sourceJSON = new JSONObject();
     List<ConfigServiceParam> params = new ArrayList<>();
     ConfigServiceParam param = mock(ConfigServiceParam.class);
-    when(param.getParameterKey()).thenReturn("testKey");
+    when(param.getParameterKey()).thenReturn(TEST_KEY);
     when(param.getParameterValue()).thenReturn("testValue");
     params.add(param);
     when(rxConfig.getETRXServiceParamList()).thenReturn(params);
@@ -151,7 +152,7 @@ public class BuildConfigTest {
     method.setAccessible(true);
     method.invoke(buildConfig, sourceJSON, rxConfig);
 
-    assertEquals("testValue", sourceJSON.getString("testKey"));
+    assertEquals("testValue", sourceJSON.getString(TEST_KEY));
   }
 
   /**
@@ -222,7 +223,7 @@ public class BuildConfigTest {
       mockedContextStatic.when(OBContext::restorePreviousMode).thenAnswer(invocation -> null);
 
       mockedSWSConfig.when(SWSConfig::getInstance).thenReturn(swsConfig);
-      when(swsConfig.getPrivateKey()).thenReturn("testKey");
+      when(swsConfig.getPrivateKey()).thenReturn(TEST_KEY);
       mockedPreferences.when(() -> Preferences.getPreferenceValue(anyString(), anyBoolean(),
           (Client) any(), any(), any(), any(), any())).thenReturn("ES256");
 

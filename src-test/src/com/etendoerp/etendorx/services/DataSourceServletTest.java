@@ -60,6 +60,9 @@ public class DataSourceServletTest extends WeldBaseTest {
   @Mock
   private Tab mockTab;
 
+  /**
+   * Rule for handling expected exceptions in JUnit tests.
+   */
   @Rule
   public ExpectedException expectedException = ExpectedException.none();
 
@@ -263,7 +266,7 @@ public class DataSourceServletTest extends WeldBaseTest {
 
       @Override
       public void setReadListener(ReadListener readListener) {
-
+        // The method is empty because is only for tests.
       }
 
       @Override

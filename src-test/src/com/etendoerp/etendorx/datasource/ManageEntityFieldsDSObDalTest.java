@@ -23,8 +23,10 @@ import com.etendoerp.etendorx.data.ETRXEntityField;
 import com.etendoerp.etendorx.data.ETRXProjection;
 import com.etendoerp.etendorx.data.ETRXProjectionEntity;
 
+/**
+ * Test class for managing entity fields using OBDal in the Etendo ERP system.
+ */
 public class ManageEntityFieldsDSObDalTest extends WeldBaseTest {
-
 
   /**
    * Sets up the test environment.
@@ -51,50 +53,13 @@ public class ManageEntityFieldsDSObDalTest extends WeldBaseTest {
     // Given
     ManageEntityFieldsDS dataSource = new ManageEntityFieldsDS();
     Map<String, String> parameters = new HashMap<>();
-    //example
-    //{
-    // @ETRX_Projection.id@=0B3ABF04950E4CF8A03FC64061011D5D,
-    // tabId=80B74CBD346A4644B5D96753D26EDE14,
-    // _textMatchStyle=substring,
-    // _noCount=true,
-    // _constructor=AdvancedCriteria,
-    // whereAndFilterClause=,
-    // criteria={"fieldName":"name","operator":"iContains","value":"a","_constructor":"AdvancedCriteria"},
-    // Constants_IDENTIFIER=_identifier,
-    // _isPickAndEdit=true,
-    // _org=0,
-    // _operationType=fetch,
-    // isc_dataFormat=json,
-    // _className=OBPickAndExecuteDataSource,
-    // operator=and,
-    // _componentId=isc_OBPickAndExecuteGrid_0,
-    // @ETRX_Projection_Entity.id@=BB8C106CD1F14E458E3F30C88C448E38,
-    // _startRow=0,
-    // _endRow=100,
-    // create_related=,
-    // _orderBy=obSelected DESC,
-    // @ETRX_Projection_Entity.organization@=0,
-    // buttonOwnerViewTabId=81D0F19C193942349DB84B5C7C6B3B8A,
-    // @ETRX_Projection_Entity.client@=0,
-    // @ETRX_Projection_Entity.tableEntity@=539,
-    // isc_metaDataPrefix=_,
-    // _sqlWhere=null,
-    // @ETRX_Projection.client@=0,
-    // dataSourceName=2923D34A16D743CC9D676A2E5E1A7386,
-    // _dataSource=isc_OBPickAndExecuteDataSource_0,
-    // whereClauseHasBeenChecked=false,
-    // _use_alias=true,
-    // isImplicitFilterApplied=false,
-    // Constants_FIELDSEPARATOR=$,
-    // @ETRX_Projection.organization@=0
-    // }
 
     ETRXProjection newProj = OBProvider.getInstance().get(ETRXProjection.class);
     newProj.setNewOBObject(true);
     newProj.setName("testProj");
-    org.openbravo.model.ad.module.Module RxModule = OBDal.getInstance().get(org.openbravo.model.ad.module.Module.class,
+    org.openbravo.model.ad.module.Module rxModule = OBDal.getInstance().get(org.openbravo.model.ad.module.Module.class,
         "BC7B2F721FD249F5A360C6AAD2A7EBF7");
-    newProj.setModule(RxModule);
+    newProj.setModule(rxModule);
     newProj.setActive(true);
     OBDal.getInstance().save(newProj);
 
@@ -143,7 +108,7 @@ public class ManageEntityFieldsDSObDalTest extends WeldBaseTest {
     assertTrue(result.isEmpty());
 
     //When
-    result= dataSource.getProjectionEntityRelatedFilterData(newProjEntity);
+    result = dataSource.getProjectionEntityRelatedFilterData(newProjEntity);
     assertTrue(result.isEmpty());
 
     //When

@@ -20,7 +20,6 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
-import org.jetbrains.annotations.NotNull;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -66,11 +65,6 @@ public class SWSAuthenticationManagerTest extends WeldBaseTest {
   @Mock
   private OBPropertiesProvider mockPropertiesProvider;
 
-  @Mock
-  private HttpSession mockSession;
-
-  @Mock
-  private TokenVerifier mockTokenVerifier;
 
   @Mock
   OBContext obContextMock;
@@ -82,6 +76,9 @@ public class SWSAuthenticationManagerTest extends WeldBaseTest {
   private SWSAuthenticationManager authManager;
 
 
+  /**
+   * Rule for handling expected exceptions in JUnit tests.
+   */
   @Rule
   public ExpectedException expectedException = ExpectedException.none();
 
