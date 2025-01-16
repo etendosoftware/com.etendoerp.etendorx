@@ -110,7 +110,7 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
     return result;
   }
 
-  private List<Map<String, Object>> getGridData(Map<String, String> parameters,
+  List<Map<String, Object>> getGridData(Map<String, String> parameters,
       ETRXProjectionEntity projectionEntity) throws JSONException {
     List<Map<String, Object>> result = new ArrayList<>();
     OBCriteria<ETRXEntityField> etxEntityFieldOBCCriteria = OBDal.getInstance()
@@ -218,7 +218,7 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
     return applyFiltersAndSort(parameters, result);
   }
 
-  private List<Map<String, Object>> getConstantValueFilterData(ETRXProjectionEntity projectionEntity) {
+  List<Map<String, Object>> getConstantValueFilterData(ETRXProjectionEntity projectionEntity) {
     List<Map<String, Object>> result = new ArrayList<>();
     try {
       OBContext.setAdminMode();
@@ -247,7 +247,7 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
     return result;
   }
 
-  private List<Map<String, Object>> getProjectionEntityRelatedFilterData(ETRXProjectionEntity projectionEntity) {
+  List<Map<String, Object>> getProjectionEntityRelatedFilterData(ETRXProjectionEntity projectionEntity) {
     List<Map<String, Object>> result = new ArrayList<>();
     try {
       OBContext.setAdminMode();
@@ -276,7 +276,7 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
     return result;
   }
 
-  private List<Map<String, Object>> getJavaMappingFilterData(ETRXProjectionEntity projectionEntity) {
+  List<Map<String, Object>> getJavaMappingFilterData(ETRXProjectionEntity projectionEntity) {
     List<Map<String, Object>> result = new ArrayList<>();
     try {
       OBContext.setAdminMode();
