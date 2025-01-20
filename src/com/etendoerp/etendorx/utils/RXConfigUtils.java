@@ -4,7 +4,6 @@ import java.util.Map;
 
 import org.hibernate.criterion.Restrictions;
 import org.openbravo.dal.service.OBDal;
-import org.openbravo.model.ad.domain.Preference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

@@ -48,7 +48,7 @@ public class InitializeRXServicesTest extends WeldBaseTest {
   private final boolean asyncEnable;
   private final boolean connectorEnable;
 
-  // Constructor para recibir parámetros
+  // Constructor to receive parameters
   public InitializeRXServicesTest(boolean rxEnable, boolean tomcatEnable, boolean asyncEnable, boolean connectorEnable) {
     this.rxEnable = rxEnable;
     this.tomcatEnable = tomcatEnable;
