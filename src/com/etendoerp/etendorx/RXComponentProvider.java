@@ -9,6 +9,7 @@ import javax.enterprise.context.ApplicationScoped;
 import org.openbravo.client.kernel.BaseComponentProvider;
 import org.openbravo.client.kernel.Component;
 import org.openbravo.client.kernel.ComponentProvider;
+import org.openbravo.client.kernel.KernelConstants;
 
 @ApplicationScoped
 @ComponentProvider.Qualifier(RXComponentProvider.RX_COMPONENT_TYPE)
@@ -22,6 +23,11 @@ public class RXComponentProvider  extends BaseComponentProvider {
   public List<ComponentResource> getGlobalComponentResources() {
     final List<ComponentResource> resources = new ArrayList<>();
     resources.add(createStaticResource("web/com.etendoerp.entendorx/js/oAuthToken/ETRX_GetToken.js",
+        false));
+    resources.add(createStaticResource("web/com.etendoerp.entendorx/js/init-services-toolbar-button.js",
+        false));
+    resources.add(createStyleSheetResource(("web/com.etendoerp.userinterface.smartclient/etendo/" +
+            "skins/default/com.etendoerp.etendorx/init-services-icon-styles.css"),
         false));
 
     return resources;

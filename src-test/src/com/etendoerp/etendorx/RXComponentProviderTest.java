@@ -40,7 +40,7 @@ public class RXComponentProviderTest {
     List<BaseComponentProvider.ComponentResource> resources = rxComponentProvider.getGlobalComponentResources();
 
     assertNotNull(resources);
-    assertEquals(1, resources.size());
+    assertEquals(3, resources.size());
   }
 
   /**
