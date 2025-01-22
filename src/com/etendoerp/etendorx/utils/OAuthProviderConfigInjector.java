@@ -4,6 +4,8 @@ import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 
 import com.etendoerp.etendorx.data.ETRXoAuthProvider;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This interface defines the methods that an OAuthProviderConfigInjector must implement.
@@ -11,6 +13,8 @@ import com.etendoerp.etendorx.data.ETRXoAuthProvider;
  * This configuration data is used to configure an OAuth provider.
  */
 public interface OAuthProviderConfigInjector {
+
+  Logger logger = LoggerFactory.getLogger(OAuthProviderConfigInjector.class);
 
   /**
    * Injects configuration data into the provided JSONObject.
@@ -20,7 +24,7 @@ public interface OAuthProviderConfigInjector {
    * @throws JSONException if an error occurs while injecting the configuration data
    */
   default void injectConfig(JSONObject sourceJSON) throws JSONException {
-    throw new UnsupportedOperationException("Method not implemented");
+    logger.warn("Default implementation of injectConfig(JSONObject) called. No implementation found.");
   }
 
   /**
@@ -32,6 +36,6 @@ public interface OAuthProviderConfigInjector {
    * @throws JSONException if an error occurs while injecting the configuration data
    */
   default void injectConfig(JSONObject sourceJSON, ETRXoAuthProvider provider) throws JSONException {
-    throw new UnsupportedOperationException("Method not implemented");
+    logger.warn("Default implementation of injectConfig(JSONObject, ETRXoAuthProvider) called. No implementation found.");
   }
 }

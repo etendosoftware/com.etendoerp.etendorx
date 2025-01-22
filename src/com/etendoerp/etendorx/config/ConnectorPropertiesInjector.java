@@ -56,17 +56,4 @@ public class ConnectorPropertiesInjector implements OAuthProviderConfigInjector 
       throw new OBException(e);
     }
   }
-
-  /**
-   * Injects configuration data into the provided JSONObject.
-   * The configuration data is sourced from the sourceJSON parameter and the provider parameter.
-   *
-   * @param sourceJSON the JSONObject that contains the configuration data to be injected
-   * @param provider the ETRXoAuthProvider that contains additional configuration data to be injected
-   * @throws JSONException if an error occurs while injecting the configuration data
-   */
-  @Override
-  public void injectConfig(JSONObject sourceJSON, ETRXoAuthProvider provider) throws JSONException {
-    throw new UnsupportedOperationException("No operation supported for ConnectorPropertiesInjector");
-  }
 }
