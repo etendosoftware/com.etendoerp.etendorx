@@ -32,8 +32,7 @@ services:
     image: etendo/dynamic-das:1.0.1
     ports:
       - "8092:8092"
-      - "5005:5005"
-      - "5021:8000"
+      - "5021:5021"
     environment:
       - DEPENDENCIES=${ETENDORX_DEPENDENCIES}
       - REPO_URL=${ETENDORX_REPOSITORY_URL}
@@ -41,7 +40,7 @@ services:
       - REPO_PASSWORD=${ETENDORX_REPOSITORY_PASSWORD}
       - CONFIG_SERVER_URL=${ETENDORX_CONFIG_SERVER_URL}
       - TASK=downloadJar
-      - DEBUG_PORT=5005
+      - DEBUG_PORT=5021
       - DB_HOST=${ETENDORX_DB_HOST}
       - DB_PORT=${ETENDORX_DB_PORT}
       - DB_SID=${ETENDORX_DB_SID}

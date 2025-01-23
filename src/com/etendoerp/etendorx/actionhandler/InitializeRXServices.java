@@ -15,6 +15,7 @@ import org.openbravo.client.kernel.BaseActionHandler;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
 
+import com.etendoerp.etendorx.data.ConfigServiceParam;
 import com.etendoerp.etendorx.data.ETRXConfig;
 import com.etendoerp.etendorx.utils.RXConfigUtils;
 
@@ -37,6 +38,9 @@ public class InitializeRXServices extends BaseActionHandler {
   private static final String LOCALHOST_URL = "http://localhost:%d";
   private static final String ASYNCPROCESS = "asyncprocess";
   private static final int ASYNCSERVICE_PORT = 9092;
+  private static final String DAS_URL = "http://das:8092";
+  private static final String DOCKER_TOMCAT_URL = "http://tomcat:8080";
+  private static final String HOST_DOCKER_INTERNAL_TOMCAT_URL = "http://host.docker.internal:8080";
 
   /**
    * Executes the action to initialize RX services.
@@ -60,7 +64,6 @@ public class InitializeRXServices extends BaseActionHandler {
           .collect(Collectors.toSet());
 
       initializeServices(rxEnable, tomcatEnable, asyncEnable, connectorEnable, existingServiceNames);
-
       OBDal.getInstance().flush();
 
       actionResult.put(MESSAGE_SEVERITY, MESSAGE_SUCCESS);
@@ -104,9 +107,26 @@ public class InitializeRXServices extends BaseActionHandler {
     services.forEach((name, port) -> {
       if (!existingServiceNames.contains(name)) {
         String serviceUrl = RXConfigUtils.buildServiceUrl(name, port, rxEnable, tomcatEnable, asyncEnable, connectorEnable);
-        saveServiceConfig(name, serviceUrl, port);
+        ETRXConfig newRXConfig = saveServiceConfig(name, serviceUrl, port);
+        addStaticServiceParamConfig(newRXConfig, "das.url", DAS_URL);
+        addStaticServiceParamConfig(newRXConfig, "classic.url", tomcatEnable ? DOCKER_TOMCAT_URL : HOST_DOCKER_INTERNAL_TOMCAT_URL);
       }
     });
+  }
+
+  /**
+   * Adds a static service parameter configuration to the RX configuration.
+   *
+   * @param rxConfig the RX configuration
+   * @param keyProperty the key property for the parameter
+   * @param valueProperty the value property for the parameter
+   */
+  private void addStaticServiceParamConfig(ETRXConfig rxConfig, String keyProperty, String valueProperty) {
+      ConfigServiceParam newParam = OBProvider.getInstance().get(ConfigServiceParam.class);
+      newParam.setParameterKey(keyProperty);
+      newParam.setParameterValue(valueProperty);
+      newParam.setRXConfig(rxConfig);
+      OBDal.getInstance().save(newParam);
   }
 
   /**
@@ -116,13 +136,14 @@ public class InitializeRXServices extends BaseActionHandler {
    * @param serviceUrl the URL of the service
    * @param port the port number of the service
    */
-  protected void saveServiceConfig(String name, String serviceUrl, int port) {
+  protected ETRXConfig saveServiceConfig(String name, String serviceUrl, int port) {
     ETRXConfig newServiceConfig = OBProvider.getInstance().get(ETRXConfig.class);
     newServiceConfig.setServiceName(name);
     newServiceConfig.setUpdateableConfigs(!StringUtils.equals("config", name));
     newServiceConfig.setServiceURL(serviceUrl);
     newServiceConfig.setPublicURL(String.format(LOCALHOST_URL, port));
     OBDal.getInstance().save(newServiceConfig);
+    return newServiceConfig;
   }
 
   /**

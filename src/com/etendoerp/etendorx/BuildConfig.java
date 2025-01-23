@@ -56,7 +56,7 @@ public class BuildConfig extends HttpBaseServlet {
   private static final String PRIVATE_KEY = "private-key";
   private static final String PUBLIC_KEY = "public-key";
   private static final String SYS_USER_ID = "0";
-  private static final String APPLICATIONS = "applications";
+  private static final String APPLICATION = "application";
   private static final String BEGIN_PUBLIC_KEY = "-----BEGIN PUBLIC KEY-----";
   private static final String END_PUBLIC_KEY = "-----END PUBLIC KEY-----";
 
@@ -78,7 +78,7 @@ public class BuildConfig extends HttpBaseServlet {
             OBContext.getOBContext().getLanguage().getLanguage()));
       }
       final String serviceURI = getURIFromRequest(request);
-      final String service = StringUtils.equals(APPLICATIONS, serviceURI.split("/")[1]) ?
+      final String service = StringUtils.equals(APPLICATION, serviceURI.split("/")[1]) ?
           CONFIG_SERVICE : serviceURI.split("/")[1];
       final JSONObject defaultConfig = getDefaultConfigToJsonObject(serviceURI);
       SimpleEntry<Integer, JSONObject> sourceEntry = findSource(defaultConfig.getJSONArray("propertySources"), service);
@@ -113,11 +113,11 @@ public class BuildConfig extends HttpBaseServlet {
         String sysToken = SecureWebServicesUtils.generateToken(sysUser);
         sourceJSON.put("token", sysToken);
         sourceJSON.put(PRIVATE_KEY, keys.getString(PRIVATE_KEY));
+        updateSourceWithOAuthProviders(sourceEntry.getValue(), allInjectors, rxConfig.getPublicURL());
       }
       var publicKey = StringUtils.replace(keys.getString(PUBLIC_KEY), BEGIN_PUBLIC_KEY,"");
       publicKey = StringUtils.replace(publicKey, END_PUBLIC_KEY,"");
       sourceJSON.put(PUBLIC_KEY, publicKey);
-      updateSourceWithOAuthProviders(sourceEntry.getValue(), allInjectors, rxConfig.getPublicURL());
       sendResponse(response, defaultConfig, sourceEntry.getValue(), sourceEntry.getKey());
     } catch (Exception e) {
       log.error(e.getMessage(), e);
