@@ -595,7 +595,7 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
       if (isMandatory(field)) {
         Set<String> numberReferences = Set.of("22", "29", "800008");
         boolean isNumber = numberReferences.contains(field.getColumn().getReference().getId());
-        schema.addProperty(normalizedName(field.getColumn().getName()),
+        schema.addProperties(normalizedName(field.getColumn().getName()),
             isNumber ? new Schema<>().type(OpenAPIConstants.NUMBER).example(0) :
                 new Schema<>().type(OpenAPIConstants.STRING).example("N")
         );
@@ -621,7 +621,7 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
     completeResponseSchema.description("Complete response object");
 
     Schema<?> responsePropertySchema = defineResponseSchema(fields);
-    completeResponseSchema.addProperty(OpenAPIConstants.RESPONSE, responsePropertySchema);
+    completeResponseSchema.addProperties(OpenAPIConstants.RESPONSE, responsePropertySchema);
 
     return completeResponseSchema;
   }
@@ -638,11 +638,11 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
     dataItemSchema.type(OpenAPIConstants.OBJECT);
     dataItemSchema.description("Entity data");
     for (String extraField : extraFields) {
-      dataItemSchema.addProperty(extraField,
+      dataItemSchema.addProperties(extraField,
           new Schema<>().type(OpenAPIConstants.STRING).example(""));
     }
     for (Field field : fields) {
-      dataItemSchema.addProperty(normalizedName(field.getColumn().getName()),
+      dataItemSchema.addProperties(normalizedName(field.getColumn().getName()),
           new Schema<>().type(OpenAPIConstants.STRING).example(""));
     }
     return dataItemSchema;
@@ -662,11 +662,11 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
 
     Schema<Integer> statusSchema = new Schema<>();
     statusSchema.type("integer").format("int32").example(0);
-    responseSchema.addProperty("status", statusSchema);
+    responseSchema.addProperties("status", statusSchema);
 
     ArraySchema dataArraySchema = new ArraySchema();
     dataArraySchema.items(defineDataItemSchema(fields));
-    responseSchema.addProperty("data", dataArraySchema);
+    responseSchema.addProperties("data", dataArraySchema);
 
     return responseSchema;
   }
