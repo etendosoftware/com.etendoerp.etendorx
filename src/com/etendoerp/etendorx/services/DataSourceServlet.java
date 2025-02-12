@@ -1,11 +1,20 @@
 package com.etendoerp.etendorx.services;
 
-import com.etendoerp.etendorx.openapi.OpenAPIConstants;
-import com.etendoerp.etendorx.services.wrapper.EtendoRequestWrapper;
-import com.etendoerp.etendorx.services.wrapper.EtendoResponseWrapper;
-import com.etendoerp.etendorx.services.wrapper.RequestField;
-import com.etendoerp.openapi.data.OpenAPIRequest;
-import com.smf.securewebservices.rsql.OBRestUtils;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+import javax.script.ScriptException;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.entity.ContentType;
@@ -15,6 +24,9 @@ import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.hibernate.criterion.Restrictions;
 import org.openbravo.base.exception.OBException;
+import org.openbravo.base.model.Entity;
+import org.openbravo.base.model.ModelProvider;
+import org.openbravo.base.model.Property;
 import org.openbravo.base.secureApp.DefaultValidationException;
 import org.openbravo.base.secureApp.LoginUtils;
 import org.openbravo.base.secureApp.LoginUtils.RoleDefaults;
@@ -36,21 +48,12 @@ import org.openbravo.service.web.WebService;
 import org.openbravo.userinterface.selector.Selector;
 import org.openbravo.userinterface.selector.SelectorField;
 
-import javax.script.ScriptException;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
+import com.etendoerp.etendorx.openapi.OpenAPIConstants;
+import com.etendoerp.etendorx.services.wrapper.EtendoRequestWrapper;
+import com.etendoerp.etendorx.services.wrapper.EtendoResponseWrapper;
+import com.etendoerp.etendorx.services.wrapper.RequestField;
+import com.etendoerp.openapi.data.OpenAPIRequest;
+import com.smf.securewebservices.rsql.OBRestUtils;
 
 
 /**
@@ -66,8 +69,7 @@ public class DataSourceServlet implements WebService {
    * @return the DataSourceServlet instance
    */
   private static org.openbravo.service.datasource.DataSourceServlet getDataSourceServlet() {
-    return WeldUtils.getInstanceFromStaticBeanManager(
-        org.openbravo.service.datasource.DataSourceServlet.class);
+    return WeldUtils.getInstanceFromStaticBeanManager(org.openbravo.service.datasource.DataSourceServlet.class);
   }
 
   /**
@@ -82,20 +84,17 @@ public class DataSourceServlet implements WebService {
    * @throws Exception
    */
   @Override
-  public void doGet(String path, HttpServletRequest request, HttpServletResponse response)
-      throws Exception {
+  public void doGet(String path, HttpServletRequest request, HttpServletResponse response) throws Exception {
     try {
       OBContext.setAdminMode();
       DalConnectionProvider conn = new DalConnectionProvider();
-      RoleDefaults defaults = LoginUtils.getLoginDefaults(
-          OBContext.getOBContext().getUser().getId(), OBContext.getOBContext().getRole().getId(),
-          conn);
+      RoleDefaults defaults = LoginUtils.getLoginDefaults(OBContext.getOBContext().getUser().getId(),
+          OBContext.getOBContext().getRole().getId(), conn);
 
-      LoginUtils.fillSessionArguments(conn, new VariablesSecureApp(request),
-          OBContext.getOBContext().getUser().getId(),
-          OBContext.getOBContext().getLanguage().getLanguage(),
-          OBContext.getOBContext().isRTL() ? "Y" : "N", defaults.role, defaults.client,
-          OBContext.getOBContext().getCurrentOrganization().getId(), defaults.warehouse);
+      LoginUtils.fillSessionArguments(conn, new VariablesSecureApp(request), OBContext.getOBContext().getUser().getId(),
+          OBContext.getOBContext().getLanguage().getLanguage(), OBContext.getOBContext().isRTL() ? "Y" : "N",
+          defaults.role, defaults.client, OBContext.getOBContext().getCurrentOrganization().getId(),
+          defaults.warehouse);
       String[] extractedParts = extractDataSourceAndID(path);
       String dataSourceName = convertURI(extractedParts);
 
@@ -144,14 +143,10 @@ public class DataSourceServlet implements WebService {
         // Standard error
         String message = DataSourceConstants.ERROR_IN_DATA_SOURCE_SERVLET;
         if (capturedResponse.has(DataSourceConstants.RESPONSE) && capturedResponse.getJSONObject(
-                DataSourceConstants.RESPONSE)
-            .has(DataSourceConstants.ERROR) && capturedResponse.getJSONObject(
-                DataSourceConstants.RESPONSE)
-            .getJSONObject(DataSourceConstants.ERROR)
-            .has(DataSourceConstants.MESSAGE)) {
-          message = capturedResponse.getJSONObject(DataSourceConstants.RESPONSE)
-              .getJSONObject(DataSourceConstants.ERROR)
-              .getString(DataSourceConstants.MESSAGE);
+            DataSourceConstants.RESPONSE).has(DataSourceConstants.ERROR) && capturedResponse.getJSONObject(
+            DataSourceConstants.RESPONSE).getJSONObject(DataSourceConstants.ERROR).has(DataSourceConstants.MESSAGE)) {
+          message = capturedResponse.getJSONObject(DataSourceConstants.RESPONSE).getJSONObject(
+              DataSourceConstants.ERROR).getString(DataSourceConstants.MESSAGE);
         }
         throw new OBException(message);
       }
@@ -193,9 +188,7 @@ public class DataSourceServlet implements WebService {
   private static void handleNotFoundException(HttpServletResponse response) throws IOException {
     response.setStatus(HttpServletResponse.SC_NOT_FOUND);
     response.setContentType(ContentType.APPLICATION_JSON.getMimeType());
-    response.getWriter()
-        .write(
-            "{\"error\": \"Not Found\", \"message\": \"The requested resource was not found.\"}");
+    response.getWriter().write("{\"error\": \"Not Found\", \"message\": \"The requested resource was not found.\"}");
     response.getWriter().flush();
   }
 
@@ -257,8 +250,7 @@ public class DataSourceServlet implements WebService {
    * @param request
    * @param response
    */
-  private void upsertEntity(String method, String path, HttpServletRequest request,
-      HttpServletResponse response) {
+  private void upsertEntity(String method, String path, HttpServletRequest request, HttpServletResponse response) {
     try {
       List<RequestField> fieldList = new ArrayList<>();
       Tab tab = getTab(path, request, response, fieldList);
@@ -271,12 +263,12 @@ public class DataSourceServlet implements WebService {
       var servlet = getDataSourceServlet();
 
       if (StringUtils.equals(OpenAPIConstants.POST, method)) {
-        EtendoRequestWrapper newRequest = getEtendoPostWrapper(method, request, tab,
-            createPayLoad(request), fieldList, newUri);
+        EtendoRequestWrapper newRequest = getEtendoPostWrapper(method, request, tab, createPayLoad(request), fieldList,
+            newUri);
         servlet.doPost(newRequest, response);
       } else if (StringUtils.equals(OpenAPIConstants.PUT, method)) {
-        EtendoRequestWrapper newRequest = getEtendoPutWrapper(request, response,
-            createPayLoad(request), fieldList, newUri, path);
+        EtendoRequestWrapper newRequest = getEtendoPutWrapper(request, response, createPayLoad(request), fieldList,
+            newUri, path);
         servlet.doPut(newRequest, response);
       } else {
         throw new UnsupportedOperationException("Method not supported: " + method);
@@ -329,22 +321,19 @@ public class DataSourceServlet implements WebService {
    * @throws IOException
    */
   private static Tab getTab(String path, HttpServletRequest request, HttpServletResponse response,
-      List<RequestField> fieldList)
-      throws ServletException, DefaultValidationException, IOException {
+      List<RequestField> fieldList) throws ServletException, DefaultValidationException, IOException {
     Tab tab;
     try {
       var dataSource = extractDataSourceAndID(path);
       OBContext.setAdminMode();
       DalConnectionProvider conn = new DalConnectionProvider();
-      RoleDefaults defaults = LoginUtils.getLoginDefaults(
-          OBContext.getOBContext().getUser().getId(), OBContext.getOBContext().getRole().getId(),
-          conn);
+      RoleDefaults defaults = LoginUtils.getLoginDefaults(OBContext.getOBContext().getUser().getId(),
+          OBContext.getOBContext().getRole().getId(), conn);
 
-      LoginUtils.fillSessionArguments(conn, new VariablesSecureApp(request),
-          OBContext.getOBContext().getUser().getId(),
-          OBContext.getOBContext().getLanguage().getLanguage(),
-          OBContext.getOBContext().isRTL() ? "Y" : "N", defaults.role, defaults.client,
-          OBContext.getOBContext().getCurrentOrganization().getId(), defaults.warehouse);
+      LoginUtils.fillSessionArguments(conn, new VariablesSecureApp(request), OBContext.getOBContext().getUser().getId(),
+          OBContext.getOBContext().getLanguage().getLanguage(), OBContext.getOBContext().isRTL() ? "Y" : "N",
+          defaults.role, defaults.client, OBContext.getOBContext().getCurrentOrganization().getId(),
+          defaults.warehouse);
 
       OBCriteria<OpenAPIRequest> crit = OBDal.getInstance().createCriteria(OpenAPIRequest.class);
       crit.add(Restrictions.eq("name", dataSource[0]));
@@ -355,8 +344,8 @@ public class DataSourceServlet implements WebService {
       }
       tab = req.getETRXOpenAPITabList().get(0).getRelatedTabs();
       for (Field field : tab.getADFieldList()) {
-        String name = normalizedName(field.getName());
-        fieldList.add(new RequestField(name, field.getColumn().getDBColumnName()));
+        String name = getHQLColumnName(field);
+        fieldList.add(new RequestField(name, field.getColumn()));
       }
     } finally {
       OBContext.restorePreviousMode();
@@ -377,17 +366,16 @@ public class DataSourceServlet implements WebService {
    * @throws IOException
    * @throws OpenAPINotFoundThrowable
    */
-  private EtendoRequestWrapper getEtendoPostWrapper(String method, HttpServletRequest request,
-      Tab tab, JSONObject newJsonBody, List<RequestField> fieldList, String newUri)
-      throws JSONException, IOException, OpenAPINotFoundThrowable, ScriptException {
+  private EtendoRequestWrapper getEtendoPostWrapper(String method, HttpServletRequest request, Tab tab,
+      JSONObject newJsonBody, List<RequestField> fieldList,
+      String newUri) throws JSONException, IOException, OpenAPINotFoundThrowable, ScriptException {
     JSONObject dataFromOriginalRequest = newJsonBody.getJSONObject(DataSourceConstants.DATA);
     String recordId = dataFromOriginalRequest.optString("id");
 
     String parentId = getParentId(tab, dataFromOriginalRequest);
 
 
-    Map<String, Object> parameters = createParameters(method, request, tab.getId(), parentId, recordId,
-        null);
+    Map<String, Object> parameters = createParameters(method, request, tab.getId(), parentId, recordId, null);
     String content = "{}";
 
 
@@ -468,18 +456,17 @@ public class DataSourceServlet implements WebService {
     JSONObject jsonBodyToSave = keyConvertion(dataInpFormat, input2norm);
     newJsonBody.put(DataSourceConstants.DATA, jsonBodyToSave);
 
-    return new EtendoRequestWrapper(request, newUri, newJsonBody.toString(),
-        request.getParameterMap());
+    return new EtendoRequestWrapper(request, newUri, newJsonBody.toString(), request.getParameterMap());
   }
 
-  private void handleColumnSelector(HttpServletRequest request, Tab tab,
-      JSONObject dataInpFormat, String changedColumnN, String changedColumnInp) throws JSONException, ScriptException {
+  private void handleColumnSelector(HttpServletRequest request, Tab tab, JSONObject dataInpFormat,
+      String changedColumnN, String changedColumnInp) throws JSONException, ScriptException {
     try {
       OBContext.setAdminMode();
       Column col = null;
       List<Column> adColumnList = tab.getTable().getADColumnList();
       for (Column column : adColumnList) {
-        if (StringUtils.equals(normalizedName(column.getName()), changedColumnN)) {
+        if (StringUtils.equals((column.getName()), changedColumnN)) {
           col = column;
           break;
         }
@@ -498,8 +485,7 @@ public class DataSourceServlet implements WebService {
         OBDal.getInstance().refresh(selector);
         convertToHashMAp.put("_entityName", selector.getTable().getJavaClassName());
         convertToHashMAp.put("whereAndFilterClause",
-            selector.getHQLWhereClause() + addFilterClause(selector, convertToHashMAp, tab, request)
-        );
+            selector.getHQLWhereClause() + addFilterClause(selector, convertToHashMAp, tab, request));
         //if (OB.getParameters().get('inpcCurrencyId') && (OB.getWindowId() == '207' || OB.getWindowId() == '94EAA455D2644E04AB25D93BE5157B6D')) { " e.productPrice.priceListVersion.priceList.currency.id = '" + OB.getParameters().get('inpcCurrencyId') + "'" } else if (OB.getParameters().get('inpcCurrencyId')) { " e.productPrice.priceListVersion.priceList.salesPriceList = " + OB.isSalesTransaction()  + " AND e.productPrice.priceListVersion.priceList.currency.id = '" + OB.getParameters().get('inpcCurrencyId') + "'" }
         convertToHashMAp.put("dataSourceName", selector.getTable().getJavaClassName());
         convertToHashMAp.put("_selectorDefinitionId", selector.getId());
@@ -510,7 +496,7 @@ public class DataSourceServlet implements WebService {
         // we will search this record id
         String recordID = dataInpFormat.getString(changedColumnInp);
         // ask for the name of the propertie where the record id is stored in the results
-        String valuePropertie = normalizedName(selector.getValuefield().getColumn().getName());
+        String valuePropertie = getHQLColumnName(selector.getColumn());
         String valuePropertieDB = selector.getValuefield().getColumn().getDBColumnName();
 
         JSONObject obj = null;
@@ -532,9 +518,7 @@ public class DataSourceServlet implements WebService {
           break;
         }
         List<SelectorField> selectorFieldList = selector.getOBUISELSelectorFieldList();
-        selectorFieldList = selectorFieldList.stream().filter(
-            SelectorField::isOutfield
-        ).collect(Collectors.toList());
+        selectorFieldList = selectorFieldList.stream().filter(SelectorField::isOutfield).collect(Collectors.toList());
         for (SelectorField selectorField : selectorFieldList) {
           String normN = selectorField.getProperty().replace(".", "$");
           if (obj.has(normN)) {
@@ -555,10 +539,9 @@ public class DataSourceServlet implements WebService {
 
   private static String getExtraProperties(Selector selector) {
     return selector.getOBUISELSelectorFieldList().stream().filter(
-            sf -> selector.getValuefield() == sf || sf.isOutfield()
-        ).sorted(Comparator.comparing(SelectorField::getSortno))
-        .map(sf -> StringUtils.replace(sf.getProperty(), ".", "$"))
-        .collect(Collectors.joining(","));
+        sf -> selector.getValuefield() == sf || sf.isOutfield()).sorted(
+        Comparator.comparing(SelectorField::getSortno)).map(
+        sf -> StringUtils.replace(sf.getProperty(), ".", "$")).collect(Collectors.joining(","));
 
   }
 
@@ -583,9 +566,8 @@ public class DataSourceServlet implements WebService {
     return map;
   }
 
-  private static Object getValueFromItem(JSONObject item
-      , String patternDateFrom, String patternDateTo
-  ) throws JSONException {
+  private static Object getValueFromItem(JSONObject item, String patternDateFrom,
+      String patternDateTo) throws JSONException {
     //if the item has a property value with type long, use this value, if not use the classicValue. We dont know the type of the value
     if (item.has("value")) {
       Object value = item.get("value");
@@ -658,11 +640,11 @@ public class DataSourceServlet implements WebService {
    * @param dbname2input
    *     A map to store database column name to input format key mappings.
    */
-  private void loadCaches(List<RequestField> fieldList, Map<String, String> norm2input,
-      Map<String, String> input2norm, Map<String, String> dbname2input) {
+  private void loadCaches(List<RequestField> fieldList, Map<String, String> norm2input, Map<String, String> input2norm,
+      Map<String, String> dbname2input) {
     for (RequestField field : fieldList) {
       String columnName = field.getDBColumnName();
-      String normalizedName = normalizedName(field.getName());
+      String normalizedName = getHQLColumnName(field.getColumn());
       String inpName = getInpName(columnName);
       norm2input.put(normalizedName, inpName);
       input2norm.put(inpName, normalizedName);
@@ -698,8 +680,8 @@ public class DataSourceServlet implements WebService {
     try {
       OBContext.setAdminMode(false);
       List<String> dataPropertiesOfParents = tab.getADFieldList().stream().filter(
-          field -> field.getColumn() != null && field.getColumn().isLinkToParentColumn()
-      ).map(field -> normalizedName(field.getName())).collect(Collectors.toList());
+          field -> field.getColumn() != null && field.getColumn().isLinkToParentColumn()).map(
+          DataSourceServlet::getHQLColumnName).collect(Collectors.toList());
       for (String parentProperty : dataPropertiesOfParents) {
         if (data.has(parentProperty)) {
           return data.optString(parentProperty);
@@ -726,8 +708,8 @@ public class DataSourceServlet implements WebService {
     try {
       OBContext.setAdminMode(false);
       return tab.getADFieldList().stream().filter(
-          field -> field.getColumn() != null && field.getColumn().isLinkToParentColumn()
-      ).map(field -> normalizedName(field.getName())).collect(Collectors.toList());
+          field -> field.getColumn() != null && field.getColumn().isLinkToParentColumn()).map(
+          DataSourceServlet::getHQLColumnName).collect(Collectors.toList());
     } finally {
       OBContext.restorePreviousMode();
     }
@@ -748,18 +730,16 @@ public class DataSourceServlet implements WebService {
    * @throws ServletException
    * @throws OpenAPINotFoundThrowable
    */
-  private EtendoRequestWrapper getEtendoPutWrapper(HttpServletRequest request,
-      HttpServletResponse response, JSONObject newJsonBody, List<RequestField> fieldList,
-      String newUri, String path)
-      throws JSONException, IOException, ServletException, OpenAPINotFoundThrowable {
+  private EtendoRequestWrapper getEtendoPutWrapper(HttpServletRequest request, HttpServletResponse response,
+      JSONObject newJsonBody, List<RequestField> fieldList, String newUri,
+      String path) throws JSONException, IOException, ServletException, OpenAPINotFoundThrowable {
     String getURI = convertURI(extractDataSourceAndID(path));
     var newRequest = new EtendoRequestWrapper(request, getURI, "", request.getParameterMap());
     var newResponse = new EtendoResponseWrapper(response);
     getDataSourceServlet().doGet(newRequest, newResponse);
     JSONObject capturedResponse = newResponse.getCapturedContent();
-    JSONObject values = capturedResponse.getJSONObject(DataSourceConstants.RESPONSE)
-        .getJSONArray(DataSourceConstants.DATA)
-        .getJSONObject(0);
+    JSONObject values = capturedResponse.getJSONObject(DataSourceConstants.RESPONSE).getJSONArray(
+        DataSourceConstants.DATA).getJSONObject(0);
     JSONObject data = newJsonBody.getJSONObject(DataSourceConstants.DATA);
     var keys = values.keys();
     while (keys.hasNext()) {
@@ -770,8 +750,7 @@ public class DataSourceServlet implements WebService {
         data.put(normalizedKey, value);
       }
     }
-    return new EtendoRequestWrapper(request, newUri, newJsonBody.toString(),
-        request.getParameterMap());
+    return new EtendoRequestWrapper(request, newUri, newJsonBody.toString(), request.getParameterMap());
   }
 
   /**
@@ -784,14 +763,13 @@ public class DataSourceServlet implements WebService {
    * @param recordId
    * @param changedColumn
    */
-  private static Map<String, Object> createParameters(String method, HttpServletRequest request,
-      String tabId, String parentId, String recordId, String changedColumn) {
+  private static Map<String, Object> createParameters(String method, HttpServletRequest request, String tabId,
+      String parentId, String recordId, String changedColumn) {
     Map<String, Object> parameters = new HashMap<>();
     parameters.put("_httpRequest", request);
     parameters.put("_httpSession", request.getSession(false));
     parameters.put("MODE", StringUtils.equals(method, OpenAPIConstants.POST) ? "NEW" : "CHANGE");
-    parameters.put("_action",
-        "org.openbravo.client.application.window.FormInitializationComponent");
+    parameters.put("_action", "org.openbravo.client.application.window.FormInitializationComponent");
     parameters.put("PARENT_ID", parentId);
     parameters.put("TAB_ID", StringUtils.isEmpty(tabId) ? "null" : tabId);
     parameters.put("ROW_ID", StringUtils.isEmpty(recordId) ? "null" : recordId);
@@ -801,12 +779,13 @@ public class DataSourceServlet implements WebService {
     return parameters;
   }
 
+
   /**
    * Normalizes the param name. The first word is in lower case and the rest in upper case.
    *
    * @param name
    */
-  public static String normalizedName(String name) {
+  public static String normalizedNameOld(String name) {
     if (StringUtils.equals(name, "AD_Role_ID")) {
       return "role";
     }
@@ -818,8 +797,7 @@ public class DataSourceServlet implements WebService {
     StringBuilder retName = new StringBuilder();
     String removeSpecialChars = StringUtils.replaceEach(name,
         new String[]{ "!", "@", "#", "$", "%", "^", "&", "*", "(", ")", "_", "+", "=", "~", "." },
-        new String[]{ "", "", "", "", "", "", "", "", "", "", "", "", "", "", "" }
-    );
+        new String[]{ "", "", "", "", "", "", "", "", "", "", "", "", "", "", "" });
     //remove multiple Spaces, replacing with single
     while (removeSpecialChars.contains("  ")) {
       removeSpecialChars = StringUtils.replace(removeSpecialChars, "  ", " ");
@@ -829,15 +807,64 @@ public class DataSourceServlet implements WebService {
     for (int i = 0; i < parts.length; i++) {
       if (StringUtils.isNotEmpty(parts[i])) {
         if (i == 0) {
-          retName.append(StringUtils.lowerCase(StringUtils.substring(parts[i], 0, 1)))
-              .append(StringUtils.substring(parts[i], 1));
+          retName.append(StringUtils.lowerCase(StringUtils.substring(parts[i], 0, 1))).append(
+              StringUtils.substring(parts[i], 1));
         } else {
-          retName.append(StringUtils.upperCase(StringUtils.substring(parts[i], 0, 1)))
-              .append(StringUtils.substring(parts[i], 1));
+          retName.append(StringUtils.upperCase(StringUtils.substring(parts[i], 0, 1))).append(
+              StringUtils.substring(parts[i], 1));
         }
       }
     }
     return retName.toString();
+  }
+
+  /**
+   * Retrieves the HQL column name for a given field.
+   *
+   * @param field
+   *     The field for which to retrieve the HQL column name.
+   * @return The HQL column name.
+   */
+  public static String getHQLColumnName(Field field) {
+    return getHQLColumnName(field.getColumn());
+  }
+
+  /**
+   * Retrieves the HQL column name for a given column.
+   *
+   * @param fieldColumn
+   *     The column for which to retrieve the HQL column name.
+   * @return The HQL column name.
+   */
+  public static String getHQLColumnName(Column fieldColumn) {
+    return getHQLColumnName(fieldColumn, false);
+  }
+
+  /**
+   * Retrieves the HQL column name for a given column, with an option to throw an exception on failure.
+   *
+   * @param fieldColumn
+   *     The column for which to retrieve the HQL column name.
+   * @param exceptionOnFail
+   *     If true, throws an exception if the entity or property is not found.
+   * @return The HQL column name.
+   * @throws OBException
+   *     if the entity or property is not found and exceptionOnFail is true.
+   */
+  public static String getHQLColumnName(Column fieldColumn, boolean exceptionOnFail) {
+    String tableName = fieldColumn.getTable().getDBTableName();
+    Entity entity = ModelProvider.getInstance().getEntityByTableName(tableName);
+    String dbcolumnName = fieldColumn.getDBColumnName();
+    if (exceptionOnFail && entity == null) {
+      log.error(String.format("Entity of %s not found.", tableName));
+      throw new OBException();
+    }
+    Property prop = entity.getPropertyByColumnName(dbcolumnName, false);
+    if (exceptionOnFail && prop == null) {
+      throw new OBException();
+    }
+    String entAl = prop != null ? prop.getName() : "null";
+    return entAl;
   }
 
   /**
@@ -886,15 +913,11 @@ public class DataSourceServlet implements WebService {
       OBContext.setAdminMode();
       String dataSourceName = extractedParts[0];
       Tab tab = getTabByDataSourceName(dataSourceName);
-      String requestName = tab
-          .getTable()
-          .getName();
+      String requestName = tab.getTable().getName();
 
       StringBuilder newUri = new StringBuilder();
-      newUri.append("/com.etendoerp.etendorx.datasource/")
-          .append(dataSourceName)
-          .append(DataSourceConstants.DATASOURCE_SERVLET_PATH)
-          .append(requestName);
+      newUri.append("/com.etendoerp.etendorx.datasource/").append(dataSourceName).append(
+          DataSourceConstants.DATASOURCE_SERVLET_PATH).append(requestName);
 
       if (extractedParts.length > 1) {
         newUri.append("/").append(extractedParts[1]);
@@ -910,24 +933,18 @@ public class DataSourceServlet implements WebService {
   }
 
   private static Tab getTabByDataSourceName(String dataSourceName) throws OpenAPINotFoundThrowable {
-    OpenAPIRequest apiRequest = (OpenAPIRequest) OBDal.getInstance()
-        .createCriteria(OpenAPIRequest.class)
-        .add(Restrictions.eq("name", dataSourceName))
-        .setMaxResults(1)
-        .uniqueResult();
+    OpenAPIRequest apiRequest = (OpenAPIRequest) OBDal.getInstance().createCriteria(OpenAPIRequest.class).add(
+        Restrictions.eq("name", dataSourceName)).setMaxResults(1).uniqueResult();
 
     if (apiRequest == null) {
       throw new OpenAPINotFoundThrowable("OpenAPI request not found: " + dataSourceName);
     }
 
     if (apiRequest.getETRXOpenAPITabList().isEmpty()) {
-      throw new OpenAPINotFoundThrowable(
-          "OpenAPI request does not have any related tabs: " + dataSourceName);
+      throw new OpenAPINotFoundThrowable("OpenAPI request does not have any related tabs: " + dataSourceName);
     }
 
-    Tab tab = apiRequest.getETRXOpenAPITabList()
-        .get(0)
-        .getRelatedTabs();
+    Tab tab = apiRequest.getETRXOpenAPITabList().get(0).getRelatedTabs();
     return tab;
   }
 
@@ -943,8 +960,7 @@ public class DataSourceServlet implements WebService {
    * @throws Exception
    */
   @Override
-  public void doDelete(String path, HttpServletRequest request, HttpServletResponse response)
-      throws Exception {
+  public void doDelete(String path, HttpServletRequest request, HttpServletResponse response) throws Exception {
     throw new UnsupportedOperationException("DELETE method not supported.");
   }
 
@@ -960,8 +976,7 @@ public class DataSourceServlet implements WebService {
    * @throws Exception
    */
   @Override
-  public void doPut(String path, HttpServletRequest request, HttpServletResponse response)
-      throws Exception {
+  public void doPut(String path, HttpServletRequest request, HttpServletResponse response) throws Exception {
     upsertEntity(OpenAPIConstants.PUT, path, request, response);
   }
 }
