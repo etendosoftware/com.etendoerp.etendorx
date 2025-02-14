@@ -18,14 +18,18 @@ import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
+import org.openbravo.base.session.OBPropertiesProvider;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * Print document endpoint test class.
@@ -42,6 +46,9 @@ public class PrintDocumentEndpointTest {
     @Mock
     private Paths mockPaths;
 
+    @Mock
+    private OBPropertiesProvider mockPropertiesProvider;
+
     private OpenAPI openAPI;
 
     private static final String PRINT_REPORT = "Print Report";
@@ -53,6 +60,11 @@ public class PrintDocumentEndpointTest {
     @Before
     public void setUp() {
         openAPI = new OpenAPI();
+
+        Properties props = mock(Properties.class);
+        OBPropertiesProvider.setInstance(mockPropertiesProvider);
+        when(mockPropertiesProvider.getOpenbravoProperties()).thenReturn(props);
+        when(props.getProperty("ETENDO_HOST")).thenReturn("http://localhost:8080/etendo");
     }
 
     /**
