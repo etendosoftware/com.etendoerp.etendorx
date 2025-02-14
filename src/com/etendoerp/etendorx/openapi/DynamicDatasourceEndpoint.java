@@ -81,7 +81,7 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
    *
    * @return a list of OpenApiFlow objects.
    */
-  private List<OpenApiFlow> getFlows() {
+  public static List<OpenApiFlow> getFlows() {
     return OBDal.getInstance().createCriteria(OpenApiFlow.class).list();
   }
 
@@ -90,7 +90,7 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
    *
    * @return a list of tags.
    */
-  private List<String> getTags() {
+  static List<String> getTags() {
     return getFlows().stream().map(OpenApiFlow::getName).collect(Collectors.toList());
   }
 
@@ -168,9 +168,13 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
    * @param descriptions
    *     a HashMap containing endpoint descriptions.
    */
-  private void fullfillDescription(OpenAPI openAPI, AtomicBoolean addedEndpoints,
+  public void fullfillDescription(OpenAPI openAPI, AtomicBoolean addedEndpoints,
       HashMap<String, String> descriptions) {
     var info = openAPI.getInfo();
+    if(openAPI.getInfo() == null) {
+      info = new io.swagger.v3.oas.models.info.Info();
+      openAPI.setInfo(info);
+    }
     StringBuilder sb = new StringBuilder();
     if (addedEndpoints.get()) {
       sb.append("## Dynamic Datasource API endpoints descriptions:\n");
@@ -193,7 +197,7 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
    * @param etapiOpenapiReq
    * @param endpoint
    */
-  private void addDefinition(OpenAPI openAPI, String entityName, OpenAPIRequest etapiOpenapiReq,
+  void addDefinition(OpenAPI openAPI, String entityName, OpenAPIRequest etapiOpenapiReq,
       OpenApiFlowPoint endpoint) {
 
     String tag = etapiOpenapiReq.getName();
@@ -346,7 +350,7 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
    * @param formInitResponseExample
    *     the example of the response
    */
-  private void createGETEndpoint(OpenAPI openAPI, String entityName, String tag, Schema<?> formInitResponseSchema,
+  void createGETEndpoint(OpenAPI openAPI, String entityName, String tag, Schema<?> formInitResponseSchema,
       JSONObject formInitResponseExample) {
     List<Parameter> getParams = new ArrayList<>();
     getParams.add(createParameter("q", false, OpenAPIConstants.STRING,
@@ -392,7 +396,7 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
    * @param formInitRequestExample
    *     the example of the request body
    */
-  private void createPOSTEndpoint(OpenAPI openAPI, String entityName, String tag, Schema<?> formInitResponseSchema,
+  void createPOSTEndpoint(OpenAPI openAPI, String entityName, String tag, Schema<?> formInitResponseSchema,
       JSONObject formInitResponseExample, List<Parameter> formInitParams, Schema<?> formInitRequestSchema,
       String formInitRequestExample) {
     StringBuilder postDescription = new StringBuilder();
@@ -586,7 +590,7 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
    *     the list of fields.
    * @return the defined schema.
    */
-  private Schema<?> defineFormInitRequestSchema(List<Field> fields) {
+  Schema<?> defineFormInitRequestSchema(List<Field> fields) {
     Schema<Object> schema = new Schema<>();
     schema.type(OpenAPIConstants.OBJECT);
     List<String> required = new ArrayList<>();
@@ -655,7 +659,7 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
    *     the list of fields.
    * @return the defined schema.
    */
-  private Schema<?> defineResponseSchema(List<Field> fields) {
+  Schema<?> defineResponseSchema(List<Field> fields) {
     Schema<Object> responseSchema = new Schema<>();
     responseSchema.type(OpenAPIConstants.OBJECT);
     responseSchema.description("Main object of the response");
