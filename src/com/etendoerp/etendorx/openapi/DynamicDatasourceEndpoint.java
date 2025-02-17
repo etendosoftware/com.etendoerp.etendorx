@@ -64,7 +64,7 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
    *
    * @return a list of OpenApiFlow objects.
    */
-  private List<OpenApiFlow> getFlows() {
+  public static List<OpenApiFlow> getFlows() {
     return OBDal.getInstance().createCriteria(OpenApiFlow.class).list();
   }
 
@@ -73,7 +73,7 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
    *
    * @return a list of tags.
    */
-  private List<String> getTags() {
+  static List<String> getTags() {
     return getFlows().stream().map(OpenApiFlow::getName).collect(Collectors.toList());
   }
 
@@ -150,9 +150,13 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
    * @param descriptions
    *     a HashMap containing endpoint descriptions.
    */
-  private void fullfillDescription(OpenAPI openAPI, AtomicBoolean addedEndpoints,
+  public void fullfillDescription(OpenAPI openAPI, AtomicBoolean addedEndpoints,
       HashMap<String, String> descriptions) {
     var info = openAPI.getInfo();
+    if(openAPI.getInfo() == null) {
+      info = new io.swagger.v3.oas.models.info.Info();
+      openAPI.setInfo(info);
+    }
     StringBuilder sb = new StringBuilder();
     if (addedEndpoints.get()) {
       sb.append("## Dynamic Datasource API endpoints descriptions:\n");
@@ -175,7 +179,7 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
    * @param etapiOpenapiReq
    * @param endpoint
    */
-  private void addDefinition(OpenAPI openAPI, String entityName, OpenAPIRequest etapiOpenapiReq,
+  void addDefinition(OpenAPI openAPI, String entityName, OpenAPIRequest etapiOpenapiReq,
       OpenApiFlowPoint endpoint) {
 
     String tag = etapiOpenapiReq.getName();
@@ -314,7 +318,7 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
    * @param formInitResponseExample
    *     the example of the response
    */
-  private void createGETEndpoint(OpenAPI openAPI, String entityName, String tag, Schema<?> formInitResponseSchema,
+  void createGETEndpoint(OpenAPI openAPI, String entityName, String tag, Schema<?> formInitResponseSchema,
       JSONObject formInitResponseExample) {
     List<Parameter> getParams = new ArrayList<>();
     getParams.add(createParameter("q", false, OpenAPIConstants.STRING, "field==A6750F0D15334FB890C254369AC750A8",
@@ -352,7 +356,7 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
    * @param formInitRequestExample
    *     the example of the request body
    */
-  private void createPOSTEndpoint(OpenAPI openAPI, String entityName, String tag, Schema<?> formInitResponseSchema,
+  void createPOSTEndpoint(OpenAPI openAPI, String entityName, String tag, Schema<?> formInitResponseSchema,
       JSONObject formInitResponseExample, List<Parameter> formInitParams, Schema<?> formInitRequestSchema,
       String formInitRequestExample) {
     StringBuilder postDescription = new StringBuilder();
@@ -522,17 +526,21 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
    *     the list of fields.
    * @return the defined schema.
    */
-  private Schema<?> defineFormInitRequestSchema(List<Field> fields) {
+  Schema<?> defineFormInitRequestSchema(List<Field> fields) {
     Schema<Object> schema = new Schema<>();
     schema.type(OpenAPIConstants.OBJECT);
     List<String> required = new ArrayList<>();
-    fields.stream().filter(this::isMandatory).forEach(field -> {
-      Set<String> numberReferences = Set.of("22", "29", "800008");
-      boolean isNumber = numberReferences.contains(field.getColumn().getReference().getId());
-      schema.addProperty(getHQLColumnName(field),
-          isNumber ? new Schema<>().type(OpenAPIConstants.NUMBER).example(0) : new Schema<>().type(
-              OpenAPIConstants.STRING).example("N"));
-    });
+
+    for (Field field : fields) {
+      if (isMandatory(field)) {
+        Set<String> numberReferences = Set.of("22", "29", "800008");
+        boolean isNumber = numberReferences.contains(field.getColumn().getReference().getId());
+        schema.addProperties(normalizedName(field.getColumn().getName()),
+            isNumber ? new Schema<>().type(OpenAPIConstants.NUMBER).example(0) :
+                new Schema<>().type(OpenAPIConstants.STRING).example("N")
+        );
+      }
+    }
 
     schema.required(required);
 
@@ -553,7 +561,7 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
     completeResponseSchema.description("Complete response object");
 
     Schema<?> responsePropertySchema = defineResponseSchema(fields);
-    completeResponseSchema.addProperty(OpenAPIConstants.RESPONSE, responsePropertySchema);
+    completeResponseSchema.addProperties(OpenAPIConstants.RESPONSE, responsePropertySchema);
 
     return completeResponseSchema;
   }
@@ -570,10 +578,12 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
     dataItemSchema.type(OpenAPIConstants.OBJECT);
     dataItemSchema.description("Entity data");
     for (String extraField : extraFields) {
-      dataItemSchema.addProperty(extraField, new Schema<>().type(OpenAPIConstants.STRING).example(""));
+      dataItemSchema.addProperties(extraField,
+          new Schema<>().type(OpenAPIConstants.STRING).example(""));
     }
     for (Field field : fields) {
-      dataItemSchema.addProperty(getHQLColumnName(field), new Schema<>().type(OpenAPIConstants.STRING).example(""));
+      dataItemSchema.addProperties(normalizedName(field.getColumn().getName()),
+          new Schema<>().type(OpenAPIConstants.STRING).example(""));
     }
     return dataItemSchema;
   }
@@ -585,18 +595,18 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
    *     the list of fields.
    * @return the defined schema.
    */
-  private Schema<?> defineResponseSchema(List<Field> fields) {
+  Schema<?> defineResponseSchema(List<Field> fields) {
     Schema<Object> responseSchema = new Schema<>();
     responseSchema.type(OpenAPIConstants.OBJECT);
     responseSchema.description("Main object of the response");
 
     Schema<Integer> statusSchema = new Schema<>();
     statusSchema.type("integer").format("int32").example(0);
-    responseSchema.addProperty("status", statusSchema);
+    responseSchema.addProperties("status", statusSchema);
 
     ArraySchema dataArraySchema = new ArraySchema();
     dataArraySchema.items(defineDataItemSchema(fields));
-    responseSchema.addProperty("data", dataArraySchema);
+    responseSchema.addProperties("data", dataArraySchema);
 
     return responseSchema;
   }

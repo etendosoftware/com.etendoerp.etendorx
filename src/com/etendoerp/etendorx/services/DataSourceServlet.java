@@ -68,8 +68,9 @@ public class DataSourceServlet implements WebService {
    *
    * @return the DataSourceServlet instance
    */
-  private static org.openbravo.service.datasource.DataSourceServlet getDataSourceServlet() {
-    return WeldUtils.getInstanceFromStaticBeanManager(org.openbravo.service.datasource.DataSourceServlet.class);
+  static org.openbravo.service.datasource.DataSourceServlet getDataSourceServlet() {
+    return WeldUtils.getInstanceFromStaticBeanManager(
+        org.openbravo.service.datasource.DataSourceServlet.class);
   }
 
   /**
@@ -197,7 +198,7 @@ public class DataSourceServlet implements WebService {
    *
    * @param request
    */
-  private JSONObject createPayLoad(HttpServletRequest request) {
+  JSONObject createPayLoad(HttpServletRequest request) {
     String csrf = "123";
     request.getSession(false).setAttribute("#CSRF_TOKEN", csrf);
 
@@ -932,9 +933,12 @@ public class DataSourceServlet implements WebService {
     }
   }
 
-  private static Tab getTabByDataSourceName(String dataSourceName) throws OpenAPINotFoundThrowable {
-    OpenAPIRequest apiRequest = (OpenAPIRequest) OBDal.getInstance().createCriteria(OpenAPIRequest.class).add(
-        Restrictions.eq("name", dataSourceName)).setMaxResults(1).uniqueResult();
+  static Tab getTabByDataSourceName(String dataSourceName) throws OpenAPINotFoundThrowable {
+    OpenAPIRequest apiRequest = (OpenAPIRequest) OBDal.getInstance()
+        .createCriteria(OpenAPIRequest.class)
+        .add(Restrictions.eq("name", dataSourceName))
+        .setMaxResults(1)
+        .uniqueResult();
 
     if (apiRequest == null) {
       throw new OpenAPINotFoundThrowable("OpenAPI request not found: " + dataSourceName);

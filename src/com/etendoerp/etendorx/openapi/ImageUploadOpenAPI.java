@@ -34,11 +34,11 @@ public class ImageUploadOpenAPI extends OpenAPIDefaultRequest {
         "automatically resize the image.");
 
     Schema reqSchema = new Schema()
-        .addProperty("filename", new StringSchema().description("The name of the file").example("image.jpg"))
-        .addProperty("columnId", new StringSchema()
+        .addProperties("filename", new StringSchema().description("The name of the file").example("image.jpg"))
+        .addProperties("columnId", new StringSchema()
             .description("The column ID where the size and resize configuration is stored")
             .pattern(ETENDO_ID_PATTERN))
-        .addProperty("base64Image", new StringSchema().description("The base64 encoded image"));
+        .addProperties("base64Image", new StringSchema().description("The base64 encoded image"));
     reqSchema.required(List.of("filename", "base64Image"));
     RequestBody requestBody = new RequestBody().content(new Content()
         .addMediaType("application/json", new MediaType().schema(reqSchema))
