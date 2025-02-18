@@ -39,6 +39,7 @@ import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.data.Sqlc;
 import org.openbravo.model.ad.datamodel.Column;
+import org.openbravo.model.ad.datamodel.Table;
 import org.openbravo.model.ad.domain.Reference;
 import org.openbravo.model.ad.ui.Field;
 import org.openbravo.model.ad.ui.Tab;
@@ -449,8 +450,11 @@ public class DataSourceServlet implements WebService {
       String normalizedKey = dbname2input.get(key);
       JSONObject value = values.getJSONObject(key);
       Object val = getValueFromItem(value, "dd-MM-yyyy", "yyyy-MM-dd");
-      dataInpFormat.put(normalizedKey, val);
-
+      if (val instanceof String && StringUtils.isNotEmpty((String) val)) {
+        dataInpFormat.put(normalizedKey, val);
+      } else if (!(val instanceof String)) {
+        dataInpFormat.put(normalizedKey, val);
+      }
     }
 
     // to finally save the dataFromOriginalRequest, we need to convert the keys to normalized format
@@ -465,9 +469,9 @@ public class DataSourceServlet implements WebService {
     try {
       OBContext.setAdminMode();
       Column col = null;
-      List<Column> adColumnList = tab.getTable().getADColumnList();
+      List<Column> adColumnList = getAdColumnList(tab);
       for (Column column : adColumnList) {
-        if (StringUtils.equals((column.getName()), changedColumnN)) {
+        if (StringUtils.equals((getHQLColumnName(column)), changedColumnN)) {
           col = column;
           break;
         }
@@ -497,7 +501,7 @@ public class DataSourceServlet implements WebService {
         // we will search this record id
         String recordID = dataInpFormat.getString(changedColumnInp);
         // ask for the name of the propertie where the record id is stored in the results
-        String valuePropertie = getHQLColumnName(selector.getColumn());
+        String valuePropertie = getHQLColumnName(selector.getValuefield().getColumn());
         String valuePropertieDB = selector.getValuefield().getColumn().getDBColumnName();
 
         JSONObject obj = null;
@@ -533,9 +537,18 @@ public class DataSourceServlet implements WebService {
           }
         }
       }
+
+    } catch (Exception e) {
+      log.error("Error in handleColumnSelector", e);
     } finally {
       OBContext.restorePreviousMode();
     }
+  }
+
+  private static List<Column> getAdColumnList(Tab tab) {
+    Table table = tab.getTable();
+    OBDal.getInstance().refresh(table);
+    return table.getADColumnList();
   }
 
   private static String getExtraProperties(Selector selector) {

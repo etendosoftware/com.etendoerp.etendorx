@@ -150,10 +150,9 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
    * @param descriptions
    *     a HashMap containing endpoint descriptions.
    */
-  public void fullfillDescription(OpenAPI openAPI, AtomicBoolean addedEndpoints,
-      HashMap<String, String> descriptions) {
+  public void fullfillDescription(OpenAPI openAPI, AtomicBoolean addedEndpoints, HashMap<String, String> descriptions) {
     var info = openAPI.getInfo();
-    if(openAPI.getInfo() == null) {
+    if (openAPI.getInfo() == null) {
       info = new io.swagger.v3.oas.models.info.Info();
       openAPI.setInfo(info);
     }
@@ -179,8 +178,7 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
    * @param etapiOpenapiReq
    * @param endpoint
    */
-  void addDefinition(OpenAPI openAPI, String entityName, OpenAPIRequest etapiOpenapiReq,
-      OpenApiFlowPoint endpoint) {
+  void addDefinition(OpenAPI openAPI, String entityName, OpenAPIRequest etapiOpenapiReq, OpenApiFlowPoint endpoint) {
 
     String tag = etapiOpenapiReq.getName();
     OpenAPITab openAPIRXTab = etapiOpenapiReq.getETRXOpenAPITabList().get(0);
@@ -535,10 +533,9 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
       if (isMandatory(field)) {
         Set<String> numberReferences = Set.of("22", "29", "800008");
         boolean isNumber = numberReferences.contains(field.getColumn().getReference().getId());
-        schema.addProperties(normalizedName(field.getColumn().getName()),
-            isNumber ? new Schema<>().type(OpenAPIConstants.NUMBER).example(0) :
-                new Schema<>().type(OpenAPIConstants.STRING).example("N")
-        );
+        schema.addProperties(getHQLColumnName(field.getColumn()),
+            isNumber ? new Schema<>().type(OpenAPIConstants.NUMBER).example(0) : new Schema<>().type(
+                OpenAPIConstants.STRING).example("N"));
       }
     }
 
@@ -578,11 +575,10 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
     dataItemSchema.type(OpenAPIConstants.OBJECT);
     dataItemSchema.description("Entity data");
     for (String extraField : extraFields) {
-      dataItemSchema.addProperties(extraField,
-          new Schema<>().type(OpenAPIConstants.STRING).example(""));
+      dataItemSchema.addProperties(extraField, new Schema<>().type(OpenAPIConstants.STRING).example(""));
     }
     for (Field field : fields) {
-      dataItemSchema.addProperties(normalizedName(field.getColumn().getName()),
+      dataItemSchema.addProperties(getHQLColumnName(field.getColumn()),
           new Schema<>().type(OpenAPIConstants.STRING).example(""));
     }
     return dataItemSchema;
