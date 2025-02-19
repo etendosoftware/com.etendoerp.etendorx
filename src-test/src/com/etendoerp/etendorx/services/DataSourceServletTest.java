@@ -132,7 +132,7 @@ public class DataSourceServletTest extends WeldBaseTest {
   @Test
   public void testNormalizedName_StandardName() {
     Field field = OBDal.getInstance().get(Field.class, "1573");
-    String result = DataSourceUtils.getHQLColumnName(field);
+    String result = DataSourceUtils.getHQLColumnName(field)[0];
     assertEquals("businessPartner", result);
   }
 

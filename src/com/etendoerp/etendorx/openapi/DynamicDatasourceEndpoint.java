@@ -200,7 +200,7 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
       for (Field adField : tab.getADFieldList()) {
         Column column = adField.getColumn();
         String fieldConverted = getHQLColumnName(false,
-            column.getTable().getDBTableName(), column.getDBColumnName());
+            column.getTable().getDBTableName(), column.getDBColumnName())[0];
         responseJSON.put(fieldConverted, "");
         if (StringUtils.equals(column.getReference().getId(), "19")) {
           responseJSON.put(fieldConverted + "$_identifier", "");
@@ -536,7 +536,7 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
       if (isMandatory(field)) {
         Set<String> numberReferences = Set.of("22", "29", "800008");
         boolean isNumber = numberReferences.contains(field.getColumn().getReference().getId());
-        schema.addProperties(getHQLColumnName(field.getColumn()),
+        schema.addProperties(getHQLColumnName(field.getColumn())[0],
             isNumber ? new Schema<>().type(OpenAPIConstants.NUMBER).example(0) : new Schema<>().type(
                 OpenAPIConstants.STRING).example("N"));
       }
@@ -581,7 +581,7 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
       dataItemSchema.addProperties(extraField, new Schema<>().type(OpenAPIConstants.STRING).example(""));
     }
     for (Field field : fields) {
-      dataItemSchema.addProperties(getHQLColumnName(field.getColumn()),
+      dataItemSchema.addProperties(getHQLColumnName(field.getColumn())[0],
           new Schema<>().type(OpenAPIConstants.STRING).example(""));
     }
     return dataItemSchema;
