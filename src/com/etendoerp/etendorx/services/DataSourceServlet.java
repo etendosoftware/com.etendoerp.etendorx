@@ -24,9 +24,6 @@ import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.hibernate.criterion.Restrictions;
 import org.openbravo.base.exception.OBException;
-import org.openbravo.base.model.Entity;
-import org.openbravo.base.model.ModelProvider;
-import org.openbravo.base.model.Property;
 import org.openbravo.base.secureApp.DefaultValidationException;
 import org.openbravo.base.secureApp.LoginUtils;
 import org.openbravo.base.secureApp.LoginUtils.RoleDefaults;
@@ -37,7 +34,6 @@ import org.openbravo.client.application.ParameterUtils;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
-import org.openbravo.data.Sqlc;
 import org.openbravo.model.ad.datamodel.Column;
 import org.openbravo.model.ad.datamodel.Table;
 import org.openbravo.model.ad.domain.Reference;
@@ -53,6 +49,7 @@ import com.etendoerp.etendorx.openapi.OpenAPIConstants;
 import com.etendoerp.etendorx.services.wrapper.EtendoRequestWrapper;
 import com.etendoerp.etendorx.services.wrapper.EtendoResponseWrapper;
 import com.etendoerp.etendorx.services.wrapper.RequestField;
+import com.etendoerp.etendorx.utils.DataSourceUtils;
 import com.etendoerp.openapi.data.OpenAPIRequest;
 import com.smf.securewebservices.rsql.OBRestUtils;
 
@@ -70,8 +67,7 @@ public class DataSourceServlet implements WebService {
    * @return the DataSourceServlet instance
    */
   static org.openbravo.service.datasource.DataSourceServlet getDataSourceServlet() {
-    return WeldUtils.getInstanceFromStaticBeanManager(
-        org.openbravo.service.datasource.DataSourceServlet.class);
+    return WeldUtils.getInstanceFromStaticBeanManager(org.openbravo.service.datasource.DataSourceServlet.class);
   }
 
   /**
@@ -346,7 +342,7 @@ public class DataSourceServlet implements WebService {
       }
       tab = req.getETRXOpenAPITabList().get(0).getRelatedTabs();
       for (Field field : tab.getADFieldList()) {
-        String name = getHQLColumnName(field);
+        String name = DataSourceUtils.getHQLColumnName(field);
         fieldList.add(new RequestField(name, field.getColumn()));
       }
     } finally {
@@ -381,19 +377,12 @@ public class DataSourceServlet implements WebService {
     String content = "{}";
 
 
-    /* the columns uses 3 name format: database columnm name, normalized and input Format. So, to switch between them, we need to generate 3 maps */
+    /* the columns uses 3 name format: database column name, hql(or normalized) and input Format. So, to switch between them, we need to generate 3 maps */
     Map<String, String> norm2input = new HashMap<>();
     Map<String, String> input2norm = new HashMap<>();
     Map<String, String> dbname2input = new HashMap<>();
-    loadCaches(fieldList, norm2input, input2norm, dbname2input);
-
-    //Initialization
-    var formInit = WeldUtils.getInstanceFromStaticBeanManager(EtendoFormInitComponent.class);
-    var formInitResponse = formInit.execute(parameters, content);
-    checkForError(formInitResponse);
-    var values = formInitResponse.getJSONObject("columnValues");
-
-    var keys = values.keys();
+    Map<String, String> columnTypes = new HashMap<>();
+    loadCaches(fieldList, norm2input, input2norm, dbname2input, columnTypes);
 
 
     //remove the parent properties and ID, to detect properties that has been "changed" to emulate the change event
@@ -404,64 +393,79 @@ public class DataSourceServlet implements WebService {
       propsToChange.remove(parentProperty);
     }
 
-
-    //this variable will store accumulated data from the original request
+    //this variable will store accumulated data from the "New" Initialization, but first we need to convert the keys to input format
     JSONObject dataFromNewRecord = new JSONObject(dataFromOriginalRequest.toString());
+    dataFromNewRecord = keyConvertion(dataFromNewRecord, norm2input);
 
-    while (keys.hasNext()) {
-      String dbkey = (String) keys.next();
-      String inpkey = dbname2input.get(dbkey);
-      String normalizedKey = input2norm.get(inpkey);
-      JSONObject value = values.getJSONObject(dbkey);
-      Object val = getValueFromItem(value, "yyyy-MM-dd", "dd-MM-yyyy");
-      if (!dataFromNewRecord.has(normalizedKey)) {
-        dataFromNewRecord.put(normalizedKey, val);
-      }
-    }
+
+    //Initialization of new record, saving the data in input format
+    var formInit = WeldUtils.getInstanceFromStaticBeanManager(EtendoFormInitComponent.class);
+    var formInitResponse = formInit.execute(parameters, content);
+    applyColumnValues(formInitResponse, dbname2input, dataFromNewRecord);
 
     //to proceed with Change events, we need convert the keys to normalized format to input format
     JSONObject dataInpFormat = keyConvertion(dataFromNewRecord, norm2input);
     dataInpFormat.put("keyProperty", "id");//    "keyProperty":"id",
     dataInpFormat.put(OBBindingsConstants.WINDOW_ID_PARAM, tab.getWindow().getId());
 
-    // to develop, we assume that the only change is in the productID
-    String changedColumnN = propsToChange.keys().next().toString();
-    String changedColumnInp = norm2input.get(changedColumnN);
-    dataInpFormat.put(changedColumnInp, propsToChange.get(changedColumnN));
-    handleColumnSelector(request, tab, dataInpFormat, changedColumnN, changedColumnInp);
 
-    //lets check if the column is a search reference, if is, we need to load the data, because the callouts may need it
+    var a = propsToChange.keys();
+    while (a.hasNext()) {// to develop, we assume that the only change is in the productID
+      String changedColumnN = (String) a.next();
+      log.debug(" Recreating logic for change event, setting value for: {}", changedColumnN);
+      String changedColumnInp = norm2input.get(changedColumnN);
+      dataInpFormat.put(changedColumnInp, propsToChange.get(changedColumnN));
+      handleColumnSelector(request, tab, dataInpFormat, changedColumnN, changedColumnInp);
 
+      // suppose to change in productID
+      Map<String, Object> parameters2 = createParameters("PUT", request, tab.getId(), parentId, recordId,
+          changedColumnInp);
 
-    // suppose to change in productID
-    Map<String, Object> parameters2 = createParameters("PUT", request, tab.getId(), parentId, recordId,
-        changedColumnInp);
-
-    String contentForChange = dataInpFormat.toString();
-    var formInitChangeResponse = formInit.execute(parameters2, contentForChange);
-    if (!formInitChangeResponse.has("columnValues")) {
-      checkForError(formInitChangeResponse);
+      String contentForChange = dataInpFormat.toString();
+      var formInitChangeResponse = formInit.execute(parameters2, contentForChange);
+      applyColumnValues(formInitChangeResponse, dbname2input, dataFromNewRecord);
     }
-    values = formInitChangeResponse.getJSONObject("columnValues");
 
-    keys = values.keys();
-    while (keys.hasNext()) {
-      String key = (String) keys.next();
-      String normalizedKey = dbname2input.get(key);
-      JSONObject value = values.getJSONObject(key);
-      Object val = getValueFromItem(value, "dd-MM-yyyy", "yyyy-MM-dd");
-      if (val instanceof String && StringUtils.isNotEmpty((String) val)) {
-        dataInpFormat.put(normalizedKey, val);
-      } else if (!(val instanceof String)) {
-        dataInpFormat.put(normalizedKey, val);
-      }
-    }
 
     // to finally save the dataFromOriginalRequest, we need to convert the keys to normalized format
     JSONObject jsonBodyToSave = keyConvertion(dataInpFormat, input2norm);
     newJsonBody.put(DataSourceConstants.DATA, jsonBodyToSave);
 
     return new EtendoRequestWrapper(request, newUri, newJsonBody.toString(), request.getParameterMap());
+  }
+
+  /**
+   * Applies column values from the form initialization response to the new record data.
+   * <p>
+   * This method iterates over the column values in the form initialization response,
+   * converts the keys using the provided map, and updates the new record data with the values.
+   *
+   * @param formInitResponse
+   *     The JSON object containing the form initialization response.
+   * @param mapConvertionKey
+   *     A map for converting old keys to new keys.
+   * @param dataFromNewRecord
+   *     The JSON object representing the new record data to be updated.
+   * @throws JSONException
+   *     If there is an error during JSON processing.
+   */
+  private static void applyColumnValues(JSONObject formInitResponse, Map<String, String> mapConvertionKey,
+      JSONObject dataFromNewRecord) throws JSONException {
+    var columnValues = formInitResponse.getJSONObject("columnValues");
+    var keys = columnValues.keys();
+    while (keys.hasNext()) {
+      String oldKey = (String) keys.next();
+      String inpkey = mapConvertionKey.getOrDefault(oldKey, oldKey);
+      JSONObject value = columnValues.getJSONObject(oldKey);
+      Object val = getClassicValue(value);
+      if (!dataFromNewRecord.has(inpkey) && val != null) {
+        dataFromNewRecord.put(inpkey, val);
+      }
+    }
+  }
+
+  private static Object getClassicValue(JSONObject value) throws JSONException {
+    return getValueFromItem(value, "yyyy-MM-dd", "dd-MM-yyyy", true);
   }
 
   private void handleColumnSelector(HttpServletRequest request, Tab tab, JSONObject dataInpFormat,
@@ -471,7 +475,7 @@ public class DataSourceServlet implements WebService {
       Column col = null;
       List<Column> adColumnList = getAdColumnList(tab);
       for (Column column : adColumnList) {
-        if (StringUtils.equals((getHQLColumnName(column)), changedColumnN)) {
+        if (StringUtils.equals((DataSourceUtils.getHQLColumnName(column)), changedColumnN)) {
           col = column;
           break;
         }
@@ -491,7 +495,6 @@ public class DataSourceServlet implements WebService {
         convertToHashMAp.put("_entityName", selector.getTable().getJavaClassName());
         convertToHashMAp.put("whereAndFilterClause",
             selector.getHQLWhereClause() + addFilterClause(selector, convertToHashMAp, tab, request));
-        //if (OB.getParameters().get('inpcCurrencyId') && (OB.getWindowId() == '207' || OB.getWindowId() == '94EAA455D2644E04AB25D93BE5157B6D')) { " e.productPrice.priceListVersion.priceList.currency.id = '" + OB.getParameters().get('inpcCurrencyId') + "'" } else if (OB.getParameters().get('inpcCurrencyId')) { " e.productPrice.priceListVersion.priceList.salesPriceList = " + OB.isSalesTransaction()  + " AND e.productPrice.priceListVersion.priceList.currency.id = '" + OB.getParameters().get('inpcCurrencyId') + "'" }
         convertToHashMAp.put("dataSourceName", selector.getTable().getJavaClassName());
         convertToHashMAp.put("_selectorDefinitionId", selector.getId());
         convertToHashMAp.put("filterClass", "org.openbravo.userinterface.selector.SelectorDataSourceFilter");
@@ -501,7 +504,7 @@ public class DataSourceServlet implements WebService {
         // we will search this record id
         String recordID = dataInpFormat.getString(changedColumnInp);
         // ask for the name of the propertie where the record id is stored in the results
-        String valuePropertie = getHQLColumnName(selector.getValuefield().getColumn());
+        String valuePropertie = DataSourceUtils.getHQLColumnName(selector.getValuefield().getColumn());
         String valuePropertieDB = selector.getValuefield().getColumn().getDBColumnName();
 
         JSONObject obj = null;
@@ -531,8 +534,7 @@ public class DataSourceServlet implements WebService {
             if (!StringUtils.isEmpty(selectorField.getSuffix())) {
               dataInpFormat.put(changedColumnInp + selectorField.getSuffix(), obj.get(normN));
             } else {
-              dataInpFormat.put("inp" + Sqlc.TransformaNombreColumna(selectorField.getColumn().getDBColumnName()),
-                  obj.get(normN));
+              dataInpFormat.put(DataSourceUtils.getInpName(selectorField.getColumn()), obj.get(normN));
             }
           }
         }
@@ -580,8 +582,12 @@ public class DataSourceServlet implements WebService {
     return map;
   }
 
-  private static Object getValueFromItem(JSONObject item, String patternDateFrom,
-      String patternDateTo) throws JSONException {
+  private static Object getValueFromItem(JSONObject item, String patternDateFrom, String patternDateTo,
+      boolean directFromClassic) throws JSONException {
+    if (directFromClassic) {
+      return (item.has("classicValue") && StringUtils.isNotEmpty(item.optString("classicValue"))) ? item.get(
+          "classicValue") : null;
+    }
     //if the item has a property value with type long, use this value, if not use the classicValue. We dont know the type of the value
     if (item.has("value")) {
       Object value = item.get("value");
@@ -655,28 +661,24 @@ public class DataSourceServlet implements WebService {
    *     A map to store database column name to input format key mappings.
    */
   private void loadCaches(List<RequestField> fieldList, Map<String, String> norm2input, Map<String, String> input2norm,
-      Map<String, String> dbname2input) {
-    for (RequestField field : fieldList) {
-      String columnName = field.getDBColumnName();
-      String normalizedName = getHQLColumnName(field.getColumn());
-      String inpName = getInpName(columnName);
-      norm2input.put(normalizedName, inpName);
-      input2norm.put(inpName, normalizedName);
-      dbname2input.put(columnName, inpName);
-    }
-  }
+      Map<String, String> dbname2input, Map<String, String> columnTypes) {
+    try {
+      OBContext.setAdminMode();
 
-  /**
-   * Gets the input name for a given column name.
-   * <p>
-   * This method transforms a column name into its corresponding input name format.
-   *
-   * @param columnName
-   *     The column name to be transformed.
-   * @return The input name corresponding to the given column name.
-   */
-  private static String getInpName(String columnName) {
-    return "inp" + Sqlc.TransformaNombreColumna(columnName);
+      for (RequestField field : fieldList) {
+        String columnName = field.getDBColumnName();
+        String normalizedName = DataSourceUtils.getHQLColumnName(field.getColumn());
+        String inpName = DataSourceUtils.getInpName(columnName);
+        norm2input.put(normalizedName, inpName);
+        input2norm.put(inpName, normalizedName);
+        dbname2input.put(columnName, inpName);
+        String valueFormat = field.getColumn().getValueFormat();
+        columnTypes.put(inpName, valueFormat);
+
+      }
+    } finally {
+      OBContext.restorePreviousMode();
+    }
   }
 
   /**
@@ -695,7 +697,7 @@ public class DataSourceServlet implements WebService {
       OBContext.setAdminMode(false);
       List<String> dataPropertiesOfParents = tab.getADFieldList().stream().filter(
           field -> field.getColumn() != null && field.getColumn().isLinkToParentColumn()).map(
-          DataSourceServlet::getHQLColumnName).collect(Collectors.toList());
+          DataSourceUtils::getHQLColumnName).collect(Collectors.toList());
       for (String parentProperty : dataPropertiesOfParents) {
         if (data.has(parentProperty)) {
           return data.optString(parentProperty);
@@ -723,7 +725,7 @@ public class DataSourceServlet implements WebService {
       OBContext.setAdminMode(false);
       return tab.getADFieldList().stream().filter(
           field -> field.getColumn() != null && field.getColumn().isLinkToParentColumn()).map(
-          DataSourceServlet::getHQLColumnName).collect(Collectors.toList());
+          DataSourceUtils::getHQLColumnName).collect(Collectors.toList());
     } finally {
       OBContext.restorePreviousMode();
     }
@@ -833,55 +835,6 @@ public class DataSourceServlet implements WebService {
   }
 
   /**
-   * Retrieves the HQL column name for a given field.
-   *
-   * @param field
-   *     The field for which to retrieve the HQL column name.
-   * @return The HQL column name.
-   */
-  public static String getHQLColumnName(Field field) {
-    return getHQLColumnName(field.getColumn());
-  }
-
-  /**
-   * Retrieves the HQL column name for a given column.
-   *
-   * @param fieldColumn
-   *     The column for which to retrieve the HQL column name.
-   * @return The HQL column name.
-   */
-  public static String getHQLColumnName(Column fieldColumn) {
-    return getHQLColumnName(fieldColumn, false);
-  }
-
-  /**
-   * Retrieves the HQL column name for a given column, with an option to throw an exception on failure.
-   *
-   * @param fieldColumn
-   *     The column for which to retrieve the HQL column name.
-   * @param exceptionOnFail
-   *     If true, throws an exception if the entity or property is not found.
-   * @return The HQL column name.
-   * @throws OBException
-   *     if the entity or property is not found and exceptionOnFail is true.
-   */
-  public static String getHQLColumnName(Column fieldColumn, boolean exceptionOnFail) {
-    String tableName = fieldColumn.getTable().getDBTableName();
-    Entity entity = ModelProvider.getInstance().getEntityByTableName(tableName);
-    String dbcolumnName = fieldColumn.getDBColumnName();
-    if (exceptionOnFail && entity == null) {
-      log.error(String.format("Entity of %s not found.", tableName));
-      throw new OBException();
-    }
-    Property prop = entity.getPropertyByColumnName(dbcolumnName, false);
-    if (exceptionOnFail && prop == null) {
-      throw new OBException();
-    }
-    String entAl = prop != null ? prop.getName() : "null";
-    return entAl;
-  }
-
-  /**
    * Normalizes the field key.
    *
    * @param fieldList
@@ -947,11 +900,8 @@ public class DataSourceServlet implements WebService {
   }
 
   static Tab getTabByDataSourceName(String dataSourceName) throws OpenAPINotFoundThrowable {
-    OpenAPIRequest apiRequest = (OpenAPIRequest) OBDal.getInstance()
-        .createCriteria(OpenAPIRequest.class)
-        .add(Restrictions.eq("name", dataSourceName))
-        .setMaxResults(1)
-        .uniqueResult();
+    OpenAPIRequest apiRequest = (OpenAPIRequest) OBDal.getInstance().createCriteria(OpenAPIRequest.class).add(
+        Restrictions.eq("name", dataSourceName)).setMaxResults(1).uniqueResult();
 
     if (apiRequest == null) {
       throw new OpenAPINotFoundThrowable("OpenAPI request not found: " + dataSourceName);

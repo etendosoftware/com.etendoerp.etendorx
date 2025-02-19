@@ -33,9 +33,13 @@ import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.openbravo.base.weld.test.WeldBaseTest;
+import org.openbravo.dal.service.OBDal;
 import org.openbravo.model.ad.datamodel.Table;
+import org.openbravo.model.ad.ui.Field;
 import org.openbravo.model.ad.ui.Tab;
 import org.openbravo.model.ad.ui.Window;
+
+import com.etendoerp.etendorx.utils.DataSourceUtils;
 
 /**
  * Unit tests for the DataSourceServlet class.
@@ -127,36 +131,11 @@ public class DataSourceServletTest extends WeldBaseTest {
    */
   @Test
   public void testNormalizedName_StandardName() {
-    String result = DataSourceServlet.normalizedName("Business Partner");
+    Field field = OBDal.getInstance().get(Field.class, "1573");
+    String result = DataSourceUtils.getHQLColumnName(field);
     assertEquals("businessPartner", result);
   }
 
-  /**
-   * Tests the normalizedName method with a name containing special characters.
-   */
-  @Test
-  public void testNormalizedName_SpecialCharacters() {
-    String result = DataSourceServlet.normalizedName("Business! Partner@");
-    assertEquals("businessPartner", result);
-  }
-
-  /**
-   * Tests the normalizedName method with the name "AD_Role_ID".
-   */
-  @Test
-  public void testNormalizedName_ADRoleID() {
-    String result = DataSourceServlet.normalizedName("AD_Role_ID");
-    assertEquals("role", result);
-  }
-
-  /**
-   * Tests the normalizedName method with an empty name.
-   */
-  @Test
-  public void testNormalizedName_EmptyName() {
-    String result = DataSourceServlet.normalizedName("");
-    assertEquals("", result);
-  }
 
   /**
    * Tests the doDelete method, which is not supported.

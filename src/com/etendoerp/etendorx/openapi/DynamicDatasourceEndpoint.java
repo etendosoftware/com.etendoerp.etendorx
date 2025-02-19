@@ -1,6 +1,6 @@
 package com.etendoerp.etendorx.openapi;
 
-import static com.etendoerp.etendorx.services.DataSourceServlet.getHQLColumnName;
+import static com.etendoerp.etendorx.utils.DataSourceUtils.getHQLColumnName;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -18,6 +18,7 @@ import org.codehaus.jettison.json.JSONObject;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBDal;
+import org.openbravo.model.ad.datamodel.Column;
 import org.openbravo.model.ad.ui.Field;
 import org.openbravo.model.ad.ui.Tab;
 import org.slf4j.Logger;
@@ -197,9 +198,11 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
       formInitResponseSchema = defineFormInitResponseSchema(tab.getADFieldList());
 
       for (Field adField : tab.getADFieldList()) {
-        String fieldConverted = getHQLColumnName(adField.getColumn(), false);
+        Column column = adField.getColumn();
+        String fieldConverted = getHQLColumnName(false,
+            column.getTable().getDBTableName(), column.getDBColumnName());
         responseJSON.put(fieldConverted, "");
-        if (StringUtils.equals(adField.getColumn().getReference().getId(), "19")) {
+        if (StringUtils.equals(column.getReference().getId(), "19")) {
           responseJSON.put(fieldConverted + "$_identifier", "");
         }
       }
