@@ -493,26 +493,30 @@ public class DataSourceServlet implements WebService {
       if (reference.getOBUISELSelectorList().isEmpty()) {
         throw new OBException("Reference not found"); //TODO: change this message
       }
-      Selector selector = reference.getOBUISELSelectorList().get(0);
+      org.openbravo.model.ad.domain.Selector selectorValidation = reference.getADSelectorList().get(0);
+      Selector selectorDefined = reference.getOBUISELSelectorList().get(0);
       DefaultDataSourceService dataSourceService = new DefaultDataSourceService();
       HashMap<String, String> convertToHashMAp = convertToHashMAp(dataInpFormat);
-      OBDal.getInstance().refresh(selector);
-      convertToHashMAp.put("_entityName", selector.getTable().getJavaClassName());
-      String whereClauseAndFilters = selector.getHQLWhereClause() + addFilterClause(selector, convertToHashMAp, tab,
-          request);
+      OBDal.getInstance().refresh(selectorDefined);
+      convertToHashMAp.put("_entityName", selectorDefined.getTable().getJavaClassName());
+      String whereClauseAndFilters = selectorDefined.getHQLWhereClause() + addFilterClause(selectorDefined,
+          convertToHashMAp, tab, request);
       whereClauseAndFilters = fullfillSessionsVariables(whereClauseAndFilters, db2Input, dataInpFormat);
       convertToHashMAp.put("whereAndFilterClause", whereClauseAndFilters);
-      convertToHashMAp.put("dataSourceName", selector.getTable().getJavaClassName());
-      convertToHashMAp.put("_selectorDefinitionId", selector.getId());
+      convertToHashMAp.put("dataSourceName", selectorDefined.getTable().getJavaClassName());
+      convertToHashMAp.put("_selectorDefinitionId", selectorDefined.getId());
       convertToHashMAp.put("filterClass", "org.openbravo.userinterface.selector.SelectorDataSourceFilter");
       convertToHashMAp.put("IsSelectorItem", "true");
-      convertToHashMAp.put("_extraProperties", getExtraProperties(selector));
+      convertToHashMAp.put("_extraProperties", getExtraProperties(selectorDefined));
       int iterations = 0;
       // we will search this record id
       String recordID = dataInpFormat.getString(changedColumnInp);
+      //find the column of the table, that determines the "column" where the data is stored. For example, in the case of
+      // a selector of "M_Product", the value stored in the column "M_Product_ID"
+      Column valueColumn = getValueColumn(selectorValidation, selectorDefined);
       // ask for the name of the propertie where the record id is stored in the results
-      String valuePropertie = DataSourceUtils.getHQLColumnName(selector.getValuefield().getColumn())[0];
-      String valuePropertieDB = selector.getValuefield().getColumn().getDBColumnName();
+      String valuePropertie = DataSourceUtils.getHQLColumnName(valueColumn)[0];
+      String valuePropertieDB = valueColumn.getDBColumnName();
 
       JSONObject obj = null;
       int totalRows = -1;
@@ -543,10 +547,12 @@ public class DataSourceServlet implements WebService {
         throw new OBException("Record " + recordID + " not found in Search selector execution.");
       }
 
-      List<SelectorField> selectorFieldList = selector.getOBUISELSelectorFieldList();
+      List<SelectorField> selectorFieldList = selectorDefined.getOBUISELSelectorFieldList();
       selectorFieldList = selectorFieldList.stream().filter(SelectorField::isOutfield).collect(Collectors.toList());
       for (SelectorField selectorField : selectorFieldList) {
-        String normN = selectorField.getProperty().replace(".", "$");
+        String normN = StringUtils.isNotEmpty(
+            selectorField.getProperty()) ? selectorField.getProperty() : selectorField.getName();
+        normN = normN.replace(".", "$");
         if (obj.has(normN)) {
           if (!StringUtils.isEmpty(selectorField.getSuffix())) {
             dataInpFormat.put(changedColumnInp + selectorField.getSuffix(), obj.get(normN));
@@ -562,6 +568,15 @@ public class DataSourceServlet implements WebService {
       throw e;
     } finally {
       OBContext.restorePreviousMode();
+    }
+  }
+
+  private static Column getValueColumn(org.openbravo.model.ad.domain.Selector selectorValidation,
+      Selector selectorDefined) {
+    if (selectorDefined != null && selectorDefined.getValuefield() != null && !selectorDefined.isCustomQuery()) {
+      return selectorDefined.getValuefield().getColumn();
+    } else {
+      return selectorValidation.getColumn();
     }
   }
 

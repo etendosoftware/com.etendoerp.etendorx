@@ -6,6 +6,7 @@ import java.text.SimpleDateFormat;
 import java.util.Map;
 import java.util.Properties;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.codehaus.jettison.json.JSONException;
@@ -154,7 +155,7 @@ public class DataSourceUtils {
             newJsonBodyToSave.put(key, Long.parseLong(value));
             break;
           case "Boolean":
-            newJsonBodyToSave.put(key, Boolean.parseBoolean(value));
+            newJsonBodyToSave.put(key, Boolean.parseBoolean(value) || StringUtils.equalsIgnoreCase(value, "Y"));
             break;
           case "Date":
             newJsonBodyToSave.put(key, getformatedDate(value));
