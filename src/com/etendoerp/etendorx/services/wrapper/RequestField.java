@@ -1,21 +1,27 @@
 package com.etendoerp.etendorx.services.wrapper;
 
+import org.openbravo.model.ad.datamodel.Column;
+
 /**
- * Represents a request field with a name and a database column name.
+ * Represents a request field with a name, database column name, and associated column.
  */
 public class RequestField {
   private final String name;
   private final String dBColumnName;
+  private final Column adColumn;
 
   /**
    * Constructs a new RequestField.
    *
-   * @param name The name of the request field.
-   * @param dBColumnName The database column name associated with the request field.
+   * @param name
+   *     The name of the request field.
+   * @param col
+   *     The database column name associated with the request field.
    */
-  public RequestField(String name, String dBColumnName) {
+  public RequestField(String name, Column col) {
     this.name = name;
-    this.dBColumnName = dBColumnName;
+    this.adColumn = col;
+    this.dBColumnName = col.getDBColumnName();
   }
 
   /**
@@ -34,6 +40,15 @@ public class RequestField {
    */
   public String getDBColumnName() {
     return dBColumnName;
+  }
+
+  /**
+   * Retrieves the column associated with this request field.
+   *
+   * @return the {@link Column} object representing the column.
+   */
+  public Column getColumn() {
+    return adColumn;
   }
 
   /**
