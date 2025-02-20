@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -35,8 +34,8 @@ import org.openbravo.client.application.ParameterUtils;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
+import org.openbravo.erpCommon.utility.OBMessageUtils;
 import org.openbravo.model.ad.datamodel.Column;
-import org.openbravo.model.ad.datamodel.Table;
 import org.openbravo.model.ad.domain.Reference;
 import org.openbravo.model.ad.ui.Field;
 import org.openbravo.model.ad.ui.Tab;
@@ -94,7 +93,7 @@ public class DataSourceServlet implements WebService {
           OBContext.getOBContext().getLanguage().getLanguage(), OBContext.getOBContext().isRTL() ? "Y" : "N",
           defaults.role, defaults.client, OBContext.getOBContext().getCurrentOrganization().getId(),
           defaults.warehouse);
-      String[] extractedParts = extractDataSourceAndID(path);
+      String[] extractedParts = DataSourceUtils.extractDataSourceAndID(path);
       String dataSourceName = convertURI(extractedParts);
 
       String rsql = request.getParameter("q");
@@ -126,7 +125,7 @@ public class DataSourceServlet implements WebService {
         params.put("_endRow", new String[]{ "100" });
       }
       String dtsn = extractedParts[0];
-      Tab tabByDataSourceName = getTabByDataSourceName(dtsn);
+      Tab tabByDataSourceName = DataSourceUtils.getTabByDataSourceName(dtsn);
       params.put("tabId", new String[]{ tabByDataSourceName.getId() });
       params.put("windowId", new String[]{ tabByDataSourceName.getWindow().getId() });
       String csrf = "123";
@@ -257,7 +256,7 @@ public class DataSourceServlet implements WebService {
         handleNotFoundException(response);
         return;
       }
-      String newUri = convertURI(extractDataSourceAndID(path));
+      String newUri = convertURI(DataSourceUtils.extractDataSourceAndID(path));
 
       var servlet = getDataSourceServlet();
 
@@ -323,7 +322,7 @@ public class DataSourceServlet implements WebService {
       List<RequestField> fieldList) throws ServletException, DefaultValidationException, IOException {
     Tab tab;
     try {
-      var dataSource = extractDataSourceAndID(path);
+      var dataSource = DataSourceUtils.extractDataSourceAndID(path);
       OBContext.setAdminMode();
       DalConnectionProvider conn = new DalConnectionProvider();
       RoleDefaults defaults = LoginUtils.getLoginDefaults(OBContext.getOBContext().getUser().getId(),
@@ -371,10 +370,11 @@ public class DataSourceServlet implements WebService {
     JSONObject dataFromOriginalRequest = newJsonBody.getJSONObject(DataSourceConstants.DATA);
     String recordId = dataFromOriginalRequest.optString("id");
 
-    String parentId = getParentId(tab, dataFromOriginalRequest);
+    String parentId = DataSourceUtils.getParentId(tab, dataFromOriginalRequest);
 
 
-    Map<String, Object> parameters = createParameters(method, request, tab.getId(), parentId, recordId, null);
+    Map<String, Object> parameters = createParameters(request, tab.getId(), parentId, recordId, null,
+        StringUtils.equals(method, OpenAPIConstants.POST) ? "NEW" : "CHANGE");
     String content = "{}";
 
 
@@ -383,13 +383,13 @@ public class DataSourceServlet implements WebService {
     Map<String, String> input2norm = new HashMap<>();
     Map<String, String> dbname2input = new HashMap<>();
     Map<String, String> columnTypes = new HashMap<>();
-    loadCaches(fieldList, norm2input, input2norm, dbname2input, columnTypes);
+    DataSourceUtils.loadCaches(fieldList, norm2input, input2norm, dbname2input, columnTypes);
 
 
     //remove the parent properties and ID, to detect properties that has been "changed" to emulate the change event
     // for every property that has been changed, we need to call the formInit with the new value
     JSONObject propsToChange = new JSONObject(dataFromOriginalRequest.toString());
-    List<String> parentProperties = getParentProperties(tab, dataFromOriginalRequest);
+    List<String> parentProperties = DataSourceUtils.getParentProperties(tab, dataFromOriginalRequest);
     for (String parentProperty : parentProperties) {
       propsToChange.remove(parentProperty);
     }
@@ -402,7 +402,7 @@ public class DataSourceServlet implements WebService {
     //Initialization of new record, saving the data in input format
     var formInit = WeldUtils.getInstanceFromStaticBeanManager(EtendoFormInitComponent.class);
     var formInitResponse = formInit.execute(parameters, content);
-    applyColumnValues(formInitResponse, dbname2input, dataFromNewRecord);
+    DataSourceUtils.applyColumnValues(formInitResponse, dbname2input, dataFromNewRecord);
 
     //to proceed with Change events, we need convert the keys to normalized format to input format
     JSONObject dataInpFormat = DataSourceUtils.keyConvertion(dataFromNewRecord, norm2input);
@@ -413,18 +413,18 @@ public class DataSourceServlet implements WebService {
     var a = propsToChange.keys();
     while (a.hasNext()) {// to develop, we assume that the only change is in the productID
       String changedColumnN = (String) a.next();
-      log.debug(" Recreating logic for change event, setting value for: {}", changedColumnN);
+      logChangeEvent(changedColumnN);
       String changedColumnInp = norm2input.get(changedColumnN);
       dataInpFormat.put(changedColumnInp, propsToChange.get(changedColumnN));
       handleColumnSelector(request, tab, dataInpFormat, changedColumnN, changedColumnInp, dbname2input);
 
       // suppose to change in productID
-      Map<String, Object> parameters2 = createParameters("PUT", request, tab.getId(), parentId, recordId,
-          changedColumnInp);
+      Map<String, Object> parameters2 = createParameters(request, tab.getId(), parentId, recordId, changedColumnInp,
+          StringUtils.equals("PUT", OpenAPIConstants.POST) ? "NEW" : "CHANGE");
 
       String contentForChange = dataInpFormat.toString();
       var formInitChangeResponse = formInit.execute(parameters2, contentForChange);
-      applyColumnValues(formInitChangeResponse, dbname2input, dataInpFormat);
+      DataSourceUtils.applyColumnValues(formInitChangeResponse, dbname2input, dataInpFormat);
     }
 
 
@@ -437,46 +437,48 @@ public class DataSourceServlet implements WebService {
   }
 
   /**
-   * Applies column values from the form initialization response to the new record data.
+   * Logs the change event for a specified column.
    * <p>
-   * This method iterates over the column values in the form initialization response,
-   * converts the keys using the provided map, and updates the new record data with the values.
+   * This method logs a debug message indicating that the logic for a change event is being recreated
+   * and the value for the specified column is being set.
    *
-   * @param formInitResponse
-   *     The JSON object containing the form initialization response.
-   * @param mapConvertionKey
-   *     A map for converting old keys to new keys.
-   * @param dataFromNewRecord
-   *     The JSON object representing the new record data to be updated.
+   * @param changedColumnN
+   *     The name of the column that has changed.
+   */
+  private static void logChangeEvent(String changedColumnN) {
+    log.debug(" Recreating logic for change event, setting value for: {}", changedColumnN);
+  }
+
+  /**
+   * Handles the column selector for a specified column.
+   * <p>
+   * This method processes the column selector for the specified column, evaluates the filter clause,
+   * and updates the data input format with the selected values.
+   *
+   * @param request
+   *     The HttpServletRequest object.
+   * @param tab
+   *     The Tab object associated with the selector.
+   * @param dataInpFormat
+   *     The JSON object containing the data input format.
+   * @param changedColumnN
+   *     The name of the column that has changed.
+   * @param changedColumnInp
+   *     The input format name of the column that has changed.
+   * @param db2Input
+   *     A map of database column names to input format names.
    * @throws JSONException
    *     If there is an error during JSON processing.
+   * @throws ScriptException
+   *     If there is an error during the evaluation of the filter expression.
    */
-  private static void applyColumnValues(JSONObject formInitResponse, Map<String, String> mapConvertionKey,
-      JSONObject dataFromNewRecord) throws JSONException {
-    var columnValues = formInitResponse.getJSONObject("columnValues");
-    var keys = columnValues.keys();
-    while (keys.hasNext()) {
-      String oldKey = (String) keys.next();
-      String inpkey = mapConvertionKey.getOrDefault(oldKey, oldKey);
-      JSONObject value = columnValues.getJSONObject(oldKey);
-      Object val = getClassicValue(value);
-      if (val != null && (!(val instanceof String) || StringUtils.isNotEmpty((String) val))) {
-        dataFromNewRecord.put(inpkey, val);
-      }
-    }
-  }
-
-  private static Object getClassicValue(JSONObject value) throws JSONException {
-    return getValueFromItem(value, "yyyy-MM-dd", "dd-MM-yyyy", true);
-  }
-
   private void handleColumnSelector(HttpServletRequest request, Tab tab, JSONObject dataInpFormat,
       String changedColumnN, String changedColumnInp,
       Map<String, String> db2Input) throws JSONException, ScriptException {
     try {
       OBContext.setAdminMode();
       Column col = null;
-      List<Column> adColumnList = getAdColumnList(tab);
+      List<Column> adColumnList = DataSourceUtils.getAdColumnList(tab);
       for (Column column : adColumnList) {
         if (StringUtils.equals((DataSourceUtils.getHQLColumnName(column))[0], changedColumnN)) {
           col = column;
@@ -484,14 +486,14 @@ public class DataSourceServlet implements WebService {
         }
       }
       if (col == null) {
-        throw new OBException("Column not found"); //TODO: change this message
+        throw new OBException(OBMessageUtils.messageBD("ETRX_ColumnNotFound"));
       }
       if (!StringUtils.equals(col.getReference().getId(), "30")) {
         return;
       }  //is type search.
       Reference reference = col.getReferenceSearchKey();
       if (reference.getOBUISELSelectorList().isEmpty()) {
-        throw new OBException("Reference not found"); //TODO: change this message
+        throw new OBException(OBMessageUtils.messageBD("ETRX_ReferenceNotFound"));
       }
       org.openbravo.model.ad.domain.Selector selectorValidation = reference.getADSelectorList().get(0);
       Selector selectorDefined = reference.getOBUISELSelectorList().get(0);
@@ -571,6 +573,19 @@ public class DataSourceServlet implements WebService {
     }
   }
 
+  /**
+   * Retrieves the value column for the given selector.
+   * <p>
+   * This method determines the value column based on the provided selector. If the selector is defined
+   * and has a value field that is not a custom query, it returns the value field's column. Otherwise,
+   * it returns the column from the selector validation.
+   *
+   * @param selectorValidation
+   *     The selector validation object.
+   * @param selectorDefined
+   *     The defined selector object.
+   * @return The value column for the given selector.
+   */
   private static Column getValueColumn(org.openbravo.model.ad.domain.Selector selectorValidation,
       Selector selectorDefined) {
     if (selectorDefined != null && selectorDefined.getValuefield() != null && !selectorDefined.isCustomQuery()) {
@@ -580,6 +595,22 @@ public class DataSourceServlet implements WebService {
     }
   }
 
+  /**
+   * Replaces session variables in the where clause and filters.
+   * <p>
+   * This method replaces placeholders in the where clause and filters with actual values from the provided
+   * data input format.
+   *
+   * @param whereClauseAndFilters
+   *     The where clause and filters containing placeholders.
+   * @param db2Input
+   *     A map of database column names to input format names.
+   * @param dataInpFormat
+   *     The JSON object containing the data input format.
+   * @return The where clause and filters with placeholders replaced by actual values.
+   * @throws JSONException
+   *     If there is an error during JSON processing.
+   */
   private String fullfillSessionsVariables(String whereClauseAndFilters, Map<String, String> db2Input,
       JSONObject dataInpFormat) throws JSONException {
     String result = whereClauseAndFilters;
@@ -592,23 +623,44 @@ public class DataSourceServlet implements WebService {
     return result;
   }
 
-  private static List<Column> getAdColumnList(Tab tab) {
-    Table table = tab.getTable();
-    OBDal.getInstance().refresh(table);
-    return table.getADColumnList();
-  }
-
+  /**
+   * Retrieves the extra properties for the given selector.
+   * <p>
+   * This method collects the extra properties for the given selector, including the value field and outfields,
+   * and returns them as a comma-separated string.
+   *
+   * @param selector
+   *     The selector object.
+   * @return A comma-separated string of extra properties for the given selector.
+   */
   private static String getExtraProperties(Selector selector) {
     return selector.getOBUISELSelectorFieldList().stream().filter(
         sf -> selector.getValuefield() == sf || sf.isOutfield()).sorted(
         Comparator.comparing(SelectorField::getSortno)).map(
         sf -> StringUtils.replace(sf.getProperty(), ".", "$")).collect(Collectors.joining(","));
-
   }
 
+  /**
+   * Adds a filter clause to the selector's query.
+   * <p>
+   * This method checks if the selector has a filter clause that uses OB. If it does,
+   * the filter clause is evaluated in JavaScript and appended to the query.
+   *
+   * @param selector
+   *     The selector object containing the filter expression.
+   * @param hs1
+   *     A map of parameters to be used in the filter expression.
+   * @param tab
+   *     The tab object associated with the selector.
+   * @param request
+   *     The HttpServletRequest object.
+   * @return The filter clause to be appended to the query.
+   * @throws ScriptException
+   *     If there is an error during the evaluation of the filter expression.
+   */
   private String addFilterClause(Selector selector, HashMap<String, String> hs1, Tab tab,
       HttpServletRequest request) throws ScriptException {
-    //check if the selector has a filter clause and it uses OB., because we need to evalueate in JS.
+    // Check if the selector has a filter clause and it uses OB., because we need to evaluate in JS.
     var result = (String) ParameterUtils.getJSExpressionResult(hs1, request.getSession(),
         selector.getFilterExpression());
     if (StringUtils.isNotEmpty(result)) {
@@ -617,6 +669,17 @@ public class DataSourceServlet implements WebService {
     return result;
   }
 
+  /**
+   * Converts a JSONObject to a HashMap.
+   * <p>
+   * This method iterates over the keys of the provided JSONObject and adds them to a HashMap.
+   *
+   * @param dataInpFormat
+   *     The JSONObject to be converted.
+   * @return A HashMap containing the key-value pairs from the JSONObject.
+   * @throws JSONException
+   *     If there is an error during JSON processing.
+   */
   private HashMap<String, String> convertToHashMAp(JSONObject dataInpFormat) throws JSONException {
     HashMap<String, String> map = new HashMap<>();
     var keys = dataInpFormat.keys();
@@ -627,120 +690,22 @@ public class DataSourceServlet implements WebService {
     return map;
   }
 
-  private static Object getValueFromItem(JSONObject item, String patternDateFrom, String patternDateTo,
-      boolean directFromClassic) throws JSONException {
-    if (directFromClassic) {
-      return (item.has("classicValue") && StringUtils.isNotEmpty(item.optString("classicValue"))) ? item.get(
-          "classicValue") : null;
-    }
-    //if the item has a property value with type long, use this value, if not use the classicValue. We dont know the type of the value
-    if (item.has("value")) {
-      Object value = item.get("value");
-      if (value instanceof Long || value instanceof Integer || value instanceof Double) {
-        return value;
-      }
-      if (!(value instanceof String)) {
-        return value.toString();
-      }
-      //checkif the value is a date in patternDateFrom, if so, convert it to patternDateTo
-      // for example, if the date is in format yyyy-MM-dd, and we need it in format dd-MM-yyyy
-      SimpleDateFormat sdfFrom = new SimpleDateFormat(patternDateFrom);
-      SimpleDateFormat sdfTo = new SimpleDateFormat(patternDateTo);
-      try {
-        return sdfTo.format(sdfFrom.parse(value.toString()));
-      } catch (Exception e) {
-        return value;
-      }
-    }
-    return item.has("classicValue") ? item.get("classicValue") : null;
-  }
-
+  /**
+   * Checks for errors in the form initialization response.
+   * <p>
+   * This method examines the provided JSON object for an error response. If an error is found,
+   * it throws an OBException with the error message.
+   *
+   * @param formInitResponse
+   *     The JSON object containing the form initialization response.
+   * @throws JSONException
+   *     If there is an error during JSON processing.
+   * @throws OBException
+   *     If the response contains an error message.
+   */
   private void checkForError(JSONObject formInitResponse) throws JSONException {
     if (formInitResponse.has("response") && formInitResponse.getJSONObject("response").has("error")) {
       throw new OBException(formInitResponse.getJSONObject("response").getJSONObject("error").getString("message"));
-    }
-  }
-
-  /**
-   * Loads caches for normalized and input format keys.
-   * <p>
-   * This method populates three maps with normalized, input format, and database column name to input format key mappings based on the provided field list.
-   *
-   * @param fieldList
-   *     A list of RequestField objects containing field information.
-   * @param norm2input
-   *     A map to store normalized to input format key mappings.
-   * @param input2norm
-   *     A map to store input to normalized format key mappings.
-   * @param dbname2input
-   *     A map to store database column name to input format key mappings.
-   */
-  private void loadCaches(List<RequestField> fieldList, Map<String, String> norm2input, Map<String, String> input2norm,
-      Map<String, String> dbname2input, Map<String, String> columnTypes) {
-    try {
-      OBContext.setAdminMode();
-      for (RequestField field : fieldList) {
-        String columnName = field.getDBColumnName();
-        String[] hqlColumnNameAndtype = DataSourceUtils.getHQLColumnName(field.getColumn());
-        String normalizedName = hqlColumnNameAndtype[0];
-        String inpName = DataSourceUtils.getInpName(columnName);
-        norm2input.put(normalizedName, inpName);
-        input2norm.put(inpName, normalizedName);
-        dbname2input.put(columnName, inpName);
-        columnTypes.put(normalizedName, hqlColumnNameAndtype[1]);
-      }
-    } finally {
-      OBContext.restorePreviousMode();
-    }
-  }
-
-  /**
-   * Retrieves the parent ID from the given tab and data.
-   * <p>
-   * This method finds the parent ID by checking the data properties of the parent columns in the tab.
-   *
-   * @param tab
-   *     The Tab object containing field information.
-   * @param data
-   *     The JSONObject containing data to be checked for parent properties.
-   * @return The parent ID if found, otherwise null.
-   */
-  private String getParentId(Tab tab, JSONObject data) {
-    try {
-      OBContext.setAdminMode(false);
-      List<String> dataPropertiesOfParents = tab.getADFieldList().stream().filter(
-          field -> field.getColumn() != null && field.getColumn().isLinkToParentColumn()).map(
-          f -> DataSourceUtils.getHQLColumnName(f)[0]).collect(Collectors.toList());
-      for (String parentProperty : dataPropertiesOfParents) {
-        if (data.has(parentProperty)) {
-          return data.optString(parentProperty);
-        }
-      }
-      return null;
-    } finally {
-      OBContext.restorePreviousMode();
-    }
-  }
-
-  /**
-   * Retrieves the parent ID from the given tab and data.
-   * <p>
-   * This method finds the parent ID by checking the data properties of the parent columns in the tab.
-   *
-   * @param tab
-   *     The Tab object containing field information.
-   * @param data
-   *     The JSONObject containing data to be checked for parent properties.
-   * @return The parent ID if found, otherwise null.
-   */
-  private List<String> getParentProperties(Tab tab, JSONObject data) {
-    try {
-      OBContext.setAdminMode(false);
-      return tab.getADFieldList().stream().filter(
-          field -> field.getColumn() != null && field.getColumn().isLinkToParentColumn()).map(
-          f -> DataSourceUtils.getHQLColumnName(f)[0]).collect(Collectors.toList());
-    } finally {
-      OBContext.restorePreviousMode();
     }
   }
 
@@ -750,7 +715,7 @@ public class DataSourceServlet implements WebService {
    *
    * @param request
    * @param response
-   * @param newJsonBody
+   * @param fullDataBody
    * @param fieldList
    * @param newUri
    * @param path
@@ -760,44 +725,99 @@ public class DataSourceServlet implements WebService {
    * @throws OpenAPINotFoundThrowable
    */
   private EtendoRequestWrapper getEtendoPutWrapper(HttpServletRequest request, HttpServletResponse response,
-      JSONObject newJsonBody, List<RequestField> fieldList, String newUri,
-      String path) throws JSONException, IOException, ServletException, OpenAPINotFoundThrowable {
-    String getURI = convertURI(extractDataSourceAndID(path));
+      JSONObject fullDataBody, List<RequestField> fieldList, String newUri,
+      String path) throws JSONException, IOException, ServletException, OpenAPINotFoundThrowable, ScriptException, ParseException {
+    String[] extractedParts = DataSourceUtils.extractDataSourceAndID(path);
+    String getURI = convertURI(extractedParts);
+    JSONObject newData = fullDataBody.optJSONObject("data");
+    if (extractedParts.length < 2 || StringUtils.isEmpty(extractedParts[1])) {
+      throw new OBException(OBMessageUtils.messageBD("ETRX_RecordIdNotFound"));
+    }
+    String recordId = extractedParts[1];
+
+
     var newRequest = new EtendoRequestWrapper(request, getURI, "", request.getParameterMap());
     var newResponse = new EtendoResponseWrapper(response);
     getDataSourceServlet().doGet(newRequest, newResponse);
     JSONObject capturedResponse = newResponse.getCapturedContent();
-    JSONObject values = capturedResponse.getJSONObject(DataSourceConstants.RESPONSE).getJSONArray(
+    JSONObject preexistentData = capturedResponse.getJSONObject(DataSourceConstants.RESPONSE).getJSONArray(
         DataSourceConstants.DATA).getJSONObject(0);
-    JSONObject data = newJsonBody.getJSONObject(DataSourceConstants.DATA);
-    var keys = values.keys();
-    while (keys.hasNext()) {
-      String key = (String) keys.next();
-      String normalizedKey = normalizedKey(fieldList, key);
-      Object value = values.get(key);
-      if (!data.has(normalizedKey)) {
-        data.put(normalizedKey, value);
+
+    //define the maps
+    Map<String, String> norm2input = new HashMap<>();
+    Map<String, String> input2norm = new HashMap<>();
+    Map<String, String> dbname2input = new HashMap<>();
+    Map<String, String> columnTypes = new HashMap<>();
+
+    DataSourceUtils.loadCaches(fieldList, norm2input, input2norm, dbname2input, columnTypes);
+
+    //invoinv the formInit to get the data in input format, beign the base of the new data and the change events
+    //we need to execute the forminit in mode EDIT
+    Map<String, Object> parameters = createParameters(request,
+        DataSourceUtils.getTabByDataSourceName(extractedParts[0]).getId(), null, recordId, null, "EDIT");
+
+    String content = "{}";
+    var formInitResponse = WeldUtils.getInstanceFromStaticBeanManager(EtendoFormInitComponent.class).execute(parameters,
+        content);
+    checkForError(formInitResponse);
+
+    //apply the values from the formInitResponse to the dataInpFormat
+
+    JSONObject dataInpFormat = new JSONObject();
+
+    DataSourceUtils.applyColumnValues(formInitResponse, dbname2input, dataInpFormat);
+
+    dataInpFormat.put("keyProperty", "id");
+    dataInpFormat.put(OBBindingsConstants.WINDOW_ID_PARAM,
+        DataSourceUtils.getTabByDataSourceName(extractedParts[0]).getWindow().getId());
+
+    //to proceed with Change events, we need to iterate over the keys of newData, setting the values in dataInpFormat and calling the formInit
+    var columnToChange = newData.keys();
+    while (columnToChange.hasNext()) {
+      String changedColumnN = (String) columnToChange.next();
+      if (StringUtils.equalsIgnoreCase(changedColumnN, "id")) { //we dont need to change the id
+        continue;
       }
+      logChangeEvent(changedColumnN);
+      String changedColumnInp = norm2input.get(changedColumnN);
+      dataInpFormat.put(changedColumnInp, newData.get(changedColumnN));
+      handleColumnSelector(request, DataSourceUtils.getTabByDataSourceName(extractedParts[0]), dataInpFormat,
+          changedColumnN, changedColumnInp, dbname2input);
+      // suppose to change in productID
+      Map<String, Object> parameters2 = createParameters(request,
+          DataSourceUtils.getTabByDataSourceName(extractedParts[0]).getId(), null, recordId, changedColumnInp,
+          "CHANGE");
+      String contentForChange = dataInpFormat.toString();
+      var formInitChangeResponse = WeldUtils.getInstanceFromStaticBeanManager(EtendoFormInitComponent.class).execute(
+          parameters2, contentForChange);
+      DataSourceUtils.applyColumnValues(formInitChangeResponse, dbname2input, dataInpFormat);
     }
-    return new EtendoRequestWrapper(request, newUri, newJsonBody.toString(), request.getParameterMap());
+
+    // to finally save the dataFromOriginalRequest, we need to convert the keys to normalized format
+    JSONObject jsonBodyToApply = DataSourceUtils.keyConvertion(dataInpFormat, input2norm);
+    jsonBodyToApply = DataSourceUtils.valuesConvertion(jsonBodyToApply, columnTypes);
+    //finally, we need to apply the changes to the original data
+    JSONObject jsonBodyToSave = DataSourceUtils.applyChanges(preexistentData, jsonBodyToApply);
+    fullDataBody.put(DataSourceConstants.DATA, jsonBodyToSave);
+    return new EtendoRequestWrapper(request, newUri, fullDataBody.toString(), request.getParameterMap());
   }
 
   /**
    * Creates the parameters for the request.
    *
-   * @param method
    * @param request
    * @param tabId
    * @param parentId
    * @param recordId
    * @param changedColumn
+   * @param mode
    */
-  private static Map<String, Object> createParameters(String method, HttpServletRequest request, String tabId,
-      String parentId, String recordId, String changedColumn) {
+  private static Map<String, Object> createParameters(HttpServletRequest request, String tabId, String parentId,
+      String recordId, String changedColumn, String mode) {
     Map<String, Object> parameters = new HashMap<>();
     parameters.put("_httpRequest", request);
     parameters.put("_httpSession", request.getSession(false));
-    parameters.put("MODE", StringUtils.equals(method, OpenAPIConstants.POST) ? "NEW" : "CHANGE");
+    parameters.put("MODE", mode);
     parameters.put("_action", "org.openbravo.client.application.window.FormInitializationComponent");
     parameters.put("PARENT_ID", parentId);
     parameters.put("TAB_ID", StringUtils.isEmpty(tabId) ? "null" : tabId);
@@ -808,77 +828,6 @@ public class DataSourceServlet implements WebService {
     return parameters;
   }
 
-
-  /**
-   * Normalizes the param name. The first word is in lower case and the rest in upper case.
-   *
-   * @param name
-   */
-  public static String normalizedNameOld(String name) {
-    if (StringUtils.equals(name, "AD_Role_ID")) {
-      return "role";
-    }
-
-    if (StringUtils.isBlank(name)) {
-      return "";
-    }
-
-    StringBuilder retName = new StringBuilder();
-    String removeSpecialChars = StringUtils.replaceEach(name,
-        new String[]{ "!", "@", "#", "$", "%", "^", "&", "*", "(", ")", "_", "+", "=", "~", "." },
-        new String[]{ "", "", "", "", "", "", "", "", "", "", "", "", "", "", "" });
-    //remove multiple Spaces, replacing with single
-    while (removeSpecialChars.contains("  ")) {
-      removeSpecialChars = StringUtils.replace(removeSpecialChars, "  ", " ");
-    }
-    String[] parts = removeSpecialChars.split(" ");
-
-    for (int i = 0; i < parts.length; i++) {
-      if (StringUtils.isNotEmpty(parts[i])) {
-        if (i == 0) {
-          retName.append(StringUtils.lowerCase(StringUtils.substring(parts[i], 0, 1))).append(
-              StringUtils.substring(parts[i], 1));
-        } else {
-          retName.append(StringUtils.upperCase(StringUtils.substring(parts[i], 0, 1))).append(
-              StringUtils.substring(parts[i], 1));
-        }
-      }
-    }
-    return retName.toString();
-  }
-
-  /**
-   * Normalizes the field key.
-   *
-   * @param fieldList
-   * @param key
-   */
-  private String normalizedKey(List<RequestField> fieldList, String key) {
-    for (RequestField field : fieldList) {
-      if (StringUtils.equals(field.getDBColumnName(), key)) {
-        return field.getName();
-      }
-    }
-    return key;
-  }
-
-  /**
-   * Extracts the data source and ID from the request URI.
-   *
-   * @param requestURI
-   * @return the extracted parts, being the first part the data source name and the second part the ID
-   */
-  static String[] extractDataSourceAndID(String requestURI) {
-    String[] parts = requestURI.split("/");
-    if (parts.length < 1 || parts.length > 3) {
-      throw new IllegalArgumentException("Invalid request URI: " + requestURI);
-    }
-
-    String dataSourceName = parts[1];
-    String id = (parts.length > 2) ? parts[2] : null;
-
-    return id != null ? new String[]{ dataSourceName, id } : new String[]{ dataSourceName };
-  }
 
   /**
    * Converts the request URI to the new URI.
@@ -892,7 +841,7 @@ public class DataSourceServlet implements WebService {
     try {
       OBContext.setAdminMode();
       String dataSourceName = extractedParts[0];
-      Tab tab = getTabByDataSourceName(dataSourceName);
+      Tab tab = DataSourceUtils.getTabByDataSourceName(dataSourceName);
       String requestName = tab.getTable().getName();
 
       StringBuilder newUri = new StringBuilder();
@@ -910,22 +859,6 @@ public class DataSourceServlet implements WebService {
     } finally {
       OBContext.restorePreviousMode();
     }
-  }
-
-  static Tab getTabByDataSourceName(String dataSourceName) throws OpenAPINotFoundThrowable {
-    OpenAPIRequest apiRequest = (OpenAPIRequest) OBDal.getInstance().createCriteria(OpenAPIRequest.class).add(
-        Restrictions.eq("name", dataSourceName)).setMaxResults(1).uniqueResult();
-
-    if (apiRequest == null) {
-      throw new OpenAPINotFoundThrowable("OpenAPI request not found: " + dataSourceName);
-    }
-
-    if (apiRequest.getETRXOpenAPITabList().isEmpty()) {
-      throw new OpenAPINotFoundThrowable("OpenAPI request does not have any related tabs: " + dataSourceName);
-    }
-
-    Tab tab = apiRequest.getETRXOpenAPITabList().get(0).getRelatedTabs();
-    return tab;
   }
 
   /**

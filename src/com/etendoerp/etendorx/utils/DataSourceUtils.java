@@ -3,22 +3,33 @@ package com.etendoerp.etendorx.utils;
 import java.math.BigDecimal;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.stream.Collectors;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
+import org.hibernate.criterion.Restrictions;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.base.model.Entity;
 import org.openbravo.base.model.ModelProvider;
 import org.openbravo.base.model.Property;
 import org.openbravo.base.session.OBPropertiesProvider;
+import org.openbravo.dal.core.OBContext;
+import org.openbravo.dal.service.OBDal;
 import org.openbravo.data.Sqlc;
 import org.openbravo.model.ad.datamodel.Column;
+import org.openbravo.model.ad.datamodel.Table;
 import org.openbravo.model.ad.ui.Field;
+import org.openbravo.model.ad.ui.Tab;
+
+import com.etendoerp.etendorx.services.OpenAPINotFoundThrowable;
+import com.etendoerp.etendorx.services.wrapper.RequestField;
+import com.etendoerp.openapi.data.OpenAPIRequest;
 
 public class DataSourceUtils {
 
@@ -189,5 +200,219 @@ public class DataSourceUtils {
     SimpleDateFormat sdfFrom = new SimpleDateFormat(props.getProperty("dateFormat.java"));
     SimpleDateFormat sdfTo = new SimpleDateFormat("yyyy-MM-dd");
     return sdfTo.format(sdfFrom.parse(value));
+  }
+
+  public static JSONObject applyChanges(JSONObject preexistentData, JSONObject jsonBodyToApply) throws JSONException {
+    var it = jsonBodyToApply.keys();
+    while (it.hasNext()) {
+      String key = (String) it.next();
+      preexistentData.put(key, jsonBodyToApply.get(key));
+    }
+    return preexistentData;
+  }
+
+  /**
+   * Loads caches for normalized and input format keys.
+   * <p>
+   * This method populates three maps with normalized, input format, and database column name to input format key mappings based on the provided field list.
+   *
+   * @param fieldList
+   *     A list of RequestField objects containing field information.
+   * @param norm2input
+   *     A map to store normalized to input format key mappings.
+   * @param input2norm
+   *     A map to store input to normalized format key mappings.
+   * @param dbname2input
+   *     A map to store database column name to input format key mappings.
+   */
+  public static void loadCaches(List<RequestField> fieldList, Map<String, String> norm2input,
+      Map<String, String> input2norm,
+      Map<String, String> dbname2input, Map<String, String> columnTypes) {
+    try {
+      OBContext.setAdminMode();
+      for (RequestField field : fieldList) {
+        String columnName = field.getDBColumnName();
+        String[] hqlColumnNameAndtype = getHQLColumnName(field.getColumn());
+        String normalizedName = hqlColumnNameAndtype[0];
+        String inpName = getInpName(columnName);
+        norm2input.put(normalizedName, inpName);
+        input2norm.put(inpName, normalizedName);
+        dbname2input.put(columnName, inpName);
+        columnTypes.put(normalizedName, hqlColumnNameAndtype[1]);
+      }
+    } finally {
+      OBContext.restorePreviousMode();
+    }
+  }
+
+  /**
+   * Retrieves the parent ID from the given tab and data.
+   * <p>
+   * This method finds the parent ID by checking the data properties of the parent columns in the tab.
+   *
+   * @param tab
+   *     The Tab object containing field information.
+   * @param data
+   *     The JSONObject containing data to be checked for parent properties.
+   * @return The parent ID if found, otherwise null.
+   */
+  public static String getParentId(Tab tab, JSONObject data) {
+    try {
+      OBContext.setAdminMode(false);
+      List<String> dataPropertiesOfParents = tab.getADFieldList().stream().filter(
+          field -> field.getColumn() != null && field.getColumn().isLinkToParentColumn()).map(
+          f -> getHQLColumnName(f)[0]).collect(Collectors.toList());
+      for (String parentProperty : dataPropertiesOfParents) {
+        if (data.has(parentProperty)) {
+          return data.optString(parentProperty);
+        }
+      }
+      return null;
+    } finally {
+      OBContext.restorePreviousMode();
+    }
+  }
+
+  /**
+   * Retrieves the parent ID from the given tab and data.
+   * <p>
+   * This method finds the parent ID by checking the data properties of the parent columns in the tab.
+   *
+   * @param tab
+   *     The Tab object containing field information.
+   * @param data
+   *     The JSONObject containing data to be checked for parent properties.
+   * @return The parent ID if found, otherwise null.
+   */
+  public static List<String> getParentProperties(Tab tab, JSONObject data) {
+    try {
+      OBContext.setAdminMode(false);
+      return tab.getADFieldList().stream().filter(
+          field -> field.getColumn() != null && field.getColumn().isLinkToParentColumn()).map(
+          f -> getHQLColumnName(f)[0]).collect(Collectors.toList());
+    } finally {
+      OBContext.restorePreviousMode();
+    }
+  }
+
+  /**
+   * Applies column values from the form initialization response to the new record data.
+   * <p>
+   * This method iterates over the column values in the form initialization response,
+   * converts the keys using the provided map, and updates the new record data with the values.
+   *
+   * @param formInitResponse
+   *     The JSON object containing the form initialization response.
+   * @param mapConvertionKey
+   *     A map for converting old keys to new keys.
+   * @param dataFromNewRecord
+   *     The JSON object representing the new record data to be updated.
+   * @throws JSONException
+   *     If there is an error during JSON processing.
+   */
+  public static void applyColumnValues(JSONObject formInitResponse, Map<String, String> mapConvertionKey,
+      JSONObject dataFromNewRecord) throws JSONException {
+    var columnValues = formInitResponse.getJSONObject("columnValues");
+    var keys = columnValues.keys();
+    while (keys.hasNext()) {
+      String oldKey = (String) keys.next();
+      String inpkey = mapConvertionKey.getOrDefault(oldKey, oldKey);
+      JSONObject value = columnValues.getJSONObject(oldKey);
+      Object val = getClassicValue(value);
+      if (val != null && (!(val instanceof String) || org.apache.commons.lang3.StringUtils.isNotEmpty((String) val))) {
+        dataFromNewRecord.put(inpkey, val);
+      }
+    }
+  }
+
+  private static Object getClassicValue(JSONObject value) throws JSONException {
+    return getValueFromItem(value, "yyyy-MM-dd", "dd-MM-yyyy", true);
+  }
+
+  public static List<Column> getAdColumnList(Tab tab) {
+    Table table = tab.getTable();
+    OBDal.getInstance().refresh(table);
+    return table.getADColumnList();
+  }
+
+  public static Object getValueFromItem(JSONObject item, String patternDateFrom, String patternDateTo,
+      boolean directFromClassic) throws JSONException {
+    if (directFromClassic) {
+      return (item.has("classicValue") && org.apache.commons.lang3.StringUtils.isNotEmpty(
+          item.optString("classicValue"))) ? item.get(
+          "classicValue") : null;
+    }
+    //if the item has a property value with type long, use this value, if not use the classicValue. We dont know the type of the value
+    if (item.has("value")) {
+      Object value = item.get("value");
+      if (value instanceof Long || value instanceof Integer || value instanceof Double) {
+        return value;
+      }
+      if (!(value instanceof String)) {
+        return value.toString();
+      }
+      //checkif the value is a date in patternDateFrom, if so, convert it to patternDateTo
+      // for example, if the date is in format yyyy-MM-dd, and we need it in format dd-MM-yyyy
+      SimpleDateFormat sdfFrom = new SimpleDateFormat(patternDateFrom);
+      SimpleDateFormat sdfTo = new SimpleDateFormat(patternDateTo);
+      try {
+        return sdfTo.format(sdfFrom.parse(value.toString()));
+      } catch (Exception e) {
+        return value;
+      }
+    }
+    return item.has("classicValue") ? item.get("classicValue") : null;
+  }
+
+  /**
+   * Extracts the data source and ID from the request URI.
+   *
+   * @param requestURI
+   * @return the extracted parts, being the first part the data source name and the second part the ID
+   */
+  public static String[] extractDataSourceAndID(String requestURI) {
+    String[] parts = requestURI.split("/");
+    if (parts.length < 1 || parts.length > 3) {
+      throw new IllegalArgumentException("Invalid request URI: " + requestURI);
+    }
+
+    String dataSourceName = parts[1];
+    String id = (parts.length > 2) ? parts[2] : null;
+
+    return id != null ? new String[]{ dataSourceName, id } : new String[]{ dataSourceName };
+  }
+
+  /**
+   * Retrieves the Tab object associated with the given data source name.
+   * <p>
+   * This method queries the database for an OpenAPIRequest with the specified data source name,
+   * and returns the related Tab object. If no matching OpenAPIRequest is found, or if the request
+   * does not have any related tabs, an OpenAPINotFoundThrowable is thrown.
+   *
+   * @param dataSourceName
+   *     The name of the data source to look up.
+   * @return The Tab object associated with the given data source name.
+   * @throws OpenAPINotFoundThrowable
+   *     If no matching OpenAPIRequest is found, or if the request does not have any related tabs.
+   */
+  public static Tab getTabByDataSourceName(String dataSourceName) throws OpenAPINotFoundThrowable {
+    try {
+      OBContext.setAdminMode();
+      OpenAPIRequest apiRequest = (OpenAPIRequest) OBDal.getInstance().createCriteria(OpenAPIRequest.class).add(
+          Restrictions.eq("name", dataSourceName)).setMaxResults(1).uniqueResult();
+
+      if (apiRequest == null) {
+        throw new OpenAPINotFoundThrowable("OpenAPI request not found: " + dataSourceName);
+      }
+
+      if (apiRequest.getETRXOpenAPITabList().isEmpty()) {
+        throw new OpenAPINotFoundThrowable("OpenAPI request does not have any related tabs: " + dataSourceName);
+      }
+
+      Tab tab = apiRequest.getETRXOpenAPITabList().get(0).getRelatedTabs();
+      return tab;
+    } finally {
+      OBContext.restorePreviousMode();
+    }
   }
 }

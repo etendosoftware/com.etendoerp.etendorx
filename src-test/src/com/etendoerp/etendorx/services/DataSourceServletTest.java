@@ -101,7 +101,7 @@ public class DataSourceServletTest extends WeldBaseTest {
    */
   @Test(expected = IllegalArgumentException.class)
   public void testExtractDataSourceAndID_ValidURIWithID() {
-    DataSourceServlet.extractDataSourceAndID("/datasource/users/123");
+    DataSourceUtils.extractDataSourceAndID("/datasource/users/123");
   }
 
   /**
@@ -109,7 +109,7 @@ public class DataSourceServletTest extends WeldBaseTest {
    */
   @Test
   public void testExtractDataSourceAndID_ValidURIWithoutID() {
-    String[] result = DataSourceServlet.extractDataSourceAndID(DATASOURCE_USERS);
+    String[] result = DataSourceUtils.extractDataSourceAndID(DATASOURCE_USERS);
     assertEquals(2, result.length);
     assertEquals("datasource", result[0]);
     assertEquals("users", result[1]);
@@ -123,7 +123,7 @@ public class DataSourceServletTest extends WeldBaseTest {
    */
   @Test(expected = IllegalArgumentException.class)
   public void testExtractDataSourceAndID_InvalidURI() {
-    DataSourceServlet.extractDataSourceAndID("/datasource/users/123/extra");
+    DataSourceUtils.extractDataSourceAndID("/datasource/users/123/extra");
   }
 
   /**
@@ -176,9 +176,9 @@ public class DataSourceServletTest extends WeldBaseTest {
     doNothing().when(mockWriter).flush();
 
     try (MockedStatic<DataSourceServlet> dataSourceServletMock = Mockito.mockStatic(DataSourceServlet.class)) {
-      dataSourceServletMock.when(() -> DataSourceServlet.extractDataSourceAndID(anyString())).thenReturn(
+      dataSourceServletMock.when(() -> DataSourceUtils.extractDataSourceAndID(anyString())).thenReturn(
           new String[]{ "datasource", "users" });
-      dataSourceServletMock.when(() -> DataSourceServlet.getTabByDataSourceName(any())).thenReturn(mockTab);
+      dataSourceServletMock.when(() -> DataSourceUtils.getTabByDataSourceName(any())).thenReturn(mockTab);
       dataSourceServletMock.when(DataSourceServlet::getDataSourceServlet).thenReturn(dataSourceMockInternal);
 
       doAnswer(invocation -> {
