@@ -31,6 +31,7 @@ import org.openbravo.base.secureApp.VariablesSecureApp;
 import org.openbravo.base.weld.WeldUtils;
 import org.openbravo.client.application.OBBindingsConstants;
 import org.openbravo.client.application.ParameterUtils;
+import org.openbravo.client.kernel.RequestContext;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
@@ -52,6 +53,7 @@ import com.etendoerp.etendorx.services.wrapper.RequestField;
 import com.etendoerp.etendorx.utils.DataSourceUtils;
 import com.etendoerp.openapi.data.OpenAPIRequest;
 import com.smf.securewebservices.rsql.OBRestUtils;
+import com.smf.securewebservices.utils.SecureWebServicesUtils;
 
 
 /**
@@ -85,6 +87,7 @@ public class DataSourceServlet implements WebService {
   public void doGet(String path, HttpServletRequest request, HttpServletResponse response) throws Exception {
     try {
       OBContext.setAdminMode();
+      fillSessionVariableInRequest(request);
       DalConnectionProvider conn = new DalConnectionProvider();
       RoleDefaults defaults = LoginUtils.getLoginDefaults(OBContext.getOBContext().getUser().getId(),
           OBContext.getOBContext().getRole().getId(), conn);
@@ -156,6 +159,36 @@ public class DataSourceServlet implements WebService {
     } catch (OBException | IOException e) {
       log.error(DataSourceConstants.ERROR_IN_DATA_SOURCE_SERVLET, e);
       throw new OBException(e);
+    } finally {
+      OBContext.restorePreviousMode();
+    }
+  }
+
+  /**
+   * Fills session variables in the request if needed.
+   * <p>
+   * This method checks if the session variables are already loaded. If not, it loads the session variables
+   * using the `SecureWebServicesUtils.fillSessionVariables` method.
+   *
+   * @param request
+   *     The HttpServletRequest object.
+   * @throws RuntimeException
+   *     If there is a ServletException during the process.
+   */
+  private void fillSessionVariableInRequest(HttpServletRequest request) {
+    try {
+      OBContext.setAdminMode();
+      VariablesSecureApp variables = RequestContext.get().getVariablesSecureApp();
+      if (variables.getJavaDateFormat() == null || StringUtils.isEmpty(
+          variables.getSessionValue("#DecimalSeparator|generalQtyEdition"))) {
+        SecureWebServicesUtils.fillSessionVariables(request);
+        log.debug("Session variables loaded in DataSourceServlet.");
+
+      } else {
+        log.debug("Session variables already loaded previously.");
+      }
+    } catch (ServletException e) {
+      throw new RuntimeException(e);
     } finally {
       OBContext.restorePreviousMode();
     }
@@ -237,6 +270,7 @@ public class DataSourceServlet implements WebService {
    */
   @Override
   public void doPost(String path, HttpServletRequest request, HttpServletResponse response) {
+    fillSessionVariableInRequest(request);
     upsertEntity(OpenAPIConstants.POST, path, request, response);
   }
 
@@ -890,6 +924,7 @@ public class DataSourceServlet implements WebService {
    */
   @Override
   public void doPut(String path, HttpServletRequest request, HttpServletResponse response) throws Exception {
+    fillSessionVariableInRequest(request);
     upsertEntity(OpenAPIConstants.PUT, path, request, response);
   }
 }
