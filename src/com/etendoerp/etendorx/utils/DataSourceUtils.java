@@ -149,6 +149,22 @@ public class DataSourceUtils {
     return newData;
   }
 
+  /**
+   * Converts the values in the given JSON object to HQL format based on the provided column types.
+   * <p>
+   * This method iterates over the keys of the given JSON object, retrieves the corresponding type from the column types map,
+   * and converts each value to the appropriate HQL format.
+   *
+   * @param jsonBodyToSave
+   *     The JSON object containing the values to be converted.
+   * @param columnTypes
+   *     A map of column names to their corresponding types.
+   * @return A new JSON object with the values converted to HQL format.
+   * @throws JSONException
+   *     If there is an error during JSON processing.
+   * @throws ParseException
+   *     If there is an error during date parsing.
+   */
   public static JSONObject valuesConvertion(JSONObject jsonBodyToSave,
       Map<String, String> columnTypes) throws JSONException, ParseException {
     JSONObject newJsonBodyToSave = new JSONObject();
@@ -157,51 +173,104 @@ public class DataSourceUtils {
       String key = (String) it.next();
       String value = jsonBodyToSave.getString(key);
       String type = columnTypes.get(key);
-      if (type != null) {
-        switch (type) {
-          case "BigDecimal":
-            newJsonBodyToSave.put(key, new BigDecimal(value));
-            break;
-          case "Long":
-            newJsonBodyToSave.put(key, Long.parseLong(value));
-            break;
-          case "Boolean":
-            newJsonBodyToSave.put(key, Boolean.parseBoolean(value) || StringUtils.equalsIgnoreCase(value, "Y"));
-            break;
-          case "Date":
-            newJsonBodyToSave.put(key, getformatedDate(value));
-            break;
-          case "Datetime":
-            newJsonBodyToSave.put(key, getformatedDatetime(value));
-            break;
-          default:
-            newJsonBodyToSave.put(key, value);
-            break;
-
-        }
-      } else {
-        newJsonBodyToSave.put(key, value);
-      }
+      newJsonBodyToSave.put(key, convertValueFromInputToHQL(type, value));
     }
     return newJsonBodyToSave;
+  }
+
+  /**
+   * Converts a value from input format to HQL format based on the specified type.
+   * <p>
+   * This method converts the given value to the appropriate HQL format based on the provided type.
+   *
+   * @param type
+   *     The type of the value to be converted.
+   * @param value
+   *     The value to be converted.
+   * @return The converted value in HQL format.
+   * @throws ParseException
+   *     If there is an error during date parsing.
+   */
+  private static Object convertValueFromInputToHQL(String type, String value) throws ParseException {
+
+    if (type == null) {
+      return value;
+    }
+    switch (type) {
+      case "BigDecimal":
+        return new BigDecimal(value);
+      case "Long":
+        return Long.parseLong(value);
+      case "Boolean":
+        return Boolean.parseBoolean(value) || StringUtils.equalsIgnoreCase(value, "Y");
+      case "Date":
+        return getformatedDate(value, true);
+      case "Datetime":
+        return getformatedDatetime(value, true);
+      default:
+        return value;
+    }
 
   }
 
-  private static String getformatedDatetime(String value) throws ParseException {
+  /**
+   * Formats a datetime string to the standard HQL datetime format.
+   * <p>
+   * This method converts the given datetime string to the standard HQL datetime format.
+   *
+   * @param value
+   *     The datetime string to be formatted.
+   * @param b
+   * @return The formatted datetime string.
+   * @throws ParseException
+   *     If there is an error during date parsing.
+   */
+  private static String getformatedDatetime(String value, boolean b) throws ParseException {
     Properties props = OBPropertiesProvider.getInstance().getOpenbravoProperties();
     SimpleDateFormat sdfFrom = new SimpleDateFormat(props.getProperty("dateTimeFormat.java"));
     SimpleDateFormat sdfTo = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.S'Z'");
     return sdfTo.format(sdfFrom.parse(value));
-
   }
 
-  private static String getformatedDate(String value) throws ParseException {
+  /**
+   * Formats a date string to the standard HQL date format.
+   * <p>
+   * This method converts the given date string to the standard HQL date format.
+   *
+   * @param value
+   *     The date string to be formatted.
+   * @param inp2hql
+   *     The boolean value indicates if the date is from the input format to the HQL format. If false,
+   *     the date is from the HQL format to the input format.
+   * @return The formatted date string.
+   * @throws ParseException
+   *     If there is an error during date parsing.
+   */
+  private static String getformatedDate(String value, boolean inp2hql) throws ParseException {
+
     Properties props = OBPropertiesProvider.getInstance().getOpenbravoProperties();
-    SimpleDateFormat sdfFrom = new SimpleDateFormat(props.getProperty("dateFormat.java"));
-    SimpleDateFormat sdfTo = new SimpleDateFormat("yyyy-MM-dd");
-    return sdfTo.format(sdfFrom.parse(value));
+    SimpleDateFormat sdfInp = new SimpleDateFormat(props.getProperty("dateFormat.java"));
+    SimpleDateFormat sdfHql = new SimpleDateFormat("yyyy-MM-dd");
+    if (inp2hql) {
+      return sdfHql.format(sdfInp.parse(value));
+    } else {
+      return sdfInp.format(sdfHql.parse(value));
+    }
   }
 
+  /**
+   * Applies changes from one JSON object to another.
+   * <p>
+   * This method iterates over the keys of the given JSON object and updates the preexistent data with the new values.
+   *
+   * @param preexistentData
+   *     The original JSON object to be updated.
+   * @param jsonBodyToApply
+   *     The JSON object containing the new values to be applied.
+   * @return The updated JSON object.
+   * @throws JSONException
+   *     If there is an error during JSON processing.
+   */
   public static JSONObject applyChanges(JSONObject preexistentData, JSONObject jsonBodyToApply) throws JSONException {
     var it = jsonBodyToApply.keys();
     while (it.hasNext()) {
@@ -226,8 +295,7 @@ public class DataSourceUtils {
    *     A map to store database column name to input format key mappings.
    */
   public static void loadCaches(List<RequestField> fieldList, Map<String, String> norm2input,
-      Map<String, String> input2norm,
-      Map<String, String> dbname2input, Map<String, String> columnTypes) {
+      Map<String, String> input2norm, Map<String, String> dbname2input, Map<String, String> columnTypes) {
     try {
       OBContext.setAdminMode();
       for (RequestField field : fieldList) {
@@ -339,8 +407,7 @@ public class DataSourceUtils {
       boolean directFromClassic) throws JSONException {
     if (directFromClassic) {
       return (item.has("classicValue") && org.apache.commons.lang3.StringUtils.isNotEmpty(
-          item.optString("classicValue"))) ? item.get(
-          "classicValue") : null;
+          item.optString("classicValue"))) ? item.get("classicValue") : null;
     }
     //if the item has a property value with type long, use this value, if not use the classicValue. We dont know the type of the value
     if (item.has("value")) {
@@ -413,6 +480,39 @@ public class DataSourceUtils {
       return tab;
     } finally {
       OBContext.restorePreviousMode();
+    }
+  }
+
+  /**
+   * Converts a value from HQL format to input format based on the specified type.
+   * <p>
+   * This method converts the given value to the appropriate input format based on the provided type.
+   *
+   * @param o
+   *     The value to be converted.
+   * @param type
+   *     The type of the value to be converted.
+   * @return The converted value in input format.
+   * @throws ParseException
+   *     If there is an error during date parsing.
+   */
+  public static String valueConvertToInputFormat(Object o, String type) throws ParseException {
+    if (type == null) {
+      return o.toString();
+    }
+    switch (type) {
+      case "BigDecimal":
+        return ((BigDecimal) o).toPlainString();
+      case "Long":
+        return Long.toString((Long) o);
+      case "Boolean":
+        return (Boolean) o ? "Y" : "N";
+      case "Date":
+        return getformatedDate(o.toString(), false);
+      case "Datetime":
+        return getformatedDatetime(o.toString(), false);
+      default:
+        return o.toString();
     }
   }
 }

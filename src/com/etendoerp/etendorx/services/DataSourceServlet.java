@@ -449,7 +449,9 @@ public class DataSourceServlet implements WebService {
       String changedColumnN = (String) a.next();
       logChangeEvent(changedColumnN);
       String changedColumnInp = norm2input.get(changedColumnN);
-      dataInpFormat.put(changedColumnInp, propsToChange.get(changedColumnN));
+      var type = columnTypes.get(changedColumnN);
+      dataInpFormat.put(changedColumnInp,
+          DataSourceUtils.valueConvertToInputFormat(propsToChange.get(changedColumnN), type));
       handleColumnSelector(request, tab, dataInpFormat, changedColumnN, changedColumnInp, dbname2input);
 
       // suppose to change in productID
@@ -809,12 +811,15 @@ public class DataSourceServlet implements WebService {
     var columnToChange = newData.keys();
     while (columnToChange.hasNext()) {
       String changedColumnN = (String) columnToChange.next();
-      if (StringUtils.equalsIgnoreCase(changedColumnN, "id")) { //we dont need to change the id
+      if (StringUtils.equalsIgnoreCase(changedColumnN, "id")) {
+        //we don't need to change the id
         continue;
       }
       logChangeEvent(changedColumnN);
       String changedColumnInp = norm2input.get(changedColumnN);
-      dataInpFormat.put(changedColumnInp, newData.get(changedColumnN));
+      String type = columnTypes.get(changedColumnN);
+      String valueInpFormat = DataSourceUtils.valueConvertToInputFormat(newData.get(changedColumnN), type);
+      dataInpFormat.put(changedColumnInp, valueInpFormat);
       handleColumnSelector(request, DataSourceUtils.getTabByDataSourceName(extractedParts[0]), dataInpFormat,
           changedColumnN, changedColumnInp, dbname2input);
       // suppose to change in productID
