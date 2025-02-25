@@ -603,7 +603,6 @@ public class DataSourceServlet implements WebService {
 
     } catch (Exception e) {
       log.error("Error in handleColumnSelector", e);
-      throw e;
     } finally {
       OBContext.restorePreviousMode();
     }
