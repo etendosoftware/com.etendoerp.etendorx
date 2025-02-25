@@ -1,5 +1,17 @@
 package com.etendoerp.etendorx;
 
+import java.util.ArrayList;
+import java.util.Collections;
+
+import org.openbravo.base.provider.OBProvider;
+import org.openbravo.base.structure.BaseOBObject;
+import org.openbravo.dal.service.OBDal;
+import org.openbravo.model.ad.ui.Tab;
+
+import com.etendoerp.etendorx.data.OpenAPITab;
+import com.etendoerp.openapi.data.OpenAPIRequest;
+import com.etendoerp.openapi.data.OpenApiFlow;
+import com.etendoerp.openapi.data.OpenApiFlowPoint;
 
 /**
  * Utility class containing constant values used for testing purposes across the etendorx application.
@@ -36,7 +48,7 @@ public class TestUtils {
   public static final String TEST_PROJECTION_ID = "testProjectionId";
   public static final String TEST_MODULE = "Test Module";
   public static final String ALPHA = "Alpha";
-  public static final String BETA = "Beta" ;
+  public static final String BETA = "Beta";
   public static final String CRITERIA = "criteria";
   public static final String RESULT_SHOULD_NOT_BE_NULL = "Result should not be null";
   public static final String FIELD_NAME = "fieldName";
@@ -56,7 +68,7 @@ public class TestUtils {
   public static final String TEST_ID = "testId";
   public static final String GET_SELECTED_MAPPING_VALUES = "getSelectedMappingValues";
   public static final String ETRX_ASYNC_PROC_ID = "@ETRX_Async_Proc.id@";
-  public static final  String ASYNC_PROC_TEST_ID = "1";
+  public static final String ASYNC_PROC_TEST_ID = "1";
   public static final String PROPERTY_SOURCES = "propertySources";
   public static final String PROJECTION_ID = "testProjectionId";
   public static final String EXTERNAL_NAME = "TestExternalName";
@@ -74,18 +86,18 @@ public class TestUtils {
   public static final String CHECK_UPDATE_MODULE = "checkUpdateModule";
   public static final String CURRENT_MODULE_ID = "currentModuleId";
   public static final String CHECK_UPDATE_ETRX_CONSTANT_VALUE = "checkUpdateEtrxConstantValue";
-  public static final String CHECK_UPDATE_ETRX_PROJECTION_ENTITY_RELATED= "checkUpdateEtrxProjectionEntityRelated";
+  public static final String CHECK_UPDATE_ETRX_PROJECTION_ENTITY_RELATED = "checkUpdateEtrxProjectionEntityRelated";
   public static final String CHECK_UPDATE_JAVA_MAPPING = "checkUpdateJavaMapping";
   public static final String DM = "DM";
   public static final String JM = "JM";
   public static final String MODULE_ID = "module-id";
-  public static final String TEST_NAME= "TestName";
+  public static final String TEST_NAME = "TestName";
   public static final String MOCK_SETUP_FAILED = "Mock setup failed: ";
   public static final String SOURCE = "source";
   public static final String NAME = "name";
-  public static final String AUTH_ENDPOINT = "/auth" ;
-  public static final String AUTH = "auth" ;
-  public static final String AD_IMAGE_ID = "AD_Image_ID" ;
+  public static final String AUTH_ENDPOINT = "/auth";
+  public static final String AUTH = "auth";
+  public static final String AD_IMAGE_ID = "AD_Image_ID";
   public static final String TEST_SELECTOR_ID = "testSelectorId";
   public static final String TEST_TABLE_ID = "testTableId";
   public static final String ETRX_WRONG_ENTITY_NAME = "ETRX_WrongEntityName";
@@ -97,6 +109,54 @@ public class TestUtils {
   public static final String DESCRIPTION = "description";
   public static final String PARAMS = "params";
   public static final String LOG = "log";
-  public static final String LAST_UPDATE = "lastUpdate" ;
+  public static final String LAST_UPDATE = "lastUpdate";
 
+  /**
+   * Builds an example headless flow for testing purposes.
+   * <p>
+   * This method creates and saves a series of OpenAPI-related objects, linking them together
+   * to form a complete flow. The created objects are added to a list, which is then reversed
+   * and returned.
+   *
+   * @return A list of created BaseOBObject instances representing the headless flow.
+   */
+  public static ArrayList<BaseOBObject> buildExampleHeadlessFlow() {
+    var createdElements = new ArrayList<BaseOBObject>();
+    // new request
+    OpenAPIRequest opApiRequest = OBProvider.getInstance().get(OpenAPIRequest.class);
+    opApiRequest.setNewOBObject(true);
+    opApiRequest.setName("TestSalesOrderHeader");
+    opApiRequest.setDescription("Test Sales Order Header");
+    opApiRequest.setType("ETRX_Tab");
+    OBDal.getInstance().save(opApiRequest);
+    createdElements.add(opApiRequest);
+
+    // link tab to request
+    OpenAPITab opApiTab = OBProvider.getInstance().get(OpenAPITab.class);
+    opApiTab.setNewOBObject(true);
+    opApiTab.setOpenAPIRequest(opApiRequest);
+    opApiTab.setRelatedTabs(OBDal.getInstance().get(Tab.class, "186"));
+    OBDal.getInstance().save(opApiTab);
+    createdElements.add(opApiTab);
+
+    // new flow
+    OpenApiFlow flow = OBProvider.getInstance().get(OpenApiFlow.class);
+    flow.setNewOBObject(true);
+    flow.setName("TEST FLOW");
+    flow.setDescription("Test Flow Description");
+    OBDal.getInstance().save(flow);
+    createdElements.add(flow);
+
+    // new flow-request link
+    OpenApiFlowPoint flowpoint = OBProvider.getInstance().get(OpenApiFlowPoint.class);
+    flowpoint.setNewOBObject(true);
+    flowpoint.setEtapiOpenapiReq(opApiRequest);
+    flowpoint.setEtapiOpenapiFlow(flow);
+    OBDal.getInstance().save(flowpoint);
+    createdElements.add(flowpoint);
+
+    Collections.reverse(createdElements);
+
+    return createdElements;
+  }
 }

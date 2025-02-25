@@ -407,8 +407,7 @@ public class DataSourceServlet implements WebService {
     String parentId = DataSourceUtils.getParentId(tab, dataFromOriginalRequest);
 
 
-    Map<String, Object> parameters = createParameters(request, tab.getId(), parentId, recordId, null,
-        StringUtils.equals(method, OpenAPIConstants.POST) ? "NEW" : "CHANGE");
+    Map<String, Object> parameters = createParameters(request, tab.getId(), parentId, recordId, null, "NEW");
     String content = "{}";
 
 
@@ -456,7 +455,7 @@ public class DataSourceServlet implements WebService {
 
       // suppose to change in productID
       Map<String, Object> parameters2 = createParameters(request, tab.getId(), parentId, recordId, changedColumnInp,
-          StringUtils.equals("PUT", OpenAPIConstants.POST) ? "NEW" : "CHANGE");
+          "CHANGE");
 
       String contentForChange = dataInpFormat.toString();
       var formInitChangeResponse = formInit.execute(parameters2, contentForChange);
