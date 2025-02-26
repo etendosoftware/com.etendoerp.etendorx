@@ -306,6 +306,7 @@ public class DataSourceServlet implements WebService {
         throw new UnsupportedOperationException("Method not supported: " + method);
       }
     } catch (Exception e) {
+      e.printStackTrace();
       log.error(DataSourceConstants.ERROR_IN_DATA_SOURCE_SERVLET, e);
       handleInternalServerError(response, e);
     } catch (OpenAPINotFoundThrowable e) {
