@@ -123,21 +123,29 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
   @Override
   protected String doAuthenticate(HttpServletRequest request, HttpServletResponse response)
       throws AuthenticationException, ServletException, IOException {
+    log4j.info("User Token Sub: " + request.getAttribute("user-token-sub"));
+    try {
+      if (!StringUtils.isBlank((String) request.getAttribute("user-token-sub"))) {
+        setCORSHeaders(request, response);
 
-    if (!StringUtils.isBlank((String) request.getAttribute("user-token-sub"))) {
-      setCORSHeaders(request, response);
+        String userTokenSub = (String) request.getAttribute("user-token-sub");
+        TokenUser tokenUser = (TokenUser) OBDal.getInstance().createCriteria(TokenUser.class)
+            .add(Restrictions.eq(TokenUser.PROPERTY_SUB, userTokenSub))
+            .setFilterOnReadableClients(false)
+            .setFilterOnReadableOrganization(false)
+            .setMaxResults(1).uniqueResult();
 
-      String userTokenSub = (String) request.getAttribute("user-token-sub");
-      TokenUser tokenUser = (TokenUser) OBDal.getInstance().createCriteria(TokenUser.class)
-          .add(Restrictions.eq(TokenUser.PROPERTY_SUB, userTokenSub))
-          .setFilterOnReadableClients(false)
-          .setFilterOnReadableOrganization(false)
-          .setMaxResults(1).uniqueResult();
+        log4j.info("Token User: " + tokenUser != null ? tokenUser.getId() : "null");
 
-      markRequestAsSelfAuthenticated(request);
-      prepareLoginSession(request, tokenUser);
-      response.sendRedirect("/" + OBPropertiesProvider.getInstance().getOpenbravoProperties().get("context.name"));
-      return tokenUser.getUser().getId();
+        markRequestAsSelfAuthenticated(request);
+        prepareLoginSession(request, tokenUser);
+        log4j.info("RedirectUri: " + "/" + OBPropertiesProvider.getInstance().getOpenbravoProperties().get("context.name"));
+        response.sendRedirect("/" + OBPropertiesProvider.getInstance().getOpenbravoProperties().get("context.name"));
+        log4j.info("User before return: " + tokenUser.getUser().getId());
+        return tokenUser.getUser().getId();
+      }
+    } catch (Exception e) {
+      log4j.error("Error while authenticating: " + e.getMessage(), e);
     }
 
     String token = request.getParameter("access_token");
@@ -211,6 +219,7 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
 
   private void prepareLoginSession(HttpServletRequest request, TokenUser tokenUser) {
     User user = tokenUser.getUser();
+    log4j.info("User: " + user.getId());
     loginName.set(user.getName());
     final String sessionId = createDBSession(request, user.getUsername(), user.getId());
 
