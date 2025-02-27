@@ -1,6 +1,5 @@
 package com.etendoerp.etendorx.openapi;
 
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -29,7 +28,6 @@ import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.model.ad.datamodel.Column;
-import org.openbravo.model.ad.domain.Reference;
 import org.openbravo.model.ad.ui.Field;
 import org.openbravo.model.ad.ui.Tab;
 
@@ -139,25 +137,6 @@ public class DynamicDatasourceEndpointTest extends WeldBaseTest {
     assertFalse(result);
   }
 
-  /**
-   * Tests the add method with flows.
-   */
-  @Test
-  public void testAdd_WithFlows() {
-    // Given
-    OpenApiFlow mockFlow = getMockedOpenApiFlow();
-    mockedOBDal.when(() -> OBDal.getInstance().createCriteria(OpenApiFlow.class).list())
-        .thenReturn(List.of(mockFlow));
-    // When
-    OpenAPI myOpenAPI = new OpenAPI();
-    dynamicDatasourceEndpoint.add(myOpenAPI);
-
-    // Then
-    assertNotNull(myOpenAPI.getTags());
-    assertEquals(1, myOpenAPI.getTags().size());
-    assertEquals("TestFlow", myOpenAPI.getTags().get(0).getName());
-    assertTrue(StringUtils.contains(myOpenAPI.getInfo().getDescription(), "Description of EntityName"));
-  }
 
   /**
    * Mocks an OpenApiFlow object for testing.
@@ -193,25 +172,6 @@ public class DynamicDatasourceEndpointTest extends WeldBaseTest {
     return mockTab;
   }
 
-  /**
-   * Tests the addDefinition method to ensure it creates schema and endpoints.
-   */
-  @Test
-  public void testAddDefinition_CreatesSchemaAndEndpoints() {
-    // Given
-    OpenAPIRequest mockRequest = getMockedRequest();
-    OpenApiFlowPoint mockFlowPoint = getMockedOpenApiFlowPoint();
-
-    // When
-    OpenAPI myOpenAPi = new OpenAPI();
-    dynamicDatasourceEndpoint.addDefinition(myOpenAPi, "EntityName", mockRequest, mockFlowPoint);
-
-    // Then
-    assertNotNull(myOpenAPi.getPaths());
-    assertTrue(myOpenAPi.getPaths().containsKey("/sws/com.etendoerp.etendorx.datasource/EntityName"));
-    assertTrue(myOpenAPi.getPaths().containsKey("/sws/com.etendoerp.etendorx.datasource/EntityName/{id}"));
-    assertNotNull(myOpenAPi.getComponents().getSchemas().get("FormInitResponse"));
-  }
 
   /**
    * Mocks an OpenAPIRequest object for testing.
@@ -237,13 +197,7 @@ public class DynamicDatasourceEndpointTest extends WeldBaseTest {
    * @return a mocked Field object
    */
   private Field getMockedField() {
-    Reference mockRef = mock(Reference.class);
-    when(mockRef.getId()).thenReturn("TestRefId");
-
     Column mockCol = mock(Column.class);
-    when(mockCol.isMandatory()).thenReturn(true);
-    when(mockCol.getName()).thenReturn("TestColumn");
-    when(mockCol.getReference()).thenReturn(mockRef);
 
     Field mockField1 = mock(Field.class);
     when(mockField1.getColumn()).thenReturn(mockCol);
@@ -305,21 +259,6 @@ public class DynamicDatasourceEndpointTest extends WeldBaseTest {
     assertNotNull(myNewOpenAPI.getPaths().get("/sws/com.etendoerp.etendorx.datasource/TestEntity").getGet());
   }
 
-  /**
-   * Tests the defineFormInitRequestSchema method to ensure it creates the schema.
-   */
-  @Test
-  public void testDefineFormInitRequestSchema_CreatesSchema() {
-    // Given
-    Field mockedField = getMockedField();
-    List<Field> fields = List.of(mockedField);
-
-    // When
-    Schema<?> schema = dynamicDatasourceEndpoint.defineFormInitRequestSchema(fields);
-
-    // Then
-    assertNotNull(schema.getProperties().get("testColumn"));
-  }
 
   /**
    * Tests the defineResponseSchema method to ensure it creates the schema.

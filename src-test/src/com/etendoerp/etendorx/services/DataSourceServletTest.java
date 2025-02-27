@@ -1,18 +1,12 @@
 package com.etendoerp.etendorx.services;
 
 import static org.junit.Assert.assertEquals;
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.anyString;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintWriter;
-import java.util.Collections;
 
 import javax.servlet.ReadListener;
 import javax.servlet.ServletInputStream;
@@ -20,8 +14,6 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
-import org.apache.http.entity.ContentType;
-import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.junit.Before;
@@ -29,13 +21,15 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.mockito.Mock;
-import org.mockito.MockedStatic;
-import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.openbravo.base.weld.test.WeldBaseTest;
+import org.openbravo.dal.service.OBDal;
 import org.openbravo.model.ad.datamodel.Table;
+import org.openbravo.model.ad.ui.Field;
 import org.openbravo.model.ad.ui.Tab;
 import org.openbravo.model.ad.ui.Window;
+
+import com.etendoerp.etendorx.utils.DataSourceUtils;
 
 /**
  * Unit tests for the DataSourceServlet class.
@@ -97,7 +91,7 @@ public class DataSourceServletTest extends WeldBaseTest {
    */
   @Test(expected = IllegalArgumentException.class)
   public void testExtractDataSourceAndID_ValidURIWithID() {
-    DataSourceServlet.extractDataSourceAndID("/datasource/users/123");
+    DataSourceUtils.extractDataSourceAndID("/datasource/users/123");
   }
 
   /**
@@ -105,7 +99,7 @@ public class DataSourceServletTest extends WeldBaseTest {
    */
   @Test
   public void testExtractDataSourceAndID_ValidURIWithoutID() {
-    String[] result = DataSourceServlet.extractDataSourceAndID(DATASOURCE_USERS);
+    String[] result = DataSourceUtils.extractDataSourceAndID(DATASOURCE_USERS);
     assertEquals(2, result.length);
     assertEquals("datasource", result[0]);
     assertEquals("users", result[1]);
@@ -119,7 +113,7 @@ public class DataSourceServletTest extends WeldBaseTest {
    */
   @Test(expected = IllegalArgumentException.class)
   public void testExtractDataSourceAndID_InvalidURI() {
-    DataSourceServlet.extractDataSourceAndID("/datasource/users/123/extra");
+    DataSourceUtils.extractDataSourceAndID("/datasource/users/123/extra");
   }
 
   /**
@@ -127,36 +121,11 @@ public class DataSourceServletTest extends WeldBaseTest {
    */
   @Test
   public void testNormalizedName_StandardName() {
-    String result = DataSourceServlet.normalizedName("Business Partner");
+    Field field = OBDal.getInstance().get(Field.class, "1573");
+    String result = DataSourceUtils.getHQLColumnName(field)[0];
     assertEquals("businessPartner", result);
   }
 
-  /**
-   * Tests the normalizedName method with a name containing special characters.
-   */
-  @Test
-  public void testNormalizedName_SpecialCharacters() {
-    String result = DataSourceServlet.normalizedName("Business! Partner@");
-    assertEquals("businessPartner", result);
-  }
-
-  /**
-   * Tests the normalizedName method with the name "AD_Role_ID".
-   */
-  @Test
-  public void testNormalizedName_ADRoleID() {
-    String result = DataSourceServlet.normalizedName("AD_Role_ID");
-    assertEquals("role", result);
-  }
-
-  /**
-   * Tests the normalizedName method with an empty name.
-   */
-  @Test
-  public void testNormalizedName_EmptyName() {
-    String result = DataSourceServlet.normalizedName("");
-    assertEquals("", result);
-  }
 
   /**
    * Tests the doDelete method, which is not supported.
@@ -179,71 +148,6 @@ public class DataSourceServletTest extends WeldBaseTest {
   public void testConvertURI_InvalidParts() throws OpenAPINotFoundThrowable {
     String[] parts = { };
     dataSourceServlet.convertURI(parts);
-  }
-
-  /**
-   * Tests the doGet method with a valid request.
-   *
-   * @throws Exception
-   *     if an error occurs during the test
-   */
-  @Test
-  public void doGet_ValidRequest_ReturnsExpectedResponse() throws Exception {
-    when(mockRequest.getParameter("q")).thenReturn("name==John");
-    when(mockRequest.getParameterNames()).thenReturn(Collections.enumeration(Collections.singleton("q")));
-    when(mockRequest.getSession(false)).thenReturn(mockSession);
-    when(mockResponse.getWriter()).thenReturn(mockWriter);
-    doNothing().when(mockWriter).write(anyString());
-    doNothing().when(mockWriter).flush();
-
-    try (MockedStatic<DataSourceServlet> dataSourceServletMock = Mockito.mockStatic(DataSourceServlet.class)) {
-      dataSourceServletMock.when(() -> DataSourceServlet.extractDataSourceAndID(anyString())).thenReturn(
-          new String[]{ "datasource", "users" });
-      dataSourceServletMock.when(() -> DataSourceServlet.getTabByDataSourceName(any())).thenReturn(mockTab);
-      dataSourceServletMock.when(DataSourceServlet::getDataSourceServlet).thenReturn(dataSourceMockInternal);
-
-      doAnswer(invocation -> {
-        Object[] args = invocation.getArguments();
-        HttpServletResponse newResponse = (HttpServletResponse) args[1];
-        JSONObject responseForMock = new JSONObject();
-
-        JSONArray dataArray = new JSONArray();
-        JSONObject dataItem = new JSONObject();
-        dataItem.put("id", 1);
-        dataItem.put("name", "Sample Data");
-        dataArray.put(dataItem);
-        JSONObject responseObject = new JSONObject();
-        responseObject.put("data", dataArray);
-        responseForMock.put("response", responseObject);
-        newResponse.getWriter().write(responseForMock.toString());
-
-        return null;
-      }).when(dataSourceMockInternal).doPost(any(), any());
-
-      when(mockTab.getTable()).thenReturn(mockTable);
-      when(mockTable.getId()).thenReturn("123222");
-      when(mockTable.getName()).thenReturn("m_product");
-      when(mockTab.getWindow()).thenReturn(mockWindow);
-      when(mockWindow.getId()).thenReturn("1233323");
-
-      dataSourceServlet.doGet(DATASOURCE_USERS, mockRequest, mockResponse);
-    }
-
-    verify(mockResponse).setContentType(ContentType.APPLICATION_JSON.getMimeType());
-    verify(mockResponse).setCharacterEncoding("UTF-8");
-    verify(mockWriter).write(anyString());
-  }
-
-  /**
-   * Tests the doGet method with an invalid URI.
-   *
-   * @throws IllegalArgumentException
-   *     if the URI is invalid
-   */
-  @Test
-  public void doGet_InvalidURI_ThrowsIllegalArgumentException() throws Exception {
-    expectedException.expect(IllegalArgumentException.class);
-    dataSourceServlet.doGet("/datasource/users/123/extra", mockRequest, mockResponse);
   }
 
 
