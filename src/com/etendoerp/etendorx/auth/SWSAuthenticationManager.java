@@ -3,11 +3,8 @@ package com.etendoerp.etendorx.auth;
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.JWTVerifier;
 import com.auth0.jwt.algorithms.Algorithm;
-import com.auth0.jwt.interfaces.Claim;
 import com.auth0.jwt.interfaces.DecodedJWT;
 import com.etendoerp.etendorx.utils.TokenVerifier;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.smf.securewebservices.utils.SecureWebServicesUtils;
 
 import org.apache.commons.lang.StringUtils;
@@ -15,7 +12,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.hibernate.criterion.Restrictions;
 import org.openbravo.authentication.AuthenticationException;
-import org.openbravo.authentication.AuthenticationExpirationPasswordException;
 import org.openbravo.authentication.AuthenticationManager;
 import org.openbravo.authentication.basic.DefaultAuthenticationManager;
 import org.openbravo.base.HttpBaseUtils;
@@ -26,11 +22,9 @@ import org.openbravo.base.secureApp.VariablesSecureApp;
 import org.openbravo.base.session.OBPropertiesProvider;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBDal;
-import org.openbravo.database.ConnectionProvider;
 import org.openbravo.database.SessionInfo;
 import org.openbravo.model.ad.access.TokenUser;
 import org.openbravo.model.ad.access.User;
-import org.openbravo.service.db.DalConnectionProvider;
 import org.openbravo.service.web.BaseWebServiceServlet;
 
 import javax.servlet.ServletException;
@@ -123,7 +117,6 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
   @Override
   protected String doAuthenticate(HttpServletRequest request, HttpServletResponse response)
       throws AuthenticationException, ServletException, IOException {
-    log4j.info("User Token Sub: " + request.getAttribute("user-token-sub"));
     try {
       if (!StringUtils.isBlank((String) request.getAttribute("user-token-sub"))) {
         setCORSHeaders(request, response);
@@ -135,13 +128,9 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
             .setFilterOnReadableOrganization(false)
             .setMaxResults(1).uniqueResult();
 
-        log4j.info("Token User: " + tokenUser != null ? tokenUser.getId() : "null");
-
         markRequestAsSelfAuthenticated(request);
         prepareLoginSession(request, tokenUser);
-        log4j.info("RedirectUri: " + "/" + OBPropertiesProvider.getInstance().getOpenbravoProperties().get("context.name"));
         response.sendRedirect("/" + OBPropertiesProvider.getInstance().getOpenbravoProperties().get("context.name"));
-        log4j.info("User before return: " + tokenUser.getUser().getId());
         return tokenUser.getUser().getId();
       }
     } catch (Exception e) {
@@ -219,7 +208,6 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
 
   private void prepareLoginSession(HttpServletRequest request, TokenUser tokenUser) {
     User user = tokenUser.getUser();
-    log4j.info("User: " + user.getId());
     loginName.set(user.getName());
     final String sessionId = createDBSession(request, user.getUsername(), user.getId());
 
