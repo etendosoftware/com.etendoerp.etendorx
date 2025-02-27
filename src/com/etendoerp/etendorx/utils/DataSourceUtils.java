@@ -502,7 +502,7 @@ public class DataSourceUtils {
     }
     switch (type) {
       case "BigDecimal":
-        return ((BigDecimal) o).toPlainString();
+        return o.toString();
       case "Long":
         return Long.toString((Long) o);
       case "Boolean":

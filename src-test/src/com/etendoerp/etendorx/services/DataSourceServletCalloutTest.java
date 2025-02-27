@@ -1,63 +1,43 @@
 package com.etendoerp.etendorx.services;
 
-import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.io.StringWriter;
-import java.nio.charset.StandardCharsets;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 
-import javax.servlet.ReadListener;
-import javax.servlet.ServletInputStream;
 import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import javax.servlet.http.HttpSession;
 
+import org.apache.commons.lang.StringUtils;
 import org.codehaus.jettison.json.JSONObject;
+import org.jetbrains.annotations.NotNull;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import org.openbravo.base.HttpSessionWrapper;
-import org.openbravo.base.model.Entity;
 import org.openbravo.base.secureApp.VariablesSecureApp;
 import org.openbravo.base.structure.BaseOBObject;
 import org.openbravo.base.weld.test.WeldBaseTest;
 import org.openbravo.client.kernel.RequestContext;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBDal;
-import org.openbravo.erpCommon.utility.Utility;
-import org.openbravo.model.common.enterprise.Organization;
 import org.openbravo.model.common.order.Order;
-import org.openbravo.service.db.DalConnectionProvider;
+import org.openbravo.model.common.order.OrderLine;
 import org.openbravo.test.base.TestConstants;
-import org.openbravo.test.base.mock.OBServletContextMock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.etendoerp.etendorx.TestUtils;
-import com.smf.securewebservices.utils.SecureWebServicesUtils;
+import com.etendoerp.etendorx.utils.MockedResponse;
 
 /**
  * Unit tests for the DataSourceServlet class.
  */
 public class DataSourceServletCalloutTest extends WeldBaseTest {
 
-  public static final String APPLICATION_JSON_CHARSET_UTF_8 = "application/json; charset=UTF-8";
-  public static final String IMAGE_ID = "imageId";
+  public static final String PRODUCT_WATER_ID = "BDE2F1CF46B54EF58D33E20A230DA8D2";
+  public static final String BP_ALSUPER_ID = "A6750F0D15334FB890C254369AC750A8";
+  public static final String BP_LOCATION_ALSUPER_ID = "6518D3040ED54008A1FC0C09ED140D66";
   private static final Logger log = LoggerFactory.getLogger(DataSourceServletCalloutTest.class);
   private AutoCloseable mocks;
 
-  @Mock
-  private Organization mockOrg;
-
-  @Mock
-  private Entity mockEntity;
 
   private ArrayList<BaseOBObject> elementsToClean;
 
@@ -98,84 +78,82 @@ public class DataSourceServletCalloutTest extends WeldBaseTest {
    */
   @Test
   public void flowSalesOrder() throws Exception {
+    //TEST CASE 1: Create a sales order
     // Given
     ImageUploadServlet servlet = new ImageUploadServlet();
-    HttpServletRequest request = mock(HttpServletRequest.class);
-    HttpServletResponse response = mock(HttpServletResponse.class);
-
-    String jsonPayload = new JSONObject().put("businessPartner", "A6750F0D15334FB890C254369AC750A8").toString();
-
-    ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(jsonPayload.getBytes(StandardCharsets.UTF_8));
-
-    // Crear un ServletInputStream que funcione correctamente
-    ServletInputStream servletInputStream = new ServletInputStream() {
-      @Override
-      public boolean isFinished() {
-        return byteArrayInputStream.available() == 0;
-      }
-
-      @Override
-      public boolean isReady() {
-        return true;
-      }
-
-      @Override
-      public void setReadListener(ReadListener readListener) {
-      }
-
-      @Override
-      public int read() throws IOException {
-        return byteArrayInputStream.read();
-      }
-    };
-
-    // Configurar el mock para devolver el ServletInputStream correcto
-    when(request.getInputStream()).thenReturn(servletInputStream);
+    @NotNull MockedResponse responsePack = TestUtils.getResponseMocked();
 
 
-    StringWriter stringWriter = new StringWriter();
-    PrintWriter printWriter = new PrintWriter(stringWriter);
-    when(response.getWriter()).thenReturn(printWriter);
-    HttpSession httpSession = new HttpSessionWrapper();
-    when(request.getSession(anyBoolean())).thenReturn(httpSession);
-    when(request.getSession()).thenReturn(httpSession);
-    DataSourceServlet dataSourceServlet = new DataSourceServlet();
-    RequestContext.get().setRequest(request);
-    request.getSession().setAttribute("#User_Client".toUpperCase(),
-        String.format("'%s'", OBContext.getOBContext().getCurrentClient().getId()));
-    request.getSession().setAttribute("#User_Org".toUpperCase(),
-        String.format("'%s'", OBContext.getOBContext().getCurrentOrganization().getId()));
-
-    request.getSession().setAttribute("#FormatOutput|euroEdition".toUpperCase(), "#0.00");
-    request.getSession().setAttribute("#DecimalSeparator|euroEdition".toUpperCase(), ".");
-    request.getSession().setAttribute("#GroupSeparator|euroEdition".toUpperCase(), ",");
-
-
-    VariablesSecureApp varsN = new VariablesSecureApp(request);
-    String cli = Utility.getContext(new DalConnectionProvider(false), varsN, "#User_Client", "143", 1);
-
-    
-    RequestContext.get().setVariableSecureApp(varsN);
-    RequestContext.setServletContext(new OBServletContextMock());
-    SecureWebServicesUtils.fillSessionVariables(request);
+    HttpServletRequest request = TestUtils.setupRequestMocked(new JSONObject().put("businessPartner", BP_ALSUPER_ID));
 
     // When
-    dataSourceServlet.doPost("/TestSalesOrderHeader", request, response);
+    new DataSourceServlet().doPost("/TestSalesOrderHeader", request, responsePack.getResponse());
 
     // Then
-    printWriter.flush();
-    JSONObject responseString = new JSONObject(stringWriter.toString());
+    responsePack.flushResponse();
+    JSONObject responseString = new JSONObject(responsePack.getResponseContent());
 
-    assert responseString.has("response") && responseString.getJSONObject("response").has("data") && responseString
-        .getJSONObject("response").getJSONArray("data").length() > 0;
+    assert responseString.has("response") && responseString.getJSONObject("response").has(
+        "data") && responseString.getJSONObject("response").getJSONArray("data").length() > 0;
     var headerCreatedJSon = responseString.getJSONObject("response").getJSONArray("data").getJSONObject(0);
     var salesOrderOB = OBDal.getInstance().get(Order.class, headerCreatedJSon.getString("id"));
     assert salesOrderOB != null;
-    elementsToClean.add(salesOrderOB);
-    assert org.apache.commons.lang.StringUtils.equalsIgnoreCase(salesOrderOB.getPartnerAddress().getId(),
-        "6518D3040ED54008A1FC0C09ED140D66");
-    
+    elementsToClean.add(salesOrderOB); //only add the header to clean up, because the lines are automatically deleted
+    assert StringUtils.equalsIgnoreCase(salesOrderOB.getPartnerAddress().getId(), BP_LOCATION_ALSUPER_ID);
+
+    //TEST CASE 2: Create a sales order line
+    // Given a request of creation of a sales order line
+    responsePack = TestUtils.getResponseMocked();
+    JSONObject body = new JSONObject().put("salesOrder", salesOrderOB.getId()).put("product", PRODUCT_WATER_ID).put(
+        "orderedQuantity", 1);
+
+    request = TestUtils.setupRequestMocked(body);
+    // When
+    new DataSourceServlet().doPost("/TestSalesOrderLine", request, responsePack.getResponse());
+
+    // Then
+    responsePack.flushResponse();
+    responseString = new JSONObject(responsePack.getResponseContent());
+    assert responseString.has("response") && responseString.getJSONObject("response").has(
+        "data") && responseString.getJSONObject("response").getJSONArray("data").length() > 0;
+    var lineCreatedJSon = responseString.getJSONObject("response").getJSONArray("data").getJSONObject(0);
+    var salesOrderLineOB = OBDal.getInstance().get(OrderLine.class, lineCreatedJSon.getString("id"));
+    assert salesOrderLineOB != null;
+    assert StringUtils.equalsIgnoreCase(salesOrderLineOB.getSalesOrder().getId(), salesOrderOB.getId());
+
+    OBDal.getInstance().refresh(salesOrderOB);
+    //The prices must be greater than 0, because must be automatically calculated
+    assert BigDecimal.ZERO.compareTo(salesOrderLineOB.getUnitPrice()) < 0;
+    //the Order must have a grand total greater than 0
+    assert BigDecimal.ZERO.compareTo(salesOrderOB.getGrandTotalAmount()) < 0;
+    BigDecimal totalAmountWithOneUnit = salesOrderOB.getGrandTotalAmount();
+
+    // Test case 3: Update the sales order line
+    // Given a request of update of a sales order line
+    responsePack = TestUtils.getResponseMocked();
+    body = new JSONObject().put("orderedQuantity", 2);
+
+    request = TestUtils.setupRequestMocked(body);
+    // When
+    new DataSourceServlet().doPut("/TestSalesOrderLine/" + salesOrderLineOB.getId(), request,
+        responsePack.getResponse());
+
+    // Then
+    responsePack.flushResponse();
+    responseString = new JSONObject(responsePack.getResponseContent());
+    assert responseString.has("response") && responseString.getJSONObject("response").has(
+        "data") && responseString.getJSONObject("response").getJSONArray("data").length() > 0;
+    lineCreatedJSon = responseString.getJSONObject("response").getJSONArray("data").getJSONObject(0);
+    salesOrderLineOB = OBDal.getInstance().get(OrderLine.class, lineCreatedJSon.getString("id"));
+    assert salesOrderLineOB != null;
+
+    OBDal.getInstance().refresh(salesOrderOB);
+    //the Order must have a grand total greater than 0 and greater than the previous total
+    assert totalAmountWithOneUnit.compareTo(salesOrderOB.getGrandTotalAmount()) < 0;
+
+
   }
+
 
   /**
    * Cleans up the test environment after each test.
