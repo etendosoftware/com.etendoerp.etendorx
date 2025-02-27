@@ -1,5 +1,6 @@
 package com.etendoerp.etendorx.services;
 
+import java.io.StringReader;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
@@ -8,6 +9,8 @@ import javax.servlet.http.HttpServletRequest;
 
 import org.apache.commons.lang.StringUtils;
 import org.codehaus.jettison.json.JSONObject;
+import org.dom4j.Document;
+import org.dom4j.io.SAXReader;
 import org.jetbrains.annotations.NotNull;
 import org.junit.After;
 import org.junit.Before;
@@ -27,6 +30,7 @@ import org.slf4j.LoggerFactory;
 
 import com.etendoerp.etendorx.TestUtils;
 import com.etendoerp.etendorx.utils.MockedResponse;
+import com.etendoerp.openapi.OpenAPIController;
 
 /**
  * Unit tests for the DataSourceServlet class.
@@ -41,7 +45,7 @@ public class DataSourceServletCalloutTest extends WeldBaseTest {
   public static final String DATA = "data";
   public static final String ID = "id";
   private AutoCloseable mocks;
-
+  private Document formatXMLDocument;
 
   private List<BaseOBObject> elementsToClean;
 
@@ -72,6 +76,9 @@ public class DataSourceServletCalloutTest extends WeldBaseTest {
         OBContext.getOBContext().getCurrentClient().getId(), OBContext.getOBContext().getCurrentOrganization().getId());
     vars.setSessionValue("#User_Client", OBContext.getOBContext().getCurrentClient().getId());
     RequestContext.get().setVariableSecureApp(vars);
+    // Convertir XML String a Document
+    SAXReader reader = new SAXReader();
+    formatXMLDocument = reader.read(new StringReader(TestUtils.FORMATS_XML));
   }
 
   /**
@@ -87,7 +94,8 @@ public class DataSourceServletCalloutTest extends WeldBaseTest {
     @NotNull MockedResponse responsePack = TestUtils.getResponseMocked();
 
 
-    HttpServletRequest request = TestUtils.setupRequestMocked(new JSONObject().put("businessPartner", BP_ALSUPER_ID));
+    HttpServletRequest request = TestUtils.setupRequestMocked(new JSONObject().put("businessPartner", BP_ALSUPER_ID),
+        formatXMLDocument);
 
     // When
     new DataSourceServlet().doPost("/TestSalesOrderHeader", request, responsePack.getResponse());
@@ -110,7 +118,7 @@ public class DataSourceServletCalloutTest extends WeldBaseTest {
     JSONObject body = new JSONObject().put("salesOrder", salesOrderOB.getId()).put("product", PRODUCT_WATER_ID).put(
         "orderedQuantity", 1);
 
-    request = TestUtils.setupRequestMocked(body);
+    request = TestUtils.setupRequestMocked(body, formatXMLDocument);
     // When
     new DataSourceServlet().doPost("/TestSalesOrderLine", request, responsePack.getResponse());
 
@@ -136,7 +144,7 @@ public class DataSourceServletCalloutTest extends WeldBaseTest {
     responsePack = TestUtils.getResponseMocked();
     body = new JSONObject().put("orderedQuantity", 2);
 
-    request = TestUtils.setupRequestMocked(body);
+    request = TestUtils.setupRequestMocked(body, formatXMLDocument);
     // When
     new DataSourceServlet().doPut("/TestSalesOrderLine/" + salesOrderLineOB.getId(), request,
         responsePack.getResponse());
@@ -155,6 +163,19 @@ public class DataSourceServletCalloutTest extends WeldBaseTest {
     assert totalAmountWithOneUnit.compareTo(salesOrderOB.getGrandTotalAmount()) < 0;
 
 
+  }
+
+  //Another test
+  @Test
+  public void generateOpenAPISpec() throws Exception {
+    // Given the flow created in setup
+
+    // When
+    String openAPISpec = new OpenAPIController().getOpenAPIJson("localhost", "TESTFLOW",
+        "http://localhost:8080/etendo");
+    // Then
+    assert StringUtils.isNotEmpty(openAPISpec);
+    assert StringUtils.containsIgnoreCase(openAPISpec, "TestSalesOrderHeader");
   }
 
 
