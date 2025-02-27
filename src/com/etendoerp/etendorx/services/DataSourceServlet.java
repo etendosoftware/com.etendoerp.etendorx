@@ -390,6 +390,7 @@ public class DataSourceServlet implements WebService {
       OBCriteria<OpenAPIRequest> crit = OBDal.getInstance().createCriteria(OpenAPIRequest.class);
       crit.add(Restrictions.eq("name", dataSource[0]));
       OpenAPIRequest req = (OpenAPIRequest) crit.setMaxResults(1).uniqueResult();
+      OBDal.getInstance().refresh(req);
       if (req == null || req.getETRXOpenAPITabList().isEmpty()) {
         handleNotFoundException(response);
         return null;

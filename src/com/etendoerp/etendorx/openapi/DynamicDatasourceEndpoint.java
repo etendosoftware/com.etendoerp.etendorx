@@ -116,9 +116,11 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
       AtomicBoolean addedEndpoints = new AtomicBoolean(false);
       getFlows().forEach(flow -> {
         if (requestedTag.get() == null || StringUtils.equals(requestedTag.get(), flow.getName())) {
+          OBDal.getInstance().refresh(flow);
           var endpoints = flow.getETAPIOpenApiFlowPointList();
           for (OpenApiFlowPoint endpoint : endpoints) {
             OpenAPIRequest etapiOpenapiReq = endpoint.getEtapiOpenapiReq();
+            OBDal.getInstance().refresh(etapiOpenapiReq);
             if (!etapiOpenapiReq.getETRXOpenAPITabList().isEmpty()) {
               addedEndpoints.set(true);
               if (StringUtils.isNotEmpty(etapiOpenapiReq.getDescription())) {
@@ -199,8 +201,8 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
 
       for (Field adField : tab.getADFieldList()) {
         Column column = adField.getColumn();
-        String fieldConverted = getHQLColumnName(false,
-            column.getTable().getDBTableName(), column.getDBColumnName())[0];
+        String fieldConverted = getHQLColumnName(false, column.getTable().getDBTableName(),
+            column.getDBColumnName())[0];
         responseJSON.put(fieldConverted, "");
         if (StringUtils.equals(column.getReference().getId(), "19")) {
           responseJSON.put(fieldConverted + "$_identifier", "");

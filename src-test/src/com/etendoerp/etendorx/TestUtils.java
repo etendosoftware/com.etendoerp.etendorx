@@ -31,7 +31,6 @@ import org.jetbrains.annotations.NotNull;
 import org.openbravo.base.HttpSessionWrapper;
 import org.openbravo.base.provider.OBProvider;
 import org.openbravo.base.secureApp.VariablesSecureApp;
-import org.openbravo.base.session.OBPropertiesProvider;
 import org.openbravo.base.structure.BaseOBObject;
 import org.openbravo.client.kernel.RequestContext;
 import org.openbravo.dal.core.OBContext;
@@ -52,6 +51,47 @@ import com.smf.securewebservices.utils.SecureWebServicesUtils;
  * used in test scenarios.
  */
 public class TestUtils {
+
+  public static final String FORMATS_XML = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
+      "<!--\n" +
+      " *************************************************************************\n" +
+      " * The contents of this file are subject to the Openbravo Public License \n" +
+      " * Version 1.1 (the \"License\"), being the Mozilla Public License \n" +
+      " * version 1.1  with a permitted attribution clause ; you may not use \n" +
+      " * this file except in compliance with the License. \n" +
+      " * You may obtain a copy of the License at  \n" +
+      " * http://www.openbravo.com/legal/license.txt \n" +
+      " * Software distributed under the License is distributed on an \n" +
+      " * \"AS IS\" basis, WITHOUT WARRANTY OF  ANY KIND, either express or \n" +
+      " * implied. See the License for the specific language governing rights \n" +
+      " * and  limitations under the License. \n" +
+      " * The Original Code is Openbravo ERP. \n" +
+      " * The Initial Developer of the Original Code is Openbravo SLU \n" +
+      " * All portions are Copyright (C) 2005-2006 Openbravo SLU \n" +
+      " * All Rights Reserved. \n" +
+      " * Contributor(s): Openbravo S.L.U.\n" +
+      " ************************************************************************\n" +
+      "--><!--<!DOCTYPE FormatClass SYSTEM \"FormatClass.dtd\">--><Formats>\n" +
+      "   <Number name=\"euroInform\" decimal=\".\" grouping=\",\" formatOutput=\"#,##0.00\" formatInternal=\"#0.00\"/>\n" +
+      "   <Number name=\"euroRelation\" decimal=\".\" grouping=\",\" formatOutput=\"#,##0.00\" formatInternal=\"#0.00\"/>\n" +
+      "   <Number name=\"euroEdition\" decimal=\".\" grouping=\",\" formatOutput=\"#0.00\" formatInternal=\"#0.00\"/>\n" +
+      "   <Number name=\"euroExcel\" decimal=\".\" grouping=\",\" formatOutput=\"#,##0.##\" formatInternal=\"#0.00\"/>\n" +
+      "   <Number name=\"priceInform\" decimal=\".\" grouping=\",\" formatOutput=\"#,##0.00\" formatInternal=\"#0.00\"/>\n" +
+      "   <Number name=\"priceRelation\" decimal=\".\" grouping=\",\" formatOutput=\"#,##0.00\" formatInternal=\"#0.00\"/>\n" +
+      "   <Number name=\"priceEdition\" decimal=\".\" grouping=\",\" formatOutput=\"#0.00\" formatInternal=\"#0.00\"/>\n" +
+      "   <Number name=\"integerInform\" decimal=\".\" grouping=\",\" formatOutput=\"#,##0\" formatInternal=\"#0\"/>\n" +
+      "   <Number name=\"integerRelation\" decimal=\".\" grouping=\",\" formatOutput=\"#,##0\" formatInternal=\"#0\"/>\n" +
+      "   <Number name=\"integerEdition\" decimal=\".\" grouping=\",\" formatOutput=\"#0\" formatInternal=\"#0\"/>\n" +
+      "   <Number name=\"integerExcel\" decimal=\".\" grouping=\",\" formatOutput=\"#,##0\" formatInternal=\"#0\"/>\n" +
+      "   <Number name=\"priceExcel\" decimal=\".\" grouping=\",\" formatOutput=\"#,##0.##\" formatInternal=\"#0.00\"/>\n" +
+      "   <Number name=\"qtyRelation\" decimal=\".\" grouping=\",\" formatOutput=\"#,##0.###\" formatInternal=\"#0.000\"/>\n" +
+      "   <Number name=\"qtyEdition\" decimal=\".\" grouping=\",\" formatOutput=\"#0.###\" formatInternal=\"#0.000\"/>\n" +
+      "   <Number name=\"qtyExcel\" decimal=\".\" grouping=\",\" formatOutput=\"#,##0.###\" formatInternal=\"#0.000\"/>\n" +
+      "   <Number name=\"generalQtyRelation\" decimal=\".\" grouping=\",\" formatOutput=\"#,##0.######\" formatInternal=\"#0.000000\"/>\n" +
+      "   <Number name=\"generalQtyEdition\" decimal=\".\" grouping=\",\" formatOutput=\"#0.######\" formatInternal=\"#0.000000\"/>\n" +
+      "   <Number name=\"generalQtyExcel\" decimal=\".\" grouping=\",\" formatOutput=\"#,##0.######\" formatInternal=\"#0.000000\"/>\n" +
+      "   <Number name=\"amountInform\" decimal=\".\" grouping=\",\" formatOutput=\"#,##0.00\" formatInternal=\"#0.00\"/>\n" +
+      "</Formats>";
 
   // Private constructor to prevent instantiation
   private TestUtils() {
@@ -189,7 +229,7 @@ public class TestUtils {
     // new flow
     OpenApiFlow flow = OBProvider.getInstance().get(OpenApiFlow.class);
     flow.setNewOBObject(true);
-    flow.setName("TEST FLOW");
+    flow.setName("TESTFLOW");
     flow.setDescription("Test Flow Description");
     OBDal.getInstance().save(flow);
     createdElements.add(flow);
@@ -241,6 +281,7 @@ public class TestUtils {
    *
    * @param jsonPayload
    *     The JSON payload to be used in the request.
+   * @param xmlDocument
    * @return A mocked HttpServletRequest with the provided JSON payload.
    * @throws JSONException
    *     If there is an error parsing the JSON payload.
@@ -250,7 +291,7 @@ public class TestUtils {
    *     If there is a servlet error.
    */
   public static @NotNull HttpServletRequest setupRequestMocked(
-      JSONObject jsonPayload) throws JSONException, IOException, ServletException {
+      JSONObject jsonPayload, Document xmlDocument) throws JSONException, IOException, ServletException {
     // Mock the HttpServletRequest
     HttpServletRequest request = mock(HttpServletRequest.class);
 
@@ -296,7 +337,7 @@ public class TestUtils {
         String.format("'%s'", OBContext.getOBContext().getCurrentOrganization().getId()));
 
     // Get the format XML document and load the format settings into the session
-    loadFormats(httpSession);
+    loadFormats(httpSession, xmlDocument);
 
     // Set the request and variable secure app in the RequestContext
     RequestContext.get().setRequest(request);
@@ -330,9 +371,10 @@ public class TestUtils {
    *
    * @param httpSession
    *     The HttpSession where the format settings will be stored.
+   * @param xmlDocument
    */
-  private static void loadFormats(HttpSession httpSession) {
-    Document formatDoc = OBPropertiesProvider.getInstance().getFormatXMLDocument();
+  private static void loadFormats(HttpSession httpSession, Document xmlDocument) {
+    Document formatDoc = xmlDocument;
     Element root = formatDoc.getRootElement();
 
     // Get all <Number> elements

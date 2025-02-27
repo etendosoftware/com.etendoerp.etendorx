@@ -101,7 +101,7 @@ public class DataSourceUtils {
     if (prop.isPrimitive()) {
       type = prop.getPrimitiveType().getSimpleName();
     }
-    log.info(String.format("HQL column name: %s, type: %s ", entAl, type));
+    log.debug(String.format("HQL column name: %s, type: %s ", entAl, type));
     return new String[]{ entAl, type };
   }
 
