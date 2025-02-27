@@ -20,6 +20,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.codehaus.jettison.json.JSONException;
@@ -138,7 +139,7 @@ public class TestUtils {
   public static final String PARAMS = "params";
   public static final String LOG = "log";
   public static final String LAST_UPDATE = "lastUpdate";
-  protected static final Logger log = LogManager.getLogger();
+  protected static final Logger logger = LogManager.getLogger();
 
   /**
    * Builds an example headless flow for testing purposes.
@@ -149,7 +150,7 @@ public class TestUtils {
    *
    * @return A list of created BaseOBObject instances representing the headless flow.
    */
-  public static ArrayList<BaseOBObject> buildExampleHeadlessFlow() {
+  public static List<BaseOBObject> buildExampleHeadlessFlow() {
     var createdElements = new ArrayList<BaseOBObject>();
     // new request header
     OpenAPIRequest opApiRequest = OBProvider.getInstance().get(OpenAPIRequest.class);
@@ -289,9 +290,9 @@ public class TestUtils {
     when(request.getSession()).thenReturn(httpSession);
 
     // Set session attributes for user client and organization
-    request.getSession().setAttribute("#User_Client".toUpperCase(),
+    request.getSession().setAttribute(getUpperCase("#User_Client"),
         String.format("'%s'", OBContext.getOBContext().getCurrentClient().getId()));
-    request.getSession().setAttribute("#User_Org".toUpperCase(),
+    request.getSession().setAttribute(getUpperCase("#User_Org"),
         String.format("'%s'", OBContext.getOBContext().getCurrentOrganization().getId()));
 
     // Get the format XML document and load the format settings into the session
@@ -308,6 +309,17 @@ public class TestUtils {
 
     // Return the mocked HttpServletRequest
     return request;
+  }
+
+  /**
+   * Converts the given string to uppercase.
+   *
+   * @param s
+   *     The string to be converted to uppercase.
+   * @return The uppercase version of the given string.
+   */
+  private static @NotNull String getUpperCase(String s) {
+    return StringUtils.upperCase(s);
   }
 
   /**
@@ -335,13 +347,13 @@ public class TestUtils {
       String formatOutput = numberElement.attributeValue("formatOutput");
       String formatInternal = numberElement.attributeValue("formatInternal");
 
-      log.info(" Loading for format: " + name + " decimal: " + decimal + " grouping: " + grouping
-          + " formatOutput: " + formatOutput + " formatInternal: " + formatInternal);
+      logger.info(" Loading for format: {} decimal: {} grouping: {} formatOutput: {} formatInternal: {}", name, decimal,
+          grouping, formatOutput, formatInternal);
       // Store the values in the session
-      httpSession.setAttribute(("#FormatOutput|" + name).toUpperCase(), formatOutput);
-      httpSession.setAttribute(("#DecimalSeparator|" + name).toUpperCase(), decimal);
-      httpSession.setAttribute(("#GroupSeparator|" + name).toUpperCase(), grouping);
-      httpSession.setAttribute(("#FormatInternal|" + name).toUpperCase(), formatInternal);
+      httpSession.setAttribute(getUpperCase("#FormatOutput|" + name), formatOutput);
+      httpSession.setAttribute(getUpperCase("#DecimalSeparator|" + name), decimal);
+      httpSession.setAttribute(getUpperCase("#GroupSeparator|" + name), grouping);
+      httpSession.setAttribute(getUpperCase("#FormatInternal|" + name), formatInternal);
     }
   }
 }

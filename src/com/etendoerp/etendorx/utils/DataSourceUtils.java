@@ -31,9 +31,19 @@ import com.etendoerp.etendorx.services.OpenAPINotFoundThrowable;
 import com.etendoerp.etendorx.services.wrapper.RequestField;
 import com.etendoerp.openapi.data.OpenAPIRequest;
 
+/**
+ * Utility class for data source operations.
+ */
 public class DataSourceUtils {
 
   private static final Logger log = LogManager.getLogger();
+  public static final String CLASSIC_VALUE = "classicValue";
+
+  /*
+   * Private constructor to prevent instantiation.
+   */
+  private DataSourceUtils() {
+  }
 
   /**
    * Retrieves the HQL column name for a given field.
@@ -66,7 +76,9 @@ public class DataSourceUtils {
    * @param exceptionOnFail
    *     If true, throws an exception if the entity or property is not found.
    * @param dbTableName
+   *     The database table name.
    * @param dbColumnName
+   *     The database column name.
    * @return The HQL column name.
    * @throws OBException
    *     if the entity or property is not found and exceptionOnFail is true.
@@ -220,16 +232,22 @@ public class DataSourceUtils {
    *
    * @param value
    *     The datetime string to be formatted.
-   * @param b
+   * @param inp2hql
+   *     The boolean value indicates if the datetime is from the input format to the HQL format. If false,
+   *     the datetime is from the HQL format to the input format.
    * @return The formatted datetime string.
    * @throws ParseException
    *     If there is an error during date parsing.
    */
-  private static String getformatedDatetime(String value, boolean b) throws ParseException {
+  private static String getformatedDatetime(String value, boolean inp2hql) throws ParseException {
     Properties props = OBPropertiesProvider.getInstance().getOpenbravoProperties();
-    SimpleDateFormat sdfFrom = new SimpleDateFormat(props.getProperty("dateTimeFormat.java"));
-    SimpleDateFormat sdfTo = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.S'Z'");
-    return sdfTo.format(sdfFrom.parse(value));
+    SimpleDateFormat sdfInp = new SimpleDateFormat(props.getProperty("dateTimeFormat.java"));
+    SimpleDateFormat sdfHql = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.S'Z'");
+    if (inp2hql) {
+      return sdfHql.format(sdfInp.parse(value));
+    } else {
+      return sdfInp.format(sdfHql.parse(value));
+    }
   }
 
   /**
@@ -293,6 +311,8 @@ public class DataSourceUtils {
    *     A map to store input to normalized format key mappings.
    * @param dbname2input
    *     A map to store database column name to input format key mappings.
+   * @param columnTypes
+   *     A map to store column types.
    */
   public static void loadCaches(List<RequestField> fieldList, Map<String, String> norm2input,
       Map<String, String> input2norm, Map<String, String> dbname2input, Map<String, String> columnTypes) {
@@ -348,11 +368,9 @@ public class DataSourceUtils {
    *
    * @param tab
    *     The Tab object containing field information.
-   * @param data
-   *     The JSONObject containing data to be checked for parent properties.
    * @return The parent ID if found, otherwise null.
    */
-  public static List<String> getParentProperties(Tab tab, JSONObject data) {
+  public static List<String> getParentProperties(Tab tab) {
     try {
       OBContext.setAdminMode(false);
       return tab.getADFieldList().stream().filter(
@@ -393,23 +411,60 @@ public class DataSourceUtils {
     }
   }
 
+  /**
+   * Retrieves the classic value from the given JSON object.
+   * <p>
+   * This method extracts the classic value from the provided JSON object using the specified date patterns.
+   *
+   * @param value
+   *     The JSON object containing the value.
+   * @return The classic value extracted from the JSON object.
+   * @throws JSONException
+   *     If there is an error during JSON processing.
+   */
   private static Object getClassicValue(JSONObject value) throws JSONException {
     return getValueFromItem(value, "yyyy-MM-dd", "dd-MM-yyyy", true);
   }
 
+  /**
+   * Retrieves the list of columns for the given tab.
+   * <p>
+   * This method refreshes the table associated with the tab and returns the list of columns.
+   *
+   * @param tab
+   *     The Tab object containing the table information.
+   * @return The list of columns for the given tab.
+   */
   public static List<Column> getAdColumnList(Tab tab) {
     Table table = tab.getTable();
     OBDal.getInstance().refresh(table);
     return table.getADColumnList();
   }
 
+  /**
+   * Retrieves the value from the given JSON object based on the specified date patterns.
+   * <p>
+   * This method extracts the value from the provided JSON object, converting date values if necessary.
+   *
+   * @param item
+   *     The JSON object containing the value.
+   * @param patternDateFrom
+   *     The date pattern to convert from.
+   * @param patternDateTo
+   *     The date pattern to convert to.
+   * @param directFromClassic
+   *     If true, retrieves the classic value directly.
+   * @return The extracted value from the JSON object.
+   * @throws JSONException
+   *     If there is an error during JSON processing.
+   */
   public static Object getValueFromItem(JSONObject item, String patternDateFrom, String patternDateTo,
       boolean directFromClassic) throws JSONException {
     if (directFromClassic) {
-      return (item.has("classicValue") && org.apache.commons.lang3.StringUtils.isNotEmpty(
-          item.optString("classicValue"))) ? item.get("classicValue") : null;
+      return (item.has(CLASSIC_VALUE) && org.apache.commons.lang3.StringUtils.isNotEmpty(
+          item.optString(CLASSIC_VALUE))) ? item.get(CLASSIC_VALUE) : null;
     }
-    //if the item has a property value with type long, use this value, if not use the classicValue. We dont know the type of the value
+    // if the item has a property value with type long, use this value, if not use the classicValue. We don't know the type of the value
     if (item.has("value")) {
       Object value = item.get("value");
       if (value instanceof Long || value instanceof Integer || value instanceof Double) {
@@ -418,7 +473,7 @@ public class DataSourceUtils {
       if (!(value instanceof String)) {
         return value.toString();
       }
-      //checkif the value is a date in patternDateFrom, if so, convert it to patternDateTo
+      // check if the value is a date in patternDateFrom, if so, convert it to patternDateTo
       // for example, if the date is in format yyyy-MM-dd, and we need it in format dd-MM-yyyy
       SimpleDateFormat sdfFrom = new SimpleDateFormat(patternDateFrom);
       SimpleDateFormat sdfTo = new SimpleDateFormat(patternDateTo);
@@ -428,13 +483,14 @@ public class DataSourceUtils {
         return value;
       }
     }
-    return item.has("classicValue") ? item.get("classicValue") : null;
+    return item.has(CLASSIC_VALUE) ? item.get(CLASSIC_VALUE) : null;
   }
 
   /**
    * Extracts the data source and ID from the request URI.
    *
    * @param requestURI
+   *     The request URI to be processed.
    * @return the extracted parts, being the first part the data source name and the second part the ID
    */
   public static String[] extractDataSourceAndID(String requestURI) {
@@ -476,8 +532,7 @@ public class DataSourceUtils {
         throw new OpenAPINotFoundThrowable("OpenAPI request does not have any related tabs: " + dataSourceName);
       }
 
-      Tab tab = apiRequest.getETRXOpenAPITabList().get(0).getRelatedTabs();
-      return tab;
+      return apiRequest.getETRXOpenAPITabList().get(0).getRelatedTabs();
     } finally {
       OBContext.restorePreviousMode();
     }

@@ -6,6 +6,7 @@ import java.nio.charset.StandardCharsets;
 import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -62,6 +63,9 @@ import com.smf.securewebservices.utils.SecureWebServicesUtils;
 public class DataSourceServlet implements WebService {
 
   private static final Logger log = LogManager.getLogger();
+  public static final String _START_ROW = "_startRow";
+  public static final String _END_ROW = "_endRow";
+  public static final String RESPONSE = "response";
 
   /**
    * Gets the DataSourceServlet instance.
@@ -102,12 +106,7 @@ public class DataSourceServlet implements WebService {
       String rsql = request.getParameter("q");
       Map<String, String[]> params = new HashMap<>();
       var paramNames = request.getParameterNames();
-      while (paramNames.hasMoreElements()) {
-        String param = paramNames.nextElement();
-        if (!StringUtils.equals(param, "q")) {
-          params.put(param, new String[]{ request.getParameter(param) });
-        }
-      }
+      loadParams(request, paramNames, params);
       params.put("isImplicitFilterApplied", new String[]{ "false" });
       params.put("_operationType", new String[]{ "fetch" });
       params.put("_noActiveFilter", new String[]{ "true" });
@@ -121,11 +120,11 @@ public class DataSourceServlet implements WebService {
 
         params.put("_textMatchStyle", new String[]{ "substring" });
       }
-      if (!params.containsKey("_startRow")) {
-        params.put("_startRow", new String[]{ "0" });
+      if (!params.containsKey(_START_ROW)) {
+        params.put(_START_ROW, new String[]{ "0" });
       }
-      if (!params.containsKey("_endRow")) {
-        params.put("_endRow", new String[]{ "100" });
+      if (!params.containsKey(_END_ROW)) {
+        params.put(_END_ROW, new String[]{ "100" });
       }
       String dtsn = extractedParts[0];
       Tab tabByDataSourceName = DataSourceUtils.getTabByDataSourceName(dtsn);
@@ -165,6 +164,26 @@ public class DataSourceServlet implements WebService {
   }
 
   /**
+   * Loads parameters from the HttpServletRequest into the provided map, excluding the "q" parameter.
+   *
+   * @param request
+   *     The HttpServletRequest containing the parameters.
+   * @param paramNames
+   *     An enumeration of parameter names from the request.
+   * @param params
+   *     The map where the parameters will be stored.
+   */
+  private static void loadParams(HttpServletRequest request, Enumeration<String> paramNames,
+      Map<String, String[]> params) {
+    while (paramNames.hasMoreElements()) {
+      String param = paramNames.nextElement();
+      if (!StringUtils.equals(param, "q")) {
+        params.put(param, new String[]{ request.getParameter(param) });
+      }
+    }
+  }
+
+  /**
    * Fills session variables in the request if needed.
    * <p>
    * This method checks if the session variables are already loaded. If not, it loads the session variables
@@ -188,7 +207,7 @@ public class DataSourceServlet implements WebService {
         log.debug("Session variables already loaded previously.");
       }
     } catch (ServletException e) {
-      throw new RuntimeException(e);
+      throw new OBException(e);
     } finally {
       OBContext.restorePreviousMode();
     }
@@ -295,7 +314,7 @@ public class DataSourceServlet implements WebService {
       var servlet = getDataSourceServlet();
 
       if (StringUtils.equals(OpenAPIConstants.POST, method)) {
-        EtendoRequestWrapper newRequest = getEtendoPostWrapper(method, request, tab, createPayLoad(request), fieldList,
+        EtendoRequestWrapper newRequest = getEtendoPostWrapper(request, tab, createPayLoad(request), fieldList,
             newUri);
         servlet.doPost(newRequest, response);
       } else if (StringUtils.equals(OpenAPIConstants.PUT, method)) {
@@ -389,7 +408,6 @@ public class DataSourceServlet implements WebService {
   /**
    * Creates the payload for the POST request.
    *
-   * @param method
    * @param request
    * @param tab
    * @param newJsonBody
@@ -399,7 +417,7 @@ public class DataSourceServlet implements WebService {
    * @throws IOException
    * @throws OpenAPINotFoundThrowable
    */
-  private EtendoRequestWrapper getEtendoPostWrapper(String method, HttpServletRequest request, Tab tab,
+  private EtendoRequestWrapper getEtendoPostWrapper(HttpServletRequest request, Tab tab,
       JSONObject newJsonBody, List<RequestField> fieldList,
       String newUri) throws JSONException, IOException, OpenAPINotFoundThrowable, ScriptException, ParseException {
     JSONObject dataFromOriginalRequest = newJsonBody.getJSONObject(DataSourceConstants.DATA);
@@ -423,7 +441,7 @@ public class DataSourceServlet implements WebService {
     //remove the parent properties and ID, to detect properties that has been "changed" to emulate the change event
     // for every property that has been changed, we need to call the formInit with the new value
     JSONObject propsToChange = new JSONObject(dataFromOriginalRequest.toString());
-    List<String> parentProperties = DataSourceUtils.getParentProperties(tab, dataFromOriginalRequest);
+    List<String> parentProperties = DataSourceUtils.getParentProperties(tab);
     for (String parentProperty : parentProperties) {
       propsToChange.remove(parentProperty);
     }
@@ -513,14 +531,7 @@ public class DataSourceServlet implements WebService {
       Map<String, String> db2Input) throws JSONException, ScriptException {
     try {
       OBContext.setAdminMode();
-      Column col = null;
-      List<Column> adColumnList = DataSourceUtils.getAdColumnList(tab);
-      for (Column column : adColumnList) {
-        if (StringUtils.equals((DataSourceUtils.getHQLColumnName(column))[0], changedColumnN)) {
-          col = column;
-          break;
-        }
-      }
+      Column col = getColumnByHQLName(tab, changedColumnN);
       if (col == null) {
         throw new OBException(OBMessageUtils.messageBD("ETRX_ColumnNotFound"));
       }
@@ -554,22 +565,21 @@ public class DataSourceServlet implements WebService {
       Column valueColumn = getValueColumn(selectorValidation, selectorDefined);
       // ask for the name of the propertie where the record id is stored in the results
       String valuePropertie = DataSourceUtils.getHQLColumnName(valueColumn)[0];
-      String valuePropertieDB = valueColumn.getDBColumnName();
 
       JSONObject obj = null;
       int totalRows = -1;
       int endRow = -1;
 
       while (obj == null && (totalRows == -1 || endRow < totalRows)) {
-        convertToHashMAp.put("_startRow", String.valueOf(0 + (iterations * 100)));
+        convertToHashMAp.put(_START_ROW, String.valueOf(0 + (iterations * 100)));
         endRow = 100 + (iterations * 100);
-        convertToHashMAp.put("_endRow", String.valueOf(endRow));
+        convertToHashMAp.put(_END_ROW, String.valueOf(endRow));
         String result = dataSourceService.fetch(convertToHashMAp);
         JSONObject resultJson = new JSONObject(result);
         if (totalRows == -1) {
-          totalRows = resultJson.getJSONObject("response").getInt("totalRows");
+          totalRows = resultJson.getJSONObject(RESPONSE).getInt("totalRows");
         }
-        var arr = resultJson.getJSONObject("response").getJSONArray("data");
+        var arr = resultJson.getJSONObject(RESPONSE).getJSONArray("data");
 
         for (int i = 0; i < arr.length(); i++) {
           JSONObject current = arr.getJSONObject(i);
@@ -585,20 +595,7 @@ public class DataSourceServlet implements WebService {
         throw new OBException("Record " + recordID + " not found in Search selector execution.");
       }
 
-      List<SelectorField> selectorFieldList = selectorDefined.getOBUISELSelectorFieldList();
-      selectorFieldList = selectorFieldList.stream().filter(SelectorField::isOutfield).collect(Collectors.toList());
-      for (SelectorField selectorField : selectorFieldList) {
-        String normN = StringUtils.isNotEmpty(
-            selectorField.getProperty()) ? selectorField.getProperty() : selectorField.getName();
-        normN = normN.replace(".", "$");
-        if (obj.has(normN)) {
-          if (!StringUtils.isEmpty(selectorField.getSuffix())) {
-            dataInpFormat.put(changedColumnInp + selectorField.getSuffix(), obj.get(normN));
-          } else {
-            dataInpFormat.put(DataSourceUtils.getInpName(selectorField.getColumn()), obj.get(normN));
-          }
-        }
-      }
+      savePrefixFields(dataInpFormat, changedColumnInp, selectorDefined, obj);
 
 
     } catch (Exception e) {
@@ -606,6 +603,63 @@ public class DataSourceServlet implements WebService {
     } finally {
       OBContext.restorePreviousMode();
     }
+  }
+
+  /**
+   * Saves the prefix fields from the selector into the data input format.
+   * <p>
+   * This method iterates over the outfields of the selector and adds their values to the data input format.
+   *
+   * @param dataInpFormat
+   *     The JSON object containing the data input format.
+   * @param changedColumnInp
+   *     The input format name of the column that has changed.
+   * @param selectorDefined
+   *     The defined selector object.
+   * @param obj
+   *     The JSON object containing the selector field values.
+   * @throws JSONException
+   *     If there is an error during JSON processing.
+   */
+  private static void savePrefixFields(JSONObject dataInpFormat, String changedColumnInp, Selector selectorDefined,
+      JSONObject obj) throws JSONException {
+    List<SelectorField> selectorFieldList = selectorDefined.getOBUISELSelectorFieldList();
+    selectorFieldList = selectorFieldList.stream().filter(SelectorField::isOutfield).collect(Collectors.toList());
+    for (SelectorField selectorField : selectorFieldList) {
+      String normN = StringUtils.isNotEmpty(
+          selectorField.getProperty()) ? selectorField.getProperty() : selectorField.getName();
+      normN = normN.replace(".", "$");
+      if (obj.has(normN)) {
+        if (!StringUtils.isEmpty(selectorField.getSuffix())) {
+          dataInpFormat.put(changedColumnInp + selectorField.getSuffix(), obj.get(normN));
+        } else {
+          dataInpFormat.put(DataSourceUtils.getInpName(selectorField.getColumn()), obj.get(normN));
+        }
+      }
+    }
+  }
+
+  /**
+   * Retrieves the column by its HQL name from the given tab.
+   * <p>
+   * This method iterates over the columns of the tab and returns the column that matches the given HQL name.
+   *
+   * @param tab
+   *     The Tab object containing the columns.
+   * @param changedColumnN
+   *     The HQL name of the column to be retrieved.
+   * @return The Column object that matches the given HQL name, or null if not found.
+   */
+  private static Column getColumnByHQLName(Tab tab, String changedColumnN) {
+    Column col = null;
+    List<Column> adColumnList = DataSourceUtils.getAdColumnList(tab);
+    for (Column column : adColumnList) {
+      if (StringUtils.equals((DataSourceUtils.getHQLColumnName(column))[0], changedColumnN)) {
+        col = column;
+        break;
+      }
+    }
+    return col;
   }
 
   /**
@@ -739,8 +793,8 @@ public class DataSourceServlet implements WebService {
    *     If the response contains an error message.
    */
   private void checkForError(JSONObject formInitResponse) throws JSONException {
-    if (formInitResponse.has("response") && formInitResponse.getJSONObject("response").has("error")) {
-      throw new OBException(formInitResponse.getJSONObject("response").getJSONObject("error").getString("message"));
+    if (formInitResponse.has(RESPONSE) && formInitResponse.getJSONObject(RESPONSE).has("error")) {
+      throw new OBException(formInitResponse.getJSONObject(RESPONSE).getJSONObject("error").getString("message"));
     }
   }
 

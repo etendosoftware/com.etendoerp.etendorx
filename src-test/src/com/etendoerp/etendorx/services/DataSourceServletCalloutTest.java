@@ -2,6 +2,7 @@ package com.etendoerp.etendorx.services;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.List;
 
 import javax.servlet.http.HttpServletRequest;
 
@@ -36,10 +37,13 @@ public class DataSourceServletCalloutTest extends WeldBaseTest {
   public static final String BP_ALSUPER_ID = "A6750F0D15334FB890C254369AC750A8";
   public static final String BP_LOCATION_ALSUPER_ID = "6518D3040ED54008A1FC0C09ED140D66";
   private static final Logger log = LoggerFactory.getLogger(DataSourceServletCalloutTest.class);
+  public static final String RESPONSE = "response";
+  public static final String DATA = "data";
+  public static final String ID = "id";
   private AutoCloseable mocks;
 
 
-  private ArrayList<BaseOBObject> elementsToClean;
+  private List<BaseOBObject> elementsToClean;
 
   /**
    * Sets up the test environment before each test.
@@ -58,7 +62,7 @@ public class DataSourceServletCalloutTest extends WeldBaseTest {
         OBContext.getOBContext().getCurrentClient().getId(), OBContext.getOBContext().getCurrentOrganization().getId());
     RequestContext.get().setVariableSecureApp(vars);
 
-    elementsToClean = new ArrayList<BaseOBObject>();
+    elementsToClean = new ArrayList<>();
     elementsToClean = TestUtils.buildExampleHeadlessFlow();
     OBDal.getInstance().flush();
 
@@ -80,7 +84,6 @@ public class DataSourceServletCalloutTest extends WeldBaseTest {
   public void flowSalesOrder() throws Exception {
     //TEST CASE 1: Create a sales order
     // Given
-    ImageUploadServlet servlet = new ImageUploadServlet();
     @NotNull MockedResponse responsePack = TestUtils.getResponseMocked();
 
 
@@ -93,10 +96,10 @@ public class DataSourceServletCalloutTest extends WeldBaseTest {
     responsePack.flushResponse();
     JSONObject responseString = new JSONObject(responsePack.getResponseContent());
 
-    assert responseString.has("response") && responseString.getJSONObject("response").has(
-        "data") && responseString.getJSONObject("response").getJSONArray("data").length() > 0;
-    var headerCreatedJSon = responseString.getJSONObject("response").getJSONArray("data").getJSONObject(0);
-    var salesOrderOB = OBDal.getInstance().get(Order.class, headerCreatedJSon.getString("id"));
+    assert responseString.has(RESPONSE) && responseString.getJSONObject(RESPONSE).has(
+        DATA) && responseString.getJSONObject(RESPONSE).getJSONArray(DATA).length() > 0;
+    var headerCreatedJSon = responseString.getJSONObject(RESPONSE).getJSONArray(DATA).getJSONObject(0);
+    var salesOrderOB = OBDal.getInstance().get(Order.class, headerCreatedJSon.getString(ID));
     assert salesOrderOB != null;
     elementsToClean.add(salesOrderOB); //only add the header to clean up, because the lines are automatically deleted
     assert StringUtils.equalsIgnoreCase(salesOrderOB.getPartnerAddress().getId(), BP_LOCATION_ALSUPER_ID);
@@ -114,10 +117,10 @@ public class DataSourceServletCalloutTest extends WeldBaseTest {
     // Then
     responsePack.flushResponse();
     responseString = new JSONObject(responsePack.getResponseContent());
-    assert responseString.has("response") && responseString.getJSONObject("response").has(
-        "data") && responseString.getJSONObject("response").getJSONArray("data").length() > 0;
-    var lineCreatedJSon = responseString.getJSONObject("response").getJSONArray("data").getJSONObject(0);
-    var salesOrderLineOB = OBDal.getInstance().get(OrderLine.class, lineCreatedJSon.getString("id"));
+    assert responseString.has(RESPONSE) && responseString.getJSONObject(RESPONSE).has(
+        DATA) && responseString.getJSONObject(RESPONSE).getJSONArray(DATA).length() > 0;
+    var lineCreatedJSon = responseString.getJSONObject(RESPONSE).getJSONArray(DATA).getJSONObject(0);
+    var salesOrderLineOB = OBDal.getInstance().get(OrderLine.class, lineCreatedJSon.getString(ID));
     assert salesOrderLineOB != null;
     assert StringUtils.equalsIgnoreCase(salesOrderLineOB.getSalesOrder().getId(), salesOrderOB.getId());
 
@@ -141,10 +144,10 @@ public class DataSourceServletCalloutTest extends WeldBaseTest {
     // Then
     responsePack.flushResponse();
     responseString = new JSONObject(responsePack.getResponseContent());
-    assert responseString.has("response") && responseString.getJSONObject("response").has(
-        "data") && responseString.getJSONObject("response").getJSONArray("data").length() > 0;
-    lineCreatedJSon = responseString.getJSONObject("response").getJSONArray("data").getJSONObject(0);
-    salesOrderLineOB = OBDal.getInstance().get(OrderLine.class, lineCreatedJSon.getString("id"));
+    assert responseString.has(RESPONSE) && responseString.getJSONObject(RESPONSE).has(
+        DATA) && responseString.getJSONObject(RESPONSE).getJSONArray(DATA).length() > 0;
+    lineCreatedJSon = responseString.getJSONObject(RESPONSE).getJSONArray(DATA).getJSONObject(0);
+    salesOrderLineOB = OBDal.getInstance().get(OrderLine.class, lineCreatedJSon.getString(ID));
     assert salesOrderLineOB != null;
 
     OBDal.getInstance().refresh(salesOrderOB);
