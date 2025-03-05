@@ -5,7 +5,6 @@ import static com.etendoerp.etendorx.utils.DataSourceUtils.getHQLColumnName;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
@@ -19,11 +18,13 @@ import org.openbravo.base.exception.OBException;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.model.ad.datamodel.Column;
+import org.openbravo.model.ad.domain.Reference;
 import org.openbravo.model.ad.ui.Field;
 import org.openbravo.model.ad.ui.Tab;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.etendoerp.etendorx.data.OpenAPIRequestField;
 import com.etendoerp.etendorx.data.OpenAPITab;
 import com.etendoerp.openapi.data.OpenAPIRequest;
 import com.etendoerp.openapi.data.OpenApiFlow;
@@ -196,22 +197,19 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
     JSONObject responseJSON = new JSONObject();
     JSONObject formInitResponseExample = new JSONObject();
     try {
-      formInitRequestSchema = defineFormInitRequestSchema(tab.getADFieldList());
-      formInitResponseSchema = defineFormInitResponseSchema(tab.getADFieldList());
-
-      for (Field adField : tab.getADFieldList()) {
-        Column column = adField.getColumn();
-        String fieldConverted = getHQLColumnName(false, column.getTable().getDBTableName(),
-            column.getDBColumnName())[0];
-        responseJSON.put(fieldConverted, "");
-        if (StringUtils.equals(column.getReference().getId(), "19")) {
-          responseJSON.put(fieldConverted + "$_identifier", "");
+      List<OpenAPIRequestField> etrxOpenapiFieldList = openAPIRXTab.getEtrxOpenapiFieldList();
+      HashMap<String, String> fieldDescriptions = new HashMap<String, String>();
+      for (OpenAPIRequestField opf : etrxOpenapiFieldList) {
+        if (StringUtils.isNotEmpty(opf.getDescription())) {
+          fieldDescriptions.put(opf.getField().getId(), opf.getDescription());
         }
       }
+      boolean defaultMode = etrxOpenapiFieldList.isEmpty();
+      var requestTabList = getFieldList(openAPIRXTab, defaultMode);
+      formInitRequestSchema = defineFormInitRequestSchema(requestTabList, defaultMode, fieldDescriptions);
+      formInitResponseSchema = defineFormInitResponseSchema(tab.getADFieldList());
 
-      for (String extraField : extraFields) {
-        responseJSON.put(extraField, "");
-      }
+      getRequestBody(responseJSON, requestTabList);
       formInitResponseExample.put(OpenAPIConstants.RESPONSE, new JSONObject());
       formInitResponseExample.getJSONObject(OpenAPIConstants.RESPONSE).put("status", 0);
       formInitResponseExample.getJSONObject(OpenAPIConstants.RESPONSE).put("data", new JSONArray());
@@ -239,6 +237,35 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
       createPUTEndpoint(openAPI, entityName, tag, formInitResponseSchema, formInitResponseExample, formInitParams,
           formInitRequestSchema, formInitRequestExample);
     }
+  }
+
+  private static void getRequestBody(JSONObject responseJSON, List<Field> fields) throws JSONException {
+
+    for (Field adField : fields) {
+      Column column = adField.getColumn();
+      String fieldConverted = getHQLColumnName(false, column.getTable().getDBTableName(), column.getDBColumnName())[0];
+      responseJSON.put(fieldConverted, "");
+      if (StringUtils.equals(column.getReference().getId(), "19")) {
+        responseJSON.put(fieldConverted + "$_identifier", "");
+      }
+    }
+
+    for (String extraField : extraFields) {
+      responseJSON.put(extraField, "");
+    }
+  }
+
+  private static List<Field> getFieldList(OpenAPITab openAPIRXTab, boolean defaultMode) {
+    Tab tab;
+    List<OpenAPIRequestField> specifiedFields = openAPIRXTab.getEtrxOpenapiFieldList();
+    List<Field> fieldList;
+    if (defaultMode) {
+      tab = openAPIRXTab.getRelatedTabs();
+      fieldList = tab.getADFieldList();
+    } else {
+      fieldList = specifiedFields.stream().map(OpenAPIRequestField::getField).collect(Collectors.toList());
+    }
+    return fieldList;
   }
 
   /**
@@ -527,21 +554,54 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
    *
    * @param fields
    *     the list of fields.
+   * @param defaultMode
+   * @param fieldDescriptions
    * @return the defined schema.
    */
-  Schema<?> defineFormInitRequestSchema(List<Field> fields) {
+  Schema<?> defineFormInitRequestSchema(List<Field> fields, boolean defaultMode,
+      HashMap<String, String> fieldDescriptions) {
     Schema<Object> schema = new Schema<>();
     schema.type(OpenAPIConstants.OBJECT);
     List<String> required = new ArrayList<>();
 
-    for (Field field : fields) {
-      if (isMandatory(field)) {
-        Set<String> numberReferences = Set.of("22", "29", "800008");
-        boolean isNumber = numberReferences.contains(field.getColumn().getReference().getId());
-        schema.addProperties(getHQLColumnName(field.getColumn())[0],
-            isNumber ? new Schema<>().type(OpenAPIConstants.NUMBER).example(0) : new Schema<>().type(
-                OpenAPIConstants.STRING).example("N"));
+    var filteredFields = defaultMode ? fields.stream().filter(this::isMandatory).collect(Collectors.toList()) : fields;
+
+    for (Field field : filteredFields) {
+      String[] info = getHQLColumnName(field.getColumn());
+      String hqlname = info[0];
+      String type = info[1];
+
+      Schema fieldSchema;
+
+      if (StringUtils.equalsIgnoreCase("Long", type) || StringUtils.equalsIgnoreCase("BigDecimal", type)) {
+        fieldSchema = new Schema<>().type(OpenAPIConstants.NUMBER).example(0);
+      } else if (StringUtils.equalsIgnoreCase("Boolean", type)) {
+        fieldSchema = new Schema<>().type("boolean").example(false);
+      } else if (StringUtils.equalsIgnoreCase("Date", type)) {
+        fieldSchema = new Schema<>().type("string").format("date")
+            .example("2021-01-01");
+      } else if (StringUtils.equalsIgnoreCase("Datetime", type)) {
+        fieldSchema = new Schema<>().type("string").format("date-time").example("2021-01-01T00:00:00Z");
+      } else { // String
+        fieldSchema = new Schema<>().type(OpenAPIConstants.STRING);
+        Reference ref = field.getColumn().getReference();
+        if (StringUtils.equals(ref.getId(), "30") // Ref: Search
+            || StringUtils.equals(ref.getId(), "19")
+            || StringUtils.equals(ref.getId(), "18")
+            || StringUtils.equals(ref.getId(), "13")
+        ) {
+          //el campo deben ser STRINGS de 32 caracteres ALfanunericios
+          fieldSchema.maxLength(32);
+          fieldSchema.pattern("^[a-zA-Z0-9]*$");
+          fieldSchema.example("");
+        }
       }
+      String description = fieldDescriptions.get(field.getId());
+      if (StringUtils.isNotEmpty(description)) {
+        fieldSchema.description(description);
+      }
+      schema.addProperties(hqlname, fieldSchema);
+
     }
 
     schema.required(required);
