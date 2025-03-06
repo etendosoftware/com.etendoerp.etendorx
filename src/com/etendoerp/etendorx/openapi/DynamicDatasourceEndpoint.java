@@ -223,7 +223,7 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
 
     if (endpoint.isPost()) {
       createPOSTEndpoint(openAPI, entityName, tag, formInitResponseSchema, formInitResponseExample, formInitParams,
-          formInitRequestSchema, formInitRequestExample);
+          formInitRequestSchema, formInitRequestExample, etapiOpenapiReq.getDescription());
     }
     if (endpoint.isGet()) {
       createGETEndpoint(openAPI, entityName, tag, formInitResponseSchema, formInitResponseExample);
@@ -366,6 +366,12 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
     createEndpoint(openAPI, getConfig);
   }
 
+  void createPOSTEndpoint(OpenAPI openAPI, String entityName, String tag, Schema<?> formInitResponseSchema,
+      JSONObject formInitResponseExample, List<Parameter> formInitParams, Schema<?> formInitRequestSchema,
+      String formInitRequestExample) {
+    createPOSTEndpoint(openAPI, entityName, tag, formInitResponseSchema, formInitResponseExample, formInitParams,
+        formInitRequestSchema, formInitRequestExample, null);
+  }
   /**
    * Creates a POST endpoint in the OpenAPI object.
    *
@@ -388,7 +394,7 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
    */
   void createPOSTEndpoint(OpenAPI openAPI, String entityName, String tag, Schema<?> formInitResponseSchema,
       JSONObject formInitResponseExample, List<Parameter> formInitParams, Schema<?> formInitRequestSchema,
-      String formInitRequestExample) {
+      String formInitRequestExample, String description) {
     StringBuilder postDescription = new StringBuilder();
     postDescription.append("When using this POST endpoint, only send the fields you want to ");
     postDescription.append("explicitly set; do not include fields whose values you do not know or");
@@ -401,6 +407,11 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
     postDescription.append("\"John Doe\", \"age\": null, \"city\": null }, as this could override");
     postDescription.append("default values. The backend will respond with the complete object, ");
     postDescription.append("including defaults for fields you did not specify.");
+
+    if (description != null) {
+      postDescription.append("\n------------------\n");
+      postDescription.append(description);
+    }
 
     // Create EndpointConfig for POST using the Builder
     EndpointConfig postConfig = new EndpointConfig.Builder().tag(tag).actionValue(entityName).summary(
