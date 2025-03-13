@@ -37,7 +37,7 @@
         <default/>
         <onCreateDefault/>
       </column>
-      <column name="IDFORCLIENT" primaryKey="false" required="false" type="VARCHAR" size="255" autoIncrement="false">
+      <column name="IDFORCLIENT" primaryKey="false" required="true" type="VARCHAR" size="255" autoIncrement="false">
         <default/>
         <onCreateDefault/>
       </column>
@@ -45,7 +45,7 @@
         <default/>
         <onCreateDefault/>
       </column>
-      <column name="CLIENTNAME" primaryKey="false" required="true" type="VARCHAR" size="255" autoIncrement="false">
+      <column name="CLIENTNAME" primaryKey="false" required="false" type="VARCHAR" size="255" autoIncrement="false">
         <default/>
         <onCreateDefault/>
       </column>
@@ -53,7 +53,7 @@
         <default/>
         <onCreateDefault/>
       </column>
-      <column name="CODECHALLENGEMETHOD" primaryKey="false" required="true" type="VARCHAR" size="255" autoIncrement="false">
+      <column name="CODECHALLENGEMETHOD" primaryKey="false" required="false" type="VARCHAR" size="255" autoIncrement="false">
         <default/>
         <onCreateDefault/>
       </column>
@@ -61,23 +61,23 @@
         <default/>
         <onCreateDefault/>
       </column>
-      <column name="AUTHORIZATIONURI" primaryKey="false" required="true" type="VARCHAR" size="255" autoIncrement="false">
+      <column name="AUTHORIZATIONURI" primaryKey="false" required="false" type="VARCHAR" size="255" autoIncrement="false">
         <default/>
         <onCreateDefault/>
       </column>
-      <column name="TOKENURI" primaryKey="false" required="true" type="VARCHAR" size="255" autoIncrement="false">
+      <column name="TOKENURI" primaryKey="false" required="false" type="VARCHAR" size="255" autoIncrement="false">
         <default/>
         <onCreateDefault/>
       </column>
-      <column name="USERINFOURI" primaryKey="false" required="true" type="VARCHAR" size="255" autoIncrement="false">
+      <column name="USERINFOURI" primaryKey="false" required="false" type="VARCHAR" size="255" autoIncrement="false">
         <default/>
         <onCreateDefault/>
       </column>
-      <column name="USERNAMEATTRIBUTE" primaryKey="false" required="true" type="VARCHAR" size="255" autoIncrement="false">
+      <column name="USERNAMEATTRIBUTE" primaryKey="false" required="false" type="VARCHAR" size="255" autoIncrement="false">
         <default/>
         <onCreateDefault/>
       </column>
-      <column name="API_URL" primaryKey="false" required="true" type="VARCHAR" size="255" autoIncrement="false">
+      <column name="API_URL" primaryKey="false" required="false" type="VARCHAR" size="255" autoIncrement="false">
         <default/>
         <onCreateDefault/>
       </column>
@@ -85,7 +85,7 @@
         <default/>
         <onCreateDefault/>
       </column>
-      <column name="AUTHORIZATION_ENDPOINT" primaryKey="false" required="true" type="VARCHAR" size="255" autoIncrement="false">
+      <column name="AUTHORIZATION_ENDPOINT" primaryKey="false" required="false" type="VARCHAR" size="255" autoIncrement="false">
         <default/>
         <onCreateDefault/>
       </column>
@@ -95,6 +95,10 @@
       </column>
       <column name="GET_TOKEN" primaryKey="false" required="true" type="CHAR" size="1" autoIncrement="false">
         <default><![CDATA[N]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="CLIENT_SECRET" primaryKey="false" required="true" type="VARCHAR" size="255" autoIncrement="false">
+        <default/>
         <onCreateDefault/>
       </column>
       <foreign-key foreignTable="AD_CLIENT" name="ETRX_OAUTH_PROV_AD_CLIENT">

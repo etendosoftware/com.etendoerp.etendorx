@@ -25,7 +25,9 @@ import java.io.InputStreamReader;
 import java.io.Writer;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import com.etendoerp.etendorx.data.ConfigServiceParam;
 import com.etendoerp.etendorx.data.ETRXConfig;
@@ -113,7 +115,7 @@ public class BuildConfig extends HttpBaseServlet {
         String sysToken = SecureWebServicesUtils.generateToken(sysUser);
         sourceJSON.put("token", sysToken);
         sourceJSON.put(PRIVATE_KEY, keys.getString(PRIVATE_KEY));
-        updateSourceWithOAuthProviders(sourceEntry.getValue(), allInjectors, rxConfig.getPublicURL());
+        updateSourceWithOAuthProviders(sourceEntry.getValue(), allInjectors);
       }
       var publicKey = StringUtils.replace(keys.getString(PUBLIC_KEY), BEGIN_PUBLIC_KEY,"");
       publicKey = StringUtils.replace(publicKey, END_PUBLIC_KEY,"");
@@ -204,12 +206,11 @@ public class BuildConfig extends HttpBaseServlet {
    *
    * @param sourceJSON The source JSON object.
    */
-  private void updateSourceWithOAuthProviders(JSONObject sourceJSON, List<OAuthProviderConfigInjector> allInjectors,
-      String authURL) {
+  private void updateSourceWithOAuthProviders(JSONObject sourceJSON, List<OAuthProviderConfigInjector> allInjectors) {
     OBDal.getInstance().createCriteria(ETRXoAuthProvider.class)
         .setFilterOnReadableOrganization(false)
         .setFilterOnReadableClients(false)
-        .list().forEach(provider -> updateSourceWithOAuthProvider(sourceJSON, provider, allInjectors, authURL));
+        .list().forEach(provider -> updateSourceWithOAuthProvider(sourceJSON, provider, allInjectors));
   }
 
   /**
@@ -219,26 +220,39 @@ public class BuildConfig extends HttpBaseServlet {
    * @param provider The oAuth provider.
    */
   private void updateSourceWithOAuthProvider(JSONObject sourceJSON, ETRXoAuthProvider provider,
-      List<OAuthProviderConfigInjector> allInjectors, String authURL) {
+      List<OAuthProviderConfigInjector> allInjectors) {
     try {
       String providerName = provider.getValue();
       String apiUrl = provider.getOAuthAPIURL();
       final String providerRegistration = SPRING_SECURITY_OAUTH_2_CLIENT_REGISTRATION + providerName;
       final String providerProv = SPRING_SECURITY_OAUTH_2_CLIENT_PROVIDER + providerName;
       sourceJSON.put(providerName + "-api", apiUrl);
-      sourceJSON.put(providerRegistration + ".provider", providerName);
-      sourceJSON.put(providerRegistration + ".client-id", provider.getIDForClient());
-      sourceJSON.put(providerRegistration + ".scope", provider.getScope());
-      sourceJSON.put(providerRegistration + ".client-name", provider.getClientName());
-      sourceJSON.put(providerRegistration + ".authorization-grant-type", provider.getAuthorizationGrantType());
-      sourceJSON.put(providerRegistration + ".redirectUri", authURL + provider.getRedirectURI());
-      sourceJSON.put(providerRegistration + ".code_challenge_method", provider.getCodeChallengeMethod());
-      sourceJSON.put(providerRegistration + ".client-authentication-method", provider.getClientAuthenticationMethod());
-      sourceJSON.put(providerRegistration + ".token-uri", apiUrl + provider.getTokenURI());
-      sourceJSON.put(providerProv + ".authorization-uri", apiUrl + provider.getAuthorizationURI());
-      sourceJSON.put(providerProv + ".token-uri", apiUrl + provider.getTokenURI());
-      sourceJSON.put(providerProv + ".user-info-uri",  apiUrl + provider.getUserInfoURI());
-      sourceJSON.put(providerProv + ".user-name-attribute", provider.getUserNameAttribute());
+      Map<String, String> values = new HashMap<>();
+      values.put(providerRegistration + ".provider", providerName);
+      values.put(providerRegistration + ".client-id", provider.getIDForClient());
+      values.put(providerRegistration + ".client-secret", provider.getClientSecret());
+      values.put(providerRegistration + ".scope", provider.getScope());
+      values.put(providerRegistration + ".client-name", provider.getClientName());
+      values.put(providerRegistration + ".authorization-grant-type", provider.getAuthorizationGrantType());
+      values.put(providerRegistration + ".redirect-uri", provider.getRedirectURI());
+      values.put(providerRegistration + ".code_challenge_method", provider.getCodeChallengeMethod());
+      values.put(providerRegistration + ".client-authentication-method", provider.getClientAuthenticationMethod());
+      values.put(providerRegistration + ".token-uri", provider.getTokenURI());
+      values.put(providerProv + ".authorization-uri", provider.getAuthorizationURI());
+      values.put(providerProv + ".token-uri", provider.getTokenURI());
+      values.put(providerProv + ".user-info-uri", provider.getUserInfoURI());
+      values.put(providerProv + ".user-name-attribute", provider.getUserNameAttribute());
+
+      values.forEach((key, value) -> {
+        if (value != null) {
+          try {
+            sourceJSON.put(key, value);
+          } catch (JSONException e) {
+            throw new OBException("Error inserting Data on PropertySource JSON: " ,e);
+          }
+        }
+      });
+
       for (OAuthProviderConfigInjector injector : allInjectors) {
         injector.injectConfig(sourceJSON, provider);
       }
