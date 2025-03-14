@@ -27,6 +27,7 @@ import org.openbravo.dal.service.OBDal;
 import org.openbravo.data.Sqlc;
 import org.openbravo.model.ad.datamodel.Column;
 import org.openbravo.model.ad.datamodel.Table;
+import org.openbravo.model.ad.domain.Reference;
 import org.openbravo.model.ad.ui.Field;
 import org.openbravo.model.ad.ui.Tab;
 
@@ -43,6 +44,10 @@ public class DataSourceUtils {
 
   private static final Logger log = LogManager.getLogger();
   public static final String CLASSIC_VALUE = "classicValue";
+  public static final String REFERENCE_SEARCH = "30";
+  public static final String REFERENCE_TABLEDIR = "19";
+  public static final String REFERENCE_TABLE = "18";
+  public static final String REFERENCE_ID = "13";
 
   /*
    * Private constructor to prevent instantiation.
@@ -379,10 +384,8 @@ public class DataSourceUtils {
     try {
       OBContext.setAdminMode(false);
       return tab.getADFieldList().stream().filter(
-              field -> field.getColumn() != null && field.getColumn().isLinkToParentColumn())
-          .filter(field -> isParentRecordProperty(field, tab))
-          .map(
-              f -> getHQLColumnName(f)[0]).collect(Collectors.toList());
+          field -> field.getColumn() != null && field.getColumn().isLinkToParentColumn()).filter(
+          field -> isParentRecordProperty(field, tab)).map(f -> getHQLColumnName(f)[0]).collect(Collectors.toList());
     } finally {
       OBContext.restorePreviousMode();
     }
@@ -400,10 +403,8 @@ public class DataSourceUtils {
     }
     Tab parentTab = KernelUtils.getInstance().getParentTab(tab);
 
-    if (parentTab != null
-        && ApplicationConstants.TABLEBASEDTABLE.equals(parentTab.getTable().getDataOriginType())) {
-      parentEntity = ModelProvider.getInstance()
-          .getEntityByTableName(parentTab.getTable().getDBTableName());
+    if (parentTab != null && ApplicationConstants.TABLEBASEDTABLE.equals(parentTab.getTable().getDataOriginType())) {
+      parentEntity = ModelProvider.getInstance().getEntityByTableName(parentTab.getTable().getDBTableName());
     }
 
     Property property = KernelUtils.getProperty(field);
@@ -600,5 +601,21 @@ public class DataSourceUtils {
       default:
         return o.toString();
     }
+  }
+
+  /**
+   * Checks if the given reference is to another table.
+   * <p>
+   * This method determines if the provided reference ID matches any of the predefined reference IDs
+   * that indicate a reference to another table.
+   *
+   * @param ref
+   *     The Reference object to be checked.
+   * @return true if the reference is to another table, false otherwise.
+   */
+  public static boolean isReferenceToAnotherTable(Reference ref) {
+    return StringUtils.equals(ref.getId(), REFERENCE_SEARCH) // Ref: Search
+        || StringUtils.equals(ref.getId(), REFERENCE_TABLEDIR) || StringUtils.equals(ref.getId(),
+        REFERENCE_TABLE) || StringUtils.equals(ref.getId(), REFERENCE_ID);
   }
 }

@@ -26,6 +26,7 @@ import org.slf4j.LoggerFactory;
 
 import com.etendoerp.etendorx.data.OpenAPIRequestField;
 import com.etendoerp.etendorx.data.OpenAPITab;
+import com.etendoerp.etendorx.utils.DataSourceUtils;
 import com.etendoerp.openapi.data.OpenAPIRequest;
 import com.etendoerp.openapi.data.OpenApiFlow;
 import com.etendoerp.openapi.data.OpenApiFlowPoint;
@@ -245,7 +246,7 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
       Column column = adField.getColumn();
       String fieldConverted = getHQLColumnName(false, column.getTable().getDBTableName(), column.getDBColumnName())[0];
       responseJSON.put(fieldConverted, "");
-      if (StringUtils.equals(column.getReference().getId(), "19")) {
+      if (DataSourceUtils.isReferenceToAnotherTable(column.getReference())) {
         responseJSON.put(fieldConverted + "$_identifier", "");
       }
     }
@@ -258,16 +259,16 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
   private static List<Field> getFieldList(OpenAPITab openAPIRXTab, boolean defaultMode) {
     try {
       OBContext.setAdminMode();
-    Tab tab;
-    List<OpenAPIRequestField> specifiedFields = openAPIRXTab.getEtrxOpenapiFieldList();
-    List<Field> fieldList;
-    if (defaultMode) {
-      tab = openAPIRXTab.getRelatedTabs();
-      fieldList = tab.getADFieldList();
-    } else {
-      fieldList = specifiedFields.stream().map(OpenAPIRequestField::getField).collect(Collectors.toList());
-    }
-    return fieldList;
+      Tab tab;
+      List<OpenAPIRequestField> specifiedFields = openAPIRXTab.getEtrxOpenapiFieldList();
+      List<Field> fieldList;
+      if (defaultMode) {
+        tab = openAPIRXTab.getRelatedTabs();
+        fieldList = tab.getADFieldList();
+      } else {
+        fieldList = specifiedFields.stream().map(OpenAPIRequestField::getField).collect(Collectors.toList());
+      }
+      return fieldList;
     } finally {
       OBContext.restorePreviousMode();
     }
@@ -377,6 +378,7 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
     createPOSTEndpoint(openAPI, entityName, tag, formInitResponseSchema, formInitResponseExample, formInitParams,
         formInitRequestSchema, formInitRequestExample, null);
   }
+
   /**
    * Creates a POST endpoint in the OpenAPI object.
    *
@@ -594,18 +596,13 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
       } else if (StringUtils.equalsIgnoreCase("Boolean", type)) {
         fieldSchema = new Schema<>().type("boolean").example(false);
       } else if (StringUtils.equalsIgnoreCase("Date", type)) {
-        fieldSchema = new Schema<>().type("string").format("date")
-            .example("2021-01-01");
+        fieldSchema = new Schema<>().type("string").format("date").example("2021-01-01");
       } else if (StringUtils.equalsIgnoreCase("Datetime", type)) {
         fieldSchema = new Schema<>().type("string").format("date-time").example("2021-01-01T00:00:00Z");
       } else { // String
         fieldSchema = new Schema<>().type(OpenAPIConstants.STRING);
         Reference ref = field.getColumn().getReference();
-        if (StringUtils.equals(ref.getId(), "30") // Ref: Search
-            || StringUtils.equals(ref.getId(), "19")
-            || StringUtils.equals(ref.getId(), "18")
-            || StringUtils.equals(ref.getId(), "13")
-        ) {
+        if (DataSourceUtils.isReferenceToAnotherTable(ref)) {
           //el campo deben ser STRINGS de 32 caracteres ALfanunericios
           fieldSchema.maxLength(32);
           fieldSchema.pattern("^[a-zA-Z0-9]*$");
