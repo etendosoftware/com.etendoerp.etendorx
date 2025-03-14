@@ -256,6 +256,8 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
   }
 
   private static List<Field> getFieldList(OpenAPITab openAPIRXTab, boolean defaultMode) {
+    try {
+      OBContext.setAdminMode();
     Tab tab;
     List<OpenAPIRequestField> specifiedFields = openAPIRXTab.getEtrxOpenapiFieldList();
     List<Field> fieldList;
@@ -266,6 +268,9 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
       fieldList = specifiedFields.stream().map(OpenAPIRequestField::getField).collect(Collectors.toList());
     }
     return fieldList;
+    } finally {
+      OBContext.restorePreviousMode();
+    }
   }
 
   /**

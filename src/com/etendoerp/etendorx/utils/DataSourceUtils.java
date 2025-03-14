@@ -1,5 +1,6 @@
 package com.etendoerp.etendorx.utils;
 
+
 import java.math.BigDecimal;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -19,6 +20,8 @@ import org.openbravo.base.model.Entity;
 import org.openbravo.base.model.ModelProvider;
 import org.openbravo.base.model.Property;
 import org.openbravo.base.session.OBPropertiesProvider;
+import org.openbravo.client.application.ApplicationConstants;
+import org.openbravo.client.kernel.KernelUtils;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.data.Sqlc;
@@ -33,6 +36,8 @@ import com.etendoerp.openapi.data.OpenAPIRequest;
 
 /**
  * Utility class for data source operations.
+ * Another usefull utility for this is the {@link com.smf.mobile.utils.webservices.WindowUtils} class.
+ * Other class is {@link com.smf.mobile.utils.webservices.Window}
  */
 public class DataSourceUtils {
 
@@ -374,11 +379,37 @@ public class DataSourceUtils {
     try {
       OBContext.setAdminMode(false);
       return tab.getADFieldList().stream().filter(
-          field -> field.getColumn() != null && field.getColumn().isLinkToParentColumn()).map(
-          f -> getHQLColumnName(f)[0]).collect(Collectors.toList());
+              field -> field.getColumn() != null && field.getColumn().isLinkToParentColumn())
+          .filter(field -> isParentRecordProperty(field, tab))
+          .map(
+              f -> getHQLColumnName(f)[0]).collect(Collectors.toList());
     } finally {
       OBContext.restorePreviousMode();
     }
+  }
+
+  /**
+   * Method taken from {@link com.smf.mobile.utils.webservices.Window}.
+   * If this method changes to public, this method can be removed, and the method can be used directly.
+   */
+  private static boolean isParentRecordProperty(Field field, Tab tab) {
+    Entity parentEntity = null;
+
+    if (!field.getColumn().isLinkToParentColumn()) {
+      return false;
+    }
+    Tab parentTab = KernelUtils.getInstance().getParentTab(tab);
+
+    if (parentTab != null
+        && ApplicationConstants.TABLEBASEDTABLE.equals(parentTab.getTable().getDataOriginType())) {
+      parentEntity = ModelProvider.getInstance()
+          .getEntityByTableName(parentTab.getTable().getDBTableName());
+    }
+
+    Property property = KernelUtils.getProperty(field);
+    Entity referencedEntity = property.getReferencedProperty().getEntity();
+    return referencedEntity.equals(parentEntity);
+
   }
 
   /**
