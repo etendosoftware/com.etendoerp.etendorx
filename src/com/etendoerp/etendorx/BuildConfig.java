@@ -111,9 +111,12 @@ public class BuildConfig extends HttpBaseServlet {
       }
       JSONObject keys = new JSONObject(swsConfig.getPrivateKey());
       if (StringUtils.equals(AUTH_SERVICE, service)) {
-        User sysUser = OBDal.getInstance().get(User.class, SYS_USER_ID);
-        String sysToken = SecureWebServicesUtils.generateToken(sysUser);
+        User tokenUser = OBDal.getInstance().get(User.class, SYS_USER_ID);
+        String sysToken = SecureWebServicesUtils.generateToken(tokenUser);
+        tokenUser = OBDal.getInstance().get(User.class, "100");
+        String adminToken = SecureWebServicesUtils.generateToken(tokenUser);
         sourceJSON.put("token", sysToken);
+        sourceJSON.put("adminToken", adminToken);
         sourceJSON.put(PRIVATE_KEY, keys.getString(PRIVATE_KEY));
         updateSourceWithOAuthProviders(sourceEntry.getValue(), allInjectors);
       }
