@@ -94,7 +94,7 @@
         <onCreateDefault/>
       </column>
       <column name="PROVIDER_SCOPE" primaryKey="false" required="true" type="VARCHAR" size="255" autoIncrement="false">
-        <default/>
+        <default><![CDATA[N]]></default>
         <onCreateDefault/>
       </column>
       <foreign-key foreignTable="AD_CLIENT" name="ETRX_OAUTH_PROV_AD_CLIENT">
