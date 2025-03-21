@@ -4,12 +4,15 @@ import com.auth0.jwt.JWT;
 import com.auth0.jwt.JWTVerifier;
 import com.auth0.jwt.algorithms.Algorithm;
 import com.auth0.jwt.interfaces.DecodedJWT;
+import com.etendoerp.etendorx.data.ETRXTokenUser;
 import com.etendoerp.etendorx.utils.TokenVerifier;
 import com.smf.securewebservices.utils.SecureWebServicesUtils;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.codehaus.jettison.json.JSONException;
+import org.codehaus.jettison.json.JSONObject;
 import org.hibernate.criterion.Restrictions;
 import org.openbravo.authentication.AuthenticationException;
 import org.openbravo.authentication.AuthenticationManager;
@@ -20,10 +23,10 @@ import org.openbravo.base.provider.OBProvider;
 import org.openbravo.base.secureApp.VariablesHistory;
 import org.openbravo.base.secureApp.VariablesSecureApp;
 import org.openbravo.base.session.OBPropertiesProvider;
+import org.openbravo.client.application.report.ReportingUtils;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.database.SessionInfo;
-import org.openbravo.model.ad.access.TokenUser;
 import org.openbravo.model.ad.access.User;
 import org.openbravo.service.web.BaseWebServiceServlet;
 
@@ -32,7 +35,15 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.Properties;
 
 /**
  * The default servlet which catches all requests for a webservice. This servlet finds the WebService
@@ -42,6 +53,7 @@ import java.util.Map;
 public class SWSAuthenticationManager extends DefaultAuthenticationManager {
 
   private static final Logger log4j = LogManager.getLogger();
+  private static final String ACCESS_TOKEN = "access_token";
 
   /**
    * Default constructor.
@@ -118,26 +130,47 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
   protected String doAuthenticate(HttpServletRequest request, HttpServletResponse response)
       throws AuthenticationException, ServletException, IOException {
     try {
-      if (!StringUtils.isBlank((String) request.getAttribute("user-token-sub"))) {
-        setCORSHeaders(request, response);
+      if (!StringUtils.isBlank(request.getParameter("code")) ||
+          !StringUtils.isBlank(request.getParameter(ACCESS_TOKEN))) {
+        log4j.info("SSO Code to request token: " + request.getParameter("code"));
+        log4j.info("SSO Token comming from the request: " + request.getParameter(ACCESS_TOKEN));
 
-        String userTokenSub = (String) request.getAttribute("user-token-sub");
-        TokenUser tokenUser = (TokenUser) OBDal.getInstance().createCriteria(TokenUser.class)
-            .add(Restrictions.eq(TokenUser.PROPERTY_SUB, userTokenSub))
-            .setFilterOnReadableClients(false)
-            .setFilterOnReadableOrganization(false)
-            .setMaxResults(1).uniqueResult();
+        String token = StringUtils.isBlank(request.getParameter(ACCESS_TOKEN)) ?
+            getAuthToken(request) : request.getParameter(ACCESS_TOKEN);
+
+        HashMap<String, String> tokenValues = decodeToken(token);
+        User adUser = matchUser(token, tokenValues.get("sub"));
+        if (adUser == null) {
+          final Properties openbravoProperties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
+          String ssoDomain = ((String) openbravoProperties.get("sso.domain.url")).trim();
+          String clientId = ((String) openbravoProperties.get("sso.client.id")).trim();
+          String logoutRedirectUri = StringUtils.remove(request.getRequestURL().toString(),
+              request.getServletPath()).trim();
+          String contextName = ((String) openbravoProperties.get("context.name")).trim();
+          String ssoNoUserLinkURL = String.format("/%s/web/com.etendoerp.entendorx/resources/Auth0ErrorPage.html"
+                  + "?ssoDomain=%s&clientId=%s&logoutRedirectUri=%s",
+              contextName,
+//              ReportingUtils.getBaseDesign(),
+              URLEncoder.encode(ssoDomain, StandardCharsets.UTF_8),
+              URLEncoder.encode(clientId, StandardCharsets.UTF_8),
+              URLEncoder.encode(logoutRedirectUri, StandardCharsets.UTF_8));
+          response.setStatus(HttpServletResponse.SC_FOUND);
+          response.setHeader("Location", ssoNoUserLinkURL);
+          response.flushBuffer();
+          throw new OBException("SSO - No user link to SSO Account.");
+        }
 
         markRequestAsSelfAuthenticated(request);
-        prepareLoginSession(request, tokenUser);
+        prepareLoginSession(request, adUser);
         response.sendRedirect("/" + OBPropertiesProvider.getInstance().getOpenbravoProperties().get("context.name"));
-        return tokenUser.getUser().getId();
+        return adUser.getId();
       }
     } catch (Exception e) {
       log4j.error("Error while authenticating: " + e.getMessage(), e);
+      throw new OBException(e);
     }
 
-    String token = request.getParameter("access_token");
+    String token = request.getParameter(ACCESS_TOKEN);
     if (StringUtils.isEmpty(token)) {
       return super.doAuthenticate(request, response);
     }
@@ -206,8 +239,116 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
     return super.doAuthenticate(request, response);
   }
 
-  private void prepareLoginSession(HttpServletRequest request, TokenUser tokenUser) {
-    User user = tokenUser.getUser();
+  /**
+   * Matches the user based on the provided token and subject.
+   *
+   * @param token the authentication token
+   * @param sub   the subject identifier from the token
+   * @return the matched User object, or null if no match is found
+   */
+  private User matchUser(String token, String sub) {
+    OBContext.setAdminMode(true);
+    ETRXTokenUser tokenUser = (ETRXTokenUser) OBDal.getInstance().createCriteria(ETRXTokenUser.class)
+        .add(Restrictions.eq(ETRXTokenUser.PROPERTY_SUB, sub))
+        .setFilterOnReadableClients(false)
+        .setFilterOnReadableOrganization(false)
+        .setMaxResults(1).uniqueResult();
+    if (tokenUser != null) {
+      tokenUser.setToken(token);
+    } else {
+      return null;
+    }
+    return tokenUser.getUser();
+  }
+
+  /**
+   * Decodes the provided token and extracts its claims.
+   *
+   * @param token the authentication token
+   * @return a HashMap containing the token claims
+   */
+  private HashMap<String, String> decodeToken(String token) {
+
+    HashMap<String, String> tokenValues = new HashMap<>();
+    DecodedJWT decodedJWT = JWT.decode(token);
+
+    tokenValues.put("given_name", decodedJWT.getClaim("given_name").asString());
+    tokenValues.put("family_name", decodedJWT.getClaim("family_name").asString());
+    tokenValues.put("email", decodedJWT.getClaim("email").asString());
+    tokenValues.put("sid", decodedJWT.getClaim("sid").asString());
+    tokenValues.put("sub", decodedJWT.getClaim("sub").asString());
+    return tokenValues;
+  }
+
+  /**
+   * Retrieves the authentication token from the request.
+   *
+   * @param request the HttpServletRequest object
+   * @return the authentication token, or null if the token could not be retrieved
+   */
+  private String getAuthToken(HttpServletRequest request) {
+    String code = request.getParameter("code");
+    String token = "";
+    String domain = OBPropertiesProvider.getInstance().getOpenbravoProperties().getProperty("sso.domain.url");
+    String tokenEndpoint = "https://" + domain + "/oauth/token";
+    try {
+      URL url = new URL(tokenEndpoint);
+      HttpURLConnection con = (HttpURLConnection) url.openConnection();
+      con.setRequestMethod("POST");
+      con.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+      con.setDoOutput(true);
+
+      String clientId = OBPropertiesProvider.getInstance().getOpenbravoProperties().getProperty("sso.client.id");
+      String clientSecret = OBPropertiesProvider.getInstance().getOpenbravoProperties().getProperty("sso.client.secret");
+
+      String codeVerifier = (String) request.getSession().getAttribute("code_verifier");
+      boolean isPKCE = (codeVerifier != null && !codeVerifier.isEmpty());
+      String strDirection = request.getScheme() + "://" + request.getServerName() + request.getContextPath() + "/secureApp/LoginHandler.html";
+      String params;
+      if (isPKCE) {
+        params = String.format(
+            "grant_type=authorization_code&client_id=%s&code=%s&redirect_uri=%s&code_verifier=%s",
+            URLEncoder.encode(clientId, StandardCharsets.UTF_8),
+            URLEncoder.encode(code, StandardCharsets.UTF_8),
+            URLEncoder.encode(strDirection, StandardCharsets.UTF_8),
+            URLEncoder.encode(codeVerifier, StandardCharsets.UTF_8)
+        );
+      } else {
+        params = String.format(
+            "grant_type=authorization_code&client_id=%s&client_secret=%s&code=%s&redirect_uri=%s",
+            URLEncoder.encode(clientId, StandardCharsets.UTF_8),
+            URLEncoder.encode(clientSecret, StandardCharsets.UTF_8),
+            URLEncoder.encode(code, StandardCharsets.UTF_8),
+            URLEncoder.encode(strDirection, StandardCharsets.UTF_8)
+        );
+      }
+
+      try (OutputStream os = con.getOutputStream()) {
+        byte[] input = params.getBytes(StandardCharsets.UTF_8);
+        os.write(input, 0, input.length);
+      } catch (Exception e) {
+        log4j.error(e.getMessage(), e);
+      }
+
+      int status = con.getResponseCode();
+      if (status == 200) {
+        try (InputStream in = con.getInputStream()) {
+          String responseBody = new String(in.readAllBytes(), StandardCharsets.UTF_8);
+          JSONObject jsonResponse = new JSONObject(responseBody);
+          token = jsonResponse.getString("id_token");
+        }
+      } else {
+        log4j.error(con.getResponseMessage());
+        token = null;
+      }
+    } catch (JSONException | IOException e) {
+      log4j.error(e);
+    }
+    return token;
+  }
+
+
+  private void prepareLoginSession(HttpServletRequest request, User user) {
     loginName.set(user.getName());
     final String sessionId = createDBSession(request, user.getUsername(), user.getId());
 
