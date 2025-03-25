@@ -49,7 +49,6 @@ public class BuildConfig extends HttpBaseServlet {
   public static final String SPRING_SECURITY_OAUTH_2_CLIENT_REGISTRATION = "spring.security.oauth2.client.registration.";
   public static final String SPRING_SECURITY_OAUTH_2_CLIENT_PROVIDER = "spring.security.oauth2.client.provider.";
   private static final String MANAGEMENT_ENDPOINT_RESTART_ENABLED = "management.endpoint.restart.enabled";
-  private static final String SERVER_ERROR_PATH = "server.error.path";
   private static final String CONFIG_URL = "http://config:8888";
   private static final String SOURCE = "source";
   private static final String AUTH_SERVICE = "auth";

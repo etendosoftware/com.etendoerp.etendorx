@@ -163,12 +163,11 @@ public class BuildConfigTest {
         when(provider.getIDForClient()).thenReturn("clientId");
         when(provider.getScope()).thenReturn("scope");
         List<OAuthProviderConfigInjector> injectors = new ArrayList<>();
-        String authURL = "http://auth.test";
 
         Method method = BuildConfig.class.getDeclaredMethod("updateSourceWithOAuthProvider",
-            JSONObject.class, ETRXoAuthProvider.class, List.class, String.class);
+            JSONObject.class, ETRXoAuthProvider.class, List.class);
         method.setAccessible(true);
-        method.invoke(buildConfig, sourceJSON, provider, injectors, authURL);
+        method.invoke(buildConfig, sourceJSON, provider, injectors);
 
         assertTrue(sourceJSON.has("testProvider-api"));
         assertEquals("http://api.test", sourceJSON.getString("testProvider-api"));
