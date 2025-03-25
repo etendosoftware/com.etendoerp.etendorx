@@ -280,7 +280,6 @@ public class BuildConfig extends HttpBaseServlet {
     response.setCharacterEncoding("utf-8");
     try (Writer w = response.getWriter()) {
       sourceJSON.put(MANAGEMENT_ENDPOINT_RESTART_ENABLED, true);
-      sourceJSON.put(SERVER_ERROR_PATH, "/error");
       result.getJSONArray("propertySources").getJSONObject(indexFound).put(SOURCE, sourceJSON);
       w.write(result.toString());
     } catch (JSONException e) {
