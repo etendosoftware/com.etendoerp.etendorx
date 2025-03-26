@@ -4,6 +4,7 @@ package com.etendoerp.etendorx.utils;
 import java.math.BigDecimal;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -324,8 +325,9 @@ public class DataSourceUtils {
    * @param columnTypes
    *     A map to store column types.
    */
-  public static void loadCaches(List<RequestField> fieldList, Map<String, String> norm2input,
-      Map<String, String> input2norm, Map<String, String> dbname2input, Map<String, String> columnTypes) {
+  public static void loadCaches(List<RequestField> fieldList, LinkedHashMap<String, String> norm2input,
+      Map<String, String> input2norm, Map<String, String> dbname2input, Map<String, String> columnTypes
+  ) {
     try {
       OBContext.setAdminMode();
       for (RequestField field : fieldList) {

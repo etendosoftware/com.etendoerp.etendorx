@@ -9,6 +9,7 @@ public class RequestField {
   private final String name;
   private final String dBColumnName;
   private final Column adColumn;
+  private final Long seqNo;
 
   /**
    * Constructs a new RequestField.
@@ -18,10 +19,11 @@ public class RequestField {
    * @param col
    *     The database column name associated with the request field.
    */
-  public RequestField(String name, Column col) {
+  public RequestField(String name, Column col, Long seqNo) {
     this.name = name;
     this.adColumn = col;
     this.dBColumnName = col.getDBColumnName();
+    this.seqNo = seqNo;
   }
 
   /**
@@ -49,6 +51,15 @@ public class RequestField {
    */
   public Column getColumn() {
     return adColumn;
+  }
+
+  /**
+   * Retrieves the sequence number of the request field.
+   *
+   * @return the sequence number of the request field.
+   */
+  public Long getSeqNo() {
+    return seqNo;
   }
 
   /**

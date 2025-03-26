@@ -199,6 +199,8 @@
 <!--02B633B678D54223AD19C374AF6A385E-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
 <!--02B633B678D54223AD19C374AF6A385E-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--02B633B678D54223AD19C374AF6A385E-->  <NAME><![CDATA[Mapping_Type]]></NAME>
+<!--02B633B678D54223AD19C374AF6A385E-->  <DESCRIPTION><![CDATA[Mapping Type defines whether the integration handles outbound data (Etendo to external system) or inbound data (External system to Etendo) to ensure proper data flow between systems.]]></DESCRIPTION>
+<!--02B633B678D54223AD19C374AF6A385E-->  <HELP><![CDATA[This field specifies the direction of the integration. Use 'Etendo to external system' for data sent to an external system or 'External system to Etendo' for data received from an external system.]]></HELP>
 <!--02B633B678D54223AD19C374AF6A385E-->  <COLUMNNAME><![CDATA[Mapping_Type]]></COLUMNNAME>
 <!--02B633B678D54223AD19C374AF6A385E-->  <AD_TABLE_ID><![CDATA[9DF1C9A62F114EF88BCBFB92D198F874]]></AD_TABLE_ID>
 <!--02B633B678D54223AD19C374AF6A385E-->  <AD_REFERENCE_ID><![CDATA[17]]></AD_REFERENCE_ID>
@@ -2987,6 +2989,8 @@ and fl.identifies_univocally = 'Y')]]></SQLLOGIC>
 <!--33DF85A1B106479AB9052DB10D621C3F-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
 <!--33DF85A1B106479AB9052DB10D621C3F-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--33DF85A1B106479AB9052DB10D621C3F-->  <NAME><![CDATA[Mapping Type]]></NAME>
+<!--33DF85A1B106479AB9052DB10D621C3F-->  <DESCRIPTION><![CDATA[Mapping Type defines whether the integration handles outbound data (Etendo to external system) or inbound data (External system to Etendo) to ensure proper data flow between systems.]]></DESCRIPTION>
+<!--33DF85A1B106479AB9052DB10D621C3F-->  <HELP><![CDATA[This field specifies the direction of the integration. Use 'Etendo to external system' for data sent to an external system or 'External system to Etendo' for data received from an external system.]]></HELP>
 <!--33DF85A1B106479AB9052DB10D621C3F-->  <COLUMNNAME><![CDATA[Mapping_Type]]></COLUMNNAME>
 <!--33DF85A1B106479AB9052DB10D621C3F-->  <AD_TABLE_ID><![CDATA[6D6794FDE2564B26897706A11DB5BCCB]]></AD_TABLE_ID>
 <!--33DF85A1B106479AB9052DB10D621C3F-->  <AD_REFERENCE_ID><![CDATA[17]]></AD_REFERENCE_ID>
@@ -8929,6 +8933,46 @@ Configuration Properties are defined by modules with the purpose other modules a
 <!--92989C89D4BE431D9D076AF2C054CBFF-->  <IS_CHILD_PROPERTY_IN_PARENT><![CDATA[N]]></IS_CHILD_PROPERTY_IN_PARENT>
 <!--92989C89D4BE431D9D076AF2C054CBFF--></AD_COLUMN>
 
+<!--937C7710093D415FB0B39DBCC11A0DAC--><AD_COLUMN>
+<!--937C7710093D415FB0B39DBCC11A0DAC-->  <AD_COLUMN_ID><![CDATA[937C7710093D415FB0B39DBCC11A0DAC]]></AD_COLUMN_ID>
+<!--937C7710093D415FB0B39DBCC11A0DAC-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
+<!--937C7710093D415FB0B39DBCC11A0DAC-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
+<!--937C7710093D415FB0B39DBCC11A0DAC-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
+<!--937C7710093D415FB0B39DBCC11A0DAC-->  <NAME><![CDATA[Seqno]]></NAME>
+<!--937C7710093D415FB0B39DBCC11A0DAC-->  <DESCRIPTION><![CDATA[This field can be an integer or null. Field changes will be executed in increasing order and lastly those with a null sequence number.]]></DESCRIPTION>
+<!--937C7710093D415FB0B39DBCC11A0DAC-->  <HELP><![CDATA[This field allows you to define the order in which the changes to the received body are processed. This is to prevent conflicts with the execution of the Callouts. For example, if you want to create a sales order line, it is necessary that the product has a lower sequence than the price, because the callout of the product selector modifies the price. Otherwise, the product callout would overwrite the price indicated with the one obtained with the Callout.]]></HELP>
+<!--937C7710093D415FB0B39DBCC11A0DAC-->  <COLUMNNAME><![CDATA[Seqno]]></COLUMNNAME>
+<!--937C7710093D415FB0B39DBCC11A0DAC-->  <AD_TABLE_ID><![CDATA[7A8F8379712E4CEC890F8B6F23A5331F]]></AD_TABLE_ID>
+<!--937C7710093D415FB0B39DBCC11A0DAC-->  <AD_REFERENCE_ID><![CDATA[11]]></AD_REFERENCE_ID>
+<!--937C7710093D415FB0B39DBCC11A0DAC-->  <FIELDLENGTH><![CDATA[12]]></FIELDLENGTH>
+<!--937C7710093D415FB0B39DBCC11A0DAC-->  <DEFAULTVALUE><![CDATA[@SQL=SELECT COALESCE(MAX(SEQNO),0)+10 AS DefaultValue FROM ETRX_OPENAPI_FIELD WHERE xxParentColumn=@xxParentColumn@]]></DEFAULTVALUE>
+<!--937C7710093D415FB0B39DBCC11A0DAC-->  <ISKEY><![CDATA[N]]></ISKEY>
+<!--937C7710093D415FB0B39DBCC11A0DAC-->  <ISPARENT><![CDATA[N]]></ISPARENT>
+<!--937C7710093D415FB0B39DBCC11A0DAC-->  <ISMANDATORY><![CDATA[N]]></ISMANDATORY>
+<!--937C7710093D415FB0B39DBCC11A0DAC-->  <ISUPDATEABLE><![CDATA[Y]]></ISUPDATEABLE>
+<!--937C7710093D415FB0B39DBCC11A0DAC-->  <ISIDENTIFIER><![CDATA[N]]></ISIDENTIFIER>
+<!--937C7710093D415FB0B39DBCC11A0DAC-->  <SEQNO><![CDATA[130]]></SEQNO>
+<!--937C7710093D415FB0B39DBCC11A0DAC-->  <ISTRANSLATED><![CDATA[N]]></ISTRANSLATED>
+<!--937C7710093D415FB0B39DBCC11A0DAC-->  <ISENCRYPTED><![CDATA[N]]></ISENCRYPTED>
+<!--937C7710093D415FB0B39DBCC11A0DAC-->  <ISSELECTIONCOLUMN><![CDATA[N]]></ISSELECTIONCOLUMN>
+<!--937C7710093D415FB0B39DBCC11A0DAC-->  <AD_ELEMENT_ID><![CDATA[80C70775D9FC494B8D8EBBCA54914BBF]]></AD_ELEMENT_ID>
+<!--937C7710093D415FB0B39DBCC11A0DAC-->  <ISSESSIONATTR><![CDATA[N]]></ISSESSIONATTR>
+<!--937C7710093D415FB0B39DBCC11A0DAC-->  <ISSECONDARYKEY><![CDATA[N]]></ISSECONDARYKEY>
+<!--937C7710093D415FB0B39DBCC11A0DAC-->  <ISDESENCRYPTABLE><![CDATA[N]]></ISDESENCRYPTABLE>
+<!--937C7710093D415FB0B39DBCC11A0DAC-->  <DEVELOPMENTSTATUS><![CDATA[RE]]></DEVELOPMENTSTATUS>
+<!--937C7710093D415FB0B39DBCC11A0DAC-->  <AD_MODULE_ID><![CDATA[BC7B2F721FD249F5A360C6AAD2A7EBF7]]></AD_MODULE_ID>
+<!--937C7710093D415FB0B39DBCC11A0DAC-->  <POSITION><![CDATA[13]]></POSITION>
+<!--937C7710093D415FB0B39DBCC11A0DAC-->  <ISTRANSIENT><![CDATA[N]]></ISTRANSIENT>
+<!--937C7710093D415FB0B39DBCC11A0DAC-->  <ISAUTOSAVE><![CDATA[Y]]></ISAUTOSAVE>
+<!--937C7710093D415FB0B39DBCC11A0DAC-->  <VALIDATEONNEW><![CDATA[Y]]></VALIDATEONNEW>
+<!--937C7710093D415FB0B39DBCC11A0DAC-->  <IMAGESIZEVALUESACTION><![CDATA[N]]></IMAGESIZEVALUESACTION>
+<!--937C7710093D415FB0B39DBCC11A0DAC-->  <ISUSEDSEQUENCE><![CDATA[N]]></ISUSEDSEQUENCE>
+<!--937C7710093D415FB0B39DBCC11A0DAC-->  <ALLOWSORTING><![CDATA[Y]]></ALLOWSORTING>
+<!--937C7710093D415FB0B39DBCC11A0DAC-->  <ALLOWFILTERING><![CDATA[Y]]></ALLOWFILTERING>
+<!--937C7710093D415FB0B39DBCC11A0DAC-->  <ALLOWED_CROSS_ORG_LINK><![CDATA[N]]></ALLOWED_CROSS_ORG_LINK>
+<!--937C7710093D415FB0B39DBCC11A0DAC-->  <IS_CHILD_PROPERTY_IN_PARENT><![CDATA[N]]></IS_CHILD_PROPERTY_IN_PARENT>
+<!--937C7710093D415FB0B39DBCC11A0DAC--></AD_COLUMN>
+
 <!--93BADA51BC524AB39718159050CC2240--><AD_COLUMN>
 <!--93BADA51BC524AB39718159050CC2240-->  <AD_COLUMN_ID><![CDATA[93BADA51BC524AB39718159050CC2240]]></AD_COLUMN_ID>
 <!--93BADA51BC524AB39718159050CC2240-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
@@ -11971,7 +12015,7 @@ Configuration Properties are defined by modules with the purpose other modules a
 <!--CA08734CBC99486B9EA6432A1FDC4086-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--CA08734CBC99486B9EA6432A1FDC4086-->  <NAME><![CDATA[Active]]></NAME>
 <!--CA08734CBC99486B9EA6432A1FDC4086-->  <DESCRIPTION><![CDATA[A flag indicating whether this record is available for use or de-activated.]]></DESCRIPTION>
-<!--CA08734CBC99486B9EA6432A1FDC4086-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records:
+<!--CA08734CBC99486B9EA6432A1FDC4086-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records: 
 (1) The system requires the record for auditing purposes.
 (2) The record is referenced by other records. E.g., you cannot delete a Business Partner, if there are existing invoices for it. By de-activating the Business Partner you prevent it from being used in future transactions.]]></HELP>
 <!--CA08734CBC99486B9EA6432A1FDC4086-->  <COLUMNNAME><![CDATA[Isactive]]></COLUMNNAME>
@@ -13431,8 +13475,6 @@ Configuration Properties are defined by modules with the purpose other modules a
 <!--DE89AE4AE02E447DB278E6C92A95663C-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
 <!--DE89AE4AE02E447DB278E6C92A95663C-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--DE89AE4AE02E447DB278E6C92A95663C-->  <NAME><![CDATA[Public URL]]></NAME>
-<!--DE89AE4AE02E447DB278E6C92A95663C-->  <DESCRIPTION><![CDATA[Public URL holds the address through which the service is accessed from the client side, enabling external interactions with the system.]]></DESCRIPTION>
-<!--DE89AE4AE02E447DB278E6C92A95663C-->  <HELP><![CDATA[This field stores the public URL used by the client to access the service. Ensure the URL is correctly formatted and reachable.]]></HELP>
 <!--DE89AE4AE02E447DB278E6C92A95663C-->  <COLUMNNAME><![CDATA[Public_Url]]></COLUMNNAME>
 <!--DE89AE4AE02E447DB278E6C92A95663C-->  <AD_TABLE_ID><![CDATA[98CF9D4F903A4ED4924B6AE0F35A58CB]]></AD_TABLE_ID>
 <!--DE89AE4AE02E447DB278E6C92A95663C-->  <AD_REFERENCE_ID><![CDATA[10]]></AD_REFERENCE_ID>
