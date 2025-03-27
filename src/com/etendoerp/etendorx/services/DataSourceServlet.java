@@ -8,8 +8,10 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import javax.script.ScriptException;
@@ -47,6 +49,8 @@ import org.openbravo.service.web.WebService;
 import org.openbravo.userinterface.selector.Selector;
 import org.openbravo.userinterface.selector.SelectorField;
 
+import com.etendoerp.etendorx.data.OpenAPIRequestField;
+import com.etendoerp.etendorx.data.OpenAPITab;
 import com.etendoerp.etendorx.openapi.OpenAPIConstants;
 import com.etendoerp.etendorx.services.wrapper.EtendoRequestWrapper;
 import com.etendoerp.etendorx.services.wrapper.EtendoResponseWrapper;
@@ -314,8 +318,7 @@ public class DataSourceServlet implements WebService {
       var servlet = getDataSourceServlet();
 
       if (StringUtils.equals(OpenAPIConstants.POST, method)) {
-        EtendoRequestWrapper newRequest = getEtendoPostWrapper(request, tab, createPayLoad(request), fieldList,
-            newUri);
+        EtendoRequestWrapper newRequest = getEtendoPostWrapper(request, tab, createPayLoad(request), fieldList, newUri);
         servlet.doPost(newRequest, response);
       } else if (StringUtils.equals(OpenAPIConstants.PUT, method)) {
         EtendoRequestWrapper newRequest = getEtendoPutWrapper(request, response, createPayLoad(request), fieldList,
@@ -398,12 +401,37 @@ public class DataSourceServlet implements WebService {
       tab = req.getETRXOpenAPITabList().get(0).getRelatedTabs();
       for (Field field : tab.getADFieldList()) {
         String name = DataSourceUtils.getHQLColumnName(field)[0];
-        fieldList.add(new RequestField(name, field.getColumn()));
+        fieldList.add(
+            new RequestField(name, field.getColumn(), getSeqNo(req.getETRXOpenAPITabList().get(0), field.getColumn())));
       }
+      fieldList.sort(Comparator.comparing(RequestField::getSeqNo));
     } finally {
       OBContext.restorePreviousMode();
     }
     return tab;
+  }
+
+  /**
+   * Retrieves the sequence number (seqno) associated with a specific field column
+   * in the given OpenAPITab. If the field column is not found or the sequence number
+   * is null, it returns {@link Long#MAX_VALUE}.
+   *
+   * @param openAPITab  The OpenAPITab object containing the list of OpenAPIRequestField objects.
+   * @param fieldColumn The Column object representing the field column to search for.
+   * @return The sequence number (seqno) of the matching field, or {@link Long#MAX_VALUE}
+   *         if the field is not found or its sequence number is null.
+   */
+  private static Long getSeqNo(OpenAPITab openAPITab, Column fieldColumn) {
+    Optional<OpenAPIRequestField> optField = openAPITab.getEtrxOpenapiFieldList().stream().filter(
+        fi -> fi.getField().getColumn().equals(fieldColumn)).findFirst();
+    if (optField.isEmpty()) {
+      return Long.MAX_VALUE;
+    }
+    OpenAPIRequestField field = optField.get();
+    if (field.getSeqno() == null) {
+      return Long.MAX_VALUE;
+    }
+    return field.getSeqno();
   }
 
   /**
@@ -418,8 +446,8 @@ public class DataSourceServlet implements WebService {
    * @throws IOException
    * @throws OpenAPINotFoundThrowable
    */
-  private EtendoRequestWrapper getEtendoPostWrapper(HttpServletRequest request, Tab tab,
-      JSONObject newJsonBody, List<RequestField> fieldList,
+  private EtendoRequestWrapper getEtendoPostWrapper(HttpServletRequest request, Tab tab, JSONObject newJsonBody,
+      List<RequestField> fieldList,
       String newUri) throws JSONException, IOException, OpenAPINotFoundThrowable, ScriptException, ParseException {
     JSONObject dataFromOriginalRequest = newJsonBody.getJSONObject(DataSourceConstants.DATA);
     String recordId = dataFromOriginalRequest.optString("id");
@@ -432,7 +460,7 @@ public class DataSourceServlet implements WebService {
 
 
     /* the columns uses 3 name format: database column name, hql(or normalized) and input Format. So, to switch between them, we need to generate 3 maps */
-    Map<String, String> norm2input = new HashMap<>();
+    LinkedHashMap<String, String> norm2input = new LinkedHashMap<>(); // to keep the order
     Map<String, String> input2norm = new HashMap<>();
     Map<String, String> dbname2input = new HashMap<>();
     Map<String, String> columnTypes = new HashMap<>();
@@ -463,9 +491,11 @@ public class DataSourceServlet implements WebService {
     dataInpFormat.put(OBBindingsConstants.WINDOW_ID_PARAM, tab.getWindow().getId());
 
 
-    var a = propsToChange.keys();
-    while (a.hasNext()) {// to develop, we assume that the only change is in the productID
-      String changedColumnN = (String) a.next();
+    //the props in the request are in normalized format, so to maintain the order in that list, we can iterate over the keys of the normalized map,
+    // but filtering the props that are not in the request
+    List<String> orderedPropsToChange = norm2input.keySet().stream().filter(propsToChange::has).collect(
+        Collectors.toList());
+    for (String changedColumnN : orderedPropsToChange) {
       logChangeEvent(changedColumnN);
       String changedColumnInp = norm2input.get(changedColumnN);
       var type = columnTypes.get(changedColumnN);
@@ -834,7 +864,7 @@ public class DataSourceServlet implements WebService {
         DataSourceConstants.DATA).getJSONObject(0);
 
     //define the maps
-    Map<String, String> norm2input = new HashMap<>();
+    LinkedHashMap<String, String> norm2input = new LinkedHashMap<>();
     Map<String, String> input2norm = new HashMap<>();
     Map<String, String> dbname2input = new HashMap<>();
     Map<String, String> columnTypes = new HashMap<>();
@@ -861,10 +891,12 @@ public class DataSourceServlet implements WebService {
     dataInpFormat.put(OBBindingsConstants.WINDOW_ID_PARAM,
         DataSourceUtils.getTabByDataSourceName(extractedParts[0]).getWindow().getId());
 
-    //to proceed with Change events, we need to iterate over the keys of newData, setting the values in dataInpFormat and calling the formInit
-    var columnToChange = newData.keys();
-    while (columnToChange.hasNext()) {
-      String changedColumnN = (String) columnToChange.next();
+    //to proceed with Change events, we need to iterate over the keys of newData, setting the values in dataInpFormat and calling the formInit.
+    // we need to convert the keys to normalized format to input format.
+    //we will mantain the order in norm2input, so we can iterate over the keys of norm2input, filtering the props that are not in the request
+    List<String> orderedPropsToChange = norm2input.keySet().stream().filter(newData::has).collect(Collectors.toList());
+
+    for (String changedColumnN : orderedPropsToChange) {
       if (StringUtils.equalsIgnoreCase(changedColumnN, "id")) {
         //we don't need to change the id
         continue;
