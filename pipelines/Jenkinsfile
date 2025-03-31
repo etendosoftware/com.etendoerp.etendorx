@@ -28,7 +28,7 @@ pipeline {
         BRANCH_NAME_RX      = 'develop'
         RX_DIR              = 'etendo_rx'
         CLASSIC_DIR         = 'etendo_core'
-        CORE_BRANCH         = 'develop'
+        CORE_BRANCH         = 'release/24.4'
         
         COMMIT_AUTHOR_NAME  = sh(returnStdout: true, script: "git log -1 --pretty=format:'%an'").trim()
         COMMIT_AUTHOR_EMAIL = sh(returnStdout: true, script: "git log -1 --pretty=format:'%ae'").trim()
