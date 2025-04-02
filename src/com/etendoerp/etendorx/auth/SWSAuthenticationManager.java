@@ -54,6 +54,37 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
     super();
   }
 
+  private String buildUserContext(String token, HttpServletRequest request) throws Exception {
+    DecodedJWT decodedToken = SecureWebServicesUtils.decodeToken(token);
+    if (decodedToken != null) {
+      String userId = decodedToken.getClaim("user").asString();
+      String roleId = decodedToken.getClaim("role").asString();
+      String orgId = decodedToken.getClaim("organization").asString();
+      String warehouseId = decodedToken.getClaim("warehouse").asString();
+      String clientId = decodedToken.getClaim("client").asString();
+      if (StringUtils.isEmpty(userId) || StringUtils.isEmpty(roleId) || StringUtils.isEmpty(
+          orgId) || StringUtils.isEmpty(warehouseId) || StringUtils.isEmpty(clientId)) {
+        throw new OBException("SWS - Token is not valid");
+      }
+      log4j.debug("SWS accessed by userId " + userId);
+      OBContext.setOBContext(
+          SecureWebServicesUtils.createContext(userId, roleId, orgId, warehouseId, clientId));
+      request.getSession(true);
+      OBContext.setOBContextInSession(request, OBContext.getOBContext());
+      SessionInfo.setUserId(userId);
+      SessionInfo.setProcessType("WS");
+      SessionInfo.setProcessId("DAL");
+      try {
+        OBContext.setAdminMode();
+        return userId;
+      } finally {
+        OBContext.restorePreviousMode();
+      }
+    } else {
+      throw new OBException("SWS - Token is not valid");
+    }
+  }
+
   @Override
   protected String doWebServiceAuthenticate(HttpServletRequest request) {
 
@@ -65,31 +96,7 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
     if (token != null) {
       try {
         log4j.debug(" Decoding token " + token);
-        DecodedJWT decodedToken = SecureWebServicesUtils.decodeToken(token);
-        if (decodedToken != null) {
-          String userId = decodedToken.getClaim("user").asString();
-          String roleId = decodedToken.getClaim("role").asString();
-          String orgId = decodedToken.getClaim("organization").asString();
-          String warehouseId = decodedToken.getClaim("warehouse").asString();
-          String clientId = decodedToken.getClaim("client").asString();
-          if (StringUtils.isEmpty(userId) || StringUtils.isEmpty(roleId) || StringUtils.isEmpty(
-              orgId) || StringUtils.isEmpty(warehouseId) || StringUtils.isEmpty(clientId)) {
-            throw new OBException("SWS - Token is not valid");
-          }
-          log4j.debug("SWS accessed by userId " + userId);
-          OBContext.setOBContext(
-              SecureWebServicesUtils.createContext(userId, roleId, orgId, warehouseId, clientId));
-          OBContext.setOBContextInSession(request, OBContext.getOBContext());
-          SessionInfo.setUserId(userId);
-          SessionInfo.setProcessType("WS");
-          SessionInfo.setProcessId("DAL");
-          try {
-            OBContext.setAdminMode();
-            return userId;
-          } finally {
-            OBContext.restorePreviousMode();
-          }
-        }
+        buildUserContext(token, request);
       } catch (Exception e) {
         throw new OBException(e);
       }
@@ -123,71 +130,88 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
       throws AuthenticationException, ServletException, IOException {
 
     String token = request.getParameter("access_token");
+    if(StringUtils.isEmpty(token)) {
+      token = request.getHeader("Authorization");
+      if (StringUtils.startsWith(token, "Bearer ")) {
+        token = StringUtils.substring(token, 7);
+      }
+    }
+
     if (StringUtils.isEmpty(token)) {
       return super.doAuthenticate(request, response);
     }
-    String receivedUser = request.getParameter("user");
 
     setCORSHeaders(request, response);
 
-    final VariablesSecureApp vars = new VariablesSecureApp(request);
     final String secret = OBPropertiesProvider.getInstance().getOpenbravoProperties().getProperty("OAUTH2_SECRET");
     final String issuer = OBPropertiesProvider.getInstance().getOpenbravoProperties().getProperty("OAUTH2_ISSUER");
-    TokenVerifier.isValid(token, secret);
-    Map<String, Object> userMetadata = null;
-    // get jwt token claim
-    try {
-      DecodedJWT decodedToken = decodeToken(token, secret, issuer);
-      Object userMeta = decodedToken.getClaim("user_metadata").as(Object.class);
-      if(userMeta instanceof Map) {
-        userMetadata = (Map<String, Object>) userMeta;
-      }
-      if(userMetadata == null) {
+    String receivedUser = null;
+    if (StringUtils.isNotEmpty(secret) && StringUtils.isNotEmpty(issuer)) {
+      // External oAuth2 provider
+      TokenVerifier.isValid(token, secret);
+      Map<String, Object> userMetadata = null;
+      try {
+        DecodedJWT decodedToken = decodeToken(token, secret, issuer);
+        Object userMeta = decodedToken.getClaim("user_metadata").as(Object.class);
+        if (userMeta instanceof Map) {
+          userMetadata = (Map<String, Object>) userMeta;
+        }
+        if (userMetadata == null) {
+          throw new OBException("SWS - Token is not valid");
+        }
+      } catch (Exception e) {
         throw new OBException("SWS - Token is not valid");
       }
-    } catch (Exception e) {
-      throw new OBException("SWS - Token is not valid");
-    }
+      receivedUser = (String) userMetadata.get("user_id");
+      final VariablesSecureApp vars = new VariablesSecureApp(request);
+      String userId;
+      try {
+        OBContext.setAdminMode(true);
+        User adUser = (User) OBDal.getInstance()
+            .createCriteria(User.class)
+            .add(Restrictions.eq(User.PROPERTY_USERNAME, receivedUser))
+            .setFilterOnReadableClients(false)
+            .setFilterOnReadableOrganization(false)
+            .setMaxResults(1)
+            .uniqueResult();
+        if (adUser != null) {
+          userId = adUser.getId();
+          if (request.getSession(false) == null && AuthenticationManager.isStatelessRequest(
+              request)) {
+            return webServiceAuthenticate(request);
+          }
+          markRequestAsSelfAuthenticated(request);
+          String user;
+          user = vars.getStringParameter(LOGIN_PARAM);
+          if (StringUtils.isEmpty(user)) {
+            user = vars.getStringParameter(BaseWebServiceServlet.LOGIN_PARAM);
+          }
+          loginName.set(user);
+          final String sessionId = createDBSession(request, user, userId);
+          vars.setSessionValue("#AD_User_ID", userId);
 
-    String userId;
-    try {
-      OBContext.setAdminMode(true);
-      User adUser = (User) OBDal.getInstance()
-          .createCriteria(User.class)
-          .add(Restrictions.eq(User.PROPERTY_USERNAME, receivedUser))
-          .setFilterOnReadableClients(false)
-          .setFilterOnReadableOrganization(false)
-          .setMaxResults(1)
-          .uniqueResult();
-      if (adUser != null) {
-        userId = adUser.getId();
-        if (request.getSession(false) == null && AuthenticationManager.isStatelessRequest(
-            request)) {
-          return webServiceAuthenticate(request);
+          request.getSession(true);
+
+          vars.setSessionValue("#AD_SESSION_ID", sessionId);
+          vars.setSessionValue("#LogginIn", "Y");
+          vars.setSessionValue("#Authenticated_user", userId);
+
+          adUser.setFirstName((String) userMetadata.get("name"));
+          OBDal.getInstance().save(adUser);
+          OBDal.getInstance().flush();
+          return userId;
         }
-        markRequestAsSelfAuthenticated(request);
-        String user;
-        user = vars.getStringParameter(LOGIN_PARAM);
-        if (StringUtils.isEmpty(user)) {
-          user = vars.getStringParameter(BaseWebServiceServlet.LOGIN_PARAM);
-        }
-        loginName.set(user);
-        final String sessionId = createDBSession(request, user, userId);
-        vars.setSessionValue("#AD_User_ID", userId);
-
-        request.getSession(true).setAttribute("#Authenticated_user", userId);
-
-        vars.setSessionValue("#AD_SESSION_ID", sessionId);
-        vars.setSessionValue("#LogginIn", "Y");
-
-        adUser.setFirstName((String) userMetadata.get("name"));
-        OBDal.getInstance().save(adUser);
-        OBDal.getInstance().flush();
-        return userId;
+      } finally {
+        OBContext.restorePreviousMode();
       }
-    } finally {
-      OBContext.restorePreviousMode();
+    } else {
+      try {
+        return buildUserContext(token, request);
+      } catch (Exception e) {
+        throw new OBException("SWS - Token is not valid");
+      }
     }
+
     return super.doAuthenticate(request, response);
   }
 }
