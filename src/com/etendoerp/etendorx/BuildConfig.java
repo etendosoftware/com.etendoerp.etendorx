@@ -241,6 +241,7 @@ public class BuildConfig extends HttpBaseServlet {
       values.put(providerRegistration + ".client-authentication-method", provider.getClientAuthenticationMethod());
       values.put(providerRegistration + ".token-uri", provider.getTokenURI());
       values.put(providerProv + ".authorization-uri", provider.getAuthorizationURI());
+      values.put(providerProv + ".jwk-set-uri", provider.getJwkseturi());
       values.put(providerProv + ".token-uri", provider.getTokenURI());
       values.put(providerProv + ".user-info-uri", provider.getUserInfoURI());
       values.put(providerProv + ".user-name-attribute", provider.getUserNameAttribute());
