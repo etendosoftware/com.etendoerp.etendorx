@@ -430,7 +430,8 @@ if (OB.PropertyStore.get('ETRX_AllowSSOLogin') === 'Y') {
       var ssoButtonLayout = isc.HStack.create({
         layoutTopMargin: 10,
         align: 'center',
-        width: '100%'
+        width: '100%',
+        height: '40px'
       });
       ssoButtonLayout.addMember(auth0Button);
       profileFormLayout.addMembers(buttonLayout);
