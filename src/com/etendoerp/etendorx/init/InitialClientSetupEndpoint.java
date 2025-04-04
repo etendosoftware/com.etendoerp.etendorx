@@ -1,23 +1,32 @@
 package com.etendoerp.etendorx.init;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+
+import javax.enterprise.context.ApplicationScoped;
+
+import org.apache.commons.lang.StringUtils;
+import org.openbravo.base.session.OBPropertiesProvider;
+
 import com.etendoerp.openapi.model.OpenAPIEndpoint;
+
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.Operation;
 import io.swagger.v3.oas.models.PathItem;
 import io.swagger.v3.oas.models.Paths;
 import io.swagger.v3.oas.models.media.Content;
 import io.swagger.v3.oas.models.media.MediaType;
+import io.swagger.v3.oas.models.media.ObjectSchema;
 import io.swagger.v3.oas.models.media.Schema;
+import io.swagger.v3.oas.models.media.StringSchema;
 import io.swagger.v3.oas.models.parameters.Parameter;
 import io.swagger.v3.oas.models.parameters.RequestBody;
 import io.swagger.v3.oas.models.responses.ApiResponse;
 import io.swagger.v3.oas.models.responses.ApiResponses;
 import io.swagger.v3.oas.models.tags.Tag;
-import org.apache.commons.lang.StringUtils;
-import org.openbravo.base.session.OBPropertiesProvider;
-
-import javax.enterprise.context.ApplicationScoped;
-import java.util.*;
 
 @ApplicationScoped
 public class InitialClientSetupEndpoint implements OpenAPIEndpoint {
@@ -28,7 +37,7 @@ public class InitialClientSetupEndpoint implements OpenAPIEndpoint {
 
   @Override
   public boolean isValid(String tag) {
-    if(tag == null) {
+    if (tag == null) {
       return true;
     }
     return tags.contains(tag);
@@ -80,11 +89,19 @@ public class InitialClientSetupEndpoint implements OpenAPIEndpoint {
     String initialClientSetupResponseExample = "<html>Configuración Inicial del Cliente</html>";
 
     List<Parameter> commonHeaders = Arrays.asList(
-        createHeaderParameter("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7", TYPE_STRING, true, "Specifies the media types that are acceptable for the response."),
-        createHeaderParameter("Content-Type", "multipart/form-data; boundary=----WebKitFormBoundaryESnGV3KpzjPoQw1r", TYPE_STRING, true, "Indicates the media type of the resource."),
+        createHeaderParameter("Accept",
+            "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+            TYPE_STRING, true, "Specifies the media types that are acceptable for the response."),
+        createHeaderParameter("Content-Type", "multipart/form-data; boundary=----WebKitFormBoundaryESnGV3KpzjPoQw1r",
+            TYPE_STRING, true, "Indicates the media type of the resource."),
         createHeaderParameter("Origin", url, TYPE_STRING, false, "The origin of the request."),
-        createHeaderParameter("Referer", etendoHost + "/ad_forms/InitialClientSetup.html?noprefs=true&hideMenu=true&Command=DEFAULT", TYPE_STRING, false, "The address of the previous web page from which a link to the currently requested page was followed."),
-        createHeaderParameter("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36", TYPE_STRING, false, "The user agent string of the user agent.")
+        createHeaderParameter("Referer",
+            etendoHost + "/ad_forms/InitialClientSetup.html?noprefs=true&hideMenu=true&Command=DEFAULT", TYPE_STRING,
+            false,
+            "The address of the previous web page from which a link to the currently requested page was followed."),
+        createHeaderParameter("User-Agent",
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
+            TYPE_STRING, false, "The user agent string of the user agent.")
     );
 
 
@@ -168,7 +185,8 @@ public class InitialClientSetupEndpoint implements OpenAPIEndpoint {
   /**
    * Method to create query parameters
    */
-  private Parameter createQueryParameter(String name, String example, String type, boolean required, String description) {
+  private Parameter createQueryParameter(String name, String example, String type, boolean required,
+      String description) {
     return new Parameter()
         .in("query")
         .name(name)
@@ -180,7 +198,8 @@ public class InitialClientSetupEndpoint implements OpenAPIEndpoint {
   /**
    * Method to create header parameters
    */
-  private Parameter createHeaderParameter(String name, String example, String type, boolean required, String description) {
+  private Parameter createHeaderParameter(String name, String example, String type, boolean required,
+      String description) {
     return new Parameter()
         .in("header")
         .name(name)
@@ -220,22 +239,22 @@ public class InitialClientSetupEndpoint implements OpenAPIEndpoint {
    * Define the request schema for InitialClientSetup (multipart/form-data)
    */
   private Schema<?> defineInitialClientSetupRequestSchema() {
-    Schema<Object> schema = new Schema<>();
-    schema.type("object");
+    ObjectSchema schema = new ObjectSchema();
     schema.description("Multipart form data for Initial Client Setup.");
 
-    schema.addProperties("Command", new Schema<>().type(TYPE_STRING).example("OK"));
-    schema.addProperties("inpLastFieldChanged", new Schema<>().type(TYPE_STRING).nullable(true).example(""));
-    schema.addProperties("inpClient", new Schema<>().type(TYPE_STRING).example("Cliente"));
-    schema.addProperties("inpPassword", new Schema<>().type(TYPE_STRING).example("admin"));
-    schema.addProperties("inpClientUser", new Schema<>().type(TYPE_STRING).example("ClienteAdmin"));
-    schema.addProperties("inpConfirmPassword", new Schema<>().type(TYPE_STRING).example("admin"));
-    schema.addProperties("inpCurrency", new Schema<>().type(TYPE_STRING).example("102"));
-    schema.addProperties("inpFile", new Schema<>().type(TYPE_STRING).format("binary").nullable(true).example(""));
-    schema.addProperties("inpTreeClass", new Schema<>().type(TYPE_STRING).example("org.openbravo.erpCommon.modules.ModuleReferenceDataClientTree"));
-    schema.addProperties("inpNodeId", new Schema<>().type(TYPE_STRING).example("0"));
-    schema.addProperties("inpLevel", new Schema<>().type(TYPE_STRING).nullable(true).example(""));
-    schema.addProperties("inpNodes", new Schema<>().type(TYPE_STRING).example("0"));
+    schema.addProperties("Command", new StringSchema().example("OK"));
+    schema.addProperties("inpLastFieldChanged", new StringSchema().nullable(true).example(""));
+    schema.addProperties("inpClient", new StringSchema().example("Cliente"));
+    schema.addProperties("inpPassword", new StringSchema().example("admin"));
+    schema.addProperties("inpClientUser", new StringSchema().example("ClienteAdmin"));
+    schema.addProperties("inpConfirmPassword", new StringSchema().example("admin"));
+    schema.addProperties("inpCurrency", new StringSchema().example("102"));
+    schema.addProperties("inpFile", new StringSchema().format("binary").nullable(true).example(""));
+    schema.addProperties("inpTreeClass",
+        new StringSchema().example("org.openbravo.erpCommon.modules.ModuleReferenceDataClientTree"));
+    schema.addProperties("inpNodeId", new StringSchema().example("0"));
+    schema.addProperties("inpLevel", new StringSchema().nullable(true).example(""));
+    schema.addProperties("inpNodes", new StringSchema().example("0"));
 
     // Define required fields
     schema.required(Arrays.asList(
@@ -257,8 +276,7 @@ public class InitialClientSetupEndpoint implements OpenAPIEndpoint {
    * Define the response schema for InitialClientSetup (HTML)
    */
   private Schema<?> defineInitialClientSetupResponseSchema() {
-    Schema<Object> schema = new Schema<>();
-    schema.type("object");
+    Schema<Object> schema = new ObjectSchema();
     schema.description("HTML response for Initial Client Setup.");
 
     return schema;
