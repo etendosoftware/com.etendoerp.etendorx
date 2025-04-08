@@ -416,6 +416,11 @@ if (OB.PropertyStore.get('ETRX_AllowSSOLogin') === 'Y') {
            }
          },
         baseStyle: "OBFormButton",
+        width: 175,
+        height: 50,
+        wrap: true,
+        align: 'center',
+        autoFit: false,
       });
       var ssoButtonLayout = isc.HStack.create({
         layoutTopMargin: 10,

@@ -14,8 +14,6 @@ if (OB.PropertyStore.get('ETRX_AllowSSOLogin') === 'Y') {
       });
       return;
     }
-
-    // Primero hacemos logout en Auth0
     var ssoDomain;
     var clientId;
 
@@ -30,10 +28,6 @@ if (OB.PropertyStore.get('ETRX_AllowSSOLogin') === 'Y') {
           logoutRedirectUri = logoutRedirectUri.slice(0, -1);
         }
         var logoutUrl = `https://${ssoDomain}/v2/logout?client_id=${clientId}&returnTo=${encodeURIComponent(logoutRedirectUri)}`;
-		//window.location.href = logoutUrl;
-        // Creamos un iframe para que el logout de Auth0 se procese sin redirección
-
-
 
         var iframe = document.createElement("iframe");
         iframe.style.display = "none";
@@ -44,9 +38,6 @@ if (OB.PropertyStore.get('ETRX_AllowSSOLogin') === 'Y') {
           document.body.removeChild(iframe);
         }, 5000);
 
-
-
-        // Después de un pequeño delay, llamamos al logout original
         setTimeout(function () {
           OB.Utilities._originalLogout(true);
         }, 3000);
