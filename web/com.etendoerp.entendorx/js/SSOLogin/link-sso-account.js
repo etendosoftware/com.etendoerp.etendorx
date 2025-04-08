@@ -375,56 +375,46 @@ if (OB.PropertyStore.get('ETRX_AllowSSOLogin') === 'Y') {
       var auth0Button = isc.OBFormButton.create({
         title: OB.I18N.getLabel('ETRX_LinkSSOAccount'),
         click: function() {
-          if (typeof auth0 === "undefined") {
-            var script = document.createElement("script");
-            script.src = "https://cdn.auth0.com/js/auth0/9.18/auth0.min.js";
-            script.onload = function () {
-              initAuth0();
-            };
-            document.head.appendChild(script);
-          } else {
-            initAuth0();
-          }
+           if (typeof auth0 === "undefined") {
+             var script = document.createElement("script");
+             script.src = "https://cdn.auth0.com/js/auth0/9.18/auth0.min.js";
+             script.onload = function () {
+               initAuth0();
+             };
+             document.head.appendChild(script);
+           } else {
+             initAuth0();
+           }
 
-          function initAuth0() {
-            function callbackOnProcessActionHandler(response, data, request) {
-              if (data.message?.severity === 'error') {
-                this.getWindow().showMessage(data.message.text)
-              } else {
-                ssoDomain = data.domainurl;
-                clientId = data.clientid;
-                var logoutUrl = `https://${ssoDomain}/v2/logout?client_id=${clientId}`;
+           function initAuth0() {
+             function callbackOnProcessActionHandler(response, data, request) {
+               if (data.message?.severity === 'error') {
+                 this.getWindow().showMessage(data.message.text);
+               } else {
+                 var webAuth = new auth0.WebAuth({
+                   domain: data.domainurl,
+                   clientID: data.clientid,
+                   redirectUri: OB.Utilities.getLocationUrlWithoutFragment() + 'web/com.etendoerp.etendorx/LinkAuth0Account.html',
+                   responseType: 'code',
+                   scope: 'openid profile email'
+                 });
 
-                // Crear un iframe para procesar el logout sin redirigir al usuario
-                var iframe = document.createElement("iframe");
-                iframe.style.display = "none";
-                iframe.src = logoutUrl;
-                document.body.appendChild(iframe);
+                 webAuth.authorize({
+                   prompt: 'login'
+                 });
+               }
+             }
 
-                // Esperamos a que el logout se procese antes de hacer login
-                setTimeout(() => {
-                  var webAuth = new auth0.WebAuth({
-                    domain: data.domainurl,
-                    clientID: data.clientid,
-                    redirectUri: OB.Utilities.getLocationUrlWithoutFragment() + 'web/com.etendoerp.etendorx/LinkAuth0Account.html',
-                    responseType: 'code',
-                    scope: 'openid profile email'
-                  });
-
-                  webAuth.authorize();
-                }, 5000);
-              }
-            }
-            OB.RemoteCallManager.call(
-                'com.etendoerp.etendorx.GetSSOProperties',
-                {
-                    properties: 'domain.url, client.id'
-                },
-                {},
-                callbackOnProcessActionHandler
-            );
-          }
-        },
+             OB.RemoteCallManager.call(
+               'com.etendoerp.etendorx.GetSSOProperties',
+               {
+                 properties: 'domain.url, client.id'
+               },
+               {},
+               callbackOnProcessActionHandler
+             );
+           }
+         },
         baseStyle: "OBFormButton",
       });
       var ssoButtonLayout = isc.HStack.create({
