@@ -308,7 +308,8 @@ spec:
                             echo "---------------------- Starting Etendo RX Module Tests ----------------------"
                             sh """
                             cd ${CLASSIC_DIR}
-                            ./gradlew test --tests "com.etendoerp.etendorx.*" jacocoRootReport --info
+                            ./gradlew test --tests "com.etendoerp.etendorx.*" --info
+                            ./gradlew jacocoRootReport --info
                             """
                             echo "---------------------- RX Module Tests Successful ----------------------"
                         } catch (Exception e) {

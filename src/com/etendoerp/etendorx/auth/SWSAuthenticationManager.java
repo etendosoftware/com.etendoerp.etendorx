@@ -36,6 +36,7 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
@@ -143,7 +144,7 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
    * @param issuer the issuer of the token
    * @return a DecodedJWT object containing the decoded token information
    */
-  private static DecodedJWT decodeToken(String token, String secret, String issuer) {
+  private static DecodedJWT decodeToken(String token, String secret, String issuer) throws UnsupportedEncodingException {
     Algorithm algorithm = Algorithm.HMAC256(secret);
     JWTVerifier verifier = JWT.require(algorithm).withIssuer(issuer).build();
     return verifier.verify(token);
