@@ -8,7 +8,7 @@ import com.etendoerp.etendorx.data.ETRXTokenUser;
 import com.etendoerp.etendorx.utils.TokenVerifier;
 import com.smf.securewebservices.utils.SecureWebServicesUtils;
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.codehaus.jettison.json.JSONException;
@@ -23,7 +23,6 @@ import org.openbravo.base.provider.OBProvider;
 import org.openbravo.base.secureApp.VariablesHistory;
 import org.openbravo.base.secureApp.VariablesSecureApp;
 import org.openbravo.base.session.OBPropertiesProvider;
-import org.openbravo.client.application.report.ReportingUtils;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.database.SessionInfo;
@@ -54,6 +53,7 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
 
   private static final Logger log4j = LogManager.getLogger();
   private static final String ACCESS_TOKEN = "access_token";
+  private static final String SWS_TOKEN_IS_NOT_VALID = "SWS - Token is not valid";
 
   /**
    * Default constructor.
@@ -62,6 +62,13 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
     super();
   }
 
+  /**
+   * This method is called to authenticate the user based on the provided request.
+   * It checks if the request contains a valid token and retrieves the user information from it.
+   *
+   * @param request the HttpServletRequest object containing the request information
+   * @return the user ID of the authenticated user
+   */
   @Override
   protected String doWebServiceAuthenticate(HttpServletRequest request) {
 
@@ -72,7 +79,7 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
     }
     if (token != null) {
       try {
-        log4j.debug(" Decoding token " + token);
+        log4j.debug(" Decoding token {}", token);
         DecodedJWT decodedToken = SecureWebServicesUtils.decodeToken(token);
         if (decodedToken != null) {
           String userId = decodedToken.getClaim("user").asString();
@@ -82,9 +89,9 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
           String clientId = decodedToken.getClaim("client").asString();
           if (StringUtils.isEmpty(userId) || StringUtils.isEmpty(roleId) || StringUtils.isEmpty(
               orgId) || StringUtils.isEmpty(warehouseId) || StringUtils.isEmpty(clientId)) {
-            throw new OBException("SWS - Token is not valid");
+            throw new OBException(SWS_TOKEN_IS_NOT_VALID);
           }
-          log4j.debug("SWS accessed by userId " + userId);
+          log4j.debug("SWS accessed by userId {}", userId);
           OBContext.setOBContext(
               SecureWebServicesUtils.createContext(userId, roleId, orgId, warehouseId, clientId));
           OBContext.setOBContextInSession(request, OBContext.getOBContext());
@@ -105,12 +112,20 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
     return super.doWebServiceAuthenticate(request);
   }
 
+  /**
+   * Sets the CORS headers for the response.
+   *
+   * @param request  the HttpServletRequest object
+   * @param response the HttpServletResponse object
+   * @throws ServletException if an error occurs during servlet processing
+   * @throws IOException      if an I/O error occurs
+   */
   protected void setCORSHeaders(HttpServletRequest request, HttpServletResponse response)
       throws ServletException, IOException {
 
     String origin = request.getHeader("Origin");
 
-    if (origin != null && !origin.equals("")) {
+    if (!StringUtils.isBlank(origin)) {
       response.setHeader("Access-Control-Allow-Origin", origin);
       response.setHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
       response.setHeader("Access-Control-Allow-Credentials", "true");
@@ -120,20 +135,39 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
     }
   }
 
-  private static DecodedJWT decodeToken(String token, String secret, String issuer) throws Exception {
+/**
+   * Decodes the provided token using the specified secret and issuer.
+   *
+   * @param token  the JWT token to be decoded
+   * @param secret the secret key used for decoding
+   * @param issuer the issuer of the token
+   * @return a DecodedJWT object containing the decoded token information
+   */
+  private static DecodedJWT decodeToken(String token, String secret, String issuer) {
     Algorithm algorithm = Algorithm.HMAC256(secret);
     JWTVerifier verifier = JWT.require(algorithm).withIssuer(issuer).build();
     return verifier.verify(token);
   }
 
+  /**
+   * This method is called to authenticate the user based on the provided request and response.
+   * It checks if the request contains a valid token and retrieves the user information from it.
+   *
+   * @param request  the HttpServletRequest object containing the request information
+   * @param response the HttpServletResponse object to send the response
+   * @return the user ID of the authenticated user
+   * @throws AuthenticationException if an error occurs during authentication
+   * @throws ServletException        if an error occurs during servlet processing
+   * @throws IOException             if an I/O error occurs
+   */
   @Override
   protected String doAuthenticate(HttpServletRequest request, HttpServletResponse response)
       throws AuthenticationException, ServletException, IOException {
     try {
       if (!StringUtils.isBlank(request.getParameter("code")) ||
           !StringUtils.isBlank(request.getParameter(ACCESS_TOKEN))) {
-        log4j.info("SSO Code to request token: " + request.getParameter("code"));
-        log4j.info("SSO Token comming from the request: " + request.getParameter(ACCESS_TOKEN));
+        log4j.debug("SSO Code to request token: {}", request.getParameter("code"));
+        log4j.debug("SSO Token coming from the request: {}", request.getParameter(ACCESS_TOKEN));
 
         String token = StringUtils.isBlank(request.getParameter(ACCESS_TOKEN)) ?
             getAuthToken(request) : request.getParameter(ACCESS_TOKEN);
@@ -141,23 +175,7 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
         HashMap<String, String> tokenValues = decodeToken(token);
         User adUser = matchUser(token, tokenValues.get("sub"));
         if (adUser == null) {
-          final Properties openbravoProperties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
-          String ssoDomain = ((String) openbravoProperties.get("sso.domain.url")).trim();
-          String clientId = ((String) openbravoProperties.get("sso.client.id")).trim();
-          String logoutRedirectUri = StringUtils.remove(request.getRequestURL().toString(),
-              request.getServletPath()).trim();
-          String contextName = ((String) openbravoProperties.get("context.name")).trim();
-          String ssoNoUserLinkURL = String.format("/%s/web/com.etendoerp.entendorx/resources/Auth0ErrorPage.html"
-                  + "?ssoDomain=%s&clientId=%s&logoutRedirectUri=%s",
-              contextName,
-//              ReportingUtils.getBaseDesign(),
-              URLEncoder.encode(ssoDomain, StandardCharsets.UTF_8),
-              URLEncoder.encode(clientId, StandardCharsets.UTF_8),
-              URLEncoder.encode(logoutRedirectUri, StandardCharsets.UTF_8));
-          response.setStatus(HttpServletResponse.SC_FOUND);
-          response.setHeader("Location", ssoNoUserLinkURL);
-          response.flushBuffer();
-          throw new OBException("SSO - No user link to SSO Account.");
+          handleWhenUserIsNull(request, response);
         }
 
         markRequestAsSelfAuthenticated(request);
@@ -166,7 +184,7 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
         return adUser.getId();
       }
     } catch (Exception e) {
-      log4j.error("Error while authenticating: " + e.getMessage(), e);
+      log4j.error("Error while authenticating: {}", e.getMessage(), e);
       throw new OBException(e);
     }
 
@@ -182,20 +200,7 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
     final String secret = OBPropertiesProvider.getInstance().getOpenbravoProperties().getProperty("OAUTH2_SECRET");
     final String issuer = OBPropertiesProvider.getInstance().getOpenbravoProperties().getProperty("OAUTH2_ISSUER");
     TokenVerifier.isValid(token, secret);
-    Map<String, Object> userMetadata = null;
-    // get jwt token claim
-    try {
-      DecodedJWT decodedToken = decodeToken(token, secret, issuer);
-      Object userMeta = decodedToken.getClaim("user_metadata").as(Object.class);
-      if(userMeta instanceof Map) {
-        userMetadata = (Map<String, Object>) userMeta;
-      }
-      if(userMetadata == null) {
-        throw new OBException("SWS - Token is not valid");
-      }
-    } catch (Exception e) {
-      throw new OBException("SWS - Token is not valid");
-    }
+    final Map<String, Object> userMetadata = getUserMetadata(token, secret, issuer);
 
     String userId;
     try {
@@ -237,6 +242,57 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
       OBContext.restorePreviousMode();
     }
     return super.doAuthenticate(request, response);
+  }
+
+  /**
+   * Retrieves the user metadata from the provided token.
+   *
+   * @param token  the JWT token
+   * @param secret the secret key used for decoding
+   * @param issuer the issuer of the token
+   * @return a Map containing the user metadata
+   */
+  private static Map<String, Object> getUserMetadata(String token, String secret, String issuer) {
+    Map<String, Object> userMetadata = null;
+    try {
+      DecodedJWT decodedToken = decodeToken(token, secret, issuer);
+      Object userMeta = decodedToken.getClaim("user_metadata").as(Object.class);
+      if(userMeta instanceof Map) {
+        userMetadata = (Map<String, Object>) userMeta;
+      }
+      if(userMetadata == null) {
+        throw new OBException(SWS_TOKEN_IS_NOT_VALID);
+      }
+    } catch (Exception e) {
+      throw new OBException(SWS_TOKEN_IS_NOT_VALID);
+    }
+    return userMetadata;
+  }
+
+  /**
+   * Handles the case when the user is null after authentication.
+   *
+   * @param request  the HttpServletRequest object
+   * @param response the HttpServletResponse object
+   * @throws IOException if an I/O error occurs
+   */
+  private static void handleWhenUserIsNull(HttpServletRequest request, HttpServletResponse response) throws IOException {
+    final Properties openbravoProperties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
+    String ssoDomain = ((String) openbravoProperties.get("sso.domain.url")).trim();
+    String clientId = ((String) openbravoProperties.get("sso.client.id")).trim();
+    String logoutRedirectUri = StringUtils.remove(request.getRequestURL().toString(),
+        request.getServletPath()).trim();
+    String contextName = ((String) openbravoProperties.get("context.name")).trim();
+    String ssoNoUserLinkURL = String.format("/%s/web/com.etendoerp.entendorx/resources/Auth0ErrorPage.html"
+            + "?ssoDomain=%s&clientId=%s&logoutRedirectUri=%s",
+        contextName,
+        URLEncoder.encode(ssoDomain, StandardCharsets.UTF_8),
+        URLEncoder.encode(clientId, StandardCharsets.UTF_8),
+        URLEncoder.encode(logoutRedirectUri, StandardCharsets.UTF_8));
+    response.setStatus(HttpServletResponse.SC_FOUND);
+    response.setHeader("Location", ssoNoUserLinkURL);
+    response.flushBuffer();
+    throw new OBException("SSO - No user link to SSO Account.");
   }
 
   /**
@@ -305,23 +361,7 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
       boolean isPKCE = (codeVerifier != null && !codeVerifier.isEmpty());
       String strDirection = request.getScheme() + "://" + request.getServerName() + request.getContextPath() + "/secureApp/LoginHandler.html";
       String params;
-      if (isPKCE) {
-        params = String.format(
-            "grant_type=authorization_code&client_id=%s&code=%s&redirect_uri=%s&code_verifier=%s",
-            URLEncoder.encode(clientId, StandardCharsets.UTF_8),
-            URLEncoder.encode(code, StandardCharsets.UTF_8),
-            URLEncoder.encode(strDirection, StandardCharsets.UTF_8),
-            URLEncoder.encode(codeVerifier, StandardCharsets.UTF_8)
-        );
-      } else {
-        params = String.format(
-            "grant_type=authorization_code&client_id=%s&client_secret=%s&code=%s&redirect_uri=%s",
-            URLEncoder.encode(clientId, StandardCharsets.UTF_8),
-            URLEncoder.encode(clientSecret, StandardCharsets.UTF_8),
-            URLEncoder.encode(code, StandardCharsets.UTF_8),
-            URLEncoder.encode(strDirection, StandardCharsets.UTF_8)
-        );
-      }
+      params = getParams(isPKCE, clientId, code, strDirection, codeVerifier, clientSecret);
 
       try (OutputStream os = con.getOutputStream()) {
         byte[] input = params.getBytes(StandardCharsets.UTF_8);
@@ -340,6 +380,7 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
       } else {
         log4j.error(con.getResponseMessage());
         token = null;
+        throw new OBException("Error trying to login - Error code:" + status + " - " + con.getResponseMessage());
       }
     } catch (JSONException | IOException e) {
       log4j.error(e);
@@ -347,7 +388,46 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
     return token;
   }
 
+  /**
+   * Constructs the parameters for the token request based on the provided information.
+   *
+   * @param isPKCE        indicates if PKCE is used
+   * @param clientId      the client ID
+   * @param code          the authorization code
+   * @param strDirection  the redirect URI
+   * @param codeVerifier  the code verifier (if PKCE is used)
+   * @param clientSecret  the client secret (if not using PKCE)
+   * @return a formatted string containing the parameters for the token request
+   */
+  private static String getParams(boolean isPKCE, String clientId, String code, String strDirection,
+      String codeVerifier, String clientSecret) {
+    String params;
+    if (isPKCE) {
+      params = String.format(
+          "grant_type=authorization_code&client_id=%s&code=%s&redirect_uri=%s&code_verifier=%s",
+          URLEncoder.encode(clientId, StandardCharsets.UTF_8),
+          URLEncoder.encode(code, StandardCharsets.UTF_8),
+          URLEncoder.encode(strDirection, StandardCharsets.UTF_8),
+          URLEncoder.encode(codeVerifier, StandardCharsets.UTF_8)
+      );
+    } else {
+      params = String.format(
+          "grant_type=authorization_code&client_id=%s&client_secret=%s&code=%s&redirect_uri=%s",
+          URLEncoder.encode(clientId, StandardCharsets.UTF_8),
+          URLEncoder.encode(clientSecret, StandardCharsets.UTF_8),
+          URLEncoder.encode(code, StandardCharsets.UTF_8),
+          URLEncoder.encode(strDirection, StandardCharsets.UTF_8)
+      );
+    }
+    return params;
+  }
 
+  /**
+   * Prepares the login session for the user.
+   *
+   * @param request the HttpServletRequest object
+   * @param user    the User object representing the authenticated user
+   */
   private void prepareLoginSession(HttpServletRequest request, User user) {
     loginName.set(user.getName());
     final String sessionId = createDBSession(request, user.getUsername(), user.getId());
@@ -360,7 +440,7 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
     VariablesHistory variables = new VariablesHistory(request);
     String strTarget = request.getRequestURL().toString();
     String qString = request.getQueryString();
-    String strDireccionLocal = HttpBaseUtils.getLocalAddress(request);
+    String strDirectionLocal = HttpBaseUtils.getLocalAddress(request);
 
     if (!strTarget.endsWith("/security/Menu.html")) {
       variables.setSessionValue("targetmenu", strTarget);
@@ -368,7 +448,7 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
 
     // Storing target string to redirect after a successful login
     variables.setSessionValue("target",
-        strDireccionLocal + "/" + (qString != null && !qString.equals("") ? "?" + qString : ""));
+        strDirectionLocal + "/" + (!StringUtils.isBlank(qString) ? "?" + qString : ""));
   }
 }
 

@@ -2,8 +2,7 @@ package com.etendoerp.etendorx.ssologin;
 
 import java.util.Properties;
 
-import org.apache.commons.lang.StringUtils;
-import org.apache.log4j.Logger;
+import org.apache.commons.lang3.StringUtils;
 import org.openbravo.base.session.OBPropertiesProvider;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.database.ConnectionProvider;
@@ -12,8 +11,16 @@ import org.openbravo.erpCommon.utility.Utility;
 import org.openbravo.model.ad.system.Client;
 import org.openbravo.service.db.DalConnectionProvider;
 
+/**
+ * Implementation of the SignInProvider interface for Single Sign-On (SSO) login functionality.
+ */
 public class SSOLogin implements SignInProvider {
 
+    /**
+     * Generates the HTML code for the SSO login button to be displayed on the login page.
+     *
+     * @return the HTML code for the SSO login button, or an empty string if the SSO domain is not configured
+     */
     @Override
     public String getLoginPageSignInHTMLCode() {
 
@@ -23,7 +30,8 @@ public class SSOLogin implements SignInProvider {
         String redirectUri = openbravoProperties.getProperty("sso.callback.url");
         String sourceURL = openbravoProperties.getProperty("sso.source.url");
 
-        if (StringUtils.isBlank(domain)) {
+        if (StringUtils.isBlank(domain) || StringUtils.isBlank(clientId)
+            || StringUtils.isBlank(redirectUri)|| StringUtils.isBlank(sourceURL)) {
             return "";
         }
 

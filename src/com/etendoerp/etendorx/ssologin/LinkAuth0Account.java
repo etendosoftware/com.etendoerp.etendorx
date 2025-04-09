@@ -13,7 +13,7 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.hibernate.criterion.Restrictions;
@@ -124,11 +124,11 @@ public class LinkAuth0Account extends HttpBaseServlet {
   private String getAuthToken(HttpServletRequest request) {
     String code = request.getParameter("code");
     String token = "";
-    String domain = OBPropertiesProvider.getInstance().getOpenbravoProperties().getProperty("sso.domain.url"); //"dev-fut-test.us.auth0.com";
-    String clientId = OBPropertiesProvider.getInstance().getOpenbravoProperties().getProperty("sso.client.id"); //"zxo9HykojJHT1HXg18KwUjCNlLPs3tZU";
+    String domain = OBPropertiesProvider.getInstance().getOpenbravoProperties().getProperty("sso.domain.url");
+    String clientId = OBPropertiesProvider.getInstance().getOpenbravoProperties().getProperty("sso.client.id");
     String clientSecret = OBPropertiesProvider.getInstance().getOpenbravoProperties().getProperty("sso.client.secret");
     String tokenEndpoint = "https://" + domain + "/oauth/token";
-    String ssoCallbackURL = OBPropertiesProvider.getInstance().getOpenbravoProperties().getProperty("sso.callback.url"); // http://localhost:8080/google/secureApp/LinkAuth0Account.html
+    String ssoCallbackURL = OBPropertiesProvider.getInstance().getOpenbravoProperties().getProperty("sso.callback.url");
     try {
       URL url = new URL(tokenEndpoint);
       HttpURLConnection con = (HttpURLConnection) url.openConnection();
@@ -178,5 +178,4 @@ public class LinkAuth0Account extends HttpBaseServlet {
     }
     return token;
   }
-
 }
