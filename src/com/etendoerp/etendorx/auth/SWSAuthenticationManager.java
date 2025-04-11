@@ -303,18 +303,22 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
    * @return the matched User object, or null if no match is found
    */
   private User matchUser(String token, String sub) {
-    OBContext.setAdminMode(true);
-    ETRXTokenUser tokenUser = (ETRXTokenUser) OBDal.getInstance().createCriteria(ETRXTokenUser.class)
-        .add(Restrictions.eq(ETRXTokenUser.PROPERTY_SUB, sub))
-        .setFilterOnReadableClients(false)
-        .setFilterOnReadableOrganization(false)
-        .setMaxResults(1).uniqueResult();
-    if (tokenUser != null) {
-      tokenUser.setToken(token);
-    } else {
-      return null;
+    try {
+      OBContext.setAdminMode(true);
+      ETRXTokenUser tokenUser = (ETRXTokenUser) OBDal.getInstance().createCriteria(ETRXTokenUser.class)
+          .add(Restrictions.eq(ETRXTokenUser.PROPERTY_SUB, sub))
+          .setFilterOnReadableClients(false)
+          .setFilterOnReadableOrganization(false)
+          .setMaxResults(1).uniqueResult();
+      if (tokenUser != null) {
+        tokenUser.setToken(token);
+      } else {
+        return null;
+      }
+      return tokenUser.getUser();
+    } finally {
+      OBContext.restorePreviousMode();
     }
-    return tokenUser.getUser();
   }
 
   /**

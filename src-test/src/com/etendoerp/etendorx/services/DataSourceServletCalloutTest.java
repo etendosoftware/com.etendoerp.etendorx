@@ -179,7 +179,7 @@ public class DataSourceServletCalloutTest extends WeldBaseTest {
     // Given the flow created in setup
 
     // When
-    String openAPISpec = new OpenAPIController().getOpenAPIJson("localhost", "TESTFLOW",
+    String openAPISpec = new OpenAPIController().getOpenAPIJson("TESTFLOW",
         "http://localhost:8080/etendo");
     // Then
     assert StringUtils.isNotEmpty(openAPISpec);
