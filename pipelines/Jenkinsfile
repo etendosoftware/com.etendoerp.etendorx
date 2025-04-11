@@ -28,7 +28,7 @@ pipeline {
         BRANCH_NAME_RX      = 'develop'
         RX_DIR              = 'etendo_rx'
         CLASSIC_DIR         = 'etendo_core'
-        CORE_BRANCH         = 'develop'
+        CORE_BRANCH         = 'release/24.4'
         
         COMMIT_AUTHOR_NAME  = sh(returnStdout: true, script: "git log -1 --pretty=format:'%an'").trim()
         COMMIT_AUTHOR_EMAIL = sh(returnStdout: true, script: "git log -1 --pretty=format:'%ae'").trim()
@@ -142,7 +142,7 @@ spec:
 
                             echo "---------------------- Setup RX Repo ----------------------"
                             sh """
-                            git clone --branch ${BRANCH_NAME_RX} ${RX_URL_REPO}
+                            git clone ${RX_URL_REPO}
                             cd ${RX_DIR}
                             cp gradle.properties.template gradle.properties
                             sed -i 's/^githubUser=.*/githubUser=${GITHUB_USER}/' gradle.properties
@@ -245,6 +245,7 @@ spec:
 
                                         echo "---------------------- Building Classic Environment ----------------------"
                                         sh './gradlew install -PignoreConsistency=true --info --stacktrace'
+                                        sh './gradlew update.database -PignoreConsistency=true --info --stacktrace'
                                         sh './gradlew smartbuild -PignoreConsistency=true --info --stacktrace'
 
                                         echo "---------------------- Classic Environment Successful ----------------------"
@@ -275,6 +276,24 @@ spec:
                         try {
                             sh "./pipelines/utils/build-update.sh ${REPOSITORY_NAME} ${COMMIT_INPROGRESS_STATUS} \"Build Environment Etendo RX\" ${ACCESS_TOKEN} ${GIT_COMMIT} ${BUILD_URL} \"${CONTEXT_BUILD}\""
                             echo "---------------------- Building Etendo RX Environment ----------------------"
+                            echo "---------------------- Checking Branch Type ----------------------"
+                            env.IS_HOTFIX_OR_MAIN_BRANCH = FALSE
+                            if (GIT_BRANCH.startsWith('hotfix/') || GIT_BRANCH.startsWith('main') || GIT_BRANCH.startsWith('master')) {
+                                echo "Branch ${GIT_BRANCH} is a hotfix or main/master."
+                                env.IS_HOTFIX_OR_MAIN_BRANCH = TRUE
+                            }
+                            if (IS_HOTFIX_OR_MAIN_BRANCH == FALSE) {
+                                echo "---------------------- Checking out to RX Core Branch ----------------------"
+                                sh """
+                                    cd ${RX_DIR}
+                                    git checkout develop
+                                """
+                            }
+                            echo "---------------------- Attempting to checkout to ${GIT_BRANCH} branch in RX Core ----------------------"
+                            sh """
+                              cd ${RX_DIR}
+                              git checkout ${GIT_BRANCH} || echo 'Branch ${GIT_BRANCH} not found in RX Core'
+                            """
                             sh """
                             cd ${RX_DIR}
                             ./gradlew generate.entities --info

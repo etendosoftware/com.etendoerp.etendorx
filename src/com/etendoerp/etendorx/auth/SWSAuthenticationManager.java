@@ -147,8 +147,7 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
   private static DecodedJWT decodeToken(String token, String secret, String issuer) throws UnsupportedEncodingException {
     Algorithm algorithm = Algorithm.HMAC256(secret);
     JWTVerifier verifier = JWT.require(algorithm).withIssuer(issuer).build();
-    return verifier.verify(token);
-  }
+    return verifier.verify(token);   }
 
   /**
    * This method is called to authenticate the user based on the provided request and response.
