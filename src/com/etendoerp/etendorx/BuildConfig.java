@@ -167,6 +167,10 @@ public class BuildConfig extends HttpBaseServlet {
    */
   private JSONObject getDefaultConfigToJsonObject(String serviceURI) throws JSONException, IOException {
     ETRXConfig rxConfig = RXConfigUtils.getRXConfig(CONFIG_SERVICE);
+    if (rxConfig == null) {
+      throw new OBException(String.format(Utility.messageBD(new DalConnectionProvider(), "ETRX_NoConfigFound",
+          OBContext.getOBContext().getLanguage().getLanguage()), CONFIG_SERVICE));
+    }
     String serverURL = rxConfig == null ? CONFIG_URL : rxConfig.getServiceURL();
     URL url = new URL(serverURL + serviceURI);
     HttpURLConnection conn = (HttpURLConnection) url.openConnection();
