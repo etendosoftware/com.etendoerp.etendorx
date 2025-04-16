@@ -83,10 +83,10 @@ public class LinkAuth0Account extends HttpBaseServlet {
       }
       tokenUser = OBProvider.getInstance().get(ETRXTokenUser.class);
       tokenUser.setSub(sub);
-      tokenUser.setToken(token);
+      tokenUser.setOAuthToken(token);
       String[] provider = StringUtils.split(sub, "|");
       tokenUser.setTokenProvider(provider[0]);
-      tokenUser.setUser(OBContext.getOBContext().getUser());
+      tokenUser.setUserForToken(OBContext.getOBContext().getUser());
       OBDal.getInstance().save(tokenUser);
       OBDal.getInstance().flush();
     } catch (Exception e) {

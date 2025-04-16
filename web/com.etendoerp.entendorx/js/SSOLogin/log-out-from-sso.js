@@ -14,8 +14,8 @@ if (OB.PropertyStore.get('ETRX_AllowSSOLogin') === 'Y') {
       });
       return;
     }
-    var ssoDomain;
-    var clientId;
+    let ssoDomain;
+    let clientId;
 
     function callbackOnProcessActionHandler(response, data, request) {
       if (data.message?.severity === 'error') {
@@ -23,13 +23,13 @@ if (OB.PropertyStore.get('ETRX_AllowSSOLogin') === 'Y') {
       } else {
         ssoDomain = data.domainurl;
         clientId = data.clientid;
-        var logoutRedirectUri = window.location.origin + OB.Application.contextUrl;
+        let logoutRedirectUri = window.location.origin + OB.Application.contextUrl;
         if (logoutRedirectUri.endsWith('/')) {
           logoutRedirectUri = logoutRedirectUri.slice(0, -1);
         }
-        var logoutUrl = `https://${ssoDomain}/v2/logout?client_id=${clientId}&returnTo=${encodeURIComponent(logoutRedirectUri)}`;
+        let logoutUrl = `https://${ssoDomain}/v2/logout?client_id=${clientId}&returnTo=${encodeURIComponent(logoutRedirectUri)}`;
 
-        var iframe = document.createElement("iframe");
+        let iframe = document.createElement("iframe");
         iframe.style.display = "none";
         iframe.src = logoutUrl;
         document.body.appendChild(iframe);

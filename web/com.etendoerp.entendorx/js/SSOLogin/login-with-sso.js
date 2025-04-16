@@ -1,6 +1,6 @@
 function doLogin(command) {
   doLoginWithToken()
-  var extraParams;
+  let extraParams;
   if (
     document.getElementById('resetPassword').value === 'true' &&
     document.getElementById('newPass').value !==
@@ -65,11 +65,11 @@ function doLoginWithToken() {
   const accessToken = params.get("access_token");
 
   if (accessToken) {
-    var xhr = new XMLHttpRequest();
+    let xhr = new XMLHttpRequest();
     const path = window.location.pathname;
     const context = path.split('/')[1];
-    var loginUrl = "../../" + context + "/org.openbravo.client.kernel/OBCLKER_Kernel/SessionDynamic";
-    var requestData = new FormData();
+    let loginUrl = "../../" + context + "/org.openbravo.client.kernel/OBCLKER_Kernel/SessionDynamic";
+    let requestData = new FormData();
 
     requestData.append("access_token", accessToken);
     requestData.append("targetQueryString", getURLQueryString());

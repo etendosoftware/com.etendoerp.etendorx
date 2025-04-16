@@ -6,8 +6,10 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -28,11 +30,15 @@ import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
+import org.mockito.MockitoAnnotations;
 import org.mockito.junit.MockitoJUnitRunner;
+import org.openbravo.base.secureApp.VariablesSecureApp;
+import org.openbravo.client.kernel.RequestContext;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.businessUtility.Preferences;
 import org.openbravo.model.ad.system.Client;
+import org.openbravo.test.base.TestConstants;
 
 import com.etendoerp.etendorx.data.ConfigServiceParam;
 import com.etendoerp.etendorx.data.ETRXConfig;
@@ -50,7 +56,7 @@ import com.smf.securewebservices.SWSConfig;
 public class BuildConfigTest {
 
 
-  public static final String TEST_KEY = "testKey";
+  public static final String TEST_KEY = "{ \"public-key\":\"test-key\" }";
   private BuildConfig buildConfig;
 
   @Mock
@@ -211,28 +217,74 @@ public class BuildConfigTest {
    */
   @Test
   public void testDoGetSuccess() throws Exception {
-
     try (MockedStatic<SWSConfig> mockedSWSConfig = mockStatic(SWSConfig.class);
          MockedStatic<OBContext> mockedContextStatic = mockStatic(OBContext.class);
          MockedStatic<OBDal> mockedOBDal = mockStatic(OBDal.class);
          MockedStatic<Preferences> mockedPreferences = mockStatic(Preferences.class);
          MockedStatic<RXConfigUtils> mockedRXConfig = mockStatic(RXConfigUtils.class)) {
+
       mockedContextStatic.when(() -> OBContext.setAdminMode(anyBoolean())).thenAnswer(invocation -> null);
       mockedContextStatic.when(OBContext::restorePreviousMode).thenAnswer(invocation -> null);
 
       mockedSWSConfig.when(SWSConfig::getInstance).thenReturn(swsConfig);
       when(swsConfig.getPrivateKey()).thenReturn(TEST_KEY);
       mockedPreferences.when(() -> Preferences.getPreferenceValue(anyString(), anyBoolean(),
-          (Client) any(), any(), any(), any(), any())).thenReturn("ES256");
+        (Client) any(), any(), any(), any(), any())).thenReturn("ES256");
+
 
       mockedRXConfig.when(() -> RXConfigUtils.getRXConfig(anyString())).thenReturn(rxConfig);
 
-      buildConfig.doGet(request, response);
+      // MOCK adicional para request URL y servlet path
+      when(request.getRequestURL()).thenReturn(new StringBuffer("http://localhost:8080/etendo/test/default"));
+      when(request.getServletPath()).thenReturn("/etendo");
+
+      // SPY sobre buildConfig para mockear método privado
+      BuildConfig spyBuildConfig = spy(buildConfig);
+
+      // Definimos qué devolverá el método getDefaultConfigToJsonObject
+      JSONObject mockedJson = new JSONObject();
+      mockedJson.put("name", "auth");
+      mockedJson.put("profiles", new JSONArray().put("default"));
+      mockedJson.put("label", JSONObject.NULL);
+      mockedJson.put("version", JSONObject.NULL);
+      mockedJson.put("state", JSONObject.NULL);
+
+      JSONArray propertySources = new JSONArray();
+
+      JSONObject source1 = new JSONObject();
+      source1.put("name", "file:/tmp/auth.yaml");
+      JSONObject source1Content = new JSONObject();
+      source1Content.put("spring.security.oauth2.client.registration.google.client-id", "placeholder");
+      source1Content.put("spring.security.oauth2.client.registration.google.client-secret", "placeholder");
+      source1.put("source", source1Content);
+
+      JSONObject source2 = new JSONObject();
+      source2.put("name", "file:/tmp/application.yaml");
+      JSONObject source2Content = new JSONObject();
+      source2Content.put("classic.url", "http://localhost:8080/etendo");
+      source2Content.put("das.url", "http://localhost:8092");
+      source2Content.put("das.grpc.ip", "localhost");
+      source2Content.put("das.grpc.port", 9090);
+      source2Content.put("management.endpoints.web.exposure.include", "*");
+      source2Content.put("spring.output.ansi.enabled", "ALWAYS");
+      source2.put("source", source2Content);
+
+      propertySources.put(source1);
+      propertySources.put(source2);
+
+      mockedJson.put("propertySources", propertySources);
+
+      doReturn(mockedJson).when(spyBuildConfig).getDefaultConfigToJsonObject(anyString());
+      doReturn("ES256").when(spyBuildConfig).getAlgorithmPref(anyString());
+
+      // Ahora invocamos el spy
+      spyBuildConfig.doGet(request, response);
 
       verify(response).setContentType(TestUtils.APPLICATION_JSON);
       verify(response).setCharacterEncoding(TestUtils.UTF_8);
     }
   }
+
 
   /**
    * Tests the response sending mechanism.

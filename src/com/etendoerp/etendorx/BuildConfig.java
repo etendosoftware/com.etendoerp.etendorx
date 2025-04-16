@@ -11,6 +11,7 @@ import org.openbravo.base.exception.OBException;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.businessUtility.Preferences;
+import org.openbravo.erpCommon.utility.PropertyException;
 import org.openbravo.erpCommon.utility.Utility;
 import org.openbravo.model.ad.access.User;
 import org.openbravo.service.db.DalConnectionProvider;
@@ -97,12 +98,7 @@ public class BuildConfig extends HttpBaseServlet {
       for (OAuthProviderConfigInjector injector : allInjectors) {
         injector.injectConfig(defaultConfig);
       }
-      String algorithmPref = Preferences.getPreferenceValue("SMFSWS_EncryptionAlgorithm", true,
-          OBContext.getOBContext().getCurrentClient(),
-          OBContext.getOBContext().getCurrentOrganization(),
-          OBContext.getOBContext().getUser(),
-          OBContext.getOBContext().getRole(),
-          null);
+      final String algorithmPref = getAlgorithmPref("SMFSWS_EncryptionAlgorithm");
       if (!StringUtils.equals(ES256_ALGORITHM, algorithmPref)) {
         String errorMessage = Utility.messageBD(new DalConnectionProvider(), "ETRX_WrongAlgorithm",
             OBContext.getOBContext().getLanguage().getLanguage()) + algorithmPref;
@@ -129,6 +125,22 @@ public class BuildConfig extends HttpBaseServlet {
     } finally {
       OBContext.restorePreviousMode();
     }
+  }
+
+  /**
+   * This method retrieves the algorithm preference from the database.
+   *
+   * @param preferenceString The preference string to be retrieved.
+   * @return The algorithm preference as a string.
+   * @throws PropertyException If there is an error retrieving the preference.
+   */
+  protected String getAlgorithmPref(String preferenceString) throws PropertyException {
+    return Preferences.getPreferenceValue(preferenceString, true,
+        OBContext.getOBContext().getCurrentClient(),
+        OBContext.getOBContext().getCurrentOrganization(),
+        OBContext.getOBContext().getUser(),
+        OBContext.getOBContext().getRole(),
+        null);
   }
 
   /**
@@ -165,8 +177,12 @@ public class BuildConfig extends HttpBaseServlet {
    * @return The default configuration as a JSON object.
    * @throws JSONException If there is an error parsing the JSON.
    */
-  private JSONObject getDefaultConfigToJsonObject(String serviceURI) throws JSONException, IOException {
+  protected JSONObject getDefaultConfigToJsonObject(String serviceURI) throws JSONException, IOException {
     ETRXConfig rxConfig = RXConfigUtils.getRXConfig(CONFIG_SERVICE);
+    if (rxConfig == null) {
+      throw new OBException(String.format(Utility.messageBD(new DalConnectionProvider(), "ETRX_NoConfigFound",
+          OBContext.getOBContext().getLanguage().getLanguage()), CONFIG_SERVICE));
+    }
     String serverURL = rxConfig == null ? CONFIG_URL : rxConfig.getServiceURL();
     URL url = new URL(serverURL + serviceURI);
     HttpURLConnection conn = (HttpURLConnection) url.openConnection();
@@ -241,7 +257,7 @@ public class BuildConfig extends HttpBaseServlet {
       values.put(providerRegistration + ".client-authentication-method", provider.getClientAuthenticationMethod());
       values.put(providerRegistration + ".token-uri", provider.getTokenURI());
       values.put(providerProv + ".authorization-uri", provider.getAuthorizationURI());
-      values.put(providerProv + ".jwk-set-uri", provider.getJwkseturi());
+      values.put(providerProv + ".jwk-set-uri", provider.getJWKSetURI());
       values.put(providerProv + ".token-uri", provider.getTokenURI());
       values.put(providerProv + ".user-info-uri", provider.getUserInfoURI());
       values.put(providerProv + ".user-name-attribute", provider.getUserNameAttribute());

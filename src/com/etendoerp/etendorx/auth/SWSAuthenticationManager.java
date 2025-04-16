@@ -27,6 +27,7 @@ import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.database.SessionInfo;
 import org.openbravo.model.ad.access.User;
+import org.openbravo.model.ad.domain.Preference;
 import org.openbravo.service.web.BaseWebServiceServlet;
 
 import javax.servlet.ServletException;
@@ -55,6 +56,7 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
   private static final Logger log4j = LogManager.getLogger();
   private static final String ACCESS_TOKEN = "access_token";
   private static final String SWS_TOKEN_IS_NOT_VALID = "SWS - Token is not valid";
+  private static final String SSO_DOMAIN_URL = "sso.domain.url";
 
   /**
    * Default constructor.
@@ -164,8 +166,10 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
   protected String doAuthenticate(HttpServletRequest request, HttpServletResponse response)
       throws AuthenticationException, ServletException, IOException {
     try {
-      if (!StringUtils.isBlank(request.getParameter("code")) ||
-          !StringUtils.isBlank(request.getParameter(ACCESS_TOKEN))) {
+      final String allowSSO = getAllowSSOPref();
+      if ((!StringUtils.isBlank(request.getParameter("code")) ||
+          !StringUtils.isBlank(request.getParameter(ACCESS_TOKEN))) &&
+          StringUtils.equals("Y", allowSSO)) {
         log4j.debug("SSO Code to request token: {}", request.getParameter("code"));
         log4j.debug("SSO Token coming from the request: {}", request.getParameter(ACCESS_TOKEN));
 
@@ -245,6 +249,22 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
   }
 
   /**
+   * Retrieves the preference value for allowing SSO login.
+   *
+   * @return the preference value as a String
+   */
+  private static String getAllowSSOPref() {
+    Preference allowSSOPref = (Preference) OBDal.getInstance()
+        .createCriteria(Preference.class)
+        .add(Restrictions.eq(Preference.PROPERTY_PROPERTY, "ETRX_AllowSSOLogin"))
+        .add(Restrictions.eq(Preference.PROPERTY_SELECTED, true))
+        .setFilterOnReadableClients(false)
+        .setFilterOnReadableOrganization(false)
+        .setMaxResults(1).uniqueResult();
+    return allowSSOPref != null ? allowSSOPref.getSearchKey() : "N";
+  }
+
+  /**
    * Retrieves the user metadata from the provided token.
    *
    * @param token  the JWT token
@@ -278,7 +298,7 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
    */
   private static void handleWhenUserIsNull(HttpServletRequest request, HttpServletResponse response) throws IOException {
     final Properties openbravoProperties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
-    String ssoDomain = ((String) openbravoProperties.get("sso.domain.url")).trim();
+    String ssoDomain = ((String) openbravoProperties.get(SSO_DOMAIN_URL)).trim();
     String clientId = ((String) openbravoProperties.get("sso.client.id")).trim();
     String logoutRedirectUri = StringUtils.remove(request.getRequestURL().toString(),
         request.getServletPath()).trim();
@@ -305,20 +325,24 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
   private User matchUser(String token, String sub) {
     try {
       OBContext.setAdminMode(true);
-      ETRXTokenUser tokenUser = (ETRXTokenUser) OBDal.getInstance().createCriteria(ETRXTokenUser.class)
-          .add(Restrictions.eq(ETRXTokenUser.PROPERTY_SUB, sub))
-          .setFilterOnReadableClients(false)
-          .setFilterOnReadableOrganization(false)
-          .setMaxResults(1).uniqueResult();
+      ETRXTokenUser tokenUser = getTokenUser(sub);
       if (tokenUser != null) {
-        tokenUser.setToken(token);
+        tokenUser.setOAuthToken(token);
       } else {
         return null;
       }
-      return tokenUser.getUser();
+      return tokenUser.getUserForToken();
     } finally {
       OBContext.restorePreviousMode();
     }
+  }
+
+  private ETRXTokenUser getTokenUser(String sub) {
+    return (ETRXTokenUser) OBDal.getInstance().createCriteria(ETRXTokenUser.class)
+        .add(Restrictions.eq(ETRXTokenUser.PROPERTY_SUB, sub))
+        .setFilterOnReadableClients(false)
+        .setFilterOnReadableOrganization(false)
+        .setMaxResults(1).uniqueResult();
   }
 
   /**
@@ -349,7 +373,7 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
   private String getAuthToken(HttpServletRequest request) {
     String code = request.getParameter("code");
     String token = "";
-    String domain = OBPropertiesProvider.getInstance().getOpenbravoProperties().getProperty("sso.domain.url");
+    String domain = OBPropertiesProvider.getInstance().getOpenbravoProperties().getProperty(SSO_DOMAIN_URL);
     String tokenEndpoint = "https://" + domain + "/oauth/token";
     try {
       URL url = new URL(tokenEndpoint);
@@ -363,7 +387,7 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
 
       String codeVerifier = (String) request.getSession().getAttribute("code_verifier");
       boolean isPKCE = (codeVerifier != null && !codeVerifier.isEmpty());
-      String strDirection = request.getScheme() + "://" + request.getServerName() + request.getContextPath() + "/secureApp/LoginHandler.html";
+      String strDirection = request.getScheme() + "://" + request.getServerName() + ":8080" + request.getContextPath() + "/secureApp/LoginHandler.html";
       String params;
       params = getParams(isPKCE, clientId, code, strDirection, codeVerifier, clientSecret);
 

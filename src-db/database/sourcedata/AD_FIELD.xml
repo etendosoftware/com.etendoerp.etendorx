@@ -2595,6 +2595,8 @@
 <!--680A1AB6B747430EAA9C21E6FBEA0D36-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
 <!--680A1AB6B747430EAA9C21E6FBEA0D36-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--680A1AB6B747430EAA9C21E6FBEA0D36-->  <NAME><![CDATA[oAuth Token]]></NAME>
+<!--680A1AB6B747430EAA9C21E6FBEA0D36-->  <DESCRIPTION><![CDATA[This value contains the token string used in authentication flows, typically issued by an identity provider and required for secure access to protected resources.]]></DESCRIPTION>
+<!--680A1AB6B747430EAA9C21E6FBEA0D36-->  <HELP><![CDATA[This field stores the actual token issued for authentication or authorization purposes. Handle securely to prevent unauthorized access.]]></HELP>
 <!--680A1AB6B747430EAA9C21E6FBEA0D36-->  <ISCENTRALLYMAINTAINED><![CDATA[Y]]></ISCENTRALLYMAINTAINED>
 <!--680A1AB6B747430EAA9C21E6FBEA0D36-->  <AD_TAB_ID><![CDATA[B04241C1401A484C996C7A72352E59F8]]></AD_TAB_ID>
 <!--680A1AB6B747430EAA9C21E6FBEA0D36-->  <AD_COLUMN_ID><![CDATA[7DAAA5ED4BC541FCA4C95C6F3A97FDED]]></AD_COLUMN_ID>
@@ -4863,6 +4865,8 @@ Configuration Properties are defined by modules with the purpose other modules a
 <!--B0ED54E9EC924CAD8CEA566B58DA4397-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
 <!--B0ED54E9EC924CAD8CEA566B58DA4397-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--B0ED54E9EC924CAD8CEA566B58DA4397-->  <NAME><![CDATA[oAuth Token]]></NAME>
+<!--B0ED54E9EC924CAD8CEA566B58DA4397-->  <DESCRIPTION><![CDATA[This value contains the token string used in authentication flows, typically issued by an identity provider and required for secure access to protected resources.]]></DESCRIPTION>
+<!--B0ED54E9EC924CAD8CEA566B58DA4397-->  <HELP><![CDATA[This field stores the actual token issued for authentication or authorization purposes. Handle securely to prevent unauthorized access.]]></HELP>
 <!--B0ED54E9EC924CAD8CEA566B58DA4397-->  <ISCENTRALLYMAINTAINED><![CDATA[Y]]></ISCENTRALLYMAINTAINED>
 <!--B0ED54E9EC924CAD8CEA566B58DA4397-->  <AD_TAB_ID><![CDATA[7691BDA62B134A7289EDF6BD9549A660]]></AD_TAB_ID>
 <!--B0ED54E9EC924CAD8CEA566B58DA4397-->  <AD_COLUMN_ID><![CDATA[82BC4B5DC0344E28A997250DA75F1CEA]]></AD_COLUMN_ID>
@@ -5646,6 +5650,8 @@ Configuration Properties are defined by modules with the purpose other modules a
 <!--C7053736A6634D339B5827E96DF519D3-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
 <!--C7053736A6634D339B5827E96DF519D3-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--C7053736A6634D339B5827E96DF519D3-->  <NAME><![CDATA[oAuth Token]]></NAME>
+<!--C7053736A6634D339B5827E96DF519D3-->  <DESCRIPTION><![CDATA[This value contains the token string used in authentication flows, typically issued by an identity provider and required for secure access to protected resources.]]></DESCRIPTION>
+<!--C7053736A6634D339B5827E96DF519D3-->  <HELP><![CDATA[This field stores the actual token issued for authentication or authorization purposes. Handle securely to prevent unauthorized access.]]></HELP>
 <!--C7053736A6634D339B5827E96DF519D3-->  <ISCENTRALLYMAINTAINED><![CDATA[Y]]></ISCENTRALLYMAINTAINED>
 <!--C7053736A6634D339B5827E96DF519D3-->  <AD_TAB_ID><![CDATA[54995041F36C475AB3DBC5A03DEBDF58]]></AD_TAB_ID>
 <!--C7053736A6634D339B5827E96DF519D3-->  <AD_COLUMN_ID><![CDATA[82BC4B5DC0344E28A997250DA75F1CEA]]></AD_COLUMN_ID>

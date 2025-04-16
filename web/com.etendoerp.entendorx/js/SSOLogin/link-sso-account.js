@@ -1,7 +1,7 @@
 if (OB.PropertyStore.get('ETRX_AllowSSOLogin') === 'Y') {
   isc.OBUserProfile.addProperties({
     createProfileForm: function() {
-      var me = this,
+      let me = this,
         profileFormLayout,
         buttonLayout,
         profileForm,
@@ -74,7 +74,7 @@ if (OB.PropertyStore.get('ETRX_AllowSSOLogin') === 'Y') {
         },
 
         setEntries: function(entries) {
-          var length = entries.length,
+          let length = entries.length,
             i,
             id,
             identifier,
@@ -257,7 +257,7 @@ if (OB.PropertyStore.get('ETRX_AllowSSOLogin') === 'Y') {
           }
         },
         setOtherEntries: function() {
-          var i,
+          let i,
             role,
             roleId = this.getValue('role'),
             length = this.localFormData.role.roles.length;
@@ -271,7 +271,7 @@ if (OB.PropertyStore.get('ETRX_AllowSSOLogin') === 'Y') {
           }
         },
         setWarehouseValueMap: function() {
-          var i,
+          let i,
             j,
             warehouseOrg,
             role,
@@ -372,11 +372,11 @@ if (OB.PropertyStore.get('ETRX_AllowSSOLogin') === 'Y') {
         })
       );
 
-      var auth0Button = isc.OBFormButton.create({
+      let auth0Button = isc.OBFormButton.create({
         title: OB.I18N.getLabel('ETRX_LinkSSOAccount'),
         click: function() {
            if (typeof auth0 === "undefined") {
-             var script = document.createElement("script");
+             let script = document.createElement("script");
              script.src = "https://cdn.auth0.com/js/auth0/9.18/auth0.min.js";
              script.onload = function () {
                initAuth0();
@@ -391,7 +391,7 @@ if (OB.PropertyStore.get('ETRX_AllowSSOLogin') === 'Y') {
                if (data.message?.severity === 'error') {
                  this.getWindow().showMessage(data.message.text);
                } else {
-                 var webAuth = new auth0.WebAuth({
+                 let webAuth = new auth0.WebAuth({
                    domain: data.domainurl,
                    clientID: data.clientid,
                    redirectUri: OB.Utilities.getLocationUrlWithoutFragment() + 'web/com.etendoerp.etendorx/LinkAuth0Account.html',
@@ -422,7 +422,7 @@ if (OB.PropertyStore.get('ETRX_AllowSSOLogin') === 'Y') {
         align: 'center',
         autoFit: false,
       });
-      var ssoButtonLayout = isc.HStack.create({
+      let ssoButtonLayout = isc.HStack.create({
         layoutTopMargin: 10,
         align: 'center',
         width: '100%',
