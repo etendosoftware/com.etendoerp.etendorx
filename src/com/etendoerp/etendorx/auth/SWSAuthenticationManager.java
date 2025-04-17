@@ -124,7 +124,13 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
 
     String token = request.getParameter("access_token");
     if (StringUtils.isEmpty(token)) {
-      return super.doAuthenticate(request, response);
+      String authStr = request.getHeader("Authorization");
+
+      if (StringUtils.startsWith(authStr, "Bearer ")) {
+        return doWebServiceAuthenticate(request);
+      } else {
+        return super.doAuthenticate(request, response);
+      }
     }
     String receivedUser = request.getParameter("user");
 
