@@ -126,7 +126,7 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
     if (StringUtils.isEmpty(token)) {
       String authStr = request.getHeader("Authorization");
 
-      if (StringUtils.startsWith(authStr, "Bearer ")) {
+      if (authStr != null && StringUtils.startsWith(authStr, "Bearer ")) {
         return doWebServiceAuthenticate(request);
       } else {
         return super.doAuthenticate(request, response);
