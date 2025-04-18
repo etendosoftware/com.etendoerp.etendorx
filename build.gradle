@@ -51,7 +51,7 @@ repositories {
 */
 dependencies {
    implementation 'org.reflections:reflections:0.10.2'
-   implementation('com.etendoerp.platform:etendo-core:[21.4.0,25.1.0)')
+   implementation('com.etendoerp.platform:etendo-core:[25.1.0,25.2.0)')
    implementation('com.etendoerp:docker:1.6.1')
    implementation('com.etendoerp:openapi:1.2.0')
 }

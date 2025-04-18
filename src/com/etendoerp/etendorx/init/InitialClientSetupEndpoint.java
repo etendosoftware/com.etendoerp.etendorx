@@ -8,7 +8,7 @@ import java.util.List;
 
 import javax.enterprise.context.ApplicationScoped;
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.openbravo.base.session.OBPropertiesProvider;
 
 import com.etendoerp.openapi.model.OpenAPIEndpoint;
