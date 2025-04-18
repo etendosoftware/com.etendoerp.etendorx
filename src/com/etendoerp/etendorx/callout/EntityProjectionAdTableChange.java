@@ -1,7 +1,7 @@
 package com.etendoerp.etendorx.callout;
 
 import com.etendoerp.etendorx.data.ETRXProjection;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.openbravo.model.ad.datamodel.Table;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.ad_callouts.SimpleCallout;
