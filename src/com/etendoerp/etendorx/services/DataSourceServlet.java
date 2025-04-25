@@ -660,7 +660,7 @@ public class DataSourceServlet implements WebService {
    */
   private String getHeadlessFilterClause(Tab tab, Column col, String changedColumnInp, JSONObject dataInpFormat) throws JSONException {
     for (Field field : tab.getADFieldList()) {
-      if (field.getColumn() == col && field.getEtrxFilterClause() != null) {
+      if (field.getColumn() == col && !StringUtils.isEmpty(field.getEtrxFilterClause())) {
         return " AND " + field.getEtrxFilterClause()
                 .replaceAll("(?i)@id@", "'" + dataInpFormat.getString(changedColumnInp) + "'");
       }
