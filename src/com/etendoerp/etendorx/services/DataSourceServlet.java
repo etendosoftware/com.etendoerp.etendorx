@@ -573,14 +573,23 @@ public class DataSourceServlet implements WebService {
       if (reference.getOBUISELSelectorList().isEmpty()) {
         throw new OBException(OBMessageUtils.messageBD("ETRX_ReferenceNotFound"));
       }
+      String  headlessFilterClause = "";
+      for (Field field : tab.getADFieldList()) {
+        if (field.getColumn() == col) {
+          if (field.getEtrxFilterClause() != null) {
+            headlessFilterClause = " AND " + field.getEtrxFilterClause().replaceAll("(?i)@id@", "'" + dataInpFormat.getString(changedColumnInp) + "'");
+          }
+          break;
+        }
+      }
       org.openbravo.model.ad.domain.Selector selectorValidation = reference.getADSelectorList().get(0);
       Selector selectorDefined = reference.getOBUISELSelectorList().get(0);
       DefaultDataSourceService dataSourceService = new DefaultDataSourceService();
       HashMap<String, String> convertToHashMAp = convertToHashMAp(dataInpFormat);
       OBDal.getInstance().refresh(selectorDefined);
       convertToHashMAp.put("_entityName", selectorDefined.getTable().getJavaClassName());
-      String whereClauseAndFilters = selectorDefined.getHQLWhereClause() + addFilterClause(selectorDefined,
-          convertToHashMAp, tab, request);
+      String whereClauseAndFilters = selectorDefined.getHQLWhereClause() + headlessFilterClause + addFilterClause(selectorDefined,
+              convertToHashMAp, tab, request);
       whereClauseAndFilters = fullfillSessionsVariables(whereClauseAndFilters, db2Input, dataInpFormat);
       convertToHashMAp.put("whereAndFilterClause", whereClauseAndFilters);
       convertToHashMAp.put("dataSourceName", selectorDefined.getTable().getJavaClassName());

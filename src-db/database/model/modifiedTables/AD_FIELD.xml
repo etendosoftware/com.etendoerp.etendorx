@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+  <database name="MODIFIED TABLE AD_FIELD">
+    <table name="AD_FIELD" primaryKey="AD_FIELD_KEY">
+      <column name="EM_ETRX_FILTER_CLAUSE" primaryKey="false" required="false" type="VARCHAR" size="2000" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+    </table>
+  </database>
