@@ -573,14 +573,16 @@ public class DataSourceServlet implements WebService {
       if (reference.getOBUISELSelectorList().isEmpty()) {
         throw new OBException(OBMessageUtils.messageBD("ETRX_ReferenceNotFound"));
       }
+
+      String headlessFilterClause = getHeadlessFilterClause(tab, col, changedColumnInp, dataInpFormat);
       org.openbravo.model.ad.domain.Selector selectorValidation = reference.getADSelectorList().get(0);
       Selector selectorDefined = reference.getOBUISELSelectorList().get(0);
       DefaultDataSourceService dataSourceService = new DefaultDataSourceService();
       HashMap<String, String> convertToHashMAp = convertToHashMAp(dataInpFormat);
       OBDal.getInstance().refresh(selectorDefined);
       convertToHashMAp.put("_entityName", selectorDefined.getTable().getJavaClassName());
-      String whereClauseAndFilters = selectorDefined.getHQLWhereClause() + addFilterClause(selectorDefined,
-          convertToHashMAp, tab, request);
+      String whereClauseAndFilters = selectorDefined.getHQLWhereClause() + headlessFilterClause + addFilterClause(selectorDefined,
+              convertToHashMAp, tab, request);
       whereClauseAndFilters = fullfillSessionsVariables(whereClauseAndFilters, db2Input, dataInpFormat);
       convertToHashMAp.put("whereAndFilterClause", whereClauseAndFilters);
       convertToHashMAp.put("dataSourceName", selectorDefined.getTable().getJavaClassName());
@@ -635,6 +637,37 @@ public class DataSourceServlet implements WebService {
       OBContext.restorePreviousMode();
     }
   }
+
+  /**
+   * Builds the filter clause for the given column based on the field's EtrxFilterClause.
+   * <p>
+   * If a field associated with the specified column has a non-null filter clause, this method
+   * replaces occurrences of "@id@" (case-insensitive) with the value of the changed column from
+   * the input format and returns it as part of an SQL WHERE clause.
+   *
+   * @param tab
+   *     The tab containing the list of fields to search through.
+   * @param col
+   *     The column to find the associated field and filter clause.
+   * @param changedColumnInp
+   *     The input format name of the changed column.
+   * @param dataInpFormat
+   *     The JSON object containing the current input values.
+   * @return
+   *     The filter clause string, or an empty string if no applicable clause is found.
+   * @throws JSONException
+   *     If an error occurs while reading values from the JSON object.
+   */
+  private String getHeadlessFilterClause(Tab tab, Column col, String changedColumnInp, JSONObject dataInpFormat) throws JSONException {
+    for (Field field : tab.getADFieldList()) {
+      if (field.getColumn() == col && !StringUtils.isEmpty(field.getEtrxFilterClause())) {
+        return " AND " + field.getEtrxFilterClause()
+                .replaceAll("(?i)@id@", "'" + dataInpFormat.getString(changedColumnInp) + "'");
+      }
+    }
+    return "";
+  }
+
 
   /**
    * Saves the prefix fields from the selector into the data input format.
