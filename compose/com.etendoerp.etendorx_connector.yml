@@ -5,7 +5,7 @@ services:
       - "8101:8101"
       - "5025:8000"
     environment:
-      - DEPENDENCIES=com.etendorx.integration:obconn-srv:1.0.0
+      - DEPENDENCIES=com.etendorx.integration:obconn-srv:1.0.1
       - REPO_URL=${ETENDORX_REPOSITORY_URL}
       - REPO_USER=${ETENDORX_REPOSITORY_USER}
       - REPO_PASSWORD=${ETENDORX_REPOSITORY_PASSWORD}
@@ -16,12 +16,13 @@ services:
     volumes:
       - obconnsrv:/root/.gradle
 
-  obconnwrk:
+  worker:
     image: etendo/dynamic-gradle:1.0.0
     ports:
       - "5026:8000"
+      - "8102:8102"
     environment:
-      - DEPENDENCIES=com.etendorx.integration:obconn-wrk:1.0.0
+      - DEPENDENCIES=com.etendorx.integration:obconn-wrk:1.0.1
       - REPO_URL=${ETENDORX_REPOSITORY_URL}
       - REPO_USER=${ETENDORX_REPOSITORY_USER}
       - REPO_PASSWORD=${ETENDORX_REPOSITORY_PASSWORD}
@@ -30,8 +31,8 @@ services:
     networks:
       - etendo
     volumes:
-      - obconnwrk:/root/.gradle
+      - worker:/root/.gradle
 
 volumes:
     obconnsrv:
-    obconnwrk:
+    worker:
