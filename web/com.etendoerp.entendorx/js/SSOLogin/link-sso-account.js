@@ -1,4 +1,119 @@
 if (OB.PropertyStore.get('ETRX_AllowSSOLogin') === 'Y') {
+// -----------------------------------------------------------
+// -----------------------------------------------------------
+// -----------------------------------------------------------
+
+  function createAuth0LinkButton() {
+    return isc.OBFormButton.create({
+      title: OB.I18N.getLabel('ETRX_LinkSSOAccount'),
+      click: function () {
+        if (typeof auth0 === "undefined") {
+          let script = document.createElement("script");
+          script.src = "https://cdn.auth0.com/js/auth0/9.18/auth0.min.js";
+          script.integrity = "sha384-RGYbqCwrx+jue6YOAQKbQ58iRJJXVBQMQRrHvUAQwgrvSNMxtgDwYoaEKFiWUI61";
+          script.crossOrigin = "anonymous";
+          script.onload = initAuth0;
+          document.head.appendChild(script);
+        } else {
+          initAuth0();
+        }
+
+        function initAuth0() {
+          function callbackOnProcessActionHandler(response, data) {
+            if (data.message?.severity === 'error') {
+              this.getWindow().showMessage(data.message.text);
+            } else {
+              let webAuth = new auth0.WebAuth({
+                domain: data.domainurl,
+                clientID: data.clientid,
+                redirectUri: OB.Utilities.getLocationUrlWithoutFragment() + 'web/com.etendoerp.etendorx/LinkAuth0Account.html',
+                responseType: 'code',
+                scope: 'openid profile email'
+              });
+
+              webAuth.authorize({ prompt: 'login' });
+            }
+          }
+
+          OB.RemoteCallManager.call(
+            'com.etendoerp.etendorx.GetSSOProperties',
+            { properties: 'domain.url, client.id' },
+            {},
+            callbackOnProcessActionHandler
+          );
+        }
+      },
+      baseStyle: "OBFormButton",
+      width: 175,
+      height: 50,
+      wrap: true,
+      align: 'center',
+      autoFit: false,
+    });
+  }
+
+  function createProviderIconLayout() {
+    const layout = isc.VStack.create({
+      align: 'center',
+      width: '100%'
+    });
+
+    layout.addMember(isc.Label.create({
+      contents: "Link user with:",
+      styleName: "OBFormFieldLabel",
+      align: "center",
+      width: "100%",
+      layoutTopMargin: 4,
+      layoutBottomMargin: 2,
+      height: 20,
+      padding: 0,
+      margin: 0,
+      overflow: 'hidden',
+      showEdges: false
+    }));
+
+    const iconLayout = isc.HStack.create({
+      align: 'center',
+      layoutTopMargin: 0,
+      layoutBottomMargin: 0,
+      membersMargin: 6
+    });
+
+    const providerIcons = [
+      { providerText: 'Google', provider: 'google-oauth2', img: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/google/google-original.svg' },
+      { providerText: 'Facebook', provider: 'facebook', img: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/facebook/facebook-original.svg' },
+      { providerText: 'GitHub', provider: 'github', img: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/github/github-original.svg' },
+      { providerText: 'Microsoft', provider: 'windowslive', img: 'https://upload.wikimedia.org/wikipedia/commons/4/44/Microsoft_logo.svg' },
+      { providerText: 'LinkedIn', provider: 'linkedin', img: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/linkedin/linkedin-original.svg' }
+    ];
+
+    providerIcons.forEach(p => {
+      iconLayout.addMember(isc.ImgButton.create({
+        width: 32,
+        height: 32,
+        src: p.img,
+        prompt: 'Link with ' + p.providerText,
+        showRollOver: false,
+        showDown: false,
+        showFocused: false,
+        layoutAlign: 'center',
+        baseStyle: 'ssoProviderIcon',
+        click: function () {
+          const redirectUri = OB.Utilities.getLocationUrlWithoutFragment();
+          const url = `http://localhost:9580/login?provider=${p.provider}&account_id=etendo_123&redirect_uri=${redirectUri}web/com.etendoerp.etendorx/LinkAuth0Account.html`;
+          window.location.href = url;
+        }
+      }));
+    });
+
+    layout.addMember(iconLayout);
+    return layout;
+  }
+
+
+// -----------------------------------------------------------
+// -----------------------------------------------------------
+// -----------------------------------------------------------
   isc.OBUserProfile.addProperties({
     createProfileForm: function() {
       let me = this,
@@ -371,66 +486,105 @@ if (OB.PropertyStore.get('ETRX_AllowSSOLogin') === 'Y') {
           click: isc.OBQuickRun.hide
         })
       );
+// --------------------------------------------------------------------------------------------------------
 
-      let auth0Button = isc.OBFormButton.create({
-        title: OB.I18N.getLabel('ETRX_LinkSSOAccount'),
-        click: function() {
-           if (typeof auth0 === "undefined") {
-             let script = document.createElement("script");
-             script.src = "https://cdn.auth0.com/js/auth0/9.18/auth0.min.js";
-             script.onload = function () {
-               initAuth0();
-             };
-             document.head.appendChild(script);
-           } else {
-             initAuth0();
-           }
+        let ssoButtonLayout = isc.VStack.create({
+          layoutTopMargin: 6,
+          align: 'center',
+          width: '100%',
+          height: 1
+        });
 
-           function initAuth0() {
-             function callbackOnProcessActionHandler(response, data, request) {
-               if (data.message?.severity === 'error') {
-                 this.getWindow().showMessage(data.message.text);
-               } else {
-                 let webAuth = new auth0.WebAuth({
-                   domain: data.domainurl,
-                   clientID: data.clientid,
-                   redirectUri: OB.Utilities.getLocationUrlWithoutFragment() + 'web/com.etendoerp.etendorx/LinkAuth0Account.html',
-                   responseType: 'code',
-                   scope: 'openid profile email'
-                 });
+        function getSSOAuthType(callback) {
+          function callbackOnProcessActionHandler(response, data) {
+            if (data.message?.severity === 'error') {
+              this.getWindow().showMessage(data.message.text);
+            } else {
+              const ssoType = data['authtype'];
+              callback(ssoType);
+            }
+          }
 
-                 webAuth.authorize({
-                   prompt: 'login'
-                 });
-               }
-             }
+          OB.RemoteCallManager.call(
+            'com.etendoerp.etendorx.GetSSOProperties',
+            { properties: 'auth.type' },
+            {},
+            callbackOnProcessActionHandler
+          );
+        }
 
-             OB.RemoteCallManager.call(
-               'com.etendoerp.etendorx.GetSSOProperties',
-               {
-                 properties: 'domain.url, client.id'
-               },
-               {},
-               callbackOnProcessActionHandler
-             );
-           }
-         },
-        baseStyle: "OBFormButton",
-        width: 175,
-        height: 50,
-        wrap: true,
-        align: 'center',
-        autoFit: false,
-      });
-      let ssoButtonLayout = isc.HStack.create({
-        layoutTopMargin: 10,
-        align: 'center',
-        width: '100%',
-        height: '40px'
-      });
-      ssoButtonLayout.addMember(auth0Button);
-      profileFormLayout.addMembers(buttonLayout);
-      profileFormLayout.addMember(ssoButtonLayout);
+        getSSOAuthType(function (ssoType) {
+          if (ssoType === 'Auth0') {
+            ssoButtonLayout.addMember(createAuth0LinkButton());
+          } else {
+            ssoButtonLayout.addMember(createProviderIconLayout());
+          }
+        });
+
+        profileFormLayout.addMembers(buttonLayout);
+        profileFormLayout.addMember(ssoButtonLayout);
+
+
+// --------------------------------------------------------------------------------------------------------
+//      let auth0Button = isc.OBFormButton.create({
+//        title: OB.I18N.getLabel('ETRX_LinkSSOAccount'),
+//        click: function() {
+//           if (typeof auth0 === "undefined") {
+//             let script = document.createElement("script");
+//             script.src = "https://cdn.auth0.com/js/auth0/9.18/auth0.min.js";
+//             script.onload = function () {
+//               initAuth0();
+//             };
+//             document.head.appendChild(script);
+//           } else {
+//             initAuth0();
+//           }
+//
+//           function initAuth0() {
+//             function callbackOnProcessActionHandler(response, data, request) {
+//               if (data.message?.severity === 'error') {
+//                 this.getWindow().showMessage(data.message.text);
+//               } else {
+//                 let webAuth = new auth0.WebAuth({
+//                   domain: data.domainurl,
+//                   clientID: data.clientid,
+//                   redirectUri: OB.Utilities.getLocationUrlWithoutFragment() + 'web/com.etendoerp.etendorx/LinkAuth0Account.html',
+//                   responseType: 'code',
+//                   scope: 'openid profile email'
+//                 });
+//
+//                 webAuth.authorize({
+//                   prompt: 'login'
+//                 });
+//               }
+//             }
+//
+//             OB.RemoteCallManager.call(
+//               'com.etendoerp.etendorx.GetSSOProperties',
+//               {
+//                 properties: 'domain.url, client.id'
+//               },
+//               {},
+//               callbackOnProcessActionHandler
+//             );
+//           }
+//         },
+//        baseStyle: "OBFormButton",
+//        width: 175,
+//        height: 50,
+//        wrap: true,
+//        align: 'center',
+//        autoFit: false,
+//      });
+//      let ssoButtonLayout = isc.HStack.create({
+//        layoutTopMargin: 10,
+//        align: 'center',
+//        width: '100%',
+//        height: '40px'
+//      });
+//      ssoButtonLayout.addMember(auth0Button);
+//      profileFormLayout.addMembers(buttonLayout);
+//      profileFormLayout.addMember(ssoButtonLayout);
 
       // pointer to the form
       this.profileForm = profileForm;

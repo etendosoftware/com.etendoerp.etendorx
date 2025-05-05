@@ -122,6 +122,17 @@ public class LinkAuth0Account extends HttpBaseServlet {
    * @return the authentication token
    */
   private String getAuthToken(HttpServletRequest request) {
+    String authType = OBPropertiesProvider.getInstance().getOpenbravoProperties().getProperty("sso.auth.type");
+    return StringUtils.equals("Auth0", authType) ? getTokenFromAuth0(request) : request.getParameter("access_token");
+  }
+
+    /**
+     * Retrieves the token from Auth0 using the provided request.
+     *
+     * @param request the HttpServletRequest object
+     * @return the authentication token
+     */
+  private String getTokenFromAuth0(HttpServletRequest request) {
     String code = request.getParameter("code");
     String token = "";
     String domain = OBPropertiesProvider.getInstance().getOpenbravoProperties().getProperty("sso.domain.url");

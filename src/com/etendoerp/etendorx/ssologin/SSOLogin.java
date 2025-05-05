@@ -25,51 +25,138 @@ public class SSOLogin implements SignInProvider {
     public String getLoginPageSignInHTMLCode() {
 
         final Properties openbravoProperties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
-        String domain = openbravoProperties.getProperty("sso.domain.url");
-        String clientId = openbravoProperties.getProperty("sso.client.id");
-        String redirectUri = openbravoProperties.getProperty("sso.callback.url");
-        String sourceURL = openbravoProperties.getProperty("sso.source.url");
+        String authType = openbravoProperties.getProperty("sso.auth.type");
 
-        if (StringUtils.isBlank(domain) || StringUtils.isBlank(clientId)
-            || StringUtils.isBlank(redirectUri)|| StringUtils.isBlank(sourceURL)) {
-            return "";
+        if (StringUtils.equals("Auth0", authType)) {
+            String domain = openbravoProperties.getProperty("sso.domain.url");
+            String clientId = openbravoProperties.getProperty("sso.client.id");
+            String redirectUri = openbravoProperties.getProperty("sso.callback.url");
+            String sourceURL = openbravoProperties.getProperty("sso.source.url");
+
+            if (StringUtils.isBlank(domain) || StringUtils.isBlank(clientId)
+                    || StringUtils.isBlank(redirectUri) || StringUtils.isBlank(sourceURL)) {
+                return "";
+            }
+
+            ConnectionProvider cp = new DalConnectionProvider(false);
+            Client systemClient = OBDal.getInstance().get(Client.class, "0");
+            String systemLanguage = systemClient.getLanguage().getLanguage();
+            String loginButtonMessage = Utility.messageBD(cp, "ETRX_LoginSSO", systemLanguage);
+
+            String ssoButton = "<style>"
+                    + ".sso-login-button {"
+                    + "  display: inline-block;"
+                    + "  background-color: #202452;"
+                    + "  color: white;"
+                    + "  padding: 10px 20px;"
+                    + "  font-size: 16px;"
+                    + "  border-radius: 5px;"
+                    + "  cursor: pointer;"
+                    + "  text-decoration: none;"
+                    + "  margin-top: 10px;"
+                    + "}"
+                    + ".sso-login-button:hover { opacity: 80%; }"
+                    + "</style>"
+                    + "<script src=\"" + sourceURL + "\"></script>"
+                    + "<script>"
+                    + "function loginWithSSO() {"
+                    + "  var webAuth = new auth0.WebAuth({"
+                    + "    domain: '" + domain + "',"
+                    + "    clientID: '" + clientId + "',"
+                    + "    redirectUri: '" + redirectUri + "',"
+                    + "    responseType: 'code',"
+                    + "    scope: 'openid profile email'"
+                    + "  });"
+                    + "  webAuth.authorize({"
+                    + "  });"
+                    + "}"
+                    + "</script>"
+                    + "<button class=\"pure-button login-button ButtonLink ButtonLink_default\" onclick=\"loginWithSSO()\">" + loginButtonMessage + "</button>";
+
+            return "<br>" + ssoButton;
+        } else {
+            return "<style>" +
+                    ".sso-login-container {" +
+                    "  display: flex;" +
+                    "  flex-direction: column;" +
+                    "  align-items: center;" +
+                    "  margin-top: 16px;" +
+                    "  gap: 8px;" +
+                    "}" +
+                    ".sso-login-button {" +
+                    "  display: flex;" +
+                    "  align-items: center;" +
+                    "  gap: 8px;" +
+                    "  background-color: white;" +
+                    "  color: #202452;" +
+                    "  border: 2px solid #202452;" +
+                    "  padding: 8px 16px;" +
+                    "  font-size: 14px;" +
+                    "  font-weight: bold;" +
+                    "  border-radius: 6px;" +
+                    "  cursor: pointer;" +
+                    "  text-decoration: none;" +
+                    "  width: 220px;" +
+                    "  justify-content: center;" +
+                    "  transition: background-color 0.2s, color 0.2s;" +
+                    "}" +
+                    ".sso-login-button:hover {" +
+                    "  background-color: #202452;" +
+                    "  color: white;" +
+                    "}" +
+                    ".sso-login-button img {" +
+                    "  height: 18px;" +
+                    "  width: 18px;" +
+                    "}" +
+                    ".sso-divider {" +
+                    "  display: flex;" +
+                    "  align-items: center;" +
+                    "  text-align: center;" +
+                    "  color: #666;" +
+                    "  font-weight: bold;" +
+                    "  margin: 20px 0 12px 0;" +
+                    "  font-size: 13px;" +
+                    "}" +
+                    ".sso-divider::before," +
+                    ".sso-divider::after {" +
+                    "  content: \"\";" +
+                    "  flex: 1;" +
+                    "  border-bottom: 1px solid #ccc;" +
+                    "}" +
+                    ".sso-divider::before {" +
+                    "  margin-right: 10px;" +
+                    "}" +
+                    ".sso-divider::after {" +
+                    "  margin-left: 10px;" +
+                    "}" +
+                    "</style>" +
+
+
+                    "<div class='sso-login-container'>" +
+
+                    "<div class='sso-divider'><span>--- OR ---</span></div>" +
+                    "<div></div>" +
+                    "<a class='sso-login-button' href='http://localhost:9580/login?provider=google-oauth2&account_id=etendo_123&redirect_uri=http://localhost:8080/oauth/secureApp/LoginHandler.html'>" +
+                    "<img src='https://cdn.jsdelivr.net/gh/devicons/devicon/icons/google/google-original.svg' alt='Google'/>Google" +
+                    "</a>" +
+
+                    "<a class='sso-login-button' href='http://localhost:9580/login?provider=windowslive&account_id=etendo_123&redirect_uri=http://localhost:8080/oauth/secureApp/LoginHandler.html'>" +
+                    "<img src='https://upload.wikimedia.org/wikipedia/commons/4/44/Microsoft_logo.svg' alt='Microsoft'/>Microsoft" +
+                    "</a>" +
+
+                    "<a class='sso-login-button' href='http://localhost:9580/login?provider=linkedin&account_id=etendo_123&redirect_uri=http://localhost:8080/oauth/secureApp/LoginHandler.html'>" +
+                    "<img src='https://cdn.jsdelivr.net/gh/devicons/devicon/icons/linkedin/linkedin-original.svg' alt='LinkedIn'/>LinkedIn" +
+                    "</a>" +
+
+                    "<a class='sso-login-button' href='http://localhost:9580/login?provider=github&account_id=etendo_123&redirect_uri=http://localhost:8080/oauth/secureApp/LoginHandler.html'>" +
+                    "<img src='https://cdn.jsdelivr.net/gh/devicons/devicon/icons/github/github-original.svg' alt='GitHub'/>GitHub" +
+                    "</a>" +
+
+                    "<a class='sso-login-button' href='http://localhost:9580/login?provider=facebook&account_id=etendo_123&redirect_uri=http://localhost:8080/oauth/secureApp/LoginHandler.html'>" +
+                    "<img src='https://cdn.jsdelivr.net/gh/devicons/devicon/icons/facebook/facebook-original.svg' alt='Facebook'/>Facebook" +
+                    "</a>" +
+
+                    "</div>";
         }
-
-        ConnectionProvider cp = new DalConnectionProvider(false);
-        Client systemClient = OBDal.getInstance().get(Client.class, "0");
-        String systemLanguage = systemClient.getLanguage().getLanguage();
-        String loginButtonMessage = Utility.messageBD(cp, "ETRX_LoginSSO", systemLanguage);
-
-        String ssoButton = "<style>"
-            + ".sso-login-button {"
-            + "  display: inline-block;"
-            + "  background-color: #202452;"
-            + "  color: white;"
-            + "  padding: 10px 20px;"
-            + "  font-size: 16px;"
-            + "  border-radius: 5px;"
-            + "  cursor: pointer;"
-            + "  text-decoration: none;"
-            + "  margin-top: 10px;"
-            + "}"
-            + ".sso-login-button:hover { opacity: 80%; }"
-            + "</style>"
-            + "<script src=\"" + sourceURL + "\"></script>"
-            + "<script>"
-            + "function loginWithSSO() {"
-            + "  var webAuth = new auth0.WebAuth({"
-            + "    domain: '" + domain + "',"
-            + "    clientID: '" + clientId + "',"
-            + "    redirectUri: '" + redirectUri + "',"
-            + "    responseType: 'code',"
-            + "    scope: 'openid profile email'"
-            + "  });"
-            + "  webAuth.authorize({"
-            + "  });"
-            + "}"
-            + "</script>"
-            + "<button class=\"pure-button login-button ButtonLink ButtonLink_default\" onclick=\"loginWithSSO()\">" + loginButtonMessage + "</button>";
-
-        return "<br>" + ssoButton;
     }
 }
