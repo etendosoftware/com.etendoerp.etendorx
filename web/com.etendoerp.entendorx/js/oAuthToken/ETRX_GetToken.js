@@ -15,30 +15,23 @@ OB.ETRX.oAuthToken = {
         const left = (screenWidth - popupWidth) / 2;
         const upperMargin = (screenHeight - popupHeight) / 2;
 
-        function handleMessage(title, text, type) {
-            view.messageBar.setMessage(type, title, text);
-        }
-
-		function callbackOnProcessActionHandler(response, data, request) {
-            if (data.message?.severity === 'error') {
-                this.getWindow().showMessage(data.message.text)
-            } else {
-                const popup = window.open(data.auth_url, 'Authentication Popup', 'width=' + popupWidth + ',height=' + popupHeight + ',left=' + left + ',top=' + upperMargin);
-                if (!popup) {
-                    console.error(OB.I18N.getLabel('ETRX_PopupNotBeOpened'));
-                    alert(OB.I18N.getLabel('ETRX_PopupNotBeOpened'));
-                }
-            }
-        }
-        // Function to open the popup window
+		// Generate a 'state' to keep userId and providerId
         const selectedRecord = params.button.contextView.viewGrid.getSelectedRecords()[0];
-        OB.RemoteCallManager.call(
-            'com.etendoerp.etendorx.GetTokenURL',
-            {
-                id: selectedRecord.id
-            },
-            {},
-            callbackOnProcessActionHandler
-        );
+		const state = crypto.randomUUID();
+		const userId = OB.User.id;
+		const etrxOauthProviderId = selectedRecord.id;
+		const encodedState = btoa(JSON.stringify({ state, userId, etrxOauthProviderId }));
+
+        // Function to open the popup window
+        const baseURL = selectedRecord.authorizationEndpoint;
+        const separator = baseURL.includes('?') ? '&' : '?';
+        const popUpURL = baseURL + separator + `state=${encodedState}`;
+
+		const sizeProperties = 'width=' + popupWidth + ',height=' + popupHeight + ',left=' + left + ',top=' + upperMargin;
+        const popup = window.open(popUpURL, 'Authentication Popup', sizeProperties);
+        if (!popup) {
+            console.error(OB.I18N.getLabel('ETRX_PopupNotBeOpened'));
+            alert(OB.I18N.getLabel('ETRX_PopupNotBeOpened'));
+        }
     }
 };

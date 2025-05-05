@@ -24,6 +24,10 @@ public class RXComponentProvider  extends BaseComponentProvider {
     final List<ComponentResource> resources = new ArrayList<>();
     resources.add(createStaticResource("web/com.etendoerp.entendorx/js/oAuthToken/ETRX_GetToken.js",
         false));
+    resources.add(createStaticResource("web/com.etendoerp.entendorx/js/SSOLogin/log-out-from-sso.js",
+        false));
+    resources.add(createStaticResource("web/com.etendoerp.entendorx/js/SSOLogin/link-sso-account.js",
+        false));
     resources.add(createStaticResource("web/com.etendoerp.entendorx/js/init-services-toolbar-button.js",
         false));
     resources.add(createStyleSheetResource(("web/com.etendoerp.userinterface.smartclient/etendo/" +
