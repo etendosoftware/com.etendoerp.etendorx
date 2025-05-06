@@ -27,14 +27,15 @@ public class SSOLogin implements SignInProvider {
         final Properties openbravoProperties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
         String authType = openbravoProperties.getProperty("sso.auth.type");
 
+        if (StringUtils.isBlank(authType)) {
+            return "";
+        }
         if (StringUtils.equals("Auth0", authType)) {
             String domain = openbravoProperties.getProperty("sso.domain.url");
             String clientId = openbravoProperties.getProperty("sso.client.id");
             String redirectUri = openbravoProperties.getProperty("sso.callback.url");
-            String sourceURL = openbravoProperties.getProperty("sso.source.url");
 
-            if (StringUtils.isBlank(domain) || StringUtils.isBlank(clientId)
-                    || StringUtils.isBlank(redirectUri) || StringUtils.isBlank(sourceURL)) {
+            if (StringUtils.isBlank(domain) || StringUtils.isBlank(clientId) || StringUtils.isBlank(redirectUri)) {
                 return "";
             }
 
@@ -57,7 +58,8 @@ public class SSOLogin implements SignInProvider {
                     + "}"
                     + ".sso-login-button:hover { opacity: 80%; }"
                     + "</style>"
-                    + "<script src=\"" + sourceURL + "\"></script>"
+                    + "<script src=\"https://cdn.auth0.com/js/auth0/9.18.1/auth0.min.js\"></script>"
+//                    + "<script src=\"" + sourceURL + "\"></script>"
                     + "<script>"
                     + "function loginWithSSO() {"
                     + "  var webAuth = new auth0.WebAuth({"
@@ -80,17 +82,17 @@ public class SSOLogin implements SignInProvider {
                     "  display: flex;" +
                     "  flex-direction: column;" +
                     "  align-items: center;" +
-                    "  margin-top: 16px;" +
-                    "  gap: 8px;" +
+                    "  margin-top: 12px;" +
+                    "  gap: 6px;" +
                     "}" +
                     ".sso-login-button {" +
                     "  display: flex;" +
                     "  align-items: center;" +
-                    "  gap: 8px;" +
+                    "  gap: 10px;" +
                     "  background-color: white;" +
                     "  color: #202452;" +
                     "  border: 2px solid #202452;" +
-                    "  padding: 8px 16px;" +
+                    "  padding: 8px 12px;" +
                     "  font-size: 14px;" +
                     "  font-weight: bold;" +
                     "  border-radius: 6px;" +
@@ -108,34 +110,35 @@ public class SSOLogin implements SignInProvider {
                     "  height: 18px;" +
                     "  width: 18px;" +
                     "}" +
+                    ".sso-divider-wrapper {" +
+                    "  max-width: 280px;" + // limitar ancho
+                    "  width: 100%;" +
+                    "  margin: 10px auto 6px;" +
+                    "}" +
                     ".sso-divider {" +
                     "  display: flex;" +
                     "  align-items: center;" +
                     "  text-align: center;" +
-                    "  color: #666;" +
-                    "  font-weight: bold;" +
-                    "  margin: 20px 0 12px 0;" +
+                    "  width: 100%;" +
+                    "}" +
+                    ".sso-divider span {" +
+                    "  padding: 0 10px;" +
+                    "  color: #888;" +
+                    "  font-weight: 600;" +
                     "  font-size: 13px;" +
                     "}" +
-                    ".sso-divider::before," +
-                    ".sso-divider::after {" +
+                    ".sso-divider::before, .sso-divider::after {" +
                     "  content: \"\";" +
                     "  flex: 1;" +
                     "  border-bottom: 1px solid #ccc;" +
                     "}" +
-                    ".sso-divider::before {" +
-                    "  margin-right: 10px;" +
-                    "}" +
-                    ".sso-divider::after {" +
-                    "  margin-left: 10px;" +
-                    "}" +
                     "</style>" +
 
-
                     "<div class='sso-login-container'>" +
+                    "<div class='sso-divider-wrapper'>" +
+                    "<div class='sso-divider'><span>OR</span></div>" +
+                    "</div>" +
 
-                    "<div class='sso-divider'><span>--- OR ---</span></div>" +
-                    "<div></div>" +
                     "<a class='sso-login-button' href='http://localhost:9580/login?provider=google-oauth2&account_id=etendo_123&redirect_uri=http://localhost:8080/oauth/secureApp/LoginHandler.html'>" +
                     "<img src='https://cdn.jsdelivr.net/gh/devicons/devicon/icons/google/google-original.svg' alt='Google'/>Google" +
                     "</a>" +
@@ -157,6 +160,7 @@ public class SSOLogin implements SignInProvider {
                     "</a>" +
 
                     "</div>";
+
         }
     }
 }

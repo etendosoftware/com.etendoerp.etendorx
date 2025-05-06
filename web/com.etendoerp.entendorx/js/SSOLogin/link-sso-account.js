@@ -9,9 +9,7 @@ if (OB.PropertyStore.get('ETRX_AllowSSOLogin') === 'Y') {
       click: function () {
         if (typeof auth0 === "undefined") {
           let script = document.createElement("script");
-          script.src = "https://cdn.auth0.com/js/auth0/9.18/auth0.min.js";
-          script.integrity = "sha384-RGYbqCwrx+jue6YOAQKbQ58iRJJXVBQMQRrHvUAQwgrvSNMxtgDwYoaEKFiWUI61";
-          script.crossOrigin = "anonymous";
+          script.src = OB.Utilities.getLocationUrlWithoutFragment() + 'web/com.etendoerp.entendorx/js/SSOLogin/auth0.min.js';
           script.onload = initAuth0;
           document.head.appendChild(script);
         } else {
@@ -524,68 +522,7 @@ if (OB.PropertyStore.get('ETRX_AllowSSOLogin') === 'Y') {
         profileFormLayout.addMembers(buttonLayout);
         profileFormLayout.addMember(ssoButtonLayout);
 
-
 // --------------------------------------------------------------------------------------------------------
-//      let auth0Button = isc.OBFormButton.create({
-//        title: OB.I18N.getLabel('ETRX_LinkSSOAccount'),
-//        click: function() {
-//           if (typeof auth0 === "undefined") {
-//             let script = document.createElement("script");
-//             script.src = "https://cdn.auth0.com/js/auth0/9.18/auth0.min.js";
-//             script.onload = function () {
-//               initAuth0();
-//             };
-//             document.head.appendChild(script);
-//           } else {
-//             initAuth0();
-//           }
-//
-//           function initAuth0() {
-//             function callbackOnProcessActionHandler(response, data, request) {
-//               if (data.message?.severity === 'error') {
-//                 this.getWindow().showMessage(data.message.text);
-//               } else {
-//                 let webAuth = new auth0.WebAuth({
-//                   domain: data.domainurl,
-//                   clientID: data.clientid,
-//                   redirectUri: OB.Utilities.getLocationUrlWithoutFragment() + 'web/com.etendoerp.etendorx/LinkAuth0Account.html',
-//                   responseType: 'code',
-//                   scope: 'openid profile email'
-//                 });
-//
-//                 webAuth.authorize({
-//                   prompt: 'login'
-//                 });
-//               }
-//             }
-//
-//             OB.RemoteCallManager.call(
-//               'com.etendoerp.etendorx.GetSSOProperties',
-//               {
-//                 properties: 'domain.url, client.id'
-//               },
-//               {},
-//               callbackOnProcessActionHandler
-//             );
-//           }
-//         },
-//        baseStyle: "OBFormButton",
-//        width: 175,
-//        height: 50,
-//        wrap: true,
-//        align: 'center',
-//        autoFit: false,
-//      });
-//      let ssoButtonLayout = isc.HStack.create({
-//        layoutTopMargin: 10,
-//        align: 'center',
-//        width: '100%',
-//        height: '40px'
-//      });
-//      ssoButtonLayout.addMember(auth0Button);
-//      profileFormLayout.addMembers(buttonLayout);
-//      profileFormLayout.addMember(ssoButtonLayout);
-
       // pointer to the form
       this.profileForm = profileForm;
       this.profileFormLayout = profileFormLayout;

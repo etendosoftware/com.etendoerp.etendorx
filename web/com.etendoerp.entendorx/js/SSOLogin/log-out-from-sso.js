@@ -35,6 +35,19 @@ if (OB.PropertyStore.get('ETRX_AllowSSOLogin') === 'Y') {
       );
     }
 
+    async function logoutWithPopup(ssoDomain, clientId, sanitizedRedirectUri) {
+      const logoutWindow = window.open(
+        `https://${ssoDomain}/v2/logout?client_id=${clientId}&returnTo=${encodeURIComponent(sanitizedRedirectUri)}`,
+        '_blank',
+        'width=1,height=1'
+      );
+
+      setTimeout(() => {
+        logoutWindow?.close();
+        OB.Utilities._originalLogout(true);
+      }, 5000);
+    }
+
     getSSOAuthType(function (ssoType, ssoDomain, clientId) {
       const logoutRedirectUri = window.location.origin + OB.Application.contextUrl;
       const sanitizedRedirectUri = logoutRedirectUri.endsWith('/')
@@ -42,23 +55,9 @@ if (OB.PropertyStore.get('ETRX_AllowSSOLogin') === 'Y') {
         : logoutRedirectUri;
 
       if (ssoType === 'Auth0') {
-        const logoutUrl = `https://${ssoDomain}/v2/logout?client_id=${clientId}&returnTo=${encodeURIComponent(sanitizedRedirectUri)}`;
-
-        const iframe = document.createElement("iframe");
-        iframe.style.display = "none";
-        iframe.src = logoutUrl;
-        document.body.appendChild(iframe);
-
-        setTimeout(() => {
-          document.body.removeChild(iframe);
-        }, 3000);
-
-        setTimeout(() => {
-          OB.Utilities._originalLogout(true);
-        }, 2000);
+        logoutWithPopup(ssoDomain, clientId, sanitizedRedirectUri)
       } else {
         const middlewareLogoutUrl = `http://localhost:9580/logout`;
-
         const iframe = document.createElement('iframe');
         iframe.style.display = 'none';
         iframe.src = middlewareLogoutUrl;
@@ -67,7 +66,6 @@ if (OB.PropertyStore.get('ETRX_AllowSSOLogin') === 'Y') {
         setTimeout(() => {
           document.body.removeChild(iframe);
         }, 1000);
-
         setTimeout(() => {
           OB.Utilities._originalLogout(true);
         }, 1000);
