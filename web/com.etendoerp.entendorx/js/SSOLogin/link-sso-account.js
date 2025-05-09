@@ -4,7 +4,7 @@ if (OB.PropertyStore.get('ETRX_AllowSSOLogin') === 'Y') {
 // -----------------------------------------------------------
 
   function createAuth0LinkButton() {
-    return isc.OBFormButton.create({
+    const button = isc.OBFormButton.create({
       title: OB.I18N.getLabel('ETRX_LinkSSOAccount'),
       click: function () {
         if (typeof auth0 === "undefined") {
@@ -42,11 +42,15 @@ if (OB.PropertyStore.get('ETRX_AllowSSOLogin') === 'Y') {
         }
       },
       baseStyle: "OBFormButton",
-      width: 175,
       height: 50,
       wrap: true,
+      autoFit: true
+    });
+    button.setWidth(170);
+    return isc.HStack.create({
       align: 'center',
-      autoFit: false,
+      width: '100%',
+      members: [button]
     });
   }
 
@@ -98,7 +102,7 @@ if (OB.PropertyStore.get('ETRX_AllowSSOLogin') === 'Y') {
         baseStyle: 'ssoProviderIcon',
         click: function () {
           const redirectUri = OB.Utilities.getLocationUrlWithoutFragment();
-          const url = `http://localhost:9580/login?provider=${p.provider}&account_id=etendo_123&redirect_uri=${redirectUri}web/com.etendoerp.etendorx/LinkAuth0Account.html`;
+          const url = `http://etendoauth-middleware-env.eba-purewhpv.sa-east-1.elasticbeanstalk.com/login?provider=${p.provider}&account_id=etendo_123&redirect_uri=${redirectUri}web/com.etendoerp.etendorx/LinkAuth0Account.html`;
           window.location.href = url;
         }
       }));
@@ -466,7 +470,7 @@ if (OB.PropertyStore.get('ETRX_AllowSSOLogin') === 'Y') {
       });
       if (isc.Page.isRTL()) {
         //HACK: in RTL mode this width is higher than in LTR (Even with width: '100%'). Manual set to a lower value.
-        buttonLayout.width = 220;
+        buttonLayout.width = 160;
       }
 
       buttonLayout.addMembers(

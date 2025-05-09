@@ -36,17 +36,73 @@ if (OB.PropertyStore.get('ETRX_AllowSSOLogin') === 'Y') {
     }
 
     async function logoutWithPopup(ssoDomain, clientId, sanitizedRedirectUri) {
-      const logoutWindow = window.open(
-        `https://${ssoDomain}/v2/logout?client_id=${clientId}&returnTo=${encodeURIComponent(sanitizedRedirectUri)}`,
-        '_blank',
-        'width=1,height=1'
-      );
+      const popupWidth = 400;
+      const popupHeight = 500;
+      const left = (screen.width / 2) - (popupWidth / 2);
+      const top = (screen.height / 2) - (popupHeight / 2);
 
+      const popup = window.open('', 'auth0LogoutPopup', `width=${popupWidth},height=${popupHeight},top=${top},left=${left}`);
+
+      if (!popup) return;
+
+      // Escribir contenido HTML en el popup
+      popup.document.write(`
+        <html>
+          <head>
+            <title>Logging out</title>
+            <style>
+              body {
+                font-family: Arial, sans-serif;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                height: 100vh;
+                margin: 0;
+                background-color: #f5f5f5;
+              }
+              .loader {
+                margin-top: 20px;
+                width: 40px;
+                height: 40px;
+                border: 5px solid #ccc;
+                border-top-color: #007bff;
+                border-radius: 50%;
+                animation: spin 1s linear infinite;
+              }
+              @keyframes spin {
+                to { transform: rotate(360deg); }
+              }
+              .dots::after {
+                content: '';
+                animation: dots 1.5s steps(4, end) infinite;
+              }
+              @keyframes dots {
+                0%   { content: ''; }
+                25%  { content: '.'; }
+                50%  { content: '..'; }
+                75%  { content: '...'; }
+                100% { content: ''; }
+              }
+            </style>
+          </head>
+          <body>
+            <div><strong>Logging out from Auth0<span class="dots"></span></strong></div>
+            <div class="loader"></div>
+          </body>
+        </html>
+      `);
+
+      // Navegar al logout real
+      popup.location.href = `https://${ssoDomain}/v2/logout?client_id=${clientId}&returnTo=${sanitizedRedirectUri}`;
+
+      // Cerrar después de unos segundos y seguir con logout de la app
       setTimeout(() => {
-        logoutWindow?.close();
+        popup?.close();
         OB.Utilities._originalLogout(true);
-      }, 5000);
+      }, 3000);
     }
+
 
     getSSOAuthType(function (ssoType, ssoDomain, clientId) {
       const logoutRedirectUri = window.location.origin + OB.Application.contextUrl;
@@ -55,9 +111,9 @@ if (OB.PropertyStore.get('ETRX_AllowSSOLogin') === 'Y') {
         : logoutRedirectUri;
 
       if (ssoType === 'Auth0') {
-        logoutWithPopup(ssoDomain, clientId, sanitizedRedirectUri)
+        logoutWithPopup(ssoDomain, clientId, sanitizedRedirectUri + '/web/com.etendoerp.entendorx/resources/logout-auth0.html')
       } else {
-        const middlewareLogoutUrl = `http://localhost:9580/logout`;
+        const middlewareLogoutUrl = `http://etendoauth-middleware-env.eba-purewhpv.sa-east-1.elasticbeanstalk.com/logout`;
         const iframe = document.createElement('iframe');
         iframe.style.display = 'none';
         iframe.src = middlewareLogoutUrl;

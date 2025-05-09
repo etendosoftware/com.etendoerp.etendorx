@@ -139,23 +139,23 @@ public class SSOLogin implements SignInProvider {
                     "<div class='sso-divider'><span>OR</span></div>" +
                     "</div>" +
 
-                    "<a class='sso-login-button' href='http://localhost:9580/login?provider=google-oauth2&account_id=etendo_123&redirect_uri=http://localhost:8080/oauth/secureApp/LoginHandler.html'>" +
+                    "<a class='sso-login-button' href='http://etendoauth-middleware-env.eba-purewhpv.sa-east-1.elasticbeanstalk.com/login?provider=google-oauth2&account_id=etendo_123&redirect_uri=http://localhost:8080/oauth/secureApp/LoginHandler.html'>" +
                     "<img src='https://cdn.jsdelivr.net/gh/devicons/devicon/icons/google/google-original.svg' alt='Google'/>Google" +
                     "</a>" +
 
-                    "<a class='sso-login-button' href='http://localhost:9580/login?provider=windowslive&account_id=etendo_123&redirect_uri=http://localhost:8080/oauth/secureApp/LoginHandler.html'>" +
+                    "<a class='sso-login-button' href='http://etendoauth-middleware-env.eba-purewhpv.sa-east-1.elasticbeanstalk.com/login?provider=windowslive&account_id=etendo_123&redirect_uri=http://localhost:8080/oauth/secureApp/LoginHandler.html'>" +
                     "<img src='https://upload.wikimedia.org/wikipedia/commons/4/44/Microsoft_logo.svg' alt='Microsoft'/>Microsoft" +
                     "</a>" +
 
-                    "<a class='sso-login-button' href='http://localhost:9580/login?provider=linkedin&account_id=etendo_123&redirect_uri=http://localhost:8080/oauth/secureApp/LoginHandler.html'>" +
+                    "<a class='sso-login-button' href='http://etendoauth-middleware-env.eba-purewhpv.sa-east-1.elasticbeanstalk.com/login?provider=linkedin&account_id=etendo_123&redirect_uri=http://localhost:8080/oauth/secureApp/LoginHandler.html'>" +
                     "<img src='https://cdn.jsdelivr.net/gh/devicons/devicon/icons/linkedin/linkedin-original.svg' alt='LinkedIn'/>LinkedIn" +
                     "</a>" +
 
-                    "<a class='sso-login-button' href='http://localhost:9580/login?provider=github&account_id=etendo_123&redirect_uri=http://localhost:8080/oauth/secureApp/LoginHandler.html'>" +
+                    "<a class='sso-login-button' href='http://etendoauth-middleware-env.eba-purewhpv.sa-east-1.elasticbeanstalk.com/login?provider=github&account_id=etendo_123&redirect_uri=http://localhost:8080/oauth/secureApp/LoginHandler.html'>" +
                     "<img src='https://cdn.jsdelivr.net/gh/devicons/devicon/icons/github/github-original.svg' alt='GitHub'/>GitHub" +
                     "</a>" +
 
-                    "<a class='sso-login-button' href='http://localhost:9580/login?provider=facebook&account_id=etendo_123&redirect_uri=http://localhost:8080/oauth/secureApp/LoginHandler.html'>" +
+                    "<a class='sso-login-button' href='http://etendoauth-middleware-env.eba-purewhpv.sa-east-1.elasticbeanstalk.com/login?provider=facebook&account_id=etendo_123&redirect_uri=http://localhost:8080/oauth/secureApp/LoginHandler.html'>" +
                     "<img src='https://cdn.jsdelivr.net/gh/devicons/devicon/icons/facebook/facebook-original.svg' alt='Facebook'/>Facebook" +
                     "</a>" +
 
