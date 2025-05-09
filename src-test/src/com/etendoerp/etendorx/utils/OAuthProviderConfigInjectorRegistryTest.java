@@ -8,7 +8,6 @@ import org.codehaus.jettison.json.JSONObject;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 
 import com.etendoerp.etendorx.data.ETRXoAuthProvider;
@@ -19,10 +18,6 @@ import com.etendoerp.etendorx.data.ETRXoAuthProvider;
  */
 @RunWith(MockitoJUnitRunner.class)
 public class OAuthProviderConfigInjectorRegistryTest {
-
-    @Mock
-    private OAuthProviderConfigInjector mockInjector;
-
 
     /**
      * Resets the injectors list before each test by using reflection to clear the static list.
@@ -46,6 +41,7 @@ public class OAuthProviderConfigInjectorRegistryTest {
      */
     @Test
     public void testRegisterInjector() {
+        TestInjector mockInjector = new TestInjector();
         OAuthProviderConfigInjectorRegistry.registerInjector(mockInjector);
         List<OAuthProviderConfigInjector> injectors = OAuthProviderConfigInjectorRegistry.getInjectors();
 
@@ -58,6 +54,7 @@ public class OAuthProviderConfigInjectorRegistryTest {
      */
     @Test(expected = UnsupportedOperationException.class)
     public void testGetInjectorsReturnsUnmodifiableList() {
+        TestInjector mockInjector = new TestInjector();
         OAuthProviderConfigInjectorRegistry.registerInjector(mockInjector);
         List<OAuthProviderConfigInjector> injectors = OAuthProviderConfigInjectorRegistry.getInjectors();
 
@@ -81,7 +78,7 @@ public class OAuthProviderConfigInjectorRegistryTest {
      * Invalid test implementation without default constructor.
      */
     public static class InvalidTestInjector implements OAuthProviderConfigInjector {
-        private InvalidTestInjector() {
+        public InvalidTestInjector() {
             // Private constructor to force exception
         }
 

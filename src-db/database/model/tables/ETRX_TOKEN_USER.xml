@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
-  <database name="TABLE ETRX_TOKEN_INFO">
-    <table name="ETRX_TOKEN_INFO" primaryKey="ETRX_TOKEN_INFO_KEY">
-      <column name="ETRX_TOKEN_INFO_ID" primaryKey="true" required="true" type="VARCHAR" size="32" autoIncrement="false">
+  <database name="TABLE ETRX_TOKEN_USER">
+    <table name="ETRX_TOKEN_USER" primaryKey="ETRX_TOKEN_USER_KEY">
+      <column name="ETRX_TOKEN_USER_ID" primaryKey="true" required="true" type="VARCHAR" size="32" autoIncrement="false">
         <default/>
         <onCreateDefault/>
       </column>
@@ -33,10 +33,6 @@
         <default/>
         <onCreateDefault/>
       </column>
-      <column name="ETRX_OAUTH_PROVIDER_ID" primaryKey="false" required="true" type="VARCHAR" size="32" autoIncrement="false">
-        <default/>
-        <onCreateDefault/>
-      </column>
       <column name="AD_USER_ID" primaryKey="false" required="true" type="VARCHAR" size="32" autoIncrement="false">
         <default/>
         <onCreateDefault/>
@@ -45,22 +41,23 @@
         <default/>
         <onCreateDefault/>
       </column>
-      <column name="VALID_UNTIL" primaryKey="false" required="true" type="TIMESTAMP" size="7" autoIncrement="false">
-        <default><![CDATA[SYSDATE]]></default>
+      <column name="TOKEN_PROVIDER" primaryKey="false" required="true" type="VARCHAR" size="100" autoIncrement="false">
+        <default/>
         <onCreateDefault/>
       </column>
-      <foreign-key foreignTable="AD_CLIENT" name="ETRX_TOKEN_INFO_AD_CLIENT">
-        <reference local="AD_CLIENT_ID" foreign="AD_CLIENT_ID"/>
-      </foreign-key>
-      <foreign-key foreignTable="AD_ORG" name="ETRX_TOKEN_INFO_ORG">
-        <reference local="AD_ORG_ID" foreign="AD_ORG_ID"/>
-      </foreign-key>
-      <foreign-key foreignTable="AD_USER" name="ETRX_TOKEN_INFO_USER">
+      <column name="SUB" primaryKey="false" required="true" type="VARCHAR" size="255" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <foreign-key foreignTable="AD_USER" name="ETRX_TOKEN_AD_USER_ID">
         <reference local="AD_USER_ID" foreign="AD_USER_ID"/>
       </foreign-key>
-      <foreign-key foreignTable="ETRX_OAUTH_PROVIDER" name="ETRX_TOKEN_OAUTH_PROV">
-        <reference local="ETRX_OAUTH_PROVIDER_ID" foreign="ETRX_OAUTH_PROVIDER_ID"/>
+      <foreign-key foreignTable="AD_CLIENT" name="ETRX_TOKEN_USER_ADCLI">
+        <reference local="AD_CLIENT_ID" foreign="AD_CLIENT_ID"/>
       </foreign-key>
-      <check name="ETRX_TOKEN_INFO_ISACTIVE_CHECK"><![CDATA[ISACTIVE IN ('Y', 'N')]]></check>
+      <foreign-key foreignTable="AD_ORG" name="ETRX_TOKEN_USER_ADORG">
+        <reference local="AD_ORG_ID" foreign="AD_ORG_ID"/>
+      </foreign-key>
+      <check name="ETRX_TOKEN_ISACTIVE_CHECK"><![CDATA[ISACTIVE IN ('Y', 'N')]]></check>
     </table>
   </database>
