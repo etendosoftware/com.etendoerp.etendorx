@@ -100,7 +100,7 @@ if (OB.PropertyStore.get('ETRX_AllowSSOLogin') === 'Y') {
       setTimeout(() => {
         popup?.close();
         OB.Utilities._originalLogout(true);
-      }, 3000);
+      }, 1000);
     }
 
 

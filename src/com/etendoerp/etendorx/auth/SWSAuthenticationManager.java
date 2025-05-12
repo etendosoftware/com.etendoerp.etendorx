@@ -167,6 +167,28 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
       throws AuthenticationException, ServletException, IOException {
     try {
       final String allowSSO = getAllowSSOPref();
+      final String hasSSOType = OBPropertiesProvider.getInstance().getOpenbravoProperties().getProperty("sso.auth.type");
+      if (misconfiguredSSO(request, allowSSO, hasSSOType)) {
+        final Properties openbravoProperties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
+        String logoutRedirectUri = StringUtils.remove(request.getRequestURL().toString(),
+                request.getServletPath()).trim();
+        String contextName = ((String) openbravoProperties.get("context.name")).trim();
+        String title = URLEncoder.encode("SSO Configuration Error", StandardCharsets.UTF_8);
+        String description = URLEncoder.encode(
+                "There is a misconfiguration in the SSO setup. Please contact your administrator.",
+                StandardCharsets.UTF_8);
+        String errorUrl = String.format("/%s/web/com.etendoerp.entendorx/resources/Auth0ErrorPage.html"
+                        + "?logoutRedirectUri=%s&title=%s&description=%s",
+                contextName,
+                URLEncoder.encode(logoutRedirectUri, StandardCharsets.UTF_8),
+                title,
+                description);
+
+        response.setStatus(HttpServletResponse.SC_FOUND);
+        response.setHeader("Location", errorUrl);
+        response.flushBuffer();
+        throw new OBException("SSO - Configuration mismatch detected.");
+      }
       if ((!StringUtils.isBlank(request.getParameter("code")) ||
           !StringUtils.isBlank(request.getParameter(ACCESS_TOKEN))) &&
           StringUtils.equals("Y", allowSSO)) {
@@ -254,6 +276,20 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
     return super.doAuthenticate(request, response);
   }
 
+    /**
+     * Checks if the SSO configuration is misconfigured based on the provided parameters.
+     *
+     * @param request     the HttpServletRequest object
+     * @param allowSSO    the preference value for allowing SSO login
+     * @param hasSSOType  the SSO type
+     * @return true if the configuration is misconfigured, false otherwise
+     */
+  private static boolean misconfiguredSSO(HttpServletRequest request, String allowSSO, String hasSSOType) {
+    return !StringUtils.isBlank(request.getParameter("access_token")) &&
+            ((StringUtils.equals("Y", allowSSO) && StringUtils.isBlank(hasSSOType)) ||
+                    (StringUtils.equals("N", allowSSO) && !StringUtils.isBlank(hasSSOType)));
+  }
+
   /**
    * Retrieves the preference value for allowing SSO login.
    *
@@ -309,12 +345,16 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
     String logoutRedirectUri = StringUtils.remove(request.getRequestURL().toString(),
         request.getServletPath()).trim();
     String contextName = ((String) openbravoProperties.get("context.name")).trim();
+    String errorTitle = URLEncoder.encode("No User linked", StandardCharsets.UTF_8);
+    String errorDescription = URLEncoder.encode("You need to log in with an ERP user and then, link the SSO account", StandardCharsets.UTF_8);
     String ssoNoUserLinkURL = String.format("/%s/web/com.etendoerp.entendorx/resources/Auth0ErrorPage.html"
-            + "?ssoDomain=%s&clientId=%s&logoutRedirectUri=%s",
-        contextName,
-        URLEncoder.encode(ssoDomain, StandardCharsets.UTF_8),
-        URLEncoder.encode(clientId, StandardCharsets.UTF_8),
-        URLEncoder.encode(logoutRedirectUri, StandardCharsets.UTF_8));
+                    + "?ssoDomain=%s&clientId=%s&logoutRedirectUri=%s&title=%s&description=%s",
+            contextName,
+            URLEncoder.encode(ssoDomain, StandardCharsets.UTF_8),
+            URLEncoder.encode(clientId, StandardCharsets.UTF_8),
+            URLEncoder.encode(logoutRedirectUri, StandardCharsets.UTF_8),
+            errorTitle,
+            errorDescription);
     response.setStatus(HttpServletResponse.SC_FOUND);
     response.setHeader("Location", ssoNoUserLinkURL);
     response.flushBuffer();
