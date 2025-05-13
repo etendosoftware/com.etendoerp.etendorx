@@ -121,8 +121,6 @@ if (OB.PropertyStore.get('ETRX_AllowSSOLogin') === 'Y') {
 
         setTimeout(() => {
           document.body.removeChild(iframe);
-        }, 1000);
-        setTimeout(() => {
           OB.Utilities._originalLogout(true);
         }, 1000);
       }

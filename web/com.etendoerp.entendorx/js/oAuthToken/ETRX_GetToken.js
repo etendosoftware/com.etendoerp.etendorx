@@ -15,12 +15,12 @@ OB.ETRX.oAuthToken = {
         const left = (screenWidth - popupWidth) / 2;
         const upperMargin = (screenHeight - popupHeight) / 2;
 
-		// Generate a 'state' to keep userId and providerId
+		    // Generate a 'state' to keep userId and providerId
         const selectedRecord = params.button.contextView.viewGrid.getSelectedRecords()[0];
-		const state = crypto.randomUUID();
-		const userId = OB.User.id;
-		const etrxOauthProviderId = selectedRecord.id;
-		const encodedState = btoa(JSON.stringify({ state, userId, etrxOauthProviderId }));
+        const state = crypto.randomUUID();
+        const userId = OB.User.id;
+        const etrxOauthProviderId = selectedRecord.id;
+        const encodedState = btoa(JSON.stringify({ state, userId, etrxOauthProviderId }));
 
         // Function to open the popup window
         const baseURL = selectedRecord.authorizationEndpoint;

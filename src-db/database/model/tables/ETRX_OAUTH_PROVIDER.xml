@@ -41,10 +41,6 @@
         <default/>
         <onCreateDefault/>
       </column>
-      <column name="SCOPE" primaryKey="false" required="true" type="VARCHAR" size="255" autoIncrement="false">
-        <default/>
-        <onCreateDefault/>
-      </column>
       <column name="CLIENTNAME" primaryKey="false" required="false" type="VARCHAR" size="255" autoIncrement="false">
         <default/>
         <onCreateDefault/>
@@ -81,7 +77,7 @@
         <default/>
         <onCreateDefault/>
       </column>
-      <column name="AUTHORIZATION_GRANT_TYPE" primaryKey="false" required="true" type="VARCHAR" size="255" autoIncrement="false">
+      <column name="AUTHORIZATION_GRANT_TYPE" primaryKey="false" required="false" type="VARCHAR" size="255" autoIncrement="false">
         <default/>
         <onCreateDefault/>
       </column>
@@ -106,6 +102,10 @@
         <onCreateDefault/>
       </column>
       <column name="PROVIDER_SCOPE" primaryKey="false" required="true" type="VARCHAR" size="255" autoIncrement="false">
+        <default><![CDATA[openid, profile, email]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="CONFIG_MIDDLEWARE" primaryKey="false" required="true" type="CHAR" size="1" autoIncrement="false">
         <default><![CDATA[N]]></default>
         <onCreateDefault/>
       </column>
