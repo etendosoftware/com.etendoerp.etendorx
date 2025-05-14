@@ -28,7 +28,8 @@ public class SaveTokenFromMiddleware extends HttpBaseServlet {
       OBContext.setAdminMode();
       ETRXTokenInfo newToken = OBProvider.getInstance().get(ETRXTokenInfo.class);
       newToken.setToken(request.getParameter("access_token"));
-      newToken.setMiddlewareProvider(request.getParameter("provider"));
+      String providerScope = request.getParameter("provider") + " - " + request.getParameter("scope");
+      newToken.setMiddlewareProvider(providerScope);
       newToken.setEtrxOauthProvider(getETRXoAuthProvider());
       newToken.setUser(OBContext.getOBContext().getUser());
       OBDal.getInstance().save(newToken);
@@ -58,7 +59,7 @@ public class SaveTokenFromMiddleware extends HttpBaseServlet {
    */
   private static String getResponseBody(boolean error) {
     String contextName = ((String) OBPropertiesProvider.getInstance().getOpenbravoProperties().get("context.name")).trim();
-
+    // TODO: Change to DB Message.
     String rawTitle = error ? "" : "Token Created Successfully";
     String rawMessage = error ? "" : "The token has been created successfully.<br>Refresh the grid to see the changes.";
     String icon = error ? "❌" : "✔";

@@ -102,6 +102,8 @@ if (OB.PropertyStore.get('ETRX_AllowSSOLogin') === 'Y') {
         baseStyle: 'ssoProviderIcon',
         click: function () {
           const redirectUri = OB.Utilities.getLocationUrlWithoutFragment();
+          // TODO: Dynamically obtain the URL of the middleware.
+//          const url = `http://localhost:9580/login?provider=${p.provider}&account_id=etendo_123&redirect_uri=${redirectUri}web/com.etendoerp.etendorx/LinkAuth0Account.html`;
           const url = `http://etendoauth-middleware-env.eba-purewhpv.sa-east-1.elasticbeanstalk.com/login?provider=${p.provider}&account_id=etendo_123&redirect_uri=${redirectUri}web/com.etendoerp.etendorx/LinkAuth0Account.html`;
           window.location.href = url;
         }

@@ -105,7 +105,7 @@
         <default><![CDATA[openid, profile, email]]></default>
         <onCreateDefault/>
       </column>
-      <column name="CONFIG_MIDDLEWARE" primaryKey="false" required="true" type="CHAR" size="1" autoIncrement="false">
+      <column name="GET_MIDDLEWARE_TOKEN" primaryKey="false" required="true" type="CHAR" size="1" autoIncrement="false">
         <default><![CDATA[N]]></default>
         <onCreateDefault/>
       </column>

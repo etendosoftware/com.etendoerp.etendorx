@@ -49,7 +49,7 @@
         <default><![CDATA[SYSDATE]]></default>
         <onCreateDefault/>
       </column>
-      <column name="MIDDLEWARE_PROVIDER" primaryKey="false" required="false" type="VARCHAR" size="50" autoIncrement="false">
+      <column name="MIDDLEWARE_PROVIDER" primaryKey="false" required="false" type="VARCHAR" size="300" autoIncrement="false">
         <default/>
         <onCreateDefault/>
       </column>

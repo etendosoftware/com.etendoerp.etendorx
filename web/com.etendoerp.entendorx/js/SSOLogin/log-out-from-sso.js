@@ -113,6 +113,8 @@ if (OB.PropertyStore.get('ETRX_AllowSSOLogin') === 'Y') {
       if (ssoType === 'Auth0') {
         logoutWithPopup(ssoDomain, clientId, sanitizedRedirectUri + '/web/com.etendoerp.entendorx/resources/logout-auth0.html')
       } else {
+      // TODO: Dynamically obtain the URL of the middleware.
+//        const middlewareLogoutUrl = `http://localhost:9580/logout`;
         const middlewareLogoutUrl = `http://etendoauth-middleware-env.eba-purewhpv.sa-east-1.elasticbeanstalk.com/logout`;
         const iframe = document.createElement('iframe');
         iframe.style.display = 'none';
