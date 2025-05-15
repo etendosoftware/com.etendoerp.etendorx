@@ -16,12 +16,12 @@ task "rx.setup" {
         doLast {
             println("Copying RX config files")
             // Ensure the destination directory exists
-            def destDir = file("$buildDir/rxconfig")
+            def destDir = layout.buildDirectory.dir("rxconfig").get().asFile
             if (!destDir.exists()) {
                 destDir.mkdirs()
             }
 
-            def dirs = ['modules', "${buildDir}/etendo/modules"]
+            def dirs = ['modules', layout.buildDirectory.dir("etendo/modules").get().asFile]
             dirs.each { dir ->
                 // Collect .yaml and .yaml.template files
                 def yamlFiles = fileTree(dir: dir, include: '**/rxconfig/*.yaml').collect { it.name }
