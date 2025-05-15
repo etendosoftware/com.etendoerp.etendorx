@@ -38,10 +38,12 @@ import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.model.ad.access.User;
+import org.openbravo.model.ad.domain.Preference;
 import org.openbravo.test.base.TestConstants;
 
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
+import com.etendoerp.etendorx.data.ETRXTokenUser;
 import com.etendoerp.etendorx.utils.TokenVerifier;
 
 /**
@@ -53,6 +55,7 @@ public class SWSAuthenticationManagerTest extends WeldBaseTest {
   public static final String AUTHORIZATION = "Authorization";
   public static final String USER_ID_123 = "userId123";
   public static final String EXAMPLE_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyLCJpc3MiOiJpc3N1ZXIiLCJ1c2VyX21ldGFkYXRhIjp7Im5hbWUiOiJ0ZXN0VXNlciJ9fQ.I8eODDNFArRF4up9iLpLjAdizOy8obNTtTgiRpEyGk0";
+
   @Mock
   private HttpServletRequest mockRequest;
 
@@ -269,30 +272,41 @@ public class SWSAuthenticationManagerTest extends WeldBaseTest {
     HttpServletRequest request = mock(HttpServletRequest.class);
     HttpServletResponse response = mock(HttpServletResponse.class);
     HttpSession session = mock(HttpSession.class);
+
     User mockUser = mock(User.class);
-    OBCriteria<User> criteria = mock(OBCriteria.class);
     Properties props = mock(Properties.class);
+    Preference mockPref = mock(Preference.class);
 
-    when(request.getParameter("access_token")).thenReturn(EXAMPLE_TOKEN);
-    when(request.getParameter("user")).thenReturn("testUser");
-    when(request.getSession(true)).thenReturn(session);
-    OBPropertiesProvider.setInstance(mockPropertiesProvider);
-    when(mockPropertiesProvider.getOpenbravoProperties()).thenReturn(props);
-    when(props.getProperty("OAUTH2_SECRET")).thenReturn("secret");
-    when(props.getProperty("OAUTH2_ISSUER")).thenReturn("issuer");
+    OBCriteria<User> criteria = mock(OBCriteria.class);
+    OBCriteria<Preference> criteriaPref = mock(OBCriteria.class);
 
-    when(mockOBDal.createCriteria(User.class)).thenReturn(criteria);
-    when(criteria.add(any())).thenReturn(criteria);
-    when(criteria.setFilterOnReadableClients(false)).thenReturn(criteria);
-    when(criteria.setFilterOnReadableOrganization(false)).thenReturn(criteria);
-    when(criteria.setMaxResults(1)).thenReturn(criteria);
-    when(criteria.uniqueResult()).thenReturn(mockUser);
-    when(mockUser.getId()).thenReturn(USER_ID_123);
-
-    try (
-        MockedStatic<OBDal> obDalMockedStatic = Mockito.mockStatic(OBDal.class)
-    ) {
+    try (MockedStatic<OBDal> obDalMockedStatic = Mockito.mockStatic(OBDal.class)) {
       obDalMockedStatic.when(OBDal::getInstance).thenReturn(mockOBDal);
+
+      when(request.getParameter("access_token")).thenReturn(EXAMPLE_TOKEN);
+      when(request.getParameter("user")).thenReturn("testUser");
+      when(request.getSession(true)).thenReturn(session);
+
+      OBPropertiesProvider.setInstance(mockPropertiesProvider);
+      when(mockPropertiesProvider.getOpenbravoProperties()).thenReturn(props);
+      when(props.getProperty("OAUTH2_SECRET")).thenReturn("secret");
+      when(props.getProperty("OAUTH2_ISSUER")).thenReturn("issuer");
+
+      when(mockOBDal.createCriteria(User.class)).thenReturn(criteria);
+      when(criteria.add(any())).thenReturn(criteria);
+      when(criteria.setFilterOnReadableClients(false)).thenReturn(criteria);
+      when(criteria.setFilterOnReadableOrganization(false)).thenReturn(criteria);
+      when(criteria.setMaxResults(1)).thenReturn(criteria);
+      when(criteria.uniqueResult()).thenReturn(mockUser);
+      when(mockUser.getId()).thenReturn(USER_ID_123);
+
+      when(mockOBDal.createCriteria(Preference.class)).thenReturn(criteriaPref);
+      when(criteriaPref.add(any())).thenReturn(criteriaPref);
+      when(criteriaPref.setFilterOnReadableClients(false)).thenReturn(criteriaPref);
+      when(criteriaPref.setFilterOnReadableOrganization(false)).thenReturn(criteriaPref);
+      when(criteriaPref.setMaxResults(1)).thenReturn(criteriaPref);
+      when(criteriaPref.uniqueResult()).thenReturn(mockPref);
+      when(mockPref.getSearchKey()).thenReturn("N");
 
       Map<String, Object> metadata = new HashMap<>();
       metadata.put("name", "Test Name");
