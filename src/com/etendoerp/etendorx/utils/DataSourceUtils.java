@@ -594,9 +594,10 @@ public class DataSourceUtils {
         return o.toString();
       case "Long":
         if (o instanceof Integer) {
-          return Long.toString(((Integer) o).longValue());
+          return Integer.toString((Integer) o);
+        } else {
+          return Long.toString((Long) o);
         }
-        return Long.toString((Long) o);
       case "Boolean":
         return (Boolean) o ? "Y" : "N";
       case "Date":
