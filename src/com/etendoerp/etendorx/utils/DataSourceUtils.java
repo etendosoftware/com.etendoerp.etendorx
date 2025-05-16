@@ -593,7 +593,11 @@ public class DataSourceUtils {
       case "BigDecimal":
         return o.toString();
       case "Long":
-        return Long.toString((Long) o);
+        if (o instanceof Integer) {
+          return Integer.toString((Integer) o);
+        } else {
+          return Long.toString((Long) o);
+        }
       case "Boolean":
         return (Boolean) o ? "Y" : "N";
       case "Date":
