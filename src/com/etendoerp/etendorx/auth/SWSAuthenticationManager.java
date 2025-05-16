@@ -398,15 +398,19 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
    * @return a HashMap containing the token claims
    */
   private HashMap<String, String> decodeToken(String token) {
-
     HashMap<String, String> tokenValues = new HashMap<>();
-    DecodedJWT decodedJWT = JWT.decode(token);
+    try {
+      DecodedJWT decodedJWT = JWT.decode(token);
 
-    tokenValues.put("given_name", decodedJWT.getClaim("given_name").asString());
-    tokenValues.put("family_name", decodedJWT.getClaim("family_name").asString());
-    tokenValues.put("email", decodedJWT.getClaim("email").asString());
-    tokenValues.put("sid", decodedJWT.getClaim("sid").asString());
-    tokenValues.put("sub", decodedJWT.getClaim("sub").asString());
+      tokenValues.put("given_name", decodedJWT.getClaim("given_name").asString());
+      tokenValues.put("family_name", decodedJWT.getClaim("family_name").asString());
+      tokenValues.put("email", decodedJWT.getClaim("email").asString());
+      tokenValues.put("sid", decodedJWT.getClaim("sid").asString());
+      tokenValues.put("sub", decodedJWT.getClaim("sub").asString());
+    } catch (Exception e) {
+      log4j.error("Error decoding the token: ", e);
+      throw new OBException(e);
+    }
     return tokenValues;
   }
 

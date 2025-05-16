@@ -9,6 +9,8 @@ import org.openbravo.base.provider.OBProvider;
 import org.openbravo.base.session.OBPropertiesProvider;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBDal;
+import org.openbravo.erpCommon.utility.Utility;
+import org.openbravo.service.db.DalConnectionProvider;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -21,6 +23,11 @@ import java.nio.charset.StandardCharsets;
  * This servlet is called by the middleware after the user has authenticated and authorized access.
  */
 public class SaveTokenFromMiddleware extends HttpBaseServlet {
+
+  public static final String RED = "#f44336";
+  public static final String GREEN = "#4caf50";
+  public static final String ERROR_ICON = "❌";
+  public static final String SUCCESS_ICON = "✔";
 
   @Override
   public void doGet(HttpServletRequest request, HttpServletResponse response) {
@@ -59,11 +66,14 @@ public class SaveTokenFromMiddleware extends HttpBaseServlet {
    */
   private static String getResponseBody(boolean error) {
     String contextName = ((String) OBPropertiesProvider.getInstance().getOpenbravoProperties().get("context.name")).trim();
-    // TODO: Change to DB Message.
-    String rawTitle = error ? "" : "Token Created Successfully";
-    String rawMessage = error ? "" : "The token has been created successfully.<br>Refresh the grid to see the changes.";
-    String icon = error ? "❌" : "✔";
-    String iconColor = error ? "#f44336" : "#4caf50";
+    String tokenCreated = Utility.messageBD(new DalConnectionProvider(), "ETRX_TokenCreated",
+        OBContext.getOBContext().getLanguage().getLanguage());
+    String description = Utility.messageBD(new DalConnectionProvider(), "ETRX_TokenCreatedDescription",
+        OBContext.getOBContext().getLanguage().getLanguage());
+    String rawTitle = error ? "" : tokenCreated;
+    String rawMessage = error ? "" : description;
+    String icon = error ? ERROR_ICON : SUCCESS_ICON;
+    String iconColor = error ? RED : GREEN;
 
     String responseURL = String.format("/%s/web/com.etendoerp.entendorx/resources/MiddlewareResponse.html"
             + "?title=%s&message=%s&icon=%s&iconColor=%s",
