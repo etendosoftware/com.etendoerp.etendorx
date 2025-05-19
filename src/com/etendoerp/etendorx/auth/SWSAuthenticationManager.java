@@ -8,6 +8,7 @@ import com.auth0.jwk.Jwk;
 import com.auth0.jwk.JwkProvider;
 import com.auth0.jwk.UrlJwkProvider;
 
+import com.auth0.jwt.interfaces.RSAKeyProvider;
 import com.etendoerp.etendorx.data.ETRXTokenUser;
 import com.etendoerp.etendorx.utils.TokenVerifier;
 import com.smf.securewebservices.utils.SecureWebServicesUtils;
@@ -384,7 +385,8 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
       DecodedJWT jwt = JWT.decode(token);
       Jwk jwk = provider.get(jwt.getKeyId());
 
-      Algorithm algorithm = Algorithm.RSA256((RSAPublicKey) jwk.getPublicKey(), null);
+      RSAKeyProvider keyProvider = new JwkRSAKeyProvider(provider, jwt.getKeyId());
+      Algorithm algorithm = Algorithm.RSA256(keyProvider);
       JWTVerifier verifier = JWT.require(algorithm)
           .withIssuer(AUTH0_ISSUER)
           .build();
