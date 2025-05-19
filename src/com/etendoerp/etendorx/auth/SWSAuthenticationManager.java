@@ -65,6 +65,7 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
   private static final String SWS_TOKEN_IS_NOT_VALID = "SWS - Token is not valid";
   private static final String SSO_DOMAIN_URL = "sso.domain.url";
   public static final String AUTH0_ISSUER = "https://dev-fut-test.us.auth0.com/";
+  public static final String CONTEXT_NAME = "context.name";
 
   /**
    * Default constructor.
@@ -175,37 +176,20 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
       throws AuthenticationException, ServletException, IOException {
     try {
       final String allowSSO = getAllowSSOPref();
-      final String hasSSOType = OBPropertiesProvider.getInstance().getOpenbravoProperties().getProperty("sso.auth.type");
+      final String ssoType = OBPropertiesProvider.getInstance()
+          .getOpenbravoProperties().getProperty("sso.auth.type");
       final String accessToken = request.getParameter(ACCESS_TOKEN);
-      if (misconfiguredSSO(accessToken, allowSSO, hasSSOType)) {
-        String errorTitle = Utility.messageBD(new DalConnectionProvider(), "ETRX_SSOConfigErrorTitle",
-            OBContext.getOBContext().getLanguage().getLanguage());
-        String errorDescription = Utility.messageBD(new DalConnectionProvider(), "ETRX_SSOConfigErrorDescription",
-            OBContext.getOBContext().getLanguage().getLanguage());
-        printPageError(errorTitle, errorDescription, request, response);
+      final String code = request.getParameter("code");
+
+      if (misconfiguredSSO(accessToken, code, allowSSO, ssoType)) {
+        showSSOConfigError(request, response);
         throw new OBException("SSO - Configuration mismatch detected.");
       }
-      if (!StringUtils.isBlank(hasSSOType) && (!StringUtils.isBlank(request.getParameter("code")) ||
-          !StringUtils.isBlank(accessToken))) {
-        log4j.debug("SSO Code to request token: {}", request.getParameter("code"));
-        log4j.debug("SSO Token coming from the request: {}", accessToken);
 
-        String token = StringUtils.isBlank(accessToken) ?
-            getAuthToken(request) : accessToken;
-
-        validateToken(token, request, response);
-
-        HashMap<String, String> tokenValues = decodeToken(token);
-        User adUser = matchUser(token, tokenValues.get("sub"));
-        if (adUser == null) {
-          handleWhenUserIsNull(request, response);
-        }
-
-        markRequestAsSelfAuthenticated(request);
-        prepareLoginSession(request, adUser);
-        response.sendRedirect("/" + OBPropertiesProvider.getInstance().getOpenbravoProperties().get("context.name"));
-        return adUser.getId();
+      if (isSSOLoginAttempt(ssoType, code, accessToken)) {
+        return handleSSOLogin(code, accessToken, request, response);
       }
+
     } catch (Exception e) {
       log4j.error("Error while authenticating: {}", e.getMessage(), e);
       throw new OBException(e);
@@ -274,6 +258,68 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
   }
 
   /**
+   * Determines whether the current request is attempting to perform an SSO login,
+   * based on the presence of a configured SSO type and either a token or authorization code.
+   *
+   * @param ssoType      the type of SSO authentication configured
+   * @param code         the authorization code from the SSO provider, if present
+   * @param accessToken  the access token from the SSO provider, if present
+   * @return true if an SSO login attempt is detected, false otherwise
+   */
+  private boolean isSSOLoginAttempt(String ssoType, String code, String accessToken) {
+    return !StringUtils.isBlank(ssoType) &&
+        (!StringUtils.isBlank(code) || !StringUtils.isBlank(accessToken));
+  }
+
+  /**
+   * Displays an error page indicating that the SSO configuration is invalid or incomplete.
+   * The error messages are retrieved from the Openbravo message catalog using the user's language.
+   *
+   * @param request   the current HTTP request
+   * @param response  the current HTTP response
+   * @throws IOException if an error occurs while writing the response
+   */
+  private void showSSOConfigError(HttpServletRequest request, HttpServletResponse response) throws IOException {
+    String errorTitle = Utility.messageBD(new DalConnectionProvider(), "ETRX_SSOConfigErrorTitle",
+        OBContext.getOBContext().getLanguage().getLanguage());
+    String errorDescription = Utility.messageBD(new DalConnectionProvider(), "ETRX_SSOConfigErrorDescription",
+        OBContext.getOBContext().getLanguage().getLanguage());
+    printPageError(errorTitle, errorDescription, request, response);
+  }
+
+  /**
+   * Handles the full SSO login flow by retrieving or using the provided token, validating it,
+   * decoding its contents, locating the corresponding Openbravo user, and initializing the login session.
+   * If successful, redirects the user to the application's context path.
+   *
+   * @param code         the authorization code received from the SSO provider, if any
+   * @param accessToken  the access token received from the SSO provider, if any
+   * @param request      the current HTTP request
+   * @param response     the current HTTP response
+   * @return the ID of the authenticated user
+   * @throws IOException if an error occurs during redirection or response output
+   */
+  private String handleSSOLogin(String code, String accessToken, HttpServletRequest request, HttpServletResponse response) throws IOException {
+    log4j.debug("SSO Code to request token: {}", code);
+    log4j.debug("SSO Token coming from the request: {}", accessToken);
+
+    String token = StringUtils.isBlank(accessToken) ? getAuthToken(request) : accessToken;
+    validateToken(token, request, response);
+
+    HashMap<String, String> tokenValues = decodeToken(token);
+    User adUser = matchUser(token, tokenValues.get("sub"));
+    if (adUser == null) {
+      handleWhenUserIsNull(request, response);
+    }
+
+    markRequestAsSelfAuthenticated(request);
+    prepareLoginSession(request, adUser);
+    response.sendRedirect("/" + OBPropertiesProvider.getInstance().getOpenbravoProperties().get(CONTEXT_NAME));
+    return adUser.getId();
+  }
+
+
+  /**
    * Redirects the user to a custom error page with a provided title and description.
    * <p>
    * This method constructs a URL to the predefined Auth0 error page, embedding the error
@@ -293,7 +339,7 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
     final Properties openbravoProperties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
     String logoutRedirectUri = StringUtils.remove(request.getRequestURL().toString(),
             request.getServletPath()).trim();
-    String contextName = ((String) openbravoProperties.get("context.name")).trim();
+    String contextName = ((String) openbravoProperties.get(CONTEXT_NAME)).trim();
     String titleStr = URLEncoder.encode(title, StandardCharsets.UTF_8);
     String descriptionStr = URLEncoder.encode(description,
             StandardCharsets.UTF_8);
@@ -357,12 +403,13 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
      * Checks if the SSO configuration is misconfigured based on the provided parameters.
      *
      * @param token       the string token
+     * @param code        the code from auth0
      * @param allowSSO    the preference value for allowing SSO login
      * @param hasSSOType  the SSO type
      * @return true if the configuration is misconfigured, false otherwise
      */
-  private static boolean misconfiguredSSO(String token, String allowSSO, String hasSSOType) {
-    return !StringUtils.isBlank(token) &&
+  private static boolean misconfiguredSSO(String token, String code, String allowSSO, String hasSSOType) {
+    return (!StringUtils.isBlank(token) || !StringUtils.isBlank(code))  &&
             ((StringUtils.equals("Y", allowSSO) && StringUtils.isBlank(hasSSOType)) ||
                     (StringUtils.equals("N", allowSSO) && !StringUtils.isBlank(hasSSOType)));
   }
@@ -421,7 +468,7 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
     String clientId = ((String) openbravoProperties.get("sso.client.id")).trim();
     String logoutRedirectUri = StringUtils.remove(request.getRequestURL().toString(),
         request.getServletPath()).trim();
-    String contextName = ((String) openbravoProperties.get("context.name")).trim();
+    String contextName = ((String) openbravoProperties.get(CONTEXT_NAME)).trim();
     String errorTitle = URLEncoder.encode("No User linked", StandardCharsets.UTF_8);
     String errorDescription = URLEncoder.encode("You need to log in with an ERP user and then, link the SSO account", StandardCharsets.UTF_8);
     String ssoNoUserLinkURL = String.format("/%s/web/com.etendoerp.entendorx/resources/Auth0ErrorPage.html"
