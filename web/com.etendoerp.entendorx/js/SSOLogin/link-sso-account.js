@@ -82,11 +82,11 @@ if (OB.PropertyStore.get('ETRX_AllowSSOLogin') === 'Y') {
     });
 
     const providerIcons = [
-      { providerText: 'Google', provider: 'google-oauth2', img: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/google/google-original.svg' },
-      { providerText: 'Facebook', provider: 'facebook', img: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/facebook/facebook-original.svg' },
-      { providerText: 'GitHub', provider: 'github', img: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/github/github-original.svg' },
-      { providerText: 'Microsoft', provider: 'windowslive', img: 'https://upload.wikimedia.org/wikipedia/commons/4/44/Microsoft_logo.svg' },
-      { providerText: 'LinkedIn', provider: 'linkedin', img: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/linkedin/linkedin-original.svg' }
+      { providerText: 'Google', provider: 'google-oauth2', img: '../web/com.etendoerp.entendorx/images/google-color.png' },
+      { providerText: 'Facebook', provider: 'facebook', img: '../web/com.etendoerp.entendorx/images/facebook-color.png' },
+      { providerText: 'GitHub', provider: 'github', img: '../web/com.etendoerp.entendorx/images/github-color.png' },
+      { providerText: 'Microsoft', provider: 'windowslive', img: '../web/com.etendoerp.entendorx/images/microsoft-color.png' },
+      { providerText: 'LinkedIn', provider: 'linkedin', img: '../web/com.etendoerp.entendorx/images/linkedin-color.png' }
     ];
 
     providerIcons.forEach(p => {

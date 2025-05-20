@@ -3,6 +3,7 @@ package com.etendoerp.etendorx.auth;
 import com.auth0.jwt.interfaces.RSAKeyProvider;
 import com.auth0.jwk.Jwk;
 import com.auth0.jwk.JwkProvider;
+import org.openbravo.base.exception.OBException;
 
 import java.security.interfaces.RSAPublicKey;
 import java.security.interfaces.RSAPrivateKey;
@@ -38,7 +39,7 @@ public class JwkRSAKeyProvider implements RSAKeyProvider {
    *
    * @param keyId the ID of the key to retrieve
    * @return the {@link RSAPublicKey} associated with the given key ID
-   * @throws RuntimeException if the key cannot be retrieved or cast
+   * @throws OBException if the key cannot be retrieved or cast
    */
   @Override
   public RSAPublicKey getPublicKeyById(String keyId) {
@@ -46,7 +47,7 @@ public class JwkRSAKeyProvider implements RSAKeyProvider {
       Jwk jwk = jwkProvider.get(keyId);
       return (RSAPublicKey) jwk.getPublicKey();
     } catch (Exception e) {
-      throw new RuntimeException("Error getting JWK public key", e);
+      throw new OBException("Error getting JWK public key", e);
     }
   }
 
