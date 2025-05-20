@@ -71,8 +71,7 @@ OB.ETRX.middlewareToken = {
     modalContent.appendChild(closeBtn);
 
     const title = document.createElement('h2');
-    // TODO: Change to DB Message.
-    title.innerText = 'Selecciona un proveedor';
+    title.innerText = OB.I18N.getLabel('ETRX_SelectAProvider');
     title.style.color = '#222';
     title.style.borderBottom = '1px solid #ccc';
     title.style.paddingBottom = '10px';
@@ -113,8 +112,7 @@ OB.ETRX.middlewareToken = {
       providerCard.appendChild(scopeContainer);
 
       const authButton = document.createElement('button');
-      // TODO: Change to DB Message.
-      authButton.innerText = 'Autenticar con ' + provider.name;
+      authButton.innerText = OB.I18N.getLabel('ETRX_AuthWith').replace('%s', provider.name);
       authButton.style.marginTop = '10px';
       authButton.style.padding = '8px 16px';
       authButton.style.backgroundColor = '#FFCC00';
