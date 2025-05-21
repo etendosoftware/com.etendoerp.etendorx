@@ -30,7 +30,7 @@ pipeline {
         RX_DIR                  = 'etendo_rx'
         CLASSIC_DIR             = 'etendo_core'
         CLASSIC_BRANCH_BACKPORT = 'release/24.4'
-        
+
         COMMIT_AUTHOR_NAME  = sh(returnStdout: true, script: "git log -1 --pretty=format:'%an'").trim()
         COMMIT_AUTHOR_EMAIL = sh(returnStdout: true, script: "git log -1 --pretty=format:'%ae'").trim()
 
@@ -191,9 +191,9 @@ spec:
 
                                     echo "-------------------------- Selecting the Classic Correct Branch for Repository Cloning --------------------------"
                                     env.CLASSIC_BRANCH = env.MAIN_BRANCH
-                                    if (env.GIT_BRANCH.startsWith(env.DEVELOP_BRANCH) || env.GIT_BRANCH.startsWith("feature")) {
+                                    if (env.GIT_BRANCH.startsWith(env.DEVELOP_BRANCH) || ((env.GIT_BRANCH.startsWith("feature") || env.GIT_BRANCH.startsWith("epic")) && !(env.GIT_BRANCH.contains("-Y")))) {
                                         env.CLASSIC_BRANCH = env.DEVELOP_BRANCH
-                                    } else if (env.GIT_BRANCH.startsWith("hotfix") && env.GIT_BRANCH.contains("-Y")) {
+                                    } else if (env.GIT_BRANCH.contains("-Y") || env.GIT_BRANCH.startsWith("release")) {
                                         env.CLASSIC_BRANCH = env.CLASSIC_BRANCH_BACKPORT
                                     }
 
@@ -290,7 +290,7 @@ spec:
                             echo "---------------------- Building Etendo RX Environment ----------------------"
                             echo "---------------------- Checking Branch Type ----------------------"
                             env.IS_HOTFIX_OR_MAIN_BRANCH = FALSE
-                            if (GIT_BRANCH.startsWith('hotfix/') || GIT_BRANCH.startsWith('main') || GIT_BRANCH.startsWith('master')) {
+                            if ((GIT_BRANCH.startsWith('hotfix/') && !(GIT_BRANCH.contains("-Y"))) || GIT_BRANCH.startsWith('main') || GIT_BRANCH.startsWith('master')) {
                                 echo "Branch ${GIT_BRANCH} is a hotfix or main/master."
                                 env.IS_HOTFIX_OR_MAIN_BRANCH = TRUE
                             }
