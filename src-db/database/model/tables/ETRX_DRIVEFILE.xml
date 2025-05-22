@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
-  <database name="TABLE ETRX_TOKEN_INFO">
-    <table name="ETRX_TOKEN_INFO" primaryKey="ETRX_TOKEN_INFO_KEY">
-      <column name="ETRX_TOKEN_INFO_ID" primaryKey="true" required="true" type="VARCHAR" size="32" autoIncrement="false">
+  <database name="TABLE ETRX_DRIVEFILE">
+    <table name="ETRX_DRIVEFILE" primaryKey="ETRX_DRIVEFILE_KEY">
+      <column name="ETRX_DRIVEFILE_ID" primaryKey="true" required="true" type="VARCHAR" size="32" autoIncrement="false">
         <default/>
         <onCreateDefault/>
       </column>
@@ -41,34 +41,22 @@
         <default/>
         <onCreateDefault/>
       </column>
-      <column name="TOKEN" primaryKey="false" required="true" type="VARCHAR" size="3000" autoIncrement="false">
+      <column name="IDFILE" primaryKey="false" required="true" type="VARCHAR" size="3000" autoIncrement="false">
         <default/>
         <onCreateDefault/>
       </column>
-      <column name="VALID_UNTIL" primaryKey="false" required="true" type="TIMESTAMP" size="7" autoIncrement="false">
-        <default><![CDATA[SYSDATE]]></default>
-        <onCreateDefault/>
-      </column>
-      <column name="MIDDLEWARE_PROVIDER" primaryKey="false" required="false" type="VARCHAR" size="300" autoIncrement="false">
-        <default/>
-        <onCreateDefault/>
-      </column>
-      <column name="APPROVE_GOOGLE_DOC" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
-        <default><![CDATA[N]]></default>
-        <onCreateDefault/>
-      </column>
-      <foreign-key foreignTable="AD_CLIENT" name="ETRX_TOKEN_INFO_AD_CLIENT">
+      <foreign-key foreignTable="AD_CLIENT" name="ETRX_DRIVEFILE_AD_CLIENT">
         <reference local="AD_CLIENT_ID" foreign="AD_CLIENT_ID"/>
       </foreign-key>
-      <foreign-key foreignTable="AD_ORG" name="ETRX_TOKEN_INFO_ORG">
+      <foreign-key foreignTable="AD_ORG" name="ETRX_DRIVEFILE_ORG">
         <reference local="AD_ORG_ID" foreign="AD_ORG_ID"/>
       </foreign-key>
-      <foreign-key foreignTable="AD_USER" name="ETRX_TOKEN_INFO_USER">
+      <foreign-key foreignTable="AD_USER" name="ETRX_DRIVEFILE_USER">
         <reference local="AD_USER_ID" foreign="AD_USER_ID"/>
       </foreign-key>
       <foreign-key foreignTable="ETRX_OAUTH_PROVIDER" name="ETRX_TOKEN_OAUTH_PROV">
         <reference local="ETRX_OAUTH_PROVIDER_ID" foreign="ETRX_OAUTH_PROVIDER_ID"/>
       </foreign-key>
-      <check name="ETRX_TOKEN_INFO_ISACTIVE_CHECK"><![CDATA[ISACTIVE IN ('Y', 'N')]]></check>
+      <check name="ETRX_DRIVEFILE_ISACTIVE_CHECK"><![CDATA[ISACTIVE IN ('Y', 'N')]]></check>
     </table>
   </database>

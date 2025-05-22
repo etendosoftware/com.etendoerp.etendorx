@@ -46,7 +46,7 @@ public class ConfigEtendoMiddleware extends BaseActionHandler {
       etendoMiddleware.setRedirectURI(envURL + "saveTokenMiddleware");
       String clientName = OBContext.getOBContext().getCurrentClient().getName();
       String middlewareURL = OBPropertiesProvider.getInstance().getOpenbravoProperties()
-          .getProperty("sso.middleware.url") + "/oauth-integrations/start";
+          .getProperty("sso.middleware.url") + "/oauth-integrations";
       etendoMiddleware.setAuthorizationEndpoint(middlewareURL);
       OBDal.getInstance().save(etendoMiddleware);
     } catch (JSONException e) {

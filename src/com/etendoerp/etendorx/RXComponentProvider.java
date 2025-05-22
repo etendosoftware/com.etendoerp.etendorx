@@ -30,6 +30,8 @@ public class RXComponentProvider  extends BaseComponentProvider {
         false));
     resources.add(createStaticResource("web/com.etendoerp.entendorx/js/SSOLogin/link-sso-account.js",
         false));
+    resources.add(createStaticResource("web/com.etendoerp.entendorx/js/google-picker.js",
+        false));
     resources.add(createStaticResource("web/com.etendoerp.entendorx/js/init-services-toolbar-button.js",
         false));
     resources.add(createStaticResource("web/com.etendoerp.entendorx/js/SSOLogin/config-etendo-middleware.js",

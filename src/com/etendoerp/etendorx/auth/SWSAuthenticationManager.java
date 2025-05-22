@@ -65,7 +65,7 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
   private static final String ACCESS_TOKEN = "access_token";
   private static final String SWS_TOKEN_IS_NOT_VALID = "SWS - Token is not valid";
   private static final String SSO_DOMAIN_URL = "sso.domain.url";
-  public static final String AUTH0_ISSUER = "https://dev-fut-test.us.auth0.com/";
+  public static final String AUTH0_ISSUER = "https://etendo-sso.us.auth0.com/";
   public static final String CONTEXT_NAME = "context.name";
 
   /**

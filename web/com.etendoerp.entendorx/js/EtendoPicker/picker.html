@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <!-- TODO: DBMessage -->
+    <title>Seleccionar archivo desde Google Drive</title>
+    <script src="https://apis.google.com/js/api.js"></script>
+    <style>
+        body {
+          margin: 0;
+          padding: 0;
+          background: #f8f9fb;
+          font-family: 'Segoe UI', 'Helvetica Neue', sans-serif;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          height: 100vh;
+        }
+
+        .card {
+          background: #ffffff;
+          border-radius: 12px;
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+          padding: 30px 40px;
+          text-align: center;
+          width: 480px;
+        }
+
+        h2 {
+          margin-top: 0;
+          font-size: 22px;
+          color: #2e3e4e;
+          margin-bottom: 20px;
+        }
+
+        button {
+          background-color: #ffcc00;
+          border: none;
+          color: #000;
+          font-weight: bold;
+          padding: 12px 24px;
+          font-size: 14px;
+          border-radius: 6px;
+          cursor: pointer;
+          transition: background 0.3s ease;
+        }
+
+        button:hover {
+          background-color: #e6b800;
+        }
+
+        .success-message {
+          background-color: #e6ffe6;
+          border: 1px solid #2d862d;
+          padding: 12px;
+          border-radius: 8px;
+          color: #2d862d;
+          font-weight: bold;
+          margin-top: 20px;
+          animation: fadeIn 0.3s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+
+        .loader {
+          border: 6px solid #f3f3f3;
+          border-top: 6px solid #ffcc00;
+          border-radius: 50%;
+          width: 40px;
+          height: 40px;
+          animation: spin 0.8s linear infinite;
+          margin: 20px auto 0;
+        }
+
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+<!-- TODO: DBMessage -->
+<div class="card">
+    <h2 id="pickerTitle">Seleccionar archivo desde Google Drive</h2>
+    <button id="btnGooglePicker">Seleccionar archivo de Google</button>
+    <div id="statusMessage" class="success-message" style="display: none;"></div>
+    <div id="loader" class="loader" style="display: none;"></div>
+</div>
+
+<script>
+    const params = new URLSearchParams(window.location.search);
+    const accessToken = params.get('accessToken');
+    const environmentURL = params.get('envURL');
+    const API_KEY = 'AIzaSyAiJGP3Tnlg7-PgZyHrwtAID4i7NuBUbRo';
+    const APP_ID = '743458387087';
+    const TOKEN_ENDPOINT = environmentURL + 'GetOAuthToken';
+    const PROCESS_ENDPOINT = environmentURL + 'processDriveFile';
+
+
+    let pickerReady = false;
+
+    gapi.load('client:picker', async () => {
+      await gapi.client.load('https://www.googleapis.com/discovery/v1/apis/drive/v3/rest');
+      pickerReady = true;
+    });
+
+    // Función que lanza el Picker
+    function launchPicker(accessToken) {
+      const view = new google.picker.View(google.picker.ViewId.SPREADSHEETS);
+      view.setMimeTypes('application/vnd.google-apps.spreadsheet');
+
+      const picker = new google.picker.PickerBuilder()
+        .setAppId(APP_ID)
+        .setOAuthToken(accessToken)
+        .setDeveloperKey(API_KEY)
+        .addView(view)
+        .enableFeature(google.picker.Feature.MULTISELECT_ENABLED)
+        .enableFeature(google.picker.Feature.NAV_HIDDEN)
+        .setCallback(function (data) {
+          if (data.action === google.picker.Action.PICKED) {
+            const doc = data.docs[0];
+            processFile(doc.id, accessToken);
+          }
+        })
+        .build();
+
+      picker.setVisible(true);
+    }
+
+    // Función que intenta procesar el archivo y relanza el picker si es necesario
+    async function processFile(fileId, accessToken) {
+      const title = document.getElementById('pickerTitle');
+      const button = document.getElementById('btnGooglePicker');
+      const loader = document.getElementById('loader');
+
+      // Ocultar botón y título, mostrar loader
+      title.style.display = 'none';
+      button.style.display = 'none';
+      loader.style.display = 'block';
+
+      try {
+        const response = await fetch(PROCESS_ENDPOINT, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fileId,
+          })
+        });
+
+        const result = await response.json();
+
+        if (result.requiresReconsent) {
+          // TODO: Improve error handling
+          alert('Google necesita que vuelvas a autorizar este archivo. Se abrirá el selector nuevamente.');
+          loader.style.display = 'none';
+          launchPicker(accessToken);
+          return;
+        }
+
+        if (result.status === 'ok') {
+          const msg = document.getElementById('statusMessage');
+          // TODO: DBMessage
+          msg.innerText = '✅ Archivo autorizado y procesado con éxito. Cerrando...';
+          msg.style.display = 'block';
+
+          setTimeout(() => {
+            window.close();
+          }, 3000);
+        } else {
+          alert('Error al procesar el archivo: ' + result.message);
+          console.error(result);
+          loader.style.display = 'none';
+        }
+      } catch (error) {
+        // TODO: Improve error handling
+        alert('Error inesperado al procesar el archivo.');
+        console.error(error);
+        loader.style.display = 'none';
+      }
+    }
+
+
+    document.getElementById('btnGooglePicker').onclick = async () => {
+      if (!pickerReady) return alert('Google Picker no está listo');
+
+      try {
+        const res = await fetch(TOKEN_ENDPOINT);
+        const { accessToken } = await res.json();
+        launchPicker(accessToken);
+      } catch (error) {
+        alert('Error al obtener el token de acceso.');
+        console.error(error);
+      }
+    };
+
+    window.onload = async () => {
+      const waitUntilPickerReady = () =>
+        new Promise(resolve => {
+          const interval = setInterval(() => {
+            if (pickerReady) {
+              clearInterval(interval);
+              resolve();
+            }
+          }, 100);
+        });
+
+      await waitUntilPickerReady();
+
+      launchPicker(accessToken);
+    };
+</script>
+
+</body>
+</html>
