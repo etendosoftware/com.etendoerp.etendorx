@@ -15,21 +15,25 @@ import com.google.api.services.sheets.v4.model.Spreadsheet;
 import com.google.api.services.sheets.v4.model.ValueRange;
 import org.apache.commons.lang.StringUtils;
 import org.codehaus.jettison.json.JSONArray;
+import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.openbravo.base.exception.OBException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.openbravo.dal.core.OBContext;
+import org.openbravo.erpCommon.utility.Utility;
+import org.openbravo.service.db.DalConnectionProvider;
 
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import static org.openbravo.base.secureApp.LoginUtils.log4j;
 
 /**
  * Utility class for interacting with the Google Sheets and Drive APIs using a Bearer token.
@@ -38,10 +42,20 @@ import java.util.regex.Pattern;
  */
 public class GoogleServiceUtil {
 
-  private static final Logger log = LoggerFactory.getLogger(GoogleServiceUtil.class);
   private static final String APPLICATION_NAME = "Google Sheets Java Integration";
   private static final JsonFactory JSON_FACTORY = JacksonFactory.getDefaultInstance();
   private static final HttpTransport HTTP_TRANSPORT = new NetHttpTransport();
+  public static final String BEARER = "Bearer ";
+  public static final String SPREADSHEET = "spreadsheet";
+  public static final String DOC = "doc";
+  public static final String SLIDES = "slides";
+  public static final String PDF = "pdf";
+  public static final String PDFS = "pdfs";
+  public static final String AUTHORIZATION = "Authorization";
+
+  private GoogleServiceUtil() {
+    throw new IllegalStateException("Utility class");
+  }
 
   /**
    * Creates a Google Sheets API client instance using the provided OAuth2 access token.
@@ -76,7 +90,7 @@ public class GoogleServiceUtil {
   private static HttpRequestInitializer bearerTokenInitializer(String accessToken) {
     return (HttpRequest request) -> {
       HttpHeaders headers = new HttpHeaders();
-      headers.setAuthorization("Bearer " + accessToken);
+      headers.setAuthorization(BEARER + accessToken);
       request.setHeaders(headers);
     };
   }
@@ -88,15 +102,15 @@ public class GoogleServiceUtil {
    * @param sheetId the ID of the spreadsheet.
    * @param token   the access token.
    * @return the name of the tab at the given index.
-   * @throws Exception if the tab index is invalid or the spreadsheet has no tabs.
+   * @throws OBException if the tab index is invalid or the spreadsheet has no tabs.
    */
-  public static String getTabName(int index, String sheetId, String token) throws Exception {
+  public static String getTabName(int index, String sheetId, String token) throws OBException, IOException {
     Sheets sheetsService = GoogleServiceUtil.getSheetsService(token);
     Spreadsheet spreadsheet = sheetsService.spreadsheets().get(sheetId).execute();
     List<Sheet> sheets = spreadsheet.getSheets();
 
     if (sheets == null || sheets.isEmpty()) {
-      throw new RuntimeException("La hoja no contiene solapas.");
+      throw new OBException("Spreadsheet doesn't contain tabs");
     }
     if (sheets.size() < index) {
       throw new OBException("Wrong tab number. It not can be greater that the qty of tabs.");
@@ -107,7 +121,7 @@ public class GoogleServiceUtil {
   /**
    * Extracts the spreadsheet ID from a full Google Sheets URL.
    *
-   * @param url the full URL of a Google Spreadsheet (e.g. https://docs.google.com/spreadsheets/d/ID/edit).
+   * @param url the full URL of a Google Spreadsheet (e.g. https://docs.google.com/spreadsheets/d/<ID>/edit).
    * @return the spreadsheet ID as a string.
    * @throws IllegalArgumentException if the URL format is invalid or the ID cannot be extracted.
    */
@@ -118,7 +132,7 @@ public class GoogleServiceUtil {
     if (matcher.find()) {
       return matcher.group(1);
     } else {
-      throw new IllegalArgumentException("URL inválida. No se pudo extraer el ID del spreadsheet.");
+      throw new IllegalArgumentException("Invalid URL. Couldn't extract spreadsheet ID.");
     }
   }
 
@@ -136,8 +150,24 @@ public class GoogleServiceUtil {
     return "";
   }
 
-
-  public static List<List<Object>> findSpreadsheetAndTab(String sheetId, String tabName, String token) throws Exception {
+  /**
+   * Retrieves the cell values from a specific tab (sheet) within a Google Spreadsheet.
+   * <p>
+   * This method connects to the Google Sheets API using the provided access token and attempts to find
+   * a tab (sheet) by name in the specified spreadsheet. The tab name comparison is case-insensitive.
+   * If the tab exists, it returns all cell values from that tab. If the tab does not exist,
+   * an {@link OBException} is thrown. If the tab exists but has no data, an empty list is returned.
+   * </p>
+   *
+   * @param sheetId  the ID of the Google Spreadsheet (not the full URL)
+   * @param tabName  the name of the tab (sheet) to search for (case-insensitive)
+   * @param token    a valid OAuth 2.0 access token with Sheets read access
+   * @return a list of rows from the tab; each row is a list of cell values. Returns an empty list if the tab is found but contains no data.
+   *
+   * @throws OBException if the specified tab name does not exist in the spreadsheet
+   * @throws IOException if an error occurs while communicating with the Google Sheets API
+   */
+  public static List<List<Object>> findSpreadsheetAndTab(String sheetId, String tabName, String token) throws IOException {
     Sheets sheetsService = GoogleServiceUtil.getSheetsService(token);
 
     Spreadsheet spreadsheet = sheetsService.spreadsheets().get(sheetId).execute();
@@ -147,30 +177,43 @@ public class GoogleServiceUtil {
         .anyMatch(s -> tabName.equalsIgnoreCase(s.getProperties().getTitle()));
 
     if (!foundTab) {
-      throw new RuntimeException("❌ Solapa no encontrada: " + tabName);
+      throw new OBException("❌ Tab not found: " + tabName);
     }
 
-    String range = tabName; // Podés usar: tabName + "!A1:Z1000" si querés limitar
     ValueRange response = sheetsService.spreadsheets().values()
-        .get(sheetId, range)
+        .get(sheetId, tabName)
         .execute();
 
     List<List<Object>> values = response.getValues();
 
     if (values == null || values.isEmpty()) {
-      System.out.println("🔍 No se encontraron datos en la solapa: " + tabName);
-      return List.of(); // Lista vacía
+      log4j.warn("Empty tab: {}", tabName);
+      return List.of();
     } else {
-      System.out.println("✅ Registros obtenidos: " + values.size());
+      log4j.debug("Obtained rows: {}", values.size());
       return values;
     }
   }
 
-  public static List<List<Object>> readSheet(String accessToken, String fileId, String range) throws Exception {
+  /**
+   * Reads cell values from a specified range in a Google Spreadsheet.
+   * <p>
+   * This method uses the Google Sheets API to retrieve the contents of a given range
+   * from a spreadsheet identified by its file ID. If no range is provided, it defaults to {@code "A1:Z1000"}.
+   * The method returns the values as a list of rows, where each row is a list of cell values.
+   * </p>
+   *
+   * @param accessToken a valid OAuth 2.0 access token with permission to read from Google Sheets (e.g., {@code https://www.googleapis.com/auth/spreadsheets.readonly})
+   * @param fileId      the ID of the Google Spreadsheet to read from
+   * @param range       the A1-notation range to read (e.g., {@code "Sheet1!A1:C10"}); if blank or null, defaults to {@code "A1:Z1000"}
+   * @return            a {@link List} of rows, where each row is a {@link List} of cell values ({@code Object})
+   *
+   * @throws IOException if a network error occurs or the API request fails
+   */
+  public static List<List<Object>> readSheet(String accessToken, String fileId, String range) throws IOException {
     HttpTransport httpTransport = new NetHttpTransport();
     JsonFactory jsonFactory = JacksonFactory.getDefaultInstance();
 
-    // Autenticación usando el token obtenido con drive.file
     GoogleCredential credential = new GoogleCredential().setAccessToken(accessToken);
 
     Sheets service = new Sheets.Builder(httpTransport, jsonFactory, credential)
@@ -186,61 +229,75 @@ public class GoogleServiceUtil {
   }
 
   /**
-   * Returns a list of accessible files filtered by a user-friendly file type keyword.
+   * Retrieves a list of accessible files from the user's Google Drive, filtered by a simplified file type keyword.
+   * <p>
+   * This method maps a user-friendly type keyword (e.g., {@code "spreadsheet"}, {@code "doc"}, {@code "slides"}, {@code "pdf"})
+   * to its corresponding MIME type and queries the Google Drive API for matching files. It simplifies Drive file filtering
+   * for common file types supported by Google Workspace and standard uploads.
+   * </p>
    *
-   * <p>This method allows querying Google Drive for files the application has access to,
-   * using a simplified keyword (e.g., "spreadsheet", "doc", "slides", "pdf"). It maps the
-   * keyword to the appropriate MIME type and delegates the request to the Drive API.</p>
-   *
-   * <p>Supported types:</p>
+   * <p>Supported keywords and their corresponding file types:</p>
    * <ul>
-   *   <li>{@code "spreadsheet"} → Google Sheets files</li>
-   *   <li>{@code "doc"} → Google Docs documents</li>
-   *   <li>{@code "slides"} → Google Slides presentations</li>
-   *   <li>{@code "pdf"} or {@code "pdfs"} → Uploaded PDF files</li>
+   *   <li>{@code "spreadsheet"} → Google Sheets ({@code application/vnd.google-apps.spreadsheet})</li>
+   *   <li>{@code "doc"} → Google Docs ({@code application/vnd.google-apps.document})</li>
+   *   <li>{@code "slides"} → Google Slides ({@code application/vnd.google-apps.presentation})</li>
+   *   <li>{@code "pdf"}, {@code "pdfs"} → PDF files uploaded to Drive ({@code application/pdf})</li>
    * </ul>
    *
-   * @param type a string representing the file type to retrieve (e.g., "spreadsheet", "doc", "slides", "pdfs")
-   * @param accessToken a valid OAuth 2.0 access token (typically with {@code drive.file} scope)
-   * @return a JSONArray containing each accessible file as a JSON object with {@code id}, {@code name}, and {@code mimeType}
-   * @throws Exception if the request fails or the type is not supported
+   * @param type         a simplified keyword representing the file type to retrieve
+   * @param accessToken  a valid OAuth 2.0 access token with access to the user's Drive (e.g., {@code drive.file} or {@code drive.readonly})
+   * @return             a {@link JSONArray} containing the matching files, where each file is represented as a {@link JSONObject}
+   *                     with fields {@code id}, {@code name}, and {@code mimeType}
+   *
+   * @throws IllegalArgumentException if the provided type keyword is not supported
+   * @throws IOException              if a network or API error occurs during the request
+   * @throws JSONException            if an error occurs parsing the API response
    */
-  public static JSONArray listAccessibleFiles(String type, String accessToken) throws Exception {
+  public static JSONArray listAccessibleFiles(String type, String accessToken) throws JSONException, IOException {
     String mimeType;
 
     switch (type.toLowerCase()) {
-      case "spreadsheet":
+      case SPREADSHEET:
         mimeType = "application/vnd.google-apps.spreadsheet";
         break;
-      case "doc":
+      case DOC:
         mimeType = "application/vnd.google-apps.document";
         break;
-      case "slides":
+      case SLIDES:
         mimeType = "application/vnd.google-apps.presentation";
         break;
-      case "pdf":
-      case "pdfs":
+      case PDF:
+      case PDFS:
         mimeType = "application/pdf";
         break;
       default:
-        // TODO: DBMessage
-        throw new IllegalArgumentException("Tipo no soportado: " + type);
+        String errorMessage = Utility.messageBD(new DalConnectionProvider(), "ETRX_UnsupportedFileType",
+            OBContext.getOBContext().getLanguage().getLanguage());
+        errorMessage = String.format(errorMessage, type);
+
+        throw new IllegalArgumentException(errorMessage);
     }
     return listAccessibleFilesByMimeType(mimeType, accessToken);
   }
 
-  /**
-   * Queries the Google Drive API to retrieve files accessible by the user for a specific MIME type.
+   /**
+   * Retrieves a list of files from the user's Google Drive that match a specific MIME type.
+   * <p>
+   * This method sends a GET request to the Google Drive API's {@code /drive/v3/files} endpoint,
+   * using a query parameter to filter files by the specified MIME type. It returns up to 100 files
+   * that the authenticated user has access to.
+   * </p>
    *
-   * <p>This method sends a GET request to {@code drive/v3/files} with a MIME type filter and returns
-   * a list of files the authenticated user has access to (limited to 100 results).</p>
+   * @param mimeType     the MIME type to filter files by (e.g., {@code application/vnd.google-apps.spreadsheet} for Google Sheets)
+   * @param accessToken  a valid OAuth 2.0 access token with appropriate permissions (e.g., {@code drive.file} or {@code drive.readonly})
+   * @return             a {@link JSONArray} containing metadata for the matching files; each file is represented
+   *                     as a {@link JSONObject} with keys {@code id}, {@code name}, and {@code mimeType}
    *
-   * @param mimeType the MIME type to filter files by (e.g., {@code application/vnd.google-apps.spreadsheet})
-   * @param accessToken a valid OAuth 2.0 access token (e.g., with {@code drive.file} scope)
-   * @return a JSONArray of files, each represented as a JSON object containing {@code id}, {@code name}, and {@code mimeType}
-   * @throws Exception if the API request fails or the response cannot be parsed
+   * @throws IOException   if a network error occurs while sending or receiving the API request
+   * @throws JSONException if there is an error parsing the API response
+   * @throws OBException   if the API returns a non-200 HTTP status code, indicating a request failure
    */
-  private static JSONArray listAccessibleFilesByMimeType(String mimeType, String accessToken) throws Exception {
+  private static JSONArray listAccessibleFilesByMimeType(String mimeType, String accessToken) throws IOException, JSONException {
     String endpoint = "https://www.googleapis.com/drive/v3/files" +
         "?q=mimeType='" + mimeType + "'" +
         "&fields=files(id,name,mimeType)" +
@@ -249,12 +306,12 @@ public class GoogleServiceUtil {
     URL url = new URL(endpoint);
     HttpURLConnection conn = (HttpURLConnection) url.openConnection();
     conn.setRequestMethod("GET");
-    conn.setRequestProperty("Authorization", "Bearer " + accessToken);
+    conn.setRequestProperty(AUTHORIZATION, BEARER + accessToken);
     conn.setRequestProperty("Accept", "application/json");
 
     int status = conn.getResponseCode();
     if (status != 200) {
-      throw new RuntimeException("Error al listar archivos: HTTP " + status);
+      throw new OBException("Error getting files: " + status);
     }
 
     BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
@@ -271,25 +328,35 @@ public class GoogleServiceUtil {
 
   /**
    * Creates a new file in the user's Google Drive with the specified name and MIME type.
+   * <p>
+   * This method sends a POST request to the Google Drive API to create a file in the root
+   * directory of the user's Drive. The file is created with the given name and MIME type.
+   * It supports both Google Workspace file types (like spreadsheets, documents, and presentations)
+   * and standard MIME types (like plain text or PDF).
+   * </p>
    *
-   * <p>Supported MIME types include:
+   * <p>Supported Google Workspace MIME types include:
    * <ul>
-   *   <li>{@code application/vnd.google-apps.spreadsheet}</li>
-   *   <li>{@code application/vnd.google-apps.document}</li>
-   *   <li>{@code application/vnd.google-apps.presentation}</li>
+   *   <li>{@code application/vnd.google-apps.spreadsheet} – Google Sheets</li>
+   *   <li>{@code application/vnd.google-apps.document} – Google Docs</li>
+   *   <li>{@code application/vnd.google-apps.presentation} – Google Slides</li>
    * </ul>
+   * </p>
    *
-   * @param name the name of the file to be created
-   * @param mimeType the MIME type of the file (Google Workspace MIME or standard file)
-   * @param accessToken a valid OAuth 2.0 access token (with {@code drive.file} scope)
-   * @return a JSONObject representing the created file (id, name, mimeType)
-   * @throws Exception if the creation fails
+   * @param name         the desired name for the new file
+   * @param mimeType     the MIME type of the file to be created; determines the file type in Drive
+   * @param accessToken  a valid OAuth 2.0 access token with sufficient permissions (e.g., {@code drive.file} scope)
+   * @return             a {@link JSONObject} containing metadata of the created file, such as {@code id}, {@code name}, and {@code mimeType}
+   *
+   * @throws IOException   if an I/O error occurs during communication with the API
+   * @throws JSONException if there is an error constructing the request or parsing the response
+   * @throws OBException   if the API returns a non-200 HTTP status code, indicating the file creation failed
    */
-  public static JSONObject createDriveFile(String name, String mimeType, String accessToken) throws Exception {
+  public static JSONObject createDriveFile(String name, String mimeType, String accessToken) throws IOException, JSONException {
     URL url = new URL("https://www.googleapis.com/drive/v3/files");
     HttpURLConnection conn = (HttpURLConnection) url.openConnection();
     conn.setRequestMethod("POST");
-    conn.setRequestProperty("Authorization", "Bearer " + accessToken);
+    conn.setRequestProperty(AUTHORIZATION, BEARER + accessToken);
     conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
     conn.setDoOutput(true);
 
@@ -303,7 +370,7 @@ public class GoogleServiceUtil {
     }
 
     if (conn.getResponseCode() != 200) {
-      throw new RuntimeException("Failed to create file: HTTP " + conn.getResponseCode());
+      throw new OBException("Failed to create file: HTTP " + conn.getResponseCode());
     }
 
     BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
@@ -318,20 +385,31 @@ public class GoogleServiceUtil {
   }
 
   /**
-   * Updates the content of a Google Spreadsheet in the specified range.
+   * Updates the content of a Google Spreadsheet within a specified cell range.
+   * <p>
+   * This method sends a PUT request to the Google Sheets API to overwrite the values
+   * in the given range with the provided 2D list of objects. The update is performed using
+   * the "RAW" input option, meaning values are written exactly as they are passed without formatting.
+   * </p>
    *
-   * @param fileId the ID of the Google Sheet
-   * @param accessToken OAuth 2.0 token with permission to access the file
-   * @param range the range to write to (e.g., "A1:C5")
-   * @param values a 2D List representing the values to insert
-   * @return the update response from the Sheets API
-   * @throws Exception if the update fails
+   * @param fileId       the unique identifier of the Google Spreadsheet (found in the URL of the sheet)
+   * @param accessToken  a valid OAuth 2.0 access token with permissions to edit the spreadsheet
+   * @param range        the A1 notation of the range to update (e.g., "Sheet1!A1:C5")
+   * @param values       a 2D list of values to write, where each inner list represents a row
+   * @return             a {@link JSONObject} containing the response from the Google Sheets API,
+   *                     including updated range and cell count information
+   *
+   * @throws IOException   if an I/O error occurs while sending or receiving data
+   * @throws JSONException if there is an error parsing the API response or constructing the request body
+   * @throws OBException   if the API responds with a non-200 HTTP status code, indicating failure
    */
-  public static JSONObject updateSpreadsheetValues(String fileId, String accessToken, String range, List<List<Object>> values) throws Exception {
-    URL url = new URL("https://sheets.googleapis.com/v4/spreadsheets/" + fileId + "/values/" + range + "?valueInputOption=RAW");
+  public static JSONObject updateSpreadsheetValues(String fileId, String accessToken, String range,
+       List<List<Object>> values) throws IOException, JSONException {
+    URL url = new URL("https://sheets.googleapis.com/v4/spreadsheets/" +
+        fileId + "/values/" + range + "?valueInputOption=RAW");
     HttpURLConnection conn = (HttpURLConnection) url.openConnection();
     conn.setRequestMethod("PUT");
-    conn.setRequestProperty("Authorization", "Bearer " + accessToken);
+    conn.setRequestProperty(AUTHORIZATION, BEARER + accessToken);
     conn.setRequestProperty("Content-Type", "application/json");
     conn.setDoOutput(true);
 
@@ -355,7 +433,7 @@ public class GoogleServiceUtil {
     }
 
     if (conn.getResponseCode() != 200) {
-      throw new RuntimeException("Failed to update spreadsheet: HTTP " + conn.getResponseCode());
+      throw new OBException("Failed to update spreadsheet: HTTP " + conn.getResponseCode());
     }
 
     BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
@@ -367,56 +445,5 @@ public class GoogleServiceUtil {
     reader.close();
 
     return new JSONObject(response.toString());
-  }
-
-  public static void runTestGoogleDrive(String accessToken) {
-    try {
-      System.out.println("1️⃣ List existing spreadsheets:");
-      JSONArray initialSheets = GoogleServiceUtil.listAccessibleFiles("spreadsheet", accessToken);
-      if (0 == initialSheets.length()) {
-        System.out.println("📄 No sheets are accessible");
-      }
-      for (int i = 0; i < initialSheets.length(); i++) {
-        JSONObject sheet = initialSheets.getJSONObject(i);
-        System.out.println("📄 " + sheet.getString("name") + " - ID: " + sheet.getString("id"));
-      }
-
-      System.out.println("\n2️⃣ Create a new spreadsheet...");
-      JSONObject newSheet = GoogleServiceUtil.createDriveFile(
-          "DEMO - Sheet created by Etendo",
-          "application/vnd.google-apps.spreadsheet",
-          accessToken
-      );
-      String newSheetId = newSheet.getString("id");
-      System.out.println("✅ Sheet created: " + newSheet.getString("name") + " - ID: " + newSheetId);
-
-      System.out.println("\n3️⃣ List spreadsheets again:");
-      JSONArray updatedSheets = GoogleServiceUtil.listAccessibleFiles("spreadsheet", accessToken);
-      for (int i = 0; i < updatedSheets.length(); i++) {
-        JSONObject sheet = updatedSheets.getJSONObject(i);
-        System.out.println("📄 " + sheet.getString("name") + " - ID: " + sheet.getString("id"));
-      }
-
-      System.out.println("\n4️⃣ Update the new sheet with demo data...");
-      List<List<Object>> values = Arrays.asList(
-          Arrays.asList("Producto", "Precio", "Stock"),
-          Arrays.asList("Mouse", "25", "100"),
-          Arrays.asList("Teclado", "45", "200")
-      );
-      JSONObject updateResult = GoogleServiceUtil.updateSpreadsheetValues(newSheetId, accessToken, "A1:C3", values);
-      System.out.println("✏️ Update result: " + updateResult.toString(2));
-
-      System.out.println("\n5️⃣ Read back the data:");
-      List<List<Object>> rows = GoogleServiceUtil.readSheet(accessToken, newSheetId, "");
-      for (List<Object> row : rows) {
-        System.out.println("📊 " + row);
-      }
-
-      System.out.println("\n🎉 Test completed successfully.");
-
-    } catch (Exception e) {
-      System.err.println("❌ Error during test:");
-      e.printStackTrace();
-    }
   }
 }

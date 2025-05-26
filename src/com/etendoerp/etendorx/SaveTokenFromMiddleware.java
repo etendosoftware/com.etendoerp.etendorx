@@ -52,7 +52,7 @@ public class SaveTokenFromMiddleware extends HttpBaseServlet {
         response.flushBuffer();
       } catch (IOException ex) {
         log4j.error(ex);
-        throw new RuntimeException(ex);
+        throw new OBException(ex);
       }
     }
   }
@@ -75,7 +75,7 @@ public class SaveTokenFromMiddleware extends HttpBaseServlet {
     String icon = error ? ERROR_ICON : SUCCESS_ICON;
     String iconColor = error ? RED : GREEN;
 
-    String responseURL = String.format("/%s/web/com.etendoerp.entendorx/resources/MiddlewareResponse.html"
+    return String.format("/%s/web/com.etendoerp.entendorx/resources/MiddlewareResponse.html"
             + "?title=%s&message=%s&icon=%s&iconColor=%s",
         contextName,
         URLEncoder.encode(rawTitle, StandardCharsets.UTF_8),
@@ -83,8 +83,6 @@ public class SaveTokenFromMiddleware extends HttpBaseServlet {
         URLEncoder.encode(icon, StandardCharsets.UTF_8),
         URLEncoder.encode(iconColor, StandardCharsets.UTF_8)
     );
-
-    return responseURL;
   }
 
   /**

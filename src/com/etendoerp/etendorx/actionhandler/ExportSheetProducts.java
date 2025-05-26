@@ -18,10 +18,53 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+/**
+ * Action handler that exports product data to a new Google Spreadsheet.
+ *
+ * <p>This action reads a list of {@link Product} objects, extracts relevant information
+ * (ID, search key, and name), and creates a new Google Spreadsheet via the Google Drive API
+ * using an OAuth 2.0 token. The data is written into the spreadsheet using the Sheets API.</p>
+ *
+ * <p>The action is designed to be executed from the Etendo background jobs framework (via SMF Jobs).
+ * It searches for a valid {@link ETRXTokenInfo} associated with the current user that has
+ * Google Drive access scope (i.e., {@code drive.file}).</p>
+ *
+ * <p>On success, the handler reports the number of rows exported. On failure, it logs and returns
+ * the error message.</p>
+ *
+ * <p><b>Example output:</b> A spreadsheet titled
+ * <i>"DEMO - Exported Products by Etendo"</i> with the following structure:
+ * <pre>
+ *   | Product ID | Value | Name |
+ *   |------------|-------|------|
+ *   | ...        | ...   | ...  |
+ * </pre>
+ * </p>
+ *
+ * <p>Required permissions: The user must have a valid {@link ETRXTokenInfo} with Google Sheets access.</p>
+ *
+ * @author Etendo
+ */
 public class ExportSheetProducts extends Action {
 
   private static final Logger log = LogManager.getLogger();
 
+  /**
+   * Executes the export action to create a spreadsheet and populate it with product data.
+   *
+   * <p>Steps performed:</p>
+   * <ol>
+   *   <li>Retrieves the input list of {@link Product} records.</li>
+   *   <li>Builds a list of rows to write to the spreadsheet.</li>
+   *   <li>Fetches a valid {@link ETRXTokenInfo} for the current user with Google Drive access.</li>
+   *   <li>Creates a new Google Sheet and writes the product data.</li>
+   *   <li>Returns a success or error {@link ActionResult} accordingly.</li>
+   * </ol>
+   *
+   * @param parameters the JSON parameters passed to the job (not used in this implementation)
+   * @param isStopped  flag to check if the action execution has been interrupted
+   * @return an {@link ActionResult} indicating the result of the export operation
+   */
   @Override
   protected ActionResult action(JSONObject parameters, MutableBoolean isStopped) {
     ActionResult actionResult = new ActionResult();
@@ -56,7 +99,7 @@ public class ExportSheetProducts extends Action {
       );
       String newSheetId = newSheet.getString("id");
 
-      JSONObject result = GoogleServiceUtil.updateSpreadsheetValues(newSheetId, accessToken, "A1:C" + values.size(), values);
+      GoogleServiceUtil.updateSpreadsheetValues(newSheetId, accessToken, "A1:C" + values.size(), values);
 
       actionResult.setMessage("✅ Datos exportados correctamente. Filas afectadas: " + values.size());
 
@@ -69,6 +112,11 @@ public class ExportSheetProducts extends Action {
     return actionResult;
   }
 
+  /**
+   * Specifies the input entity type expected by this action.
+   *
+   * @return the {@link Product} class, indicating this action operates on Product records
+   */
   @Override
   protected Class<Product> getInputClass() { return Product.class; }
 }

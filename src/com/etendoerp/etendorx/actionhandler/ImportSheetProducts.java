@@ -21,7 +21,50 @@ import java.util.List;
 
 import static org.openbravo.base.secureApp.LoginUtils.log4j;
 
+/**
+ * Action handler that imports product data from a Google Spreadsheet into Etendo.
+ *
+ * <p>This action connects to a Google Sheet (specified by URL in the parameters), reads its content,
+ * and creates or updates {@link Product} records in the Etendo database.</p>
+ *
+ * <p>The expected structure of the spreadsheet is as follows:</p>
+ * <pre>
+ * | SearchKey | Name | UOM ID | Product Category ID | Tax Category ID | Product Type |
+ * |-----------|------|--------|----------------------|------------------|---------------|
+ * | P001      | Pen  | 100    | 200                  | 300              | I             |
+ * </pre>
+ *
+ * <p>Each row (excluding the header) is interpreted as a product. If a product with the same
+ * {@code SearchKey} already exists, it will be updated. Otherwise, a new product is created.</p>
+ *
+ * <p>OAuth authentication is performed via a {@link ETRXTokenInfo} record that must exist
+ * for the current user with {@code drive.file} scope.</p>
+ *
+ * @see com.etendoerp.etendorx.utils.GoogleServiceUtil for spreadsheet interaction
+ * @see ETRXTokenInfo for access token retrieval
+ * @see Product for the target entity
+ */
 public class ImportSheetProducts extends Action {
+
+  /**
+   * Executes the import action by reading a spreadsheet and creating/updating {@link Product} records.
+   *
+   * <p>Steps performed:</p>
+   * <ol>
+   *   <li>Retrieves the Google access token for the current user</li>
+   *   <li>Extracts the spreadsheet ID and tab name from the given URL</li>
+   *   <li>Reads all data rows from the spreadsheet (skipping the header)</li>
+   *   <li>Maps each row into a {@link Product}, filling in references to {@link UOM},
+   *       {@link ProductCategory}, and {@link TaxCategory}</li>
+   *   <li>Saves new or updated records using the DAL</li>
+   * </ol>
+   *
+   * @param parameters the JSON object with parameters, specifically the {@code sheeturl}
+   * @param isStopped  flag indicating whether the job should be interrupted (not used here)
+   * @return an {@link ActionResult} indicating success or failure
+   *
+   * @throws OBException in case of any error during data extraction or persistence
+   */
   @Override
   protected ActionResult action(JSONObject parameters, MutableBoolean isStopped) {
     ActionResult actionResult = new ActionResult();
@@ -74,6 +117,11 @@ public class ImportSheetProducts extends Action {
     return actionResult;
   }
 
+  /**
+   * This import action does not use input from SMF job input entities.
+   *
+   * @return {@code null}, indicating no input class is required
+   */
   @Override
   protected Class<?> getInputClass() {
     return null;

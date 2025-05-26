@@ -1,12 +1,19 @@
 if (OB.PropertyStore.get('ETRX_AllowSSOLogin') === 'Y') {
-// -----------------------------------------------------------
-// -----------------------------------------------------------
-// -----------------------------------------------------------
-
-  function createAuth0LinkButton() {
+  function createAuth0LinkButton(domainUrl, clientId) {
     const button = isc.OBFormButton.create({
       title: OB.I18N.getLabel('ETRX_LinkSSOAccount'),
       click: function () {
+        function initAuth0() {
+          let webAuth = new auth0.WebAuth({
+            domain: domainUrl,
+            clientID: clientId,
+            redirectUri: OB.Utilities.getLocationUrlWithoutFragment() + 'web/com.etendoerp.etendorx/LinkAuth0Account.html',
+            responseType: 'code',
+            scope: 'openid profile email'
+          });
+          webAuth.authorize({ prompt: 'login' });
+        }
+
         if (typeof auth0 === "undefined") {
           let script = document.createElement("script");
           script.src = OB.Utilities.getLocationUrlWithoutFragment() + 'web/com.etendoerp.entendorx/js/SSOLogin/auth0.min.js';
@@ -15,37 +22,13 @@ if (OB.PropertyStore.get('ETRX_AllowSSOLogin') === 'Y') {
         } else {
           initAuth0();
         }
-
-        function initAuth0() {
-          function callbackOnProcessActionHandler(response, data) {
-            if (data.message?.severity === 'error') {
-              this.getWindow().showMessage(data.message.text);
-            } else {
-              let webAuth = new auth0.WebAuth({
-                domain: data.domainurl,
-                clientID: data.clientid,
-                redirectUri: OB.Utilities.getLocationUrlWithoutFragment() + 'web/com.etendoerp.etendorx/LinkAuth0Account.html',
-                responseType: 'code',
-                scope: 'openid profile email'
-              });
-
-              webAuth.authorize({ prompt: 'login' });
-            }
-          }
-
-          OB.RemoteCallManager.call(
-            'com.etendoerp.etendorx.GetSSOProperties',
-            { properties: 'domain.url, client.id' },
-            {},
-            callbackOnProcessActionHandler
-          );
-        }
       },
       baseStyle: "OBFormButton",
       height: 50,
       wrap: true,
       autoFit: true
     });
+
     button.setWidth(170);
     return isc.HStack.create({
       align: 'center',
@@ -54,7 +37,7 @@ if (OB.PropertyStore.get('ETRX_AllowSSOLogin') === 'Y') {
     });
   }
 
-  function createProviderIconLayout() {
+  function createProviderIconLayout(middlewareURL) {
     const layout = isc.VStack.create({
       align: 'center',
       width: '100%'
@@ -90,11 +73,15 @@ if (OB.PropertyStore.get('ETRX_AllowSSOLogin') === 'Y') {
     ];
 
     providerIcons.forEach(p => {
+      const provider = p.provider;
+      const img = p.img;
+      const providerText = p.providerText;
+
       iconLayout.addMember(isc.ImgButton.create({
         width: 32,
         height: 32,
-        src: p.img,
-        prompt: 'Link with ' + p.providerText,
+        src: img,
+        prompt: 'Link with ' + providerText,
         showRollOver: false,
         showDown: false,
         showFocused: false,
@@ -102,9 +89,7 @@ if (OB.PropertyStore.get('ETRX_AllowSSOLogin') === 'Y') {
         baseStyle: 'ssoProviderIcon',
         click: function () {
           const redirectUri = OB.Utilities.getLocationUrlWithoutFragment();
-          // TODO: Dynamically obtain the URL of the middleware.
-//          const url = `http://localhost:9580/login?provider=${p.provider}&account_id=etendo_123&redirect_uri=${redirectUri}web/com.etendoerp.etendorx/LinkAuth0Account.html`;
-          const url = `http://etendoauth-middleware-env.eba-purewhpv.sa-east-1.elasticbeanstalk.com/login?provider=${p.provider}&account_id=etendo_123&redirect_uri=${redirectUri}web/com.etendoerp.etendorx/LinkAuth0Account.html`;
+          const url = `${middlewareURL}/login?provider=${provider}&account_id=etendo_123&redirect_uri=${redirectUri}web/com.etendoerp.etendorx/LinkAuth0Account.html`;
           window.location.href = url;
         }
       }));
@@ -114,10 +99,6 @@ if (OB.PropertyStore.get('ETRX_AllowSSOLogin') === 'Y') {
     return layout;
   }
 
-
-// -----------------------------------------------------------
-// -----------------------------------------------------------
-// -----------------------------------------------------------
   isc.OBUserProfile.addProperties({
     createProfileForm: function() {
       let me = this,
@@ -490,45 +471,45 @@ if (OB.PropertyStore.get('ETRX_AllowSSOLogin') === 'Y') {
           click: isc.OBQuickRun.hide
         })
       );
-// --------------------------------------------------------------------------------------------------------
 
-        let ssoButtonLayout = isc.VStack.create({
-          layoutTopMargin: 6,
-          align: 'center',
-          width: '100%',
-          height: 1
-        });
+      let ssoButtonLayout = isc.VStack.create({
+        layoutTopMargin: 6,
+        align: 'center',
+        width: '100%',
+        height: 1
+      });
 
-        function getSSOAuthType(callback) {
-          function callbackOnProcessActionHandler(response, data) {
-            if (data.message?.severity === 'error') {
-              this.getWindow().showMessage(data.message.text);
-            } else {
-              const ssoType = data['authtype'];
-              callback(ssoType);
-            }
+    function loadSSOComponents(callback) {
+      OB.RemoteCallManager.call(
+        'com.etendoerp.etendorx.GetSSOProperties',
+        { properties: 'auth.type, domain.url, client.id, middleware.url' },
+        {},
+        function (response, data) {
+          if (data.message?.severity === 'error') {
+            this.getWindow().showMessage(data.message.text);
+            return;
           }
-
-          OB.RemoteCallManager.call(
-            'com.etendoerp.etendorx.GetSSOProperties',
-            { properties: 'auth.type' },
-            {},
-            callbackOnProcessActionHandler
-          );
+          callback(data);
         }
+      );
+    }
 
-        getSSOAuthType(function (ssoType) {
-          if (ssoType === 'Auth0') {
-            ssoButtonLayout.addMember(createAuth0LinkButton());
-          } else {
-            ssoButtonLayout.addMember(createProviderIconLayout());
-          }
-        });
+    loadSSOComponents(function (data) {
+      console.log('SSO Data:', data);
+      const ssoType = data['authtype'];
+      const middlewareUrl = data['middlewareurl'];
+      const domainUrl = data['domainurl'];
+      const clientId = data['clientid'];
+      if (ssoType === 'Auth0') {
+        ssoButtonLayout.addMember(createAuth0LinkButton(domainUrl, clientId));
+      } else {
+        ssoButtonLayout.addMember(createProviderIconLayout(middlewareUrl));
+      }
+    });
 
-        profileFormLayout.addMembers(buttonLayout);
-        profileFormLayout.addMember(ssoButtonLayout);
+      profileFormLayout.addMembers(buttonLayout);
+      profileFormLayout.addMember(ssoButtonLayout);
 
-// --------------------------------------------------------------------------------------------------------
       // pointer to the form
       this.profileForm = profileForm;
       this.profileFormLayout = profileFormLayout;

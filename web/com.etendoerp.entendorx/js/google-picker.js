@@ -13,19 +13,38 @@ OB.ETRX.openPickerPopup = async function () {
     const tokenRes = await fetch(envURL + 'GetOAuthToken');
     const { accessToken } = await tokenRes.json();
 
-    const win = window.open(
-      envURL + `web/com.etendoerp.entendorx/js/EtendoPicker/picker.html?accessToken=${encodeURIComponent(accessToken)}&envURL=${encodeURIComponent(envURL)}`,
-      'GooglePicker',
-      sizeProperties
-    );
+    OB.RemoteCallManager.call(
+      'com.etendoerp.etendorx.GetSSOProperties',
+      { properties: 'google.api.key, google.api.id' },
+      {},
+      function (response, data) {
+        if (data.message?.severity === 'error') {
+          this.processOwnerView.messageBar.setMessage('error', OB.I18N.getLabel('ETRX_SSOError'), data.message.text);
+          return;
+        }
 
-    if (!win) {
-      // TODO: Improve error handling
-      alert('El popup fue bloqueado. Permití popups para este sitio.');
-    }
+        const googleApiKey = data.googleapikey;
+        const googleApiId = data.googleapiid;
+
+        const titleText = encodeURIComponent(OB.I18N.getLabel('ETRX_SelectGDriveFile'));
+        const buttonText = encodeURIComponent(OB.I18N.getLabel('ETRX_SelectGDriveFile'));
+
+        const successMessage = encodeURIComponent(OB.I18N.getLabel('ETRX_SuccessFileApprove'));
+
+        const win = window.open(
+          envURL +
+            `web/com.etendoerp.entendorx/js/EtendoPicker/picker.html?accessToken=${encodeURIComponent(accessToken)}&envURL=${encodeURIComponent(envURL)}&googleApiKey=${encodeURIComponent(googleApiKey)}&googleApiId=${encodeURIComponent(googleApiId)}&titleText=${titleText}&buttonText=${buttonText}&successMessage=${successMessage}`,
+          'GooglePicker',
+          sizeProperties
+        );
+
+        if (!win) {
+          OB.ETRX.processOwnerView.messageBar.setMessage('error', OB.I18N.getLabel('ETRX_PopUpBlocked'), OB.I18N.getLabel('ETRX_AllowPopUp'));
+        }
+      }.bind(this)
+    );
   } catch (error) {
-    // TODO: Improve error handling
-    alert('Error al obtener el token de acceso.');
+    this.processOwnerView.messageBar.setMessage('error', OB.I18N.getLabel('ETRX_TokenError'), error.message);
     console.error(error);
   }
 };

@@ -82,10 +82,11 @@
     </style>
 </head>
 <body>
+<div id="overlay" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.2); z-index:1000;"></div>
 <!-- TODO: DBMessage -->
 <div class="card">
-    <h2 id="pickerTitle">Seleccionar archivo desde Google Drive</h2>
-    <button id="btnGooglePicker">Seleccionar archivo de Google</button>
+    <h2 id="pickerTitle" style="display: none;">Select a Google Drive file to approve.</h2>
+    <button id="btnGooglePicker" style="display: none;">Select a Google Drive file to approve.</button>
     <div id="statusMessage" class="success-message" style="display: none;"></div>
     <div id="loader" class="loader" style="display: none;"></div>
 </div>
@@ -94,11 +95,10 @@
     const params = new URLSearchParams(window.location.search);
     const accessToken = params.get('accessToken');
     const environmentURL = params.get('envURL');
-    const API_KEY = 'AIzaSyAiJGP3Tnlg7-PgZyHrwtAID4i7NuBUbRo';
-    const APP_ID = '743458387087';
+    const API_KEY = params.get('googleApiKey')
+    const APP_ID = params.get('googleApiId');
     const TOKEN_ENDPOINT = environmentURL + 'GetOAuthToken';
     const PROCESS_ENDPOINT = environmentURL + 'processDriveFile';
-
 
     let pickerReady = false;
 
@@ -107,22 +107,38 @@
       pickerReady = true;
     });
 
-    // Función que lanza el Picker
     function launchPicker(accessToken) {
-      const view = new google.picker.View(google.picker.ViewId.SPREADSHEETS);
-      view.setMimeTypes('application/vnd.google-apps.spreadsheet');
+      const overlay = document.getElementById('overlay');
+      const loader = document.getElementById('loader');
+      const title = document.getElementById('pickerTitle');
+      const button = document.getElementById('btnGooglePicker');
+
+      overlay.style.display = 'block';
+      loader.style.display = 'block';
+      title.style.display = 'none';
+      button.style.display = 'none';
+
+      const view = new google.picker.View(google.picker.ViewId.DOCS);
 
       const picker = new google.picker.PickerBuilder()
         .setAppId(APP_ID)
         .setOAuthToken(accessToken)
         .setDeveloperKey(API_KEY)
         .addView(view)
-        .enableFeature(google.picker.Feature.MULTISELECT_ENABLED)
         .enableFeature(google.picker.Feature.NAV_HIDDEN)
         .setCallback(function (data) {
+          const shouldRestoreUI = () => {
+            loader.style.display = 'none';
+            overlay.style.display = 'none';
+            title.style.display = 'block';
+            button.style.display = 'inline-block';
+          };
+
           if (data.action === google.picker.Action.PICKED) {
             const doc = data.docs[0];
             processFile(doc.id, accessToken);
+          } else if (data.action === google.picker.Action.CANCEL) {
+            shouldRestoreUI();
           }
         })
         .build();
@@ -130,13 +146,11 @@
       picker.setVisible(true);
     }
 
-    // Función que intenta procesar el archivo y relanza el picker si es necesario
     async function processFile(fileId, accessToken) {
       const title = document.getElementById('pickerTitle');
       const button = document.getElementById('btnGooglePicker');
       const loader = document.getElementById('loader');
 
-      // Ocultar botón y título, mostrar loader
       title.style.display = 'none';
       button.style.display = 'none';
       loader.style.display = 'block';
@@ -163,7 +177,8 @@
         if (result.status === 'ok') {
           const msg = document.getElementById('statusMessage');
           // TODO: DBMessage
-          msg.innerText = '✅ Archivo autorizado y procesado con éxito. Cerrando...';
+          const successMessage = decodeURIComponent(params.get('successMessage'));
+          msg.innerText = successMessage;
           msg.style.display = 'block';
 
           setTimeout(() => {
@@ -197,6 +212,12 @@
     };
 
     window.onload = async () => {
+      const titleText = params.get('titleText');
+      const buttonText = params.get('buttonText');
+
+      document.getElementById('pickerTitle').innerText = decodeURIComponent(titleText);
+      document.getElementById('btnGooglePicker').innerText = decodeURIComponent(buttonText);
+
       const waitUntilPickerReady = () =>
         new Promise(resolve => {
           const interval = setInterval(() => {
@@ -211,6 +232,7 @@
 
       launchPicker(accessToken);
     };
+
 </script>
 
 </body>

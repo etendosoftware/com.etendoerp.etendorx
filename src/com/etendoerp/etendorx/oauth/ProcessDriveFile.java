@@ -1,9 +1,7 @@
 package com.etendoerp.etendorx.oauth;
 
 import com.etendoerp.etendorx.data.DriveFile;
-import com.etendoerp.etendorx.data.ETRXTokenInfo;
 import com.etendoerp.etendorx.data.ETRXoAuthProvider;
-import org.apache.tomcat.jdbc.pool.interceptor.ResetAbandonedTimer;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.codehaus.jettison.json.JSONTokener;
@@ -20,9 +18,42 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.BufferedReader;
 import java.io.IOException;
 
+/**
+ * Servlet that processes HTTP POST requests to approve and store a Google Drive file ID
+ * associated with the current user and a specific OAuth provider.
+ *
+ * <p>This servlet reads a JSON request body containing a {@code fileId} field,
+ * creates a new {@link DriveFile} entity linked to the current user and the "EtendoMiddleware" OAuth provider,
+ * saves it to the database, and returns a JSON response indicating success or failure.</p>
+ *
+ * <p>On success, the response will be:
+ * <pre>
+ * {
+ *   "status": "ok",
+ *   "message": "File approved successfully."
+ * }
+ * </pre>
+ * On failure, the response will be:
+ * <pre>
+ * {
+ *   "status": "error",
+ *   "message": "Error processing spreadsheet."
+ * }
+ * </pre>
+ * and the HTTP status will be set to 500.</p>
+ */
 public class ProcessDriveFile extends HttpBaseServlet {
   private static final Logger log = LoggerFactory.getLogger(ProcessDriveFile.class);
 
+  /**
+   * Handles HTTP POST requests containing a JSON body with a Google Drive file ID.
+   *
+   * <p>The method extracts the {@code fileId} from the request body, creates and persists a new {@link DriveFile}
+   * entity for the current user linked to the OAuth provider with value "EtendoMiddleware".</p>
+   *
+   * @param req  the HTTP servlet request containing the JSON body with {@code fileId}
+   * @param resp the HTTP servlet response to write the JSON success or error message
+   */
   @Override
   protected void doPost(HttpServletRequest req, HttpServletResponse resp) {
     try {

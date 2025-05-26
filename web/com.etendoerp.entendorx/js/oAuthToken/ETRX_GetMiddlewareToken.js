@@ -59,8 +59,7 @@ OB.ETRX.middlewareToken = {
         closeBtn.style.fontSize = '24px';
         closeBtn.style.cursor = 'pointer';
         closeBtn.style.color = '#444';
-        // TODO: DBMessage
-        closeBtn.title = 'Cerrar';
+        closeBtn.title = OB.I18N.getLabel('Close');;
         closeBtn.onclick = () => document.body.removeChild(modal);
         modalContent.appendChild(closeBtn);
 
@@ -88,8 +87,7 @@ OB.ETRX.middlewareToken = {
           providerCard.appendChild(providerTitle);
 
           const providerDescription = document.createElement('p');
-          // TODO: DBMessage
-          providerDescription.innerText = 'Seleccione el scope deseado';
+          providerDescription.innerText = OB.I18N.getLabel('ETRX_SelectScope');
           providerDescription.style.margin = '0 0 10px 0';
           providerDescription.style.fontSize = '13px';
           providerDescription.style.color = '#666';
@@ -145,8 +143,7 @@ OB.ETRX.middlewareToken = {
 
 
         const cancelBtn = document.createElement('button');
-        // TODO: DBMessage
-        cancelBtn.innerText = 'Cancelar';
+        cancelBtn.innerText = OB.I18N.getLabel('UINAVBA_Cancel');
         cancelBtn.style.marginTop = '20px';
         cancelBtn.style.padding = '8px 16px';
         cancelBtn.style.backgroundColor = '#ccc';
@@ -160,9 +157,8 @@ OB.ETRX.middlewareToken = {
         document.body.appendChild(modal);
       })
       .catch(err => {
-        // TODO: Improve error handling.
-        console.error('Error fetching available providers:', err);
-        alert('No se pudieron cargar los proveedores disponibles');
+        console.error(OB.I18N.getLabel('ETRX_ErrorFetchProviders'), err);
+        this.processOwnerView.messageBar.setMessage('error', OB.I18N.getLabel('ETRX_ErrorFetchProviders'), OB.I18N.getLabel('ETRX_ErrorFetchProviders_Description'));
       });
   }
 };

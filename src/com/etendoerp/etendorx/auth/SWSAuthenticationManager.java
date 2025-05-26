@@ -383,7 +383,6 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
       JwkProvider provider = new UrlJwkProvider(jwkURL);
 
       DecodedJWT jwt = JWT.decode(token);
-      Jwk jwk = provider.get(jwt.getKeyId());
 
       RSAKeyProvider keyProvider = new JwkRSAKeyProvider(provider, jwt.getKeyId());
       Algorithm algorithm = Algorithm.RSA256(keyProvider);
