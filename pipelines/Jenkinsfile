@@ -21,15 +21,16 @@ pipeline {
         REPOSITORY_NAME     = 'com.etendoerp.etendorx'
 
         EMAIL_ADDRESS       = credentials('email_builds')
-        CORE_URL_REPO       = 'https://github.com/etendosoftware/etendo_core'
-        RX_URL_REPO         = 'https://github.com/etendosoftware/etendo_rx'
-        URL_REPO            = 'https://github.com/etendosoftware/com.etendoerp.etendorx'
-        RX_MODULE_SSH       = 'git@github.com:etendosoftware/com.etendoerp.etendorx.git'
-        BRANCH_NAME_RX      = 'develop'
-        RX_DIR              = 'etendo_rx'
-        CLASSIC_DIR         = 'etendo_core'
-        CORE_BRANCH         = 'release/24.4'
-        
+
+        CORE_URL_REPO           = 'https://github.com/etendosoftware/etendo_core'
+        RX_URL_REPO             = 'https://github.com/etendosoftware/etendo_rx'
+        URL_REPO                = 'https://github.com/etendosoftware/com.etendoerp.etendorx'
+        RX_MODULE_SSH           = 'git@github.com:etendosoftware/com.etendoerp.etendorx.git'
+        BRANCH_NAME_RX          = 'develop'
+        RX_DIR                  = 'etendo_rx'
+        CLASSIC_DIR             = 'etendo_core'
+        CLASSIC_BRANCH_BACKPORT = 'release/24.4'
+
         COMMIT_AUTHOR_NAME  = sh(returnStdout: true, script: "git log -1 --pretty=format:'%an'").trim()
         COMMIT_AUTHOR_EMAIL = sh(returnStdout: true, script: "git log -1 --pretty=format:'%ae'").trim()
 
@@ -52,6 +53,9 @@ pipeline {
 
         TRUE                = 'true'
         FALSE               = 'false'
+
+        MAIN_BRANCH    = "main"
+        DEVELOP_BRANCH = "develop"
     }
 
     agent { // MARK: - Agent
@@ -185,8 +189,16 @@ spec:
                                 withCredentials([usernamePassword(credentialsId: "koodu_credentials", passwordVariable: 'GIT_PASSWORD', usernameVariable: 'GIT_USERNAME')]) {
                                     def sshCmd = "ssh -i ${keyfile} -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no"
 
+                                    echo "-------------------------- Selecting the Classic Correct Branch for Repository Cloning --------------------------"
+                                    env.CLASSIC_BRANCH = env.MAIN_BRANCH
+                                    if (env.GIT_BRANCH.startsWith(env.DEVELOP_BRANCH) || ((env.GIT_BRANCH.startsWith("feature") || env.GIT_BRANCH.startsWith("epic")) && !(env.GIT_BRANCH.contains("-Y")))) {
+                                        env.CLASSIC_BRANCH = env.DEVELOP_BRANCH
+                                    } else if (env.GIT_BRANCH.contains("-Y") || env.GIT_BRANCH.startsWith("release")) {
+                                        env.CLASSIC_BRANCH = env.CLASSIC_BRANCH_BACKPORT
+                                    }
+
                                     echo "---------------------- Clonning Classic Repo ----------------------"
-                                    sh "git clone --branch ${CORE_BRANCH} ${CORE_URL_REPO}"
+                                    sh "git clone --branch ${CLASSIC_BRANCH} ${CORE_URL_REPO}"
 
                                     sh "printenv"
                                     echo "---------------------- Clonning RX Module Repo ----------------------"
@@ -278,7 +290,7 @@ spec:
                             echo "---------------------- Building Etendo RX Environment ----------------------"
                             echo "---------------------- Checking Branch Type ----------------------"
                             env.IS_HOTFIX_OR_MAIN_BRANCH = FALSE
-                            if (GIT_BRANCH.startsWith('hotfix/') || GIT_BRANCH.startsWith('main') || GIT_BRANCH.startsWith('master')) {
+                            if ((GIT_BRANCH.startsWith('hotfix/') && !(GIT_BRANCH.contains("-Y"))) || GIT_BRANCH.startsWith('main') || GIT_BRANCH.startsWith('master')) {
                                 echo "Branch ${GIT_BRANCH} is a hotfix or main/master."
                                 env.IS_HOTFIX_OR_MAIN_BRANCH = TRUE
                             }
@@ -327,7 +339,8 @@ spec:
                             echo "---------------------- Starting Etendo RX Module Tests ----------------------"
                             sh """
                             cd ${CLASSIC_DIR}
-                            ./gradlew test --tests "com.etendoerp.etendorx.*" jacocoRootReport --info
+                            ./gradlew test --tests "com.etendoerp.etendorx.*" --info
+                            ./gradlew jacocoRootReport --info
                             """
                             echo "---------------------- RX Module Tests Successful ----------------------"
                         } catch (Exception e) {
