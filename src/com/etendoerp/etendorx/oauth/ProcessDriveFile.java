@@ -65,7 +65,7 @@ public class ProcessDriveFile extends HttpBaseServlet {
       }
       JSONObject body = new JSONObject(new JSONTokener(sb.toString()));
 
-      String fileId = body.getString("fileId");
+      String fileId = body.getString("id");
 
       DriveFile approvedFile = OBProvider.getInstance().get(DriveFile.class);
       approvedFile.setUser(OBContext.getOBContext().getUser());

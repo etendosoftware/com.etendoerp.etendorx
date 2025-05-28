@@ -22,6 +22,9 @@ public class RXComponentProvider  extends BaseComponentProvider {
   @Override
   public List<ComponentResource> getGlobalComponentResources() {
     final List<ComponentResource> resources = new ArrayList<>();
+    // Create Middleware Provider (oAuth Provider window)
+    resources.add(createStaticResource("web/com.etendoerp.entendorx/js/init-services-toolbar-button.js",
+        false));
     resources.add(createStaticResource("web/com.etendoerp.entendorx/js/oAuthToken/ETRX_GetToken.js",
         false));
     resources.add(createStaticResource("web/com.etendoerp.entendorx/js/oAuthToken/ETRX_GetMiddlewareToken.js",
@@ -30,11 +33,14 @@ public class RXComponentProvider  extends BaseComponentProvider {
         false));
     resources.add(createStaticResource("web/com.etendoerp.entendorx/js/SSOLogin/link-sso-account.js",
         false));
+    // Create Middleware Provider
+    resources.add(createStaticResource("web/com.etendoerp.entendorx/js/SSOLogin/config-etendo-middleware.js",
+        false));
+    // Open Google Picker
     resources.add(createStaticResource("web/com.etendoerp.entendorx/js/google-picker.js",
         false));
-    resources.add(createStaticResource("web/com.etendoerp.entendorx/js/init-services-toolbar-button.js",
-        false));
-    resources.add(createStaticResource("web/com.etendoerp.entendorx/js/SSOLogin/config-etendo-middleware.js",
+    // Approve google doc (Calling Google Picker)
+    resources.add(createStaticResource("web/com.etendoerp.entendorx/js/approveGoogleDoc-picker.js",
         false));
     resources.add(createStyleSheetResource(("web/com.etendoerp.userinterface.smartclient/etendo/" +
             "skins/default/com.etendoerp.etendorx/init-services-icon-styles.css"),

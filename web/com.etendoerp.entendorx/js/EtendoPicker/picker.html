@@ -98,7 +98,7 @@
     const API_KEY = params.get('googleApiKey')
     const APP_ID = params.get('googleApiId');
     const TOKEN_ENDPOINT = environmentURL + 'GetOAuthToken';
-    const PROCESS_ENDPOINT = environmentURL + 'processDriveFile';
+    const PROCESS_ENDPOINT = environmentURL + params.get('processEndpoint');
 
     let pickerReady = false;
 
@@ -135,8 +135,7 @@
           };
 
           if (data.action === google.picker.Action.PICKED) {
-            const doc = data.docs[0];
-            processFile(doc.id, accessToken);
+            processFile(data.docs[0], accessToken);
           } else if (data.action === google.picker.Action.CANCEL) {
             shouldRestoreUI();
           }
@@ -146,7 +145,7 @@
       picker.setVisible(true);
     }
 
-    async function processFile(fileId, accessToken) {
+    async function processFile(jsonDoc, accessToken) {
       const title = document.getElementById('pickerTitle');
       const button = document.getElementById('btnGooglePicker');
       const loader = document.getElementById('loader');
@@ -159,9 +158,7 @@
         const response = await fetch(PROCESS_ENDPOINT, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            fileId,
-          })
+          body: JSON.stringify(jsonDoc)
         });
 
         const result = await response.json();

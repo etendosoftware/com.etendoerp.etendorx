@@ -19,7 +19,7 @@ OB.ETRX.middlewareToken = {
         const providers = Object.keys(data).map(providerKey => ({
           name: providerKey.charAt(0).toUpperCase() + providerKey.slice(1),
           authorizationEndpoint: selectedRecord.authorizationEndpoint + '/start',
-          scope: data[providerKey],
+          scopes: data[providerKey].scopes || [],
           redirectUri: selectedRecord.redirectURI
         }));
 
@@ -66,6 +66,7 @@ OB.ETRX.middlewareToken = {
         const title = document.createElement('h2');
         title.innerText = OB.I18N.getLabel('ETRX_SelectAProvider');
         title.style.color = '#222';
+        title.style.marginTop = '0px';
         title.style.borderBottom = '1px solid #ccc';
         title.style.paddingBottom = '10px';
         modalContent.appendChild(title);
@@ -82,6 +83,7 @@ OB.ETRX.middlewareToken = {
           const providerTitle = document.createElement('h3');
           providerTitle.innerText = provider.name;
           providerTitle.style.marginBottom = '4px';
+          providerTitle.style.marginTop = '0px';
           providerTitle.style.color = '#003366';
           providerTitle.style.fontSize = '20px';
           providerCard.appendChild(providerTitle);
@@ -93,28 +95,54 @@ OB.ETRX.middlewareToken = {
           providerDescription.style.color = '#666';
           providerCard.appendChild(providerDescription);
 
+          const horizontalDivider = document.createElement('hr');
+          horizontalDivider.style.border = 'none';
+          horizontalDivider.style.borderTop = '1px solid #ccc';
+          horizontalDivider.style.margin = '10px 0';
+          providerCard.appendChild(horizontalDivider);
+
           const scopeButtonsContainer = document.createElement('div');
           scopeButtonsContainer.style.display = 'flex';
           scopeButtonsContainer.style.flexWrap = 'wrap';
           scopeButtonsContainer.style.gap = '10px';
 
-          provider.scope.forEach(scope => {
+          provider.scopes.forEach(scopeData => {
+            const { scope, iconUrl, description } = scopeData;
+
+            const label = scope.includes('drive') ? 'Drive Files' :
+                          scope.includes('calendar') ? 'Calendar' :
+                          scope.includes('gmail') ? 'Gmail' :
+                          scope;
+
+            // contenedor del ítem
+            const scopeItem = document.createElement('div');
+            scopeItem.style.display = 'flex';
+            scopeItem.style.flexDirection = 'column';
+            scopeItem.style.alignItems = 'center';
+            scopeItem.style.width = '64px';
+
+            // botón ícono
             const button = document.createElement('button');
-            const scopeName = scope.includes('drive') ? 'Drive Files' :
-                              scope.includes('calendar') ? 'Calendar' :
-                              scope.includes('gmail') ? 'Gmail' :
-                              scope;
-
-            button.innerText = scopeName;
-            button.style.padding = '6px 12px';
-            button.style.fontSize = '13px';
-            button.style.backgroundColor = '#FFCC00';
+            button.style.width = '48px';
+            button.style.height = '48px';
             button.style.border = 'none';
-            button.style.borderRadius = '4px';
+            button.style.borderRadius = '8px';
+            button.style.backgroundColor = '#202452';
             button.style.cursor = 'pointer';
-            button.style.color = '#000';
-            button.style.fontWeight = 'bold';
+            button.style.display = 'flex';
+            button.style.alignItems = 'center';
+            button.style.justifyContent = 'center';
+            button.title = description;
 
+            const iconImg = document.createElement('img');
+            iconImg.src = iconUrl;
+            iconImg.alt = label + ' icon';
+            iconImg.style.width = '24px';
+            iconImg.style.height = '24px';
+
+            button.appendChild(iconImg);
+
+            // evento
             button.onclick = () => {
               document.body.removeChild(modal);
               const baseURL = provider.authorizationEndpoint +
@@ -134,13 +162,23 @@ OB.ETRX.middlewareToken = {
               }
             };
 
-            scopeButtonsContainer.appendChild(button);
+            // etiqueta debajo del botón
+            const labelText = document.createElement('span');
+            labelText.innerText = label;
+            labelText.style.marginTop = '4px';
+            labelText.style.fontSize = '12px';
+            labelText.style.color = '#666';
+            labelText.style.textAlign = 'center';
+
+            scopeItem.appendChild(button);
+            scopeItem.appendChild(labelText);
+            scopeButtonsContainer.appendChild(scopeItem);
+
           });
 
           providerCard.appendChild(scopeButtonsContainer);
           modalContent.appendChild(providerCard);
         });
-
 
         const cancelBtn = document.createElement('button');
         cancelBtn.innerText = OB.I18N.getLabel('UINAVBA_Cancel');

@@ -369,6 +369,10 @@ public class GoogleServiceUtil {
       os.write(body.getBytes(StandardCharsets.UTF_8));
     }
 
+    if (conn.getResponseCode() == 401) {
+      // TODO: DBMessage
+      throw new OBException("Unauthorized Operation - Refresh the token.");
+    }
     if (conn.getResponseCode() != 200) {
       throw new OBException("Failed to create file: HTTP " + conn.getResponseCode());
     }
