@@ -2,9 +2,9 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8" />
-    <!-- TODO: DBMessage -->
-    <title>Seleccionar archivo desde Google Drive</title>
-    <script src="https://apis.google.com/js/api.js"></script>
+    <!-- Title as default values -->
+    <title id="htmlTitle">Select a Google Drive file</title>
+    <script src="../oAuthToken/google-api.js"></script>
     <style>
         body {
           margin: 0;
@@ -83,8 +83,8 @@
 </head>
 <body>
 <div id="overlay" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.2); z-index:1000;"></div>
-<!-- TODO: DBMessage -->
 <div class="card">
+    <!-- Titles as default values -->
     <h2 id="pickerTitle" style="display: none;">Select a Google Drive file to approve.</h2>
     <button id="btnGooglePicker" style="display: none;">Select a Google Drive file to approve.</button>
     <div id="statusMessage" class="success-message" style="display: none;"></div>
@@ -213,6 +213,7 @@
       const buttonText = params.get('buttonText');
 
       document.getElementById('pickerTitle').innerText = decodeURIComponent(titleText);
+      document.getElementById('htmlTitle').innerText = decodeURIComponent(titleText);
       document.getElementById('btnGooglePicker').innerText = decodeURIComponent(buttonText);
 
       const waitUntilPickerReady = () =>

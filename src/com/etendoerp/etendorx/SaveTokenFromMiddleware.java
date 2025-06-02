@@ -91,9 +91,11 @@ public class SaveTokenFromMiddleware extends HttpBaseServlet {
    *
    * @return the ETRXoAuthProvider instance
    */
-  private ETRXoAuthProvider getETRXoAuthProvider() {
-    return (ETRXoAuthProvider) OBDal.getInstance().createCriteria(ETRXoAuthProvider.class)
+  protected static ETRXoAuthProvider getETRXoAuthProvider() {
+    return (ETRXoAuthProvider) OBDal.getInstance()
+        .createCriteria(ETRXoAuthProvider.class)
         .add(Restrictions.eq(ETRXoAuthProvider.PROPERTY_VALUE, "EtendoMiddleware"))
-        .setMaxResults(1).uniqueResult();
+        .setMaxResults(1)
+        .uniqueResult();
   }
 }
