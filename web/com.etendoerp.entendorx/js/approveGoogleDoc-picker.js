@@ -1,4 +1,4 @@
 OB.ETRX = OB.ETRX || {};
 OB.ETRX.approveGoogleDoc = function () {
-  OB.ETRX.openGooglePickerPopup('processDriveFile');
+  OB.ETRX.openGooglePickerPopup();
 };

@@ -98,7 +98,8 @@
     const API_KEY = params.get('googleApiKey')
     const APP_ID = params.get('googleApiId');
     const TOKEN_ENDPOINT = environmentURL + 'GetOAuthToken';
-    const PROCESS_ENDPOINT = environmentURL + params.get('processEndpoint');
+    const processEndpointParam = params.get('processEndpoint');
+    const PROCESS_ENDPOINT = processEndpointParam ? environmentURL + processEndpointParam : null;
 
     let pickerReady = false;
 
@@ -106,6 +107,20 @@
       await gapi.client.load('https://www.googleapis.com/discovery/v1/apis/drive/v3/rest');
       pickerReady = true;
     });
+
+    function showSuccessMessage() {
+      const loader = document.getElementById('loader');
+      loader.style.display = 'block';
+      const msg = document.getElementById('statusMessage');
+      const successMessage = decodeURIComponent(params.get('successMessage'));
+      msg.innerText = successMessage;
+      msg.style.display = 'block';
+
+      setTimeout(() => {
+        window.close();
+      }, 3000);
+    }
+
 
     function launchPicker(accessToken) {
       const overlay = document.getElementById('overlay');
@@ -154,6 +169,12 @@
       button.style.display = 'none';
       loader.style.display = 'block';
 
+      if (!PROCESS_ENDPOINT) {
+        //await new Promise(resolve => setTimeout(resolve, 1000));
+        showSuccessMessage();
+        return;
+      }
+
       try {
         const response = await fetch(PROCESS_ENDPOINT, {
           method: 'POST',
@@ -164,7 +185,6 @@
         const result = await response.json();
 
         if (result.requiresReconsent) {
-          // TODO: Improve error handling
           alert('Google necesita que vuelvas a autorizar este archivo. Se abrirá el selector nuevamente.');
           loader.style.display = 'none';
           launchPicker(accessToken);
@@ -172,22 +192,13 @@
         }
 
         if (result.status === 'ok') {
-          const msg = document.getElementById('statusMessage');
-          // TODO: DBMessage
-          const successMessage = decodeURIComponent(params.get('successMessage'));
-          msg.innerText = successMessage;
-          msg.style.display = 'block';
-
-          setTimeout(() => {
-            window.close();
-          }, 3000);
+          showSuccessMessage();
         } else {
           alert('Error al procesar el archivo: ' + result.message);
           console.error(result);
           loader.style.display = 'none';
         }
       } catch (error) {
-        // TODO: Improve error handling
         alert('Error inesperado al procesar el archivo.');
         console.error(error);
         loader.style.display = 'none';

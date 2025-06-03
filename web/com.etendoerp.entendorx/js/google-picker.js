@@ -30,20 +30,21 @@ OB.ETRX.openGooglePickerPopup = async function (processEndpointName) {
         const buttonText = encodeURIComponent(OB.I18N.getLabel('ETRX_SelectGDriveFile'));
         const successMessage = encodeURIComponent(OB.I18N.getLabel('ETRX_SuccessFileApprove'));
 
-        const win = window.open(
+        let pickerUrl =
           envURL +
-            `web/com.etendoerp.entendorx/js/EtendoPicker/picker.html?` +
-            `accessToken=${encodeURIComponent(accessToken)}&` +
-            `envURL=${encodeURIComponent(envURL)}&` +
-            `googleApiKey=${encodeURIComponent(googleApiKey)}&` +
-            `googleApiId=${encodeURIComponent(googleApiId)}&` +
-            `titleText=${titleText}&` +
-            `buttonText=${buttonText}&` +
-            `successMessage=${successMessage}&` +
-            `processEndpoint=${encodeURIComponent(processEndpointName)}`,
-          'GooglePicker',
-          sizeProperties
-        );
+          `web/com.etendoerp.entendorx/js/EtendoPicker/picker.html?` +
+          `accessToken=${encodeURIComponent(accessToken)}&` +
+          `envURL=${encodeURIComponent(envURL)}&` +
+          `googleApiKey=${encodeURIComponent(googleApiKey)}&` +
+          `googleApiId=${encodeURIComponent(googleApiId)}&` +
+          `titleText=${titleText}&` +
+          `buttonText=${buttonText}&` +
+          `successMessage=${successMessage}`;
+        if (processEndpointName) {
+          pickerUrl += `&processEndpoint=${encodeURIComponent(processEndpointName)}`;
+        }
+
+        const win = window.open(pickerUrl, 'GooglePicker', sizeProperties);
 
         if (!win) {
           OB.ETRX.processOwnerView.messageBar.setMessage('error', OB.I18N.getLabel('ETRX_PopUpBlocked'), OB.I18N.getLabel('ETRX_AllowPopUp'));
