@@ -3,11 +3,8 @@ package com.etendoerp.etendorx.auth;
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.JWTVerifier;
 import com.auth0.jwt.algorithms.Algorithm;
-import com.auth0.jwt.interfaces.Claim;
 import com.auth0.jwt.interfaces.DecodedJWT;
 import com.etendoerp.etendorx.utils.TokenVerifier;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.smf.securewebservices.utils.SecureWebServicesUtils;
 
 import org.apache.commons.lang.StringUtils;
@@ -15,25 +12,22 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.hibernate.criterion.Restrictions;
 import org.openbravo.authentication.AuthenticationException;
-import org.openbravo.authentication.AuthenticationExpirationPasswordException;
 import org.openbravo.authentication.AuthenticationManager;
 import org.openbravo.authentication.basic.DefaultAuthenticationManager;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.base.provider.OBProvider;
-import org.openbravo.base.secureApp.VariablesHistory;
 import org.openbravo.base.secureApp.VariablesSecureApp;
 import org.openbravo.base.session.OBPropertiesProvider;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBDal;
-import org.openbravo.database.ConnectionProvider;
 import org.openbravo.database.SessionInfo;
 import org.openbravo.model.ad.access.User;
-import org.openbravo.service.db.DalConnectionProvider;
 import org.openbravo.service.web.BaseWebServiceServlet;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
 
 import java.io.IOException;
 import java.util.Map;
@@ -76,10 +70,15 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
               orgId) || StringUtils.isEmpty(warehouseId) || StringUtils.isEmpty(clientId)) {
             throw new OBException("SWS - Token is not valid");
           }
+
+          String jti = checkSession(request, decodedToken);
+
+
           log4j.debug("SWS accessed by userId " + userId);
           OBContext.setOBContext(
               SecureWebServicesUtils.createContext(userId, roleId, orgId, warehouseId, clientId));
           OBContext.setOBContextInSession(request, OBContext.getOBContext());
+          SessionInfo.setSessionId(jti);
           SessionInfo.setUserId(userId);
           SessionInfo.setProcessType("WS");
           SessionInfo.setProcessId("DAL");
@@ -90,6 +89,8 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
             OBContext.restorePreviousMode();
           }
         }
+      } catch (AuthenticationException e) {
+        throw e;
       } catch (Exception e) {
         throw new OBException(e);
       }
@@ -97,7 +98,19 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
     return super.doWebServiceAuthenticate(request);
   }
 
-  protected void setCORSHeaders(HttpServletRequest request, HttpServletResponse response)
+    private String checkSession(HttpServletRequest request, DecodedJWT decodedToken) {
+        HttpSession session = request.getSession(false);
+        String sessionId = session != null ? session.getId() : null;
+        String jti = decodedToken.getClaim("jti").asString();
+
+        if (StringUtils.equals(sessionId, jti)) {
+            return jti;
+        }
+
+        throw new AuthenticationException("SWS - Session no longer valid");
+    }
+
+    protected void setCORSHeaders(HttpServletRequest request, HttpServletResponse response)
       throws ServletException, IOException {
 
     String origin = request.getHeader("Origin");
