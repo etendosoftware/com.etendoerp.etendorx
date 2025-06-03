@@ -107,6 +107,11 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
             return jti;
         }
 
+        if (session != null) {
+            session.setMaxInactiveInterval(0);
+            session.invalidate();
+        }
+
         throw new AuthenticationException("SWS - Session no longer valid");
     }
 
