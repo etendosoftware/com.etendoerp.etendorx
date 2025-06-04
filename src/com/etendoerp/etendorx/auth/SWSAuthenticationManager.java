@@ -463,21 +463,52 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
    */
   private static void handleWhenUserIsNull(HttpServletRequest request, HttpServletResponse response) throws IOException {
     final Properties openbravoProperties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
-    String ssoDomain = ((String) openbravoProperties.get(SSO_DOMAIN_URL)).trim();
-    String clientId = ((String) openbravoProperties.get("sso.client.id")).trim();
-    String logoutRedirectUri = StringUtils.remove(request.getRequestURL().toString(),
-        request.getServletPath()).trim();
+    String ssoAuthType = ((String) openbravoProperties.get("sso.auth.type")).trim();
+
     String contextName = ((String) openbravoProperties.get(CONTEXT_NAME)).trim();
     String errorTitle = URLEncoder.encode("No User linked", StandardCharsets.UTF_8);
-    String errorDescription = URLEncoder.encode("You need to log in with an ERP user and then, link the SSO account", StandardCharsets.UTF_8);
-    String ssoNoUserLinkURL = String.format("/%s/web/com.etendoerp.entendorx/resources/Auth0ErrorPage.html"
-                    + "?ssoDomain=%s&clientId=%s&logoutRedirectUri=%s&title=%s&description=%s",
-            contextName,
-            URLEncoder.encode(ssoDomain, StandardCharsets.UTF_8),
-            URLEncoder.encode(clientId, StandardCharsets.UTF_8),
-            URLEncoder.encode(logoutRedirectUri, StandardCharsets.UTF_8),
-            errorTitle,
-            errorDescription);
+    String errorDescription = URLEncoder.encode(
+        "You need to log in with an ERP user and then, link the SSO account",
+        StandardCharsets.UTF_8);
+
+    String baseUrl = StringUtils.remove(request.getRequestURL().toString(), request.getServletPath()).trim();
+    String logoutRedirectUri = URLEncoder.encode(baseUrl, StandardCharsets.UTF_8);
+
+    String ssoNoUserLinkURL;
+    if ("Auth0".equalsIgnoreCase(ssoAuthType)) {
+      String ssoDomain     = ((String) openbravoProperties.get(SSO_DOMAIN_URL)).trim();
+      String clientId      = ((String) openbravoProperties.get("sso.client.id")).trim();
+      ssoNoUserLinkURL = String.format(
+          "/%s/web/com.etendoerp.entendorx/resources/Auth0ErrorPage.html"
+              + "?authType=Auth0"
+              + "&ssoDomain=%s"
+              + "&clientId=%s"
+              + "&logoutRedirectUri=%s"
+              + "&title=%s"
+              + "&description=%s",
+          contextName,
+          URLEncoder.encode(ssoDomain, StandardCharsets.UTF_8),
+          URLEncoder.encode(clientId, StandardCharsets.UTF_8),
+          logoutRedirectUri,
+          errorTitle,
+          errorDescription
+      );
+    } else {
+      String middlewareUrl = ((String) openbravoProperties.get("sso.middleware.url")).trim();
+      ssoNoUserLinkURL = String.format(
+          "/%s/web/com.etendoerp.entendorx/resources/Auth0ErrorPage.html"
+              + "?authType=Middleware"
+              + "&middlewareUrl=%s"
+              + "&logoutRedirectUri=%s"
+              + "&title=%s"
+              + "&description=%s",
+          contextName,
+          URLEncoder.encode(middlewareUrl, StandardCharsets.UTF_8),
+          logoutRedirectUri,
+          errorTitle,
+          errorDescription
+      );
+    }
     response.setStatus(HttpServletResponse.SC_FOUND);
     response.setHeader("Location", ssoNoUserLinkURL);
     response.flushBuffer();
