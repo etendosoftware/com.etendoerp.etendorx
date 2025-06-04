@@ -21,6 +21,7 @@ pipeline {
         REPOSITORY_NAME     = 'com.etendoerp.etendorx'
 
         EMAIL_ADDRESS       = credentials('email_builds')
+
         CORE_URL_REPO           = 'https://github.com/etendosoftware/etendo_core'
         RX_URL_REPO             = 'https://github.com/etendosoftware/etendo_rx'
         URL_REPO                = 'https://github.com/etendosoftware/com.etendoerp.etendorx'
@@ -53,8 +54,8 @@ pipeline {
         TRUE                = 'true'
         FALSE               = 'false'
 
-        MAIN_BRANCH         = "main"
-        DEVELOP_BRANCH      = "develop"
+        MAIN_BRANCH    = "main"
+        DEVELOP_BRANCH = "develop"
     }
 
     agent { // MARK: - Agent
@@ -190,9 +191,9 @@ spec:
 
                                     echo "-------------------------- Selecting the Classic Correct Branch for Repository Cloning --------------------------"
                                     env.CLASSIC_BRANCH = env.MAIN_BRANCH
-                                    if (env.GIT_BRANCH.startsWith(env.DEVELOP_BRANCH) || env.GIT_BRANCH.startsWith("feature")) {
+                                    if (env.GIT_BRANCH.startsWith(env.DEVELOP_BRANCH) || ((env.GIT_BRANCH.startsWith("feature") || env.GIT_BRANCH.startsWith("epic")) && !(env.GIT_BRANCH.contains("-Y")))) {
                                         env.CLASSIC_BRANCH = env.DEVELOP_BRANCH
-                                    } else if (env.GIT_BRANCH.startsWith("hotfix") && env.GIT_BRANCH.contains("-Y")) {
+                                    } else if (env.GIT_BRANCH.contains("-Y") || env.GIT_BRANCH.startsWith("release")) {
                                         env.CLASSIC_BRANCH = env.CLASSIC_BRANCH_BACKPORT
                                     }
 
@@ -289,7 +290,7 @@ spec:
                             echo "---------------------- Building Etendo RX Environment ----------------------"
                             echo "---------------------- Checking Branch Type ----------------------"
                             env.IS_HOTFIX_OR_MAIN_BRANCH = FALSE
-                            if (GIT_BRANCH.startsWith('hotfix/') || GIT_BRANCH.startsWith('main') || GIT_BRANCH.startsWith('master')) {
+                            if ((GIT_BRANCH.startsWith('hotfix/') && !(GIT_BRANCH.contains("-Y"))) || GIT_BRANCH.startsWith('main') || GIT_BRANCH.startsWith('master')) {
                                 echo "Branch ${GIT_BRANCH} is a hotfix or main/master."
                                 env.IS_HOTFIX_OR_MAIN_BRANCH = TRUE
                             }
