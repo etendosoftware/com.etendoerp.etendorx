@@ -74,31 +74,64 @@
 </div>
 
 <script>
+    // Extract parameters from query string
     function getQueryParam(param) {
       const urlParams = new URLSearchParams(window.location.search);
       return urlParams.get(param);
     }
 
-    const title = getQueryParam("title");
-    const description = getQueryParam("description");
-    const ssoDomain = getQueryParam("ssoDomain");
-    const clientId = getQueryParam("clientId");
-    const logoutRedirectUri = getQueryParam("logoutRedirectUri");
+    // 1) Read all parameters
+    const authType          = getQueryParam("authType");          // "Auth0" or "Middleware"
+    const titleParam        = getQueryParam("title");             // Error title (encoded)
+    const descriptionParam  = getQueryParam("description");       // Error description (encoded)
+    const ssoDomain         = getQueryParam("ssoDomain");         // only for Auth0
+    const clientId          = getQueryParam("clientId");          // only for Auth0
+    const logoutRedirectUri = getQueryParam("logoutRedirectUri"); // for both cases (Auth0 or Middleware)
+    const middlewareUrl     = getQueryParam("middlewareUrl");     // only for Middleware
 
-    if (title) {
-      document.getElementById("error-title").textContent = decodeURIComponent(title);
+    // 2) Put the decoded title and description into the DOM
+    if (titleParam) {
+      document.getElementById("error-title").textContent = decodeURIComponent(titleParam);
     }
-    if (description) {
-      document.getElementById("error-description").textContent = decodeURIComponent(description);
+    if (descriptionParam) {
+      document.getElementById("error-description").textContent = decodeURIComponent(descriptionParam);
     }
 
+    // 3) If it is Middleware, create a hidden iframe to perform logout
+    if (authType === "Middleware" && middlewareUrl) {
+      // Create the iframe and inject it into the body, pointing to middlewareUrl + "/logout"
+      const iframe = document.createElement("iframe");
+      iframe.style.display = "none";
+      iframe.src = middlewareUrl + "/logout";
+      document.body.appendChild(iframe);
+      // We don't remove the iframe immediately, because we want the middleware session to be destroyed.
+      // After a few seconds (e.g., 1s), we can remove it to clean up the DOM (optional).
+      setTimeout(() => {
+        document.body.removeChild(iframe);
+      }, 1500);
+    }
+
+    // 4) Function when clicking "Go back to Login"
     function goBack() {
-      if (ssoDomain && clientId && logoutRedirectUri) {
-        const logoutUrl = `https://${ssoDomain}/v2/logout?client_id=${clientId}&returnTo=${encodeURIComponent(logoutRedirectUri)}`;
-        window.location.href = logoutUrl;
-      } else if (logoutRedirectUri) {
-        window.location.href = logoutRedirectUri;
+      if (authType === "Auth0") {
+        // Identical behavior to the original Auth0 case:
+        if (ssoDomain && clientId && logoutRedirectUri) {
+          const logoutUrl = `https://${ssoDomain}/v2/logout?client_id=${clientId}&returnTo=${encodeURIComponent(logoutRedirectUri)}`;
+          window.location.href = logoutUrl;
+        } else if (logoutRedirectUri) {
+          window.location.href = logoutRedirectUri;
+        } else {
+          window.location.href = "/";
+        }
+      } else if (authType === "Middleware") {
+        // We have already done logout in an iframe here. Now just redirect to logoutRedirectUri directly.
+        if (logoutRedirectUri) {
+          window.location.href = logoutRedirectUri;
+        } else {
+          window.location.href = "/";
+        }
       } else {
+        // Default case: if something unexpected arrives
         window.location.href = "/";
       }
     }

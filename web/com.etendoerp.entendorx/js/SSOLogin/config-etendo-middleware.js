@@ -5,7 +5,11 @@
 
           // define the callback function which shows the result to the user
           callback = function(rpcResponse, data, rpcRequest) {
-            isc.say(data.text + '<br>' + 'Refresh the grid to see the changes.');
+            if ('success' === data.severity) {
+              isc.say(data.text + '<br>' + 'Refresh the grid to see the changes.');
+            } else {
+              isc.say(data.text)
+            }
           }
 
           // and call the server
