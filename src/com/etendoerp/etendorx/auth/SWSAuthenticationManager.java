@@ -21,6 +21,7 @@ import org.openbravo.base.session.OBPropertiesProvider;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.database.SessionInfo;
+import org.openbravo.erpCommon.security.SessionLogin;
 import org.openbravo.model.ad.access.User;
 import org.openbravo.service.web.BaseWebServiceServlet;
 
@@ -50,7 +51,6 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
 
   @Override
   protected String doWebServiceAuthenticate(HttpServletRequest request) {
-
     String authStr = request.getHeader("Authorization");
     String token = null;
     if (StringUtils.startsWith(authStr, "Bearer ")) {
@@ -66,24 +66,19 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
           String orgId = decodedToken.getClaim("organization").asString();
           String warehouseId = decodedToken.getClaim("warehouse").asString();
           String clientId = decodedToken.getClaim("client").asString();
-          if (StringUtils.isEmpty(userId) || StringUtils.isEmpty(roleId) || StringUtils.isEmpty(
-              orgId) || StringUtils.isEmpty(warehouseId) || StringUtils.isEmpty(clientId)) {
-            throw new OBException("SWS - Token is not valid");
-          }
+          String jti = decodedToken.getClaim("jti").asString();
 
-          String jti = checkSession(request, decodedToken);
-
+          validateToken(userId, roleId, orgId, warehouseId, clientId);
+          validateSession(request, jti);
 
           log4j.debug("SWS accessed by userId " + userId);
-          OBContext.setOBContext(
-              SecureWebServicesUtils.createContext(userId, roleId, orgId, warehouseId, clientId));
-          OBContext.setOBContextInSession(request, OBContext.getOBContext());
-          SessionInfo.setSessionId(jti);
-          SessionInfo.setUserId(userId);
-          SessionInfo.setProcessType("WS");
-          SessionInfo.setProcessId("DAL");
+
+          setContext(request, userId, roleId, orgId, warehouseId, clientId);
+          setSessionInfo(jti, userId);
+
           try {
             OBContext.setAdminMode();
+
             return userId;
           } finally {
             OBContext.restorePreviousMode();
@@ -98,17 +93,36 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
     return super.doWebServiceAuthenticate(request);
   }
 
-    private String checkSession(HttpServletRequest request, DecodedJWT decodedToken) {
+    private static void validateToken(String userId, String roleId, String orgId, String warehouseId, String clientId) {
+        if (StringUtils.isEmpty(userId) || StringUtils.isEmpty(roleId) || StringUtils.isEmpty(
+            orgId) || StringUtils.isEmpty(warehouseId) || StringUtils.isEmpty(clientId)) {
+          throw new OBException("SWS - Token is not valid");
+        }
+    }
+
+    private static void setSessionInfo(String jti, String userId) {
+        SessionInfo.setSessionId(jti);
+        SessionInfo.setUserId(userId);
+        SessionInfo.setProcessType("WS");
+        SessionInfo.setProcessId("DAL");
+    }
+
+    private static void setContext(HttpServletRequest request, String userId, String roleId, String orgId,
+        String warehouseId, String clientId) {
+        OBContext.setOBContext(
+            SecureWebServicesUtils.createContext(userId, roleId, orgId, warehouseId, clientId));
+        OBContext.setOBContextInSession(request, OBContext.getOBContext());
+    }
+
+    private String validateSession(HttpServletRequest request, String jti) {
         HttpSession session = request.getSession(false);
         String sessionId = session != null ? session.getId() : null;
-        String jti = decodedToken.getClaim("jti").asString();
 
-        if (StringUtils.equals(sessionId, jti)) {
+        if (StringUtils.equalsIgnoreCase(sessionId, jti)) {
             return jti;
         }
 
         if (session != null) {
-            session.setMaxInactiveInterval(0);
             session.invalidate();
         }
 
