@@ -43,7 +43,6 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
@@ -63,8 +62,9 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
   private static final String ACCESS_TOKEN = "access_token";
   private static final String SWS_TOKEN_IS_NOT_VALID = "SWS - Token is not valid";
   private static final String SSO_DOMAIN_URL = "sso.domain.url";
-  public static final String AUTH0_ISSUER = "https://etendo-sso.us.auth0.com/";
+  public static final String MIDDLEWARE_ISSUER = "https://etendo-sso.us.auth0.com/";
   public static final String CONTEXT_NAME = "context.name";
+  public static final String SSO_AUTH_TYPE = "sso.auth.type";
 
   /**
    * Default constructor.
@@ -154,10 +154,11 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
    * @param issuer the issuer of the token
    * @return a DecodedJWT object containing the decoded token information
    */
-  private static DecodedJWT decodeToken(String token, String secret, String issuer) throws UnsupportedEncodingException {
+  private static DecodedJWT decodeToken(String token, String secret, String issuer) {
     Algorithm algorithm = Algorithm.HMAC256(secret);
     JWTVerifier verifier = JWT.require(algorithm).withIssuer(issuer).build();
-    return verifier.verify(token);   }
+    return verifier.verify(token);
+  }
 
   /**
    * This method is called to authenticate the user based on the provided request and response.
@@ -176,7 +177,7 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
     try {
       final String allowSSO = getAllowSSOPref();
       final String ssoType = OBPropertiesProvider.getInstance()
-          .getOpenbravoProperties().getProperty("sso.auth.type");
+          .getOpenbravoProperties().getProperty(SSO_AUTH_TYPE);
       final String accessToken = request.getParameter(ACCESS_TOKEN);
       final String code = request.getParameter("code");
 
@@ -374,7 +375,7 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
   private void validateToken(String token, HttpServletRequest request, HttpServletResponse response) throws IOException {
     try {
       Properties obProperties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
-      String integrationType = obProperties.getProperty("sso.auth.type");
+      String integrationType = obProperties.getProperty(SSO_AUTH_TYPE);
       String baseURL = StringUtils.equals("Middleware", integrationType) ? obProperties.getProperty("sso.middleware.url") :
           "https://" + obProperties.getProperty(SSO_DOMAIN_URL);
       URL jwkURL = new URL(baseURL + "/.well-known/jwks.json");
@@ -384,8 +385,9 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
 
       RSAKeyProvider keyProvider = new JwkRSAKeyProvider(provider, jwt.getKeyId());
       Algorithm algorithm = Algorithm.RSA256(keyProvider);
+      String issuer = StringUtils.equals("Middleware", integrationType) ? MIDDLEWARE_ISSUER : baseURL + "/";
       JWTVerifier verifier = JWT.require(algorithm)
-          .withIssuer(AUTH0_ISSUER)
+          .withIssuer(issuer)
           .build();
 
       verifier.verify(token);
@@ -463,7 +465,7 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
    */
   private static void handleWhenUserIsNull(HttpServletRequest request, HttpServletResponse response) throws IOException {
     final Properties openbravoProperties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
-    String ssoAuthType = ((String) openbravoProperties.get("sso.auth.type")).trim();
+    String ssoAuthType = ((String) openbravoProperties.get(SSO_AUTH_TYPE)).trim();
 
     String contextName = ((String) openbravoProperties.get(CONTEXT_NAME)).trim();
     String errorTitle = URLEncoder.encode("No User linked", StandardCharsets.UTF_8);
