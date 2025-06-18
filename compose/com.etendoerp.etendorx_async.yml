@@ -1,52 +1,48 @@
 services:
-  zookeeper:
-    image: confluentinc/cp-zookeeper:latest
-    ports:
-      - "2181:2181"
-      - "22181:22181"
-    environment:
-      ZOOKEEPER_CLIENT_PORT: '2181'
-      ZOOKEEPER_TICK_TIME: '2000'
-    networks:
-      - etendo
-    deploy:
-      resources:
-        limits:
-          cpus: "0.5"
-          memory: 512M
-
   kafka:
-    image: bitnami/kafka:3.6.2
+    image: bitnami/kafka:4.0.0
+    container_name: kafka
+    hostname: kafka
     ports:
       - "9092:9092"
       - "29092:29092"
+      - "9093:9093"
       - "9997:9997"
     environment:
-      KAFKA_BROKER_ID: '1'
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_LISTENERS: INTERNAL://:29092,EXTERNAL://:9092
-      KAFKA_ADVERTISED_LISTENERS: INTERNAL://:29092,EXTERNAL://kafka:9092
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
-      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: '1'
-      JMX_PORT: 9997
+      KAFKA_CFG_PROCESS_ROLES: "controller,broker"
+      KAFKA_CFG_NODE_ID: "1"
+      KAFKA_CLUSTER_ID: "1fAy-_QvR3yHBXb3_K0-Mg"
+      KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: "1@kafka:9093"
+      KAFKA_CFG_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
+
+      KAFKA_CFG_LISTENERS: CONTROLLER://0.0.0.0:9093,INTERNAL://0.0.0.0:29092,EXTERNAL://0.0.0.0:9092
+
+      KAFKA_CFG_ADVERTISED_LISTENERS: INTERNAL://kafka:29092,EXTERNAL://localhost:9092
+
+      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+
+      KAFKA_CFG_INTER_BROKER_LISTENER_NAME: "INTERNAL"
+      KAFKA_CFG_OFFSETS_TOPIC_REPLICATION_FACTOR: "1"
+      #KAFKA_CFG_NUM_PARTITIONS: "50"
+      # --- JMX opcional ---
+      JMX_PORT: "9997"
       KAFKA_JMX_OPTS: -Dcom.sun.management.jmxremote=true -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Djava.net.preferIPv4Stack=true -Dcom.sun.management.jmxremote.local.only=false -Dcom.sun.management.jmxremote.rmi.port=9997
     networks:
       - etendo
-    depends_on:
-      - zookeeper
     deploy:
       resources:
         limits:
           cpus: "1"
           memory: 1G
+    volumes:
+        - ${VOLUMES_PATH}/kafka_data:/bitnami
 
   connect:
     image: debezium/connect:2.7.1.Final
     ports:
       - "8083:8083"
     environment:
-      BOOTSTRAP_SERVERS: kafka:9092
+      BOOTSTRAP_SERVERS: kafka:29092
       GROUP_ID: '1'
       CONFIG_STORAGE_TOPIC: my_connect_configs
       OFFSET_STORAGE_TOPIC: my_connect_offsets
@@ -56,40 +52,39 @@ services:
     networks:
       - etendo
 
-  asyncprocess:
-    env_file: ".env"
-    depends_on:
-      config:
-        condition: service_healthy
-    image: etendo/dynamic-gradle:1.0.0
-    ports:
-      - "8099:8099"
-      - "5024:8000"
-    environment:
-      - DEPENDENCIES=com.etendorx:asyncprocess:${ETENDORX_VERSION}
-      - REPO_URL=${ETENDORX_REPOSITORY_URL}
-      - REPO_USER=${ETENDORX_REPOSITORY_USER}
-      - REPO_PASSWORD=${ETENDORX_REPOSITORY_PASSWORD}
-      - CONFIG_SERVER_URL=${ETENDORX_CONFIG_SERVER_URL}
-      - TASK=downloadJar
-    networks:
-      - etendo
-    volumes:
-      - async_vol:/root/.gradle
-    healthcheck:
-      test: ["CMD-SHELL", "wget --spider -q http://localhost:8099/actuator/health || exit 1"]
-      interval: 10s
-      timeout: 10s
-      retries: 60
+  #  asyncprocess:
+  #    env_file: ".env"
+  #    depends_on:
+  #      config:
+  #        condition: service_healthy
+  #    image: etendo/dynamic-gradle:1.0.0
+  #    ports:
+  #      - "8099:8099"
+  #      - "5024:8000"
+  #    environment:
+  #      - DEPENDENCIES=com.etendorx:asyncprocess:${ETENDORX_VERSION}
+  #      - REPO_URL=${ETENDORX_REPOSITORY_URL}
+  #      - REPO_USER=${ETENDORX_REPOSITORY_USER}
+  #      - REPO_PASSWORD=${ETENDORX_REPOSITORY_PASSWORD}
+  #      - CONFIG_SERVER_URL=${ETENDORX_CONFIG_SERVER_URL}
+  #      - TASK=downloadJar
+  #    networks:
+  #      - etendo
+  #    volumes:
+  #      - async_vol:/root/.gradle
+  #    healthcheck:
+  #      test: ["CMD-SHELL", "wget --spider -q http://localhost:8099/actuator/health || exit 1"]
+  #      interval: 10s
+  #      timeout: 10s
+  #      retries: 60
 
   kafka-ui:
-    image: provectuslabs/kafka-ui:latest
+    image: redpandadata/console
     ports:
-      - 9093:8080
+      - 9094:8080
     environment:
-      KAFKA_CLUSTERS_0_NAME: kafka
-      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
-      KAFKA_CLUSTERS_0_METRICS_PORT: 9997
+      - KAFKA_BROKERS=kafka:29092
+      - CONNECT_BOOTSTRAP_SERVERS=connect:8083
     networks:
       - etendo
     deploy:
@@ -100,3 +95,4 @@ services:
 
 volumes:
   async_vol:
+  kafka_data:
