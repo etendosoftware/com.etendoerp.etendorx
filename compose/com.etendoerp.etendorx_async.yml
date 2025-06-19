@@ -66,6 +66,10 @@ services:
         limits:
           cpus: "0.5"
           memory: 512M
+    restart: on-failure:5
+    depends_on:
+      - kafka
+      - connect
 
 volumes:
   async_vol:
