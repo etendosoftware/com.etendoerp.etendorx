@@ -69,7 +69,6 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
           String jti = decodedToken.getClaim("jti").asString();
 
           validateToken(userId, roleId, orgId, warehouseId, clientId);
-          validateSession(request, jti);
 
           log4j.debug("SWS accessed by userId " + userId);
 
