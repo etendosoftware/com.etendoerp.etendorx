@@ -127,10 +127,10 @@ task "kafkaConnectSetup" {
     def dbName = project.hasProperty('bbdd.sid') ? project.getProperty('bbdd.sid') : 'etendo'
     def dbPass = project.hasProperty('bbdd.systemPassword') ? project.getProperty('bbdd.systemPassword') : 'syspass'
 
-    if (!project.hasProperty('KAFKA_CONNECT_TABLES')) {
-        throw new GradleException("You must specify the KAFKA_CONNECT_TABLES property.")
+    if (!project.hasProperty('kafka.connect.tables')) {
+        throw new GradleException("You must specify the 'kafka.connect.tables' property.")
     }
-    def tableIncludeList = project.getProperty('KAFKA_CONNECT_TABLES')
+    def tableIncludeList = project.getProperty('kafka.connect.tables')
 
     doLast {
         println "📡 Checking Kafka Connect for connector '$connectorName'..."
