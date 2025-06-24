@@ -9,7 +9,7 @@ def isRXDockerized() {
 }
 
 task "rx.setup" {
-    if(isRXDockerized()) {
+        if (isRXDockerized()) {
         description = 'Finds all Docker Compose YAML files and copies them to build/compose'
         group = 'Docker'
 
@@ -92,9 +92,9 @@ task "rx.env.file" {
 
             def tomcatHost = "tomcat"
             def tomcatPort = "8080"
-            if(!isTomcatEnabled) {
+            if (!isTomcatEnabled) {
                 tomcatHost = "host.docker.internal"
-                if(project.hasProperty("docker_com.etendoerp.tomcat_port")) {
+                if (project.hasProperty("docker_com.etendoerp.tomcat_port")) {
                     tomcatPort = project.property("docker_com.etendoerp.tomcat_port").toString()
                 }
             }
@@ -107,7 +107,7 @@ task "rx.env.file" {
 task "rx.das.restart" {
     dependsOn "rx.setup"
     doLast {
-        if(isRXDockerized()) {
+        if (isRXDockerized()) {
             executeDockerComposeCommand("restart das")
         }
     }
@@ -115,8 +115,82 @@ task "rx.das.restart" {
 
 task "rx.das.stop" {
     doLast {
-        if(isRXDockerized()) {
+        if (isRXDockerized()) {
             executeDockerComposeCommand("stop das")
+        }
+    }
+}
+
+task "kafkaConnectSetup" {
+    def connectorName = "default"
+    def dbUser = project.hasProperty('bbdd.systemUser') ? project.getProperty('bbdd.systemUser') : 'postgres'
+    def dbName = project.hasProperty('bbdd.sid') ? project.getProperty('bbdd.sid') : 'etendo'
+    def dbPass = project.hasProperty('bbdd.systemPassword') ? project.getProperty('bbdd.systemPassword') : 'syspass'
+
+    if (!project.hasProperty('KAFKA_CONNECT_TABLES')) {
+        throw new GradleException("You must specify the KAFKA_CONNECT_TABLES property.")
+    }
+    def tableIncludeList = project.getProperty('KAFKA_CONNECT_TABLES')
+
+    doLast {
+        println "📡 Checking Kafka Connect for connector '$connectorName'..."
+
+        def configBody = """
+        {
+            "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+            "topic.prefix": "${connectorName}",
+            "database.user": "${dbUser}",
+            "database.dbname": "${dbName}",
+            "database.hostname": "db",
+            "database.password": "${dbPass}",
+            "name": "${connectorName}",
+            "table.include.list": "${tableIncludeList}",
+            "plugin.name": "pgoutput",
+            "key.converter": "org.apache.kafka.connect.json.JsonConverter",
+            "key.converter.schemas.enable": "false",
+            "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+            "value.converter.schemas.enable": "false",
+            "snapshot.mode": "no_data"
+        }
+        """.stripIndent().replaceAll('\n', '').replaceAll(' +', ' ')
+
+        def postBody = """
+        {
+            "name": "${connectorName}",
+            "config": ${configBody}
+        }
+        """
+
+        def checkProcess = ['curl', '-s', '-o', '/dev/null', '-w', '%{http_code}', "http://localhost:8083/connectors/${connectorName}"].execute()
+        def statusCode = checkProcess.text.trim()
+
+        def method = statusCode == "200" ? "PUT" : "POST"
+        def url = statusCode == "200" ?
+                "http://localhost:8083/connectors/${connectorName}/config" :
+                "http://localhost:8083/connectors"
+
+        def bodyToSend = (method == "PUT") ? configBody : postBody
+
+        println "→ Connector $connectorName ${statusCode == '200' ? 'exists' : 'does not exist'}, doing $method"
+
+        def command = [
+                'curl', '--silent', '--show-error', '--fail',
+                '--request', method,
+                '--url', url,
+                '--header', 'Content-Type: application/json',
+                '--data', bodyToSend
+        ]
+
+        def process = command.execute()
+        def output = new StringWriter()
+        def error = new StringWriter()
+        process.consumeProcessOutput(output, error)
+        def exitCode = process.waitFor()
+
+        if (exitCode != 0) {
+            throw new GradleException("❌ Kafka Connect setup failed:\nSTDOUT: ${output}\nSTDERR: ${error}")
+        } else {
+            println "✅ Kafka Connect $method completed.\n"
         }
     }
 }
