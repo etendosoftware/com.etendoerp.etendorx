@@ -75,7 +75,7 @@ public class SaveTokenFromMiddleware extends HttpBaseServlet {
     String icon = error ? ERROR_ICON : SUCCESS_ICON;
     String iconColor = error ? RED : GREEN;
 
-    return String.format("/%s/web/com.etendoerp.entendorx/resources/MiddlewareResponse.html"
+    return String.format("/%s/web/com.etendoerp.etendorx/resources/MiddlewareResponse.html"
             + "?title=%s&message=%s&icon=%s&iconColor=%s",
         contextName,
         URLEncoder.encode(rawTitle, StandardCharsets.UTF_8),

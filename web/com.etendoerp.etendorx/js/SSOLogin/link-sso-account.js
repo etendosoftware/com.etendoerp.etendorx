@@ -16,7 +16,7 @@ if (OB.PropertyStore.get('ETRX_AllowSSOLogin') === 'Y') {
 
         if (typeof auth0 === "undefined") {
           let script = document.createElement("script");
-          script.src = OB.Utilities.getLocationUrlWithoutFragment() + 'web/com.etendoerp.entendorx/js/SSOLogin/auth0.min.js';
+          script.src = OB.Utilities.getLocationUrlWithoutFragment() + 'web/com.etendoerp.etendorx/js/SSOLogin/auth0.min.js';
           script.onload = initAuth0;
           document.head.appendChild(script);
         } else {
@@ -65,11 +65,11 @@ if (OB.PropertyStore.get('ETRX_AllowSSOLogin') === 'Y') {
     });
 
     const providerIcons = [
-      { providerText: 'Google', provider: 'google-oauth2', img: '../web/com.etendoerp.entendorx/images/google-color.png' },
-      { providerText: 'Facebook', provider: 'facebook', img: '../web/com.etendoerp.entendorx/images/facebook-color.png' },
-      { providerText: 'GitHub', provider: 'github', img: '../web/com.etendoerp.entendorx/images/github-color.png' },
-      { providerText: 'Microsoft', provider: 'windowslive', img: '../web/com.etendoerp.entendorx/images/microsoft-color.png' },
-      { providerText: 'LinkedIn', provider: 'linkedin', img: '../web/com.etendoerp.entendorx/images/linkedin-color.png' }
+      { providerText: 'Google', provider: 'google-oauth2', img: '../web/com.etendoerp.etendorx/images/google-color.png' },
+      { providerText: 'Facebook', provider: 'facebook', img: '../web/com.etendoerp.etendorx/images/facebook-color.png' },
+      { providerText: 'GitHub', provider: 'github', img: '../web/com.etendoerp.etendorx/images/github-color.png' },
+      { providerText: 'Microsoft', provider: 'windowslive', img: '../web/com.etendoerp.etendorx/images/microsoft-color.png' },
+      { providerText: 'LinkedIn', provider: 'linkedin', img: '../web/com.etendoerp.etendorx/images/linkedin-color.png' }
     ];
 
     providerIcons.forEach(p => {

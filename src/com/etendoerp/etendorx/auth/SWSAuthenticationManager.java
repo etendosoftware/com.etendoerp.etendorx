@@ -343,7 +343,7 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
     String titleStr = URLEncoder.encode(title, StandardCharsets.UTF_8);
     String descriptionStr = URLEncoder.encode(description,
             StandardCharsets.UTF_8);
-    String errorUrl = String.format("/%s/web/com.etendoerp.entendorx/resources/Auth0ErrorPage.html"
+    String errorUrl = String.format("/%s/web/com.etendoerp.etendorx/resources/Auth0ErrorPage.html"
                     + "?logoutRedirectUri=%s&title=%s&description=%s",
             contextName,
             URLEncoder.encode(logoutRedirectUri, StandardCharsets.UTF_8),
@@ -481,7 +481,7 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
       String ssoDomain     = ((String) openbravoProperties.get(SSO_DOMAIN_URL)).trim();
       String clientId      = ((String) openbravoProperties.get("sso.client.id")).trim();
       ssoNoUserLinkURL = String.format(
-          "/%s/web/com.etendoerp.entendorx/resources/Auth0ErrorPage.html"
+          "/%s/web/com.etendoerp.etendorx/resources/Auth0ErrorPage.html"
               + "?authType=Auth0"
               + "&ssoDomain=%s"
               + "&clientId=%s"
@@ -498,7 +498,7 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
     } else {
       String middlewareUrl = ((String) openbravoProperties.get("sso.middleware.url")).trim();
       ssoNoUserLinkURL = String.format(
-          "/%s/web/com.etendoerp.entendorx/resources/Auth0ErrorPage.html"
+          "/%s/web/com.etendoerp.etendorx/resources/Auth0ErrorPage.html"
               + "?authType=Middleware"
               + "&middlewareUrl=%s"
               + "&logoutRedirectUri=%s"

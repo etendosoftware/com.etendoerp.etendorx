@@ -112,7 +112,7 @@ if (OB.PropertyStore.get('ETRX_AllowSSOLogin') === 'Y') {
         : logoutRedirectUri;
 
       if (ssoType === 'Auth0') {
-        logoutWithPopup(ssoDomain, clientId, sanitizedRedirectUri + '/web/com.etendoerp.entendorx/resources/logout-auth0.html')
+        logoutWithPopup(ssoDomain, clientId, sanitizedRedirectUri + '/web/com.etendoerp.etendorx/resources/logout-auth0.html')
       } else {
         const middlewareLogoutUrl = middlewareURL + `/logout`;
         const iframe = document.createElement('iframe');
