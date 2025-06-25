@@ -191,9 +191,9 @@ spec:
 
                                     echo "-------------------------- Selecting the Classic Correct Branch for Repository Cloning --------------------------"
                                     env.CLASSIC_BRANCH = env.MAIN_BRANCH
-                                    if (env.GIT_BRANCH.startsWith(env.DEVELOP_BRANCH) || ((env.GIT_BRANCH.startsWith("feature") || env.GIT_BRANCH.startsWith("epic")) && !(env.GIT_BRANCH.contains("-Y"))) {
+                                    if (env.GIT_BRANCH.startsWith(env.DEVELOP_BRANCH) || ((env.GIT_BRANCH.startsWith("feature") || env.GIT_BRANCH.startsWith("epic")) && !(env.GIT_BRANCH.contains("-Y")))) {
                                         env.CLASSIC_BRANCH = env.DEVELOP_BRANCH
-                                    } else if (env.GIT_BRANCH.startsWith("hotfix") && env.GIT_BRANCH.contains("-Y")) {
+                                    } else if (env.GIT_BRANCH.startsWith("release/") || env.GIT_BRANCH.contains("-Y")) {
                                         env.CLASSIC_BRANCH = env.CLASSIC_BRANCH_BACKPORT
                                     }
 
