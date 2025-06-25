@@ -260,6 +260,26 @@ public class DataSourceServlet implements WebService {
     return sb.toString();
   }
 
+
+  /**
+   * Creates a payload for the POST request.
+   *
+   * <p>This method constructs a `JSONObject` payload by first extracting the body
+   * from the provided `HttpServletRequest` and then passing it to another overloaded
+   * `createPayLoad` method for further processing.
+   *
+   * @param request
+   *     The `HttpServletRequest` object containing the request data.
+   * @return A `JSONObject` representing the payload for the POST request.
+   * @throws IOException
+   *     If an I/O error occurs while reading the request body.
+   * @throws JSONException
+   *     If an error occurs while parsing the JSON data.
+   */
+  JSONObject createPayLoad(HttpServletRequest request) throws IOException, JSONException {
+    return createPayLoad(request, new JSONObject(getBodyFromRequest(request)));
+  }
+
   /**
    * Creates the payload for the POST request.
    *
