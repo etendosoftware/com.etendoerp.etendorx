@@ -21,14 +21,13 @@ import org.openbravo.base.session.OBPropertiesProvider;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.database.SessionInfo;
-import org.openbravo.erpCommon.security.SessionLogin;
 import org.openbravo.model.ad.access.User;
 import org.openbravo.service.web.BaseWebServiceServlet;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import javax.servlet.http.HttpSession;
+import org.openbravo.erpCommon.utility.OBMessageUtils;
 
 import java.io.IOException;
 import java.util.Map;
@@ -95,7 +94,7 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
     private static void validateToken(String userId, String roleId, String orgId, String warehouseId, String clientId) {
         if (StringUtils.isEmpty(userId) || StringUtils.isEmpty(roleId) || StringUtils.isEmpty(
             orgId) || StringUtils.isEmpty(warehouseId) || StringUtils.isEmpty(clientId)) {
-          throw new OBException("SWS - Token is not valid");
+          throw new OBException(OBMessageUtils.messageBD("SMFSWS_InvalidToken"));
         }
     }
 
@@ -111,21 +110,6 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
         OBContext.setOBContext(
             SecureWebServicesUtils.createContext(userId, roleId, orgId, warehouseId, clientId));
         OBContext.setOBContextInSession(request, OBContext.getOBContext());
-    }
-
-    private String validateSession(HttpServletRequest request, String jti) {
-        HttpSession session = request.getSession(false);
-        String sessionId = session != null ? session.getId() : null;
-
-        if (StringUtils.equalsIgnoreCase(sessionId, jti)) {
-            return jti;
-        }
-
-        if (session != null) {
-            session.invalidate();
-        }
-
-        throw new AuthenticationException("SWS - Session no longer valid");
     }
 
     protected void setCORSHeaders(HttpServletRequest request, HttpServletResponse response)
@@ -180,10 +164,10 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
         userMetadata = (Map<String, Object>) userMeta;
       }
       if(userMetadata == null) {
-        throw new OBException("SWS - Token is not valid");
+        throw new OBException(OBMessageUtils.messageBD("SMFSWS_InvalidToken"));
       }
     } catch (Exception e) {
-      throw new OBException("SWS - Token is not valid");
+      throw new OBException(OBMessageUtils.messageBD("SMFSWS_InvalidToken"));
     }
 
     String userId;
