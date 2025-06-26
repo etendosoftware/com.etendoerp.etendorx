@@ -10,7 +10,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.stream.Collectors;
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.codehaus.jettison.json.JSONException;
@@ -593,7 +593,11 @@ public class DataSourceUtils {
       case "BigDecimal":
         return o.toString();
       case "Long":
-        return Long.toString((Long) o);
+        if (o instanceof Integer) {
+          return Integer.toString((Integer) o);
+        } else {
+          return Long.toString((Long) o);
+        }
       case "Boolean":
         return (Boolean) o ? "Y" : "N";
       case "Date":
