@@ -1,12 +1,10 @@
 services:
   config:
     env_file: ".env"
-    image: etendo/dynamic-gradle:1.0.0
+    image: etendo/dynamic-gradle:1.1.0
     ports:
       - "8888:8888"
       - "5020:8000"
-    volumes:
-      - ${VOLUMES_PATH}/rxconfig:/rxconfig
     environment:
       - SPRING_CLOUD_CONFIG_SERVER_NATIVE_SEARCHLOCATIONS=file:///rxconfig
       - SPRING_PROFILES_ACTIVE=native
@@ -16,8 +14,19 @@ services:
       - REPO_PASSWORD=${ETENDORX_REPOSITORY_PASSWORD}
       - CONFIG_SERVER_URL=
       - TASK=downloadJar
+      - ENABLE_OPEN_TELEMETRY=true
+      # --- OpenTelemetry ---
+      - OTEL_SERVICE_NAME=config
+      - OTEL_METRICS_EXPORTER=none
+      - OTEL_LOGS_EXPORTER=none
+      - OTEL_TRACES_EXPORTER=otlp
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318
+      - OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
+      - OTEL_EXPORTER_OTLP_TIMEOUT=10000
     networks:
       - etendo
+    volumes:
+      - ${VOLUMES_PATH}/rxconfig:/rxconfig
     healthcheck:
       test: ["CMD-SHELL", "wget --spider -q http://localhost:8888/actuator/health || exit 1"]
       interval: 10s
@@ -29,7 +38,7 @@ services:
     depends_on:
       config:
         condition: service_healthy
-    image: etendo/dynamic-das:1.0.1
+    image: etendo/dynamic-das:1.1.0
     ports:
       - "8092:8092"
       - "5021:5021"
@@ -44,6 +53,15 @@ services:
       - DB_HOST=${ETENDORX_DB_HOST}
       - DB_PORT=${ETENDORX_DB_PORT}
       - DB_SID=${ETENDORX_DB_SID}
+      # --- OpenTelemetry ---
+      - ENABLE_OPEN_TELEMETRY=true
+      - OTEL_SERVICE_NAME=das
+      - OTEL_METRICS_EXPORTER=none
+      - OTEL_LOGS_EXPORTER=none
+      - OTEL_TRACES_EXPORTER=otlp
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318
+      - OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
+      - OTEL_EXPORTER_OTLP_TIMEOUT=10000
     networks:
       - etendo
     volumes:
@@ -60,7 +78,7 @@ services:
     depends_on:
       config:
         condition: service_healthy
-    image: etendo/dynamic-gradle:1.0.0
+    image: etendo/dynamic-gradle:1.1.0
     ports:
       - "8094:8094"
       - "5022:8000"
@@ -71,6 +89,15 @@ services:
       - REPO_PASSWORD=${ETENDORX_REPOSITORY_PASSWORD}
       - CONFIG_SERVER_URL=${ETENDORX_CONFIG_SERVER_URL}
       - TASK=downloadJar
+      # --- OpenTelemetry ---
+      - ENABLE_OPEN_TELEMETRY=true
+      - OTEL_SERVICE_NAME=auth
+      - OTEL_METRICS_EXPORTER=none
+      - OTEL_LOGS_EXPORTER=none
+      - OTEL_TRACES_EXPORTER=otlp
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318
+      - OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
+      - OTEL_EXPORTER_OTLP_TIMEOUT=10000
     networks:
       - etendo
     volumes:
@@ -86,7 +113,7 @@ services:
     depends_on:
       config:
         condition: service_healthy
-    image: etendo/dynamic-gradle:1.0.0
+    image: etendo/dynamic-gradle:1.1.0
     ports:
       - "8096:8096"
       - "5023:8000"
@@ -97,6 +124,15 @@ services:
       - REPO_PASSWORD=${ETENDORX_REPOSITORY_PASSWORD}
       - CONFIG_SERVER_URL=${ETENDORX_CONFIG_SERVER_URL}
       - TASK=downloadJar
+      # --- OpenTelemetry ---
+      - ENABLE_OPEN_TELEMETRY=true
+      - OTEL_SERVICE_NAME=edge
+      - OTEL_METRICS_EXPORTER=none
+      - OTEL_LOGS_EXPORTER=none
+      - OTEL_TRACES_EXPORTER=otlp
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318
+      - OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
+      - OTEL_EXPORTER_OTLP_TIMEOUT=10000
     networks:
       - etendo
     volumes:
@@ -109,6 +145,7 @@ services:
 
 networks:
   etendo:
+
 volumes:
   das_cache_vol:
   das_app_vol:
