@@ -40,6 +40,7 @@ import java.util.Map;
 public class SWSAuthenticationManager extends DefaultAuthenticationManager {
 
   private static final Logger log4j = LogManager.getLogger();
+  private static final String INVALID_TOKEN_MESSAGE = "SWS - Token is not valid";
 
   /**
    * Default constructor.
@@ -94,7 +95,7 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
     private static void validateToken(String userId, String roleId, String orgId, String warehouseId, String clientId) {
         if (StringUtils.isEmpty(userId) || StringUtils.isEmpty(roleId) || StringUtils.isEmpty(
             orgId) || StringUtils.isEmpty(warehouseId) || StringUtils.isEmpty(clientId)) {
-          throw new OBException(OBMessageUtils.messageBD("SMFSWS_InvalidToken"));
+          throw new OBException(INVALID_TOKEN_MESSAGE);
         }
     }
 
@@ -164,10 +165,10 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
         userMetadata = (Map<String, Object>) userMeta;
       }
       if(userMetadata == null) {
-        throw new OBException(OBMessageUtils.messageBD("SMFSWS_InvalidToken"));
+        throw new OBException(INVALID_TOKEN_MESSAGE);
       }
     } catch (Exception e) {
-      throw new OBException(OBMessageUtils.messageBD("SMFSWS_InvalidToken"));
+      throw new OBException(INVALID_TOKEN_MESSAGE);
     }
 
     String userId;
