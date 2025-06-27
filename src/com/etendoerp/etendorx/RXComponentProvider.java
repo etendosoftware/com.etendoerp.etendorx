@@ -48,6 +48,9 @@ public class RXComponentProvider  extends BaseComponentProvider {
     resources.add(createStyleSheetResource(("web/com.etendoerp.userinterface.smartclient/etendo/" +
             "skins/default/com.etendoerp.etendorx/config-middleware-icon-style.css"),
         false));
+    resources.add(createStyleSheetResource(("web/com.etendoerp.userinterface.smartclient/etendo/" +
+            "skins/default/com.etendoerp.etendorx/middleware-token.css"),
+        false));
 
     return resources;
   }

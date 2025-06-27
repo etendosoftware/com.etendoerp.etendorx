@@ -4131,6 +4131,8 @@ Configuration Properties are defined by modules with the purpose other modules a
 <!--9810EE5B8AE345879298422D41E2F042-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
 <!--9810EE5B8AE345879298422D41E2F042-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--9810EE5B8AE345879298422D41E2F042-->  <NAME><![CDATA[Approve Google Doc]]></NAME>
+<!--9810EE5B8AE345879298422D41E2F042-->  <DESCRIPTION><![CDATA[This button initiates the OAuth2 flow, allowing the user to grant permissions for the application to access specific Google Drive files on their behalf.]]></DESCRIPTION>
+<!--9810EE5B8AE345879298422D41E2F042-->  <HELP><![CDATA[Button to start the authorization process and grant this application access to your Google Drive documents.]]></HELP>
 <!--9810EE5B8AE345879298422D41E2F042-->  <ISCENTRALLYMAINTAINED><![CDATA[Y]]></ISCENTRALLYMAINTAINED>
 <!--9810EE5B8AE345879298422D41E2F042-->  <AD_TAB_ID><![CDATA[7691BDA62B134A7289EDF6BD9549A660]]></AD_TAB_ID>
 <!--9810EE5B8AE345879298422D41E2F042-->  <AD_COLUMN_ID><![CDATA[92FE807C5A014D2086A5BE4D0373A0B4]]></AD_COLUMN_ID>

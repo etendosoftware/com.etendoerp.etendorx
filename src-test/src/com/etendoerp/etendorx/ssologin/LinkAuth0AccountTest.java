@@ -28,6 +28,8 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class LinkAuth0AccountTest {
 
+  public static final String DUMMY_TOKEN = "dummyToken";
+  public static final String TOKEN_XYZ = "tokenXYZ";
   private MockedStatic<OBPropertiesProvider> obPropsStatic;
   private MockedStatic<JWT> jwtStatic;
   private MockedStatic<OBContext> obContextStatic;
@@ -45,14 +47,14 @@ class LinkAuth0AccountTest {
 
   @Test
   void testDoPost_nonAuth0_existingUser_removesAndCreatesTokenUser_andRedirects() throws Exception {
-    HttpServletRequest request = mockRequest("dummyToken", "NotAuth0", "ctx");
+    HttpServletRequest request = mockRequest(DUMMY_TOKEN, "NotAuth0", "ctx");
     HttpServletResponse response = mock(HttpServletResponse.class);
 
     DecodedJWT decodedJwt = mockDecodedJwt(
         "Auth0Provider|user123",
         "John", "Doe", "john@example.com", "sidValue"
     );
-    mockJwtDecode("dummyToken", decodedJwt);
+    mockJwtDecode(DUMMY_TOKEN, decodedJwt);
 
     var obContextMock = mockContextWithUser();
     mockOBContext(obContextMock);
@@ -67,7 +69,7 @@ class LinkAuth0AccountTest {
 
     verify(dalMock).remove(any(ETRXTokenUser.class));
     verify(newTokenUser).setSub("Auth0Provider|user123");
-    verify(newTokenUser).setOAuthToken("dummyToken");
+    verify(newTokenUser).setOAuthToken(DUMMY_TOKEN);
     verify(newTokenUser).setTokenProvider("Auth0Provider");
     verify(newTokenUser).setUserForToken(obContextMock.getUser());
     verify(dalMock).save(newTokenUser);
@@ -77,14 +79,14 @@ class LinkAuth0AccountTest {
 
   @Test
   void testDoPost_nonAuth0_noExistingUser_createsTokenUser_andRedirects() throws Exception {
-    HttpServletRequest request = mockRequest("tokenXYZ", "Whatever", "myApp");
+    HttpServletRequest request = mockRequest(TOKEN_XYZ, "Whatever", "myApp");
     HttpServletResponse response = mock(HttpServletResponse.class);
 
     DecodedJWT decodedJwt = mockDecodedJwt(
         "ProviderABC|user789",
         "Alice", "Smith", "alice@example.com", "sid123"
     );
-    mockJwtDecode("tokenXYZ", decodedJwt);
+    mockJwtDecode(TOKEN_XYZ, decodedJwt);
 
     var obContextMock = mockContextWithUser();
     mockOBContext(obContextMock);
@@ -99,7 +101,7 @@ class LinkAuth0AccountTest {
 
     verify(dalMock, never()).remove(any(ETRXTokenUser.class));
     verify(newTokenUser).setSub("ProviderABC|user789");
-    verify(newTokenUser).setOAuthToken("tokenXYZ");
+    verify(newTokenUser).setOAuthToken(TOKEN_XYZ);
     verify(newTokenUser).setTokenProvider("ProviderABC");
     verify(newTokenUser).setUserForToken(obContextMock.getUser());
     verify(dalMock).save(newTokenUser);
