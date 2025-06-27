@@ -65,8 +65,7 @@ public class BuildConfigGetDefaultConfigTest extends OBBaseTest {
     updateSourceWithOAuthProvidersMethod = BuildConfig.class.getDeclaredMethod(
         "updateSourceWithOAuthProviders",
         JSONObject.class,
-        List.class,
-        String.class);
+        List.class);
     updateSourceWithOAuthProvidersMethod.setAccessible(true);
 
     mockedOBDal = mockStatic(OBDal.class);
@@ -99,7 +98,6 @@ public class BuildConfigGetDefaultConfigTest extends OBBaseTest {
   public void testUpdateSourceWithEmptyProviderList() throws Exception {
     JSONObject sourceJSON = new JSONObject();
     List<OAuthProviderConfigInjector> injectors = new ArrayList<>();
-    String authURL = "http://auth-url";
 
     when(mockOBDal.createCriteria(ETRXoAuthProvider.class))
         .thenReturn(mockCriteria);
@@ -110,7 +108,7 @@ public class BuildConfigGetDefaultConfigTest extends OBBaseTest {
     when(mockCriteria.list()).thenReturn(Collections.emptyList());
 
     updateSourceWithOAuthProvidersMethod.invoke(
-        buildConfig, sourceJSON, injectors, authURL);
+        buildConfig, sourceJSON, injectors);
 
     assertEquals("Source JSON should be empty", 0, sourceJSON.length());
   }

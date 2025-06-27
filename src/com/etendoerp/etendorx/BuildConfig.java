@@ -1,6 +1,6 @@
 package com.etendoerp.etendorx;
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.codehaus.jettison.json.JSONArray;
@@ -11,6 +11,7 @@ import org.openbravo.base.exception.OBException;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.businessUtility.Preferences;
+import org.openbravo.erpCommon.utility.PropertyException;
 import org.openbravo.erpCommon.utility.Utility;
 import org.openbravo.model.ad.access.User;
 import org.openbravo.service.db.DalConnectionProvider;
@@ -25,7 +26,9 @@ import java.io.InputStreamReader;
 import java.io.Writer;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import com.etendoerp.etendorx.data.ConfigServiceParam;
 import com.etendoerp.etendorx.data.ETRXConfig;
@@ -47,7 +50,6 @@ public class BuildConfig extends HttpBaseServlet {
   public static final String SPRING_SECURITY_OAUTH_2_CLIENT_REGISTRATION = "spring.security.oauth2.client.registration.";
   public static final String SPRING_SECURITY_OAUTH_2_CLIENT_PROVIDER = "spring.security.oauth2.client.provider.";
   private static final String MANAGEMENT_ENDPOINT_RESTART_ENABLED = "management.endpoint.restart.enabled";
-  private static final String SERVER_ERROR_PATH = "server.error.path";
   private static final String CONFIG_URL = "http://config:8888";
   private static final String SOURCE = "source";
   private static final String AUTH_SERVICE = "auth";
@@ -96,12 +98,7 @@ public class BuildConfig extends HttpBaseServlet {
       for (OAuthProviderConfigInjector injector : allInjectors) {
         injector.injectConfig(defaultConfig);
       }
-      String algorithmPref = Preferences.getPreferenceValue("SMFSWS_EncryptionAlgorithm", true,
-          OBContext.getOBContext().getCurrentClient(),
-          OBContext.getOBContext().getCurrentOrganization(),
-          OBContext.getOBContext().getUser(),
-          OBContext.getOBContext().getRole(),
-          null);
+      final String algorithmPref = getAlgorithmPref("SMFSWS_EncryptionAlgorithm");
       if (!StringUtils.equals(ES256_ALGORITHM, algorithmPref)) {
         String errorMessage = Utility.messageBD(new DalConnectionProvider(), "ETRX_WrongAlgorithm",
             OBContext.getOBContext().getLanguage().getLanguage()) + algorithmPref;
@@ -109,11 +106,14 @@ public class BuildConfig extends HttpBaseServlet {
       }
       JSONObject keys = new JSONObject(swsConfig.getPrivateKey());
       if (StringUtils.equals(AUTH_SERVICE, service)) {
-        User sysUser = OBDal.getInstance().get(User.class, SYS_USER_ID);
-        String sysToken = SecureWebServicesUtils.generateToken(sysUser);
+        User tokenUser = OBDal.getInstance().get(User.class, SYS_USER_ID);
+        String sysToken = SecureWebServicesUtils.generateToken(tokenUser);
+        tokenUser = OBDal.getInstance().get(User.class, "100");
+        String adminToken = SecureWebServicesUtils.generateToken(tokenUser);
         sourceJSON.put("token", sysToken);
+        sourceJSON.put("adminToken", adminToken);
         sourceJSON.put(PRIVATE_KEY, keys.getString(PRIVATE_KEY));
-        updateSourceWithOAuthProviders(sourceEntry.getValue(), allInjectors, rxConfig.getPublicURL());
+        updateSourceWithOAuthProviders(sourceEntry.getValue(), allInjectors);
       }
       var publicKey = StringUtils.replace(keys.getString(PUBLIC_KEY), BEGIN_PUBLIC_KEY,"");
       publicKey = StringUtils.replace(publicKey, END_PUBLIC_KEY,"");
@@ -125,6 +125,22 @@ public class BuildConfig extends HttpBaseServlet {
     } finally {
       OBContext.restorePreviousMode();
     }
+  }
+
+  /**
+   * This method retrieves the algorithm preference from the database.
+   *
+   * @param preferenceString The preference string to be retrieved.
+   * @return The algorithm preference as a string.
+   * @throws PropertyException If there is an error retrieving the preference.
+   */
+  protected String getAlgorithmPref(String preferenceString) throws PropertyException {
+    return Preferences.getPreferenceValue(preferenceString, true,
+        OBContext.getOBContext().getCurrentClient(),
+        OBContext.getOBContext().getCurrentOrganization(),
+        OBContext.getOBContext().getUser(),
+        OBContext.getOBContext().getRole(),
+        null);
   }
 
   /**
@@ -161,8 +177,12 @@ public class BuildConfig extends HttpBaseServlet {
    * @return The default configuration as a JSON object.
    * @throws JSONException If there is an error parsing the JSON.
    */
-  private JSONObject getDefaultConfigToJsonObject(String serviceURI) throws JSONException, IOException {
+  protected JSONObject getDefaultConfigToJsonObject(String serviceURI) throws JSONException, IOException {
     ETRXConfig rxConfig = RXConfigUtils.getRXConfig(CONFIG_SERVICE);
+    if (rxConfig == null) {
+      throw new OBException(String.format(Utility.messageBD(new DalConnectionProvider(), "ETRX_NoConfigFound",
+          OBContext.getOBContext().getLanguage().getLanguage()), CONFIG_SERVICE));
+    }
     String serverURL = rxConfig == null ? CONFIG_URL : rxConfig.getServiceURL();
     URL url = new URL(serverURL + serviceURI);
     HttpURLConnection conn = (HttpURLConnection) url.openConnection();
@@ -204,12 +224,11 @@ public class BuildConfig extends HttpBaseServlet {
    *
    * @param sourceJSON The source JSON object.
    */
-  private void updateSourceWithOAuthProviders(JSONObject sourceJSON, List<OAuthProviderConfigInjector> allInjectors,
-      String authURL) {
+  private void updateSourceWithOAuthProviders(JSONObject sourceJSON, List<OAuthProviderConfigInjector> allInjectors) {
     OBDal.getInstance().createCriteria(ETRXoAuthProvider.class)
         .setFilterOnReadableOrganization(false)
         .setFilterOnReadableClients(false)
-        .list().forEach(provider -> updateSourceWithOAuthProvider(sourceJSON, provider, allInjectors, authURL));
+        .list().forEach(provider -> updateSourceWithOAuthProvider(sourceJSON, provider, allInjectors));
   }
 
   /**
@@ -219,26 +238,40 @@ public class BuildConfig extends HttpBaseServlet {
    * @param provider The oAuth provider.
    */
   private void updateSourceWithOAuthProvider(JSONObject sourceJSON, ETRXoAuthProvider provider,
-      List<OAuthProviderConfigInjector> allInjectors, String authURL) {
+      List<OAuthProviderConfigInjector> allInjectors) {
     try {
       String providerName = provider.getValue();
       String apiUrl = provider.getOAuthAPIURL();
       final String providerRegistration = SPRING_SECURITY_OAUTH_2_CLIENT_REGISTRATION + providerName;
       final String providerProv = SPRING_SECURITY_OAUTH_2_CLIENT_PROVIDER + providerName;
       sourceJSON.put(providerName + "-api", apiUrl);
-      sourceJSON.put(providerRegistration + ".provider", providerName);
-      sourceJSON.put(providerRegistration + ".client-id", provider.getIDForClient());
-      sourceJSON.put(providerRegistration + ".scope", provider.getScope());
-      sourceJSON.put(providerRegistration + ".client-name", provider.getClientName());
-      sourceJSON.put(providerRegistration + ".authorization-grant-type", provider.getAuthorizationGrantType());
-      sourceJSON.put(providerRegistration + ".redirectUri", authURL + provider.getRedirectURI());
-      sourceJSON.put(providerRegistration + ".code_challenge_method", provider.getCodeChallengeMethod());
-      sourceJSON.put(providerRegistration + ".client-authentication-method", provider.getClientAuthenticationMethod());
-      sourceJSON.put(providerRegistration + ".token-uri", apiUrl + provider.getTokenURI());
-      sourceJSON.put(providerProv + ".authorization-uri", apiUrl + provider.getAuthorizationURI());
-      sourceJSON.put(providerProv + ".token-uri", apiUrl + provider.getTokenURI());
-      sourceJSON.put(providerProv + ".user-info-uri",  apiUrl + provider.getUserInfoURI());
-      sourceJSON.put(providerProv + ".user-name-attribute", provider.getUserNameAttribute());
+      Map<String, String> values = new HashMap<>();
+      values.put(providerRegistration + ".provider", providerName);
+      values.put(providerRegistration + ".client-id", provider.getIDForClient());
+      values.put(providerRegistration + ".client-secret", provider.getClientSecret());
+      values.put(providerRegistration + ".scope", provider.getScope());
+      values.put(providerRegistration + ".client-name", provider.getClientName());
+      values.put(providerRegistration + ".authorization-grant-type", provider.getAuthorizationGrantType());
+      values.put(providerRegistration + ".redirect-uri", provider.getRedirectURI());
+      values.put(providerRegistration + ".code_challenge_method", provider.getCodeChallengeMethod());
+      values.put(providerRegistration + ".client-authentication-method", provider.getClientAuthenticationMethod());
+      values.put(providerRegistration + ".token-uri", provider.getTokenURI());
+      values.put(providerProv + ".authorization-uri", provider.getAuthorizationURI());
+      values.put(providerProv + ".jwk-set-uri", provider.getJWKSetURI());
+      values.put(providerProv + ".token-uri", provider.getTokenURI());
+      values.put(providerProv + ".user-info-uri", provider.getUserInfoURI());
+      values.put(providerProv + ".user-name-attribute", provider.getUserNameAttribute());
+
+      values.forEach((key, value) -> {
+        if (value != null) {
+          try {
+            sourceJSON.put(key, value);
+          } catch (JSONException e) {
+            throw new OBException("Error inserting Data on PropertySource JSON: " ,e);
+          }
+        }
+      });
+
       for (OAuthProviderConfigInjector injector : allInjectors) {
         injector.injectConfig(sourceJSON, provider);
       }
@@ -263,7 +296,6 @@ public class BuildConfig extends HttpBaseServlet {
     response.setCharacterEncoding("utf-8");
     try (Writer w = response.getWriter()) {
       sourceJSON.put(MANAGEMENT_ENDPOINT_RESTART_ENABLED, true);
-      sourceJSON.put(SERVER_ERROR_PATH, "/error");
       result.getJSONArray("propertySources").getJSONObject(indexFound).put(SOURCE, sourceJSON);
       w.write(result.toString());
     } catch (JSONException e) {
