@@ -83,53 +83,19 @@ public class SSOLogin implements SignInProvider {
             String redirectUri = OBPropertiesProvider.getInstance().getOpenbravoProperties()
                     .getProperty("sso.middleware.redirectUri");
 
-            return "<style>" +
-                    ".sso-login-container {" +
-                    "  display: flex;" +
-                    "  flex-direction: column;" +
-                    "  align-items: center;" +
-                    "  margin-top: 12px;" +
-                    "  gap: 6px;" +
-                    "}" +
-                    ".sso-login-button {" +
-                    "  display: flex;" +
-                    "  align-items: center;" +
-                    "  gap: 10px;" +
-                    "  background-color: white;" +
-                    "  color: #202452;" +
-                    "  border: 2px solid #202452;" +
-                    "  padding: 8px 12px;" +
-                    "  font-size: 14px;" +
-                    "  font-weight: bold;" +
-                    "  border-radius: 6px;" +
-                    "  cursor: pointer;" +
-                    "  text-decoration: none;" +
-                    "  width: 220px;" +
-                    "  justify-content: center;" +
-                    "  transition: background-color 0.2s, color 0.2s;" +
-                    "}" +
-                    ".sso-login-button:hover {" +
-                    "  background-color: #202452;" +
-                    "  color: white;" +
-                    "}" +
-                    ".sso-login-button img {" +
-                    "  height: 18px;" +
-                    "  width: 18px;" +
-                    "}" +
+            String divider =
+                "<style>" +
                     ".sso-divider-wrapper {" +
                     "  max-width: 280px;" +
                     "  width: 100%;" +
-                    "  margin: 10px auto 6px;" +
+                    "  margin: 24px auto 12px;" +
                     "}" +
                     ".sso-divider {" +
                     "  display: flex;" +
                     "  align-items: center;" +
                     "  text-align: center;" +
                     "  width: 100%;" +
-                    "}" +
-                    ".sso-divider span {" +
-                    "  padding: 0 10px;" +
-                    "  color: #888;" +
+                    "  color: #999;" +
                     "  font-weight: 600;" +
                     "  font-size: 13px;" +
                     "}" +
@@ -138,35 +104,65 @@ public class SSOLogin implements SignInProvider {
                     "  flex: 1;" +
                     "  border-bottom: 1px solid #ccc;" +
                     "}" +
+                    ".sso-divider span {" +
+                    "  padding: 0 12px;" +
+                    "}" +
                     "</style>" +
-
-                    "<div class='sso-login-container'>" +
                     "<div class='sso-divider-wrapper'>" +
-                    "<div class='sso-divider'><span>OR</span></div>" +
-                    "</div>" +
-                    // TODO: Change the account_id to identify the client.
-                    "<a class='sso-login-button' href='" + ssoLoginUrl + "?provider=google-oauth2&account_id=etendo_123&redirect_uri=" + redirectUri + "'>" +
-                    "<img src='https://cdn.jsdelivr.net/gh/devicons/devicon/icons/google/google-original.svg' alt='Google'/>Google" +
-                    "</a>" +
-
-                    "<a class='sso-login-button' href='" + ssoLoginUrl + "?provider=windowslive&account_id=etendo_123&redirect_uri=" + redirectUri + "'>" +
-                    "<img src='https://upload.wikimedia.org/wikipedia/commons/4/44/Microsoft_logo.svg' alt='Microsoft'/>Microsoft" +
-                    "</a>" +
-
-                    "<a class='sso-login-button' href='" + ssoLoginUrl + "?provider=linkedin&account_id=etendo_123&redirect_uri=" + redirectUri + "'>" +
-                    "<img src='https://cdn.jsdelivr.net/gh/devicons/devicon/icons/linkedin/linkedin-original.svg' alt='LinkedIn'/>LinkedIn" +
-                    "</a>" +
-
-                    "<a class='sso-login-button' href='" + ssoLoginUrl + "?provider=github&account_id=etendo_123&redirect_uri=" + redirectUri + "'>" +
-                    "<img src='https://cdn.jsdelivr.net/gh/devicons/devicon/icons/github/github-original.svg' alt='GitHub'/>GitHub" +
-                    "</a>" +
-
-                    "<a class='sso-login-button' href='" + ssoLoginUrl + "?provider=facebook&account_id=etendo_123&redirect_uri=" + redirectUri + "'>" +
-                    "<img src='https://cdn.jsdelivr.net/gh/devicons/devicon/icons/facebook/facebook-original.svg' alt='Facebook'/>Facebook" +
-                    "</a>" +
-
+                    "  <div class='sso-divider'><span>OR</span></div>" +
                     "</div>";
 
+            return divider +
+                "<style>" +
+                ".sso-icon-container {" +
+                "  display: flex;" +
+                "  justify-content: space-between;" +
+                "  gap: 12px;" +
+                "  width: 300px;" +
+                "  margin: 12px auto 0;" +
+                "}" +
+                ".sso-icon-button {" +
+                "  width: 50px;" +
+                "  height: 50px;" +
+                "  background-color: #202452;" +
+                "  border-radius: 6px;" +
+                "  display: flex;" +
+                "  justify-content: center;" +
+                "  align-items: center;" +
+                "  cursor: pointer;" +
+                "  transition: background-color 0.2s;" +
+                "}" +
+                ".sso-icon-button:hover {" +
+                "  background-color: #1a1d3d;" +
+                "}" +
+                ".sso-icon-button img {" +
+                "  height: 24px;" +
+                "}" +
+                "</style>" +
+
+                "<div class='sso-icon-container'>" +
+
+                "<a class='sso-icon-button' href='" + ssoLoginUrl + "?provider=google-oauth2&account_id=etendo_123&redirect_uri=" + redirectUri + "'>" +
+                "  <img src='../web/com.etendoerp.etendorx/images/google.png' alt='Google'>" +
+                "</a>" +
+
+                "<a class='sso-icon-button' href='" + ssoLoginUrl + "?provider=windowslive&account_id=etendo_123&redirect_uri=" + redirectUri + "'>" +
+                "  <img src='../web/com.etendoerp.etendorx/images/microsoft.png' alt='Microsoft'>" +
+                "</a>" +
+
+                "<a class='sso-icon-button' href='" + ssoLoginUrl + "?provider=linkedin&account_id=etendo_123&redirect_uri=" + redirectUri + "'>" +
+                "  <img src='../web/com.etendoerp.etendorx/images/linkedin.png' alt='LinkedIn'>" +
+                "</a>" +
+
+                "<a class='sso-icon-button' href='" + ssoLoginUrl + "?provider=github&account_id=etendo_123&redirect_uri=" + redirectUri + "'>" +
+                "  <img src='../web/com.etendoerp.etendorx/images/github.png' alt='GitHub'>" +
+                "</a>" +
+
+                "<a class='sso-icon-button' href='" + ssoLoginUrl + "?provider=facebook&account_id=etendo_123&redirect_uri=" + redirectUri + "'>" +
+                "  <img src='../web/com.etendoerp.etendorx/images/facebook.png' alt='Facebook'>" +
+                "</a>" +
+
+                "</div>";
         }
     }
 }

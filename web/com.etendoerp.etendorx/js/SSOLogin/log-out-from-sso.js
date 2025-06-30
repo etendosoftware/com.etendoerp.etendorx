@@ -23,13 +23,14 @@ if (OB.PropertyStore.get('ETRX_AllowSSOLogin') === 'Y') {
           const ssoType = data['authtype'];
           const domain = data['domainurl'];
           const clientId = data['clientid'];
-          callback(ssoType, domain, clientId);
+          const middlewareURL = data['middlewareurl'];
+          callback(ssoType, domain, clientId, middlewareURL);
         }
       }
 
       OB.RemoteCallManager.call(
         'com.etendoerp.etendorx.GetSSOProperties',
-        { properties: 'auth.type, domain.url, client.id' },
+        { properties: 'auth.type, domain.url, client.id, middleware.url' },
         {},
         callbackOnProcessActionHandler
       );
@@ -104,18 +105,16 @@ if (OB.PropertyStore.get('ETRX_AllowSSOLogin') === 'Y') {
     }
 
 
-    getSSOAuthType(function (ssoType, ssoDomain, clientId) {
+    getSSOAuthType(function (ssoType, ssoDomain, clientId, middlewareURL) {
       const logoutRedirectUri = window.location.origin + OB.Application.contextUrl;
       const sanitizedRedirectUri = logoutRedirectUri.endsWith('/')
         ? logoutRedirectUri.slice(0, -1)
         : logoutRedirectUri;
 
       if (ssoType === 'Auth0') {
-        logoutWithPopup(ssoDomain, clientId, sanitizedRedirectUri + '/web/com.etendoerp.entendorx/resources/logout-auth0.html')
+        logoutWithPopup(ssoDomain, clientId, sanitizedRedirectUri + '/web/com.etendoerp.etendorx/resources/logout-auth0.html')
       } else {
-      // TODO: Dynamically obtain the URL of the middleware.
-//        const middlewareLogoutUrl = `http://localhost:9580/logout`;
-        const middlewareLogoutUrl = `http://etendoauth-middleware-env.eba-purewhpv.sa-east-1.elasticbeanstalk.com/logout`;
+        const middlewareLogoutUrl = middlewareURL + `/logout`;
         const iframe = document.createElement('iframe');
         iframe.style.display = 'none';
         iframe.src = middlewareLogoutUrl;
