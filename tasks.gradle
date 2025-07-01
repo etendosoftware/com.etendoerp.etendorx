@@ -1,7 +1,7 @@
 def ETENDORX_PRODUCTION_REPOSITORY_URL = "https://maven.pkg.github.com/etendosoftware/com.etendoerp.platform.extensions"
 def ETENDORX_SNAPSHOT_REPOSITORY_URL = "https://repo.futit.cloud/repository/etendo-snapshot-jars"
 project.ext {
-    ETENDORX_VERSION = "2.3.1"
+    ETENDORX_VERSION = "2.3.2"
 }
 
 def isRXDockerized() {
