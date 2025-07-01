@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Loading...</title>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        .container {
+            background-color: #ffffff;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            max-width: 500px;
+            width: 100%;
+            border: 1px solid #e0e0e0;
+        }
+        h1 {
+            color: #333333;
+            margin-bottom: 20px;
+            font-size: 24px;
+        }
+        p {
+            color: #666666;
+            font-size: 18px;
+            margin-bottom: 20px;
+        }
+        .icon {
+            font-size: 50px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="icon" id="icon"></div>
+    <h1 id="title"></h1>
+    <p id="message"></p>
+</div>
+
+<script>
+    function getQueryParams() {
+        const params = new URLSearchParams(window.location.search);
+        return {
+            title: params.get("title") || "Token Execution",
+            message: params.get("message") || "",
+            icon: params.get("icon") || "",
+            iconColor: params.get("iconColor") || "#000"
+        };
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const { title, message, icon, iconColor } = getQueryParams();
+
+        // Set document title
+        document.title = decodeURIComponent(title);
+
+        // Update content
+        document.getElementById("title").textContent = decodeURIComponent(title);
+        document.getElementById("message").innerHTML = decodeURIComponent(message);
+        const iconElement = document.getElementById("icon");
+        iconElement.innerHTML = icon;
+        iconElement.style.color = iconColor;
+    });
+</script>
+</body>
+</html>

@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <!-- Title as default values -->
+    <title id="htmlTitle">Select a Google Drive file</title>
+    <script src="../oAuthToken/google-api.js"></script>
+    <style>
+        body {
+          margin: 0;
+          padding: 0;
+          background: #f8f9fb;
+          font-family: 'Segoe UI', 'Helvetica Neue', sans-serif;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          height: 100vh;
+        }
+
+        .card {
+          background: #ffffff;
+          border-radius: 12px;
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+          padding: 30px 40px;
+          text-align: center;
+          width: 480px;
+        }
+
+        h2 {
+          margin-top: 0;
+          font-size: 22px;
+          color: #2e3e4e;
+          margin-bottom: 20px;
+        }
+
+        button {
+          background-color: #ffcc00;
+          border: none;
+          color: #000;
+          font-weight: bold;
+          padding: 12px 24px;
+          font-size: 14px;
+          border-radius: 6px;
+          cursor: pointer;
+          transition: background 0.3s ease;
+        }
+
+        button:hover {
+          background-color: #e6b800;
+        }
+
+        .success-message {
+          background-color: #e6ffe6;
+          border: 1px solid #2d862d;
+          padding: 12px;
+          border-radius: 8px;
+          color: #2d862d;
+          font-weight: bold;
+          margin-top: 20px;
+          animation: fadeIn 0.3s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+
+        .loader {
+          border: 6px solid #f3f3f3;
+          border-top: 6px solid #ffcc00;
+          border-radius: 50%;
+          width: 40px;
+          height: 40px;
+          animation: spin 0.8s linear infinite;
+          margin: 20px auto 0;
+        }
+
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+<div id="overlay" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.2); z-index:1000;"></div>
+<div class="card">
+    <!-- Titles as default values -->
+    <h2 id="pickerTitle" style="display: none;">Select a Google Drive file to approve.</h2>
+    <button id="btnGooglePicker" style="display: none;">Select a Google Drive file to approve.</button>
+    <div id="statusMessage" class="success-message" style="display: none;"></div>
+    <div id="loader" class="loader" style="display: none;"></div>
+</div>
+
+<script>
+    const params = new URLSearchParams(window.location.search);
+    const accessToken = params.get('accessToken');
+    const environmentURL = params.get('envURL');
+    const API_KEY = params.get('googleApiKey')
+    const APP_ID = params.get('googleApiId');
+    const TOKEN_ENDPOINT = environmentURL + 'GetOAuthToken';
+    const processEndpointParam = params.get('processEndpoint');
+    const PROCESS_ENDPOINT = processEndpointParam ? environmentURL + processEndpointParam : null;
+
+    let pickerReady = false;
+
+    gapi.load('client:picker', async () => {
+      await gapi.client.load('https://www.googleapis.com/discovery/v1/apis/drive/v3/rest');
+      pickerReady = true;
+    });
+
+    function showSuccessMessage() {
+      const loader = document.getElementById('loader');
+      loader.style.display = 'block';
+      const msg = document.getElementById('statusMessage');
+      const successMessage = decodeURIComponent(params.get('successMessage'));
+      msg.innerText = successMessage;
+      msg.style.display = 'block';
+
+      setTimeout(() => {
+        window.close();
+      }, 3000);
+    }
+
+
+    function launchPicker(accessToken) {
+      const overlay = document.getElementById('overlay');
+      const loader = document.getElementById('loader');
+      const title = document.getElementById('pickerTitle');
+      const button = document.getElementById('btnGooglePicker');
+
+      overlay.style.display = 'block';
+      loader.style.display = 'block';
+      title.style.display = 'none';
+      button.style.display = 'none';
+
+      const view = new google.picker.View(google.picker.ViewId.DOCS);
+
+      const picker = new google.picker.PickerBuilder()
+        .setAppId(APP_ID)
+        .setOAuthToken(accessToken)
+        .setDeveloperKey(API_KEY)
+        .addView(view)
+        .enableFeature(google.picker.Feature.NAV_HIDDEN)
+        .setCallback(function (data) {
+          const shouldRestoreUI = () => {
+            loader.style.display = 'none';
+            overlay.style.display = 'none';
+            title.style.display = 'block';
+            button.style.display = 'inline-block';
+          };
+
+          if (data.action === google.picker.Action.PICKED) {
+            processFile(data.docs[0], accessToken);
+          } else if (data.action === google.picker.Action.CANCEL) {
+            shouldRestoreUI();
+          }
+        })
+        .build();
+
+      picker.setVisible(true);
+    }
+
+    async function processFile(jsonDoc, accessToken) {
+      const title = document.getElementById('pickerTitle');
+      const button = document.getElementById('btnGooglePicker');
+      const loader = document.getElementById('loader');
+
+      title.style.display = 'none';
+      button.style.display = 'none';
+      loader.style.display = 'block';
+
+      if (!PROCESS_ENDPOINT) {
+        showSuccessMessage();
+        return;
+      }
+
+      try {
+        const response = await fetch(PROCESS_ENDPOINT, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(jsonDoc)
+        });
+
+        const result = await response.json();
+
+        if (result.requiresReconsent) {
+          alert('Google necesita que vuelvas a autorizar este archivo. Se abrirá el selector nuevamente.');
+          loader.style.display = 'none';
+          launchPicker(accessToken);
+          return;
+        }
+
+        if (result.status === 'ok') {
+          showSuccessMessage();
+        } else {
+          alert('Error al procesar el archivo: ' + result.message);
+          console.error(result);
+          loader.style.display = 'none';
+        }
+      } catch (error) {
+        alert('Error inesperado al procesar el archivo.');
+        console.error(error);
+        loader.style.display = 'none';
+      }
+    }
+
+
+    document.getElementById('btnGooglePicker').onclick = async () => {
+      if (!pickerReady) return alert('Google Picker no está listo');
+
+      try {
+        const res = await fetch(TOKEN_ENDPOINT);
+        const { accessToken } = await res.json();
+        launchPicker(accessToken);
+      } catch (error) {
+        alert('Error al obtener el token de acceso.');
+        console.error(error);
+      }
+    };
+
+    window.onload = async () => {
+      const titleText = params.get('titleText');
+      const buttonText = params.get('buttonText');
+
+      document.getElementById('pickerTitle').innerText = decodeURIComponent(titleText);
+      document.getElementById('htmlTitle').innerText = decodeURIComponent(titleText);
+      document.getElementById('btnGooglePicker').innerText = decodeURIComponent(buttonText);
+
+      const waitUntilPickerReady = () =>
+        new Promise(resolve => {
+          const interval = setInterval(() => {
+            if (pickerReady) {
+              clearInterval(interval);
+              resolve();
+            }
+          }, 100);
+        });
+
+      await waitUntilPickerReady();
+
+      launchPicker(accessToken);
+    };
+
+</script>
+
+</body>
+</html>
