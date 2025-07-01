@@ -18,11 +18,13 @@ import javax.script.ScriptException;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.xml.crypto.Data;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.entity.ContentType;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.hibernate.criterion.Restrictions;
@@ -246,28 +248,49 @@ public class DataSourceServlet implements WebService {
     response.getWriter().flush();
   }
 
+  String getBodyFromRequest(HttpServletRequest request) throws IOException {
+    StringBuilder sb = new StringBuilder();
+    try (InputStream inputStream = request.getInputStream()) {
+      byte[] buffer = new byte[1024];
+      int bytesRead;
+      while ((bytesRead = inputStream.read(buffer)) != -1) {
+        sb.append(new String(buffer, 0, bytesRead, StandardCharsets.UTF_8));
+      }
+    }
+    return sb.toString();
+  }
+
+
+  /**
+   * Creates a payload for the POST request.
+   *
+   * <p>This method constructs a `JSONObject` payload by first extracting the body
+   * from the provided `HttpServletRequest` and then passing it to another overloaded
+   * `createPayLoad` method for further processing.
+   *
+   * @param request
+   *     The `HttpServletRequest` object containing the request data.
+   * @return A `JSONObject` representing the payload for the POST request.
+   * @throws IOException
+   *     If an I/O error occurs while reading the request body.
+   * @throws JSONException
+   *     If an error occurs while parsing the JSON data.
+   */
+  JSONObject createPayLoad(HttpServletRequest request) throws IOException, JSONException {
+    return createPayLoad(request, new JSONObject(getBodyFromRequest(request)));
+  }
+
   /**
    * Creates the payload for the POST request.
    *
    * @param request
+   * @param jsonBody
    */
-  JSONObject createPayLoad(HttpServletRequest request) {
+  JSONObject createPayLoad(HttpServletRequest request, JSONObject jsonBody) {
     String csrf = "123";
     request.getSession(false).setAttribute("#CSRF_TOKEN", csrf);
-
     try {
-      StringBuilder sb = new StringBuilder();
-      try (InputStream inputStream = request.getInputStream()) {
-        byte[] buffer = new byte[1024];
-        int bytesRead;
-        while ((bytesRead = inputStream.read(buffer)) != -1) {
-          sb.append(new String(buffer, 0, bytesRead, StandardCharsets.UTF_8));
-        }
-      }
-      String oldBody = sb.toString();
-
       JSONObject newJsonBody = new JSONObject();
-      JSONObject jsonBody = new JSONObject(oldBody);
 
       newJsonBody.put("dataSource", "isc_OBViewDataSource_0");
       newJsonBody.put("operationType", "add");
@@ -275,7 +298,7 @@ public class DataSourceServlet implements WebService {
       newJsonBody.put("csrfToken", csrf);
       newJsonBody.put(DataSourceConstants.DATA, jsonBody);
       return newJsonBody;
-    } catch (JSONException | IOException e) {
+    } catch (JSONException e) {
       log.error(DataSourceConstants.ERROR_IN_DATA_SOURCE_SERVLET, e);
       throw new OBException(e);
     }
@@ -314,16 +337,12 @@ public class DataSourceServlet implements WebService {
         return;
       }
       String newUri = convertURI(DataSourceUtils.extractDataSourceAndID(path));
-
       var servlet = getDataSourceServlet();
 
       if (StringUtils.equals(OpenAPIConstants.POST, method)) {
-        EtendoRequestWrapper newRequest = getEtendoPostWrapper(request, tab, createPayLoad(request), fieldList, newUri);
-        servlet.doPost(newRequest, response);
+        processPostRequest(request, response, tab, fieldList, newUri, servlet);
       } else if (StringUtils.equals(OpenAPIConstants.PUT, method)) {
-        EtendoRequestWrapper newRequest = getEtendoPutWrapper(request, response, createPayLoad(request), fieldList,
-            newUri, path);
-        servlet.doPut(newRequest, response);
+        processPutRequest(request, response, fieldList, newUri, path, servlet);
       } else {
         throw new UnsupportedOperationException("Method not supported: " + method);
       }
@@ -338,6 +357,145 @@ public class DataSourceServlet implements WebService {
         throw new OBException(ex);
       }
     }
+  }
+
+  /**
+   * Processes the POST request.
+   * @param request
+   * @param response
+   * @param tab
+   * @param fieldList
+   * @param newUri
+   * @param servlet
+   * @throws Exception
+   */
+  private void processPostRequest(HttpServletRequest request, HttpServletResponse response,
+      Tab tab, List<RequestField> fieldList, String newUri,
+      org.openbravo.service.datasource.DataSourceServlet servlet)
+      throws Exception {
+    String jsonBody = getBodyFromRequest(request);
+    JSONArray payloads = preparePayloads(jsonBody);
+    JSONObject jsonResponse = new JSONObject();
+    jsonResponse.put(DataSourceConstants.RESPONSE, new JSONObject());
+    JSONArray jsonData = new JSONArray();
+    jsonResponse.getJSONObject(DataSourceConstants.RESPONSE).put(DataSourceConstants.DATA, jsonData);
+    int status = 0;
+    for (int i = 0; i < payloads.length(); i++) {
+      JSONObject payload = payloads.getJSONObject(i);
+      try {
+        int currentStatus = processPayload(request, response, tab, fieldList, newUri, servlet,
+            payload, jsonData, status);
+        if (status != -1) {
+          status = currentStatus;
+        }
+      } catch (JSONException | OpenAPINotFoundThrowable e) {
+        status = -1;
+        jsonData.put(new JSONObject(e.getMessage()));
+      }
+    }
+
+    sendResponse(response, jsonResponse, status);
+  }
+
+  /**
+   * Prepares the payloads for the POST request.
+   * @param jsonBody
+   * @return
+   * @throws JSONException
+   */
+  private JSONArray preparePayloads(String jsonBody) throws JSONException {
+    boolean isArray = jsonBody.trim().startsWith("[");
+    if (isArray) {
+      return new JSONArray(jsonBody);
+    } else {
+      JSONArray payloads = new JSONArray();
+      payloads.put(new JSONObject(jsonBody));
+      return payloads;
+    }
+  }
+
+  /**
+   * Processes the payload for the POST request.
+   * @param request
+   * @param response
+   * @param tab
+   * @param fieldList
+   * @param newUri
+   * @param servlet
+   * @param payload
+   * @param jsonData
+   * @param status
+   * @return
+   * @throws Exception
+   * @throws OpenAPINotFoundThrowable
+   */
+  private int processPayload(HttpServletRequest request, HttpServletResponse response,
+      Tab tab, List<RequestField> fieldList, String newUri,
+      org.openbravo.service.datasource.DataSourceServlet servlet,
+      JSONObject payload, JSONArray jsonData, int status)
+      throws Exception, OpenAPINotFoundThrowable {
+    EtendoRequestWrapper newRequest = getEtendoPostWrapper(request, tab,
+        createPayLoad(request, payload), fieldList, newUri);
+    HttpServletResponse wrappedResponse = new EtendoResponseWrapper(response);
+
+    servlet.doPost(newRequest, wrappedResponse);
+    String content = ((EtendoResponseWrapper) wrappedResponse).getCapturedContent().toString();
+    JSONObject jsonContent = new JSONObject(content);
+
+    if (jsonContent.has(DataSourceConstants.RESPONSE)) {
+      JSONObject responseContent = jsonContent.getJSONObject(DataSourceConstants.RESPONSE);
+      if (responseContent.has(DataSourceConstants.DATA)) {
+        JSONArray data = responseContent.getJSONArray(DataSourceConstants.DATA);
+        if (data.length() > 0) {
+          jsonData.put(data.getJSONObject(0));
+        }
+      }
+      if (responseContent.has(DataSourceConstants.ERROR)) {
+        status = -1;
+        jsonData.put(responseContent.getJSONObject(DataSourceConstants.ERROR));
+      }
+    }
+
+    return status;
+  }
+
+  /**
+   * Sends the response back to the client.
+   * @param response
+   * @param jsonResponse
+   * @param status
+   * @throws IOException
+   * @throws JSONException
+   */
+  private void sendResponse(HttpServletResponse response, JSONObject jsonResponse, int status)
+      throws IOException, JSONException {
+    jsonResponse.put("status", status);
+    response.setStatus(status == -1 ? HttpServletResponse.SC_BAD_REQUEST : HttpServletResponse.SC_OK);
+    response.setContentType(ContentType.APPLICATION_JSON.getMimeType());
+    response.setCharacterEncoding("UTF-8");
+    response.getWriter().write(jsonResponse.toString());
+    response.getWriter().flush();
+  }
+
+  /**
+   * Processes the PUT request.
+   * @param request
+   * @param response
+   * @param fieldList
+   * @param newUri
+   * @param path
+   * @param servlet
+   * @throws Exception
+   * @throws OpenAPINotFoundThrowable
+   */
+  private void processPutRequest(HttpServletRequest request, HttpServletResponse response,
+      List<RequestField> fieldList, String newUri, String path,
+      org.openbravo.service.datasource.DataSourceServlet servlet)
+      throws Exception, OpenAPINotFoundThrowable {
+    JSONObject jsonBody = new JSONObject(getBodyFromRequest(request));
+    EtendoRequestWrapper newRequest = getEtendoPutWrapper(request, response,
+        createPayLoad(request, jsonBody), fieldList, newUri, path);
+    servlet.doPut(newRequest, response);
   }
 
   /**
