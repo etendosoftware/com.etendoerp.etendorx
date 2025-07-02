@@ -110,10 +110,14 @@ public class GoogleServiceUtil {
     List<Sheet> sheets = spreadsheet.getSheets();
 
     if (sheets == null || sheets.isEmpty()) {
-      throw new OBException("Spreadsheet doesn't contain tabs");
+      String errorMessage = Utility.messageBD(new DalConnectionProvider(), "ETRX_SheetHasNoTabs",
+          OBContext.getOBContext().getLanguage().getLanguage());
+      throw new OBException(errorMessage);
     }
     if (sheets.size() < index) {
-      throw new OBException("Wrong tab number. It not can be greater that the qty of tabs.");
+      String errorMessage = Utility.messageBD(new DalConnectionProvider(), "ETRX_WrongTabNumber",
+          OBContext.getOBContext().getLanguage().getLanguage());
+      throw new OBException(errorMessage);
     }
     return sheets.get(index).getProperties().getTitle();
   }
@@ -132,7 +136,9 @@ public class GoogleServiceUtil {
     if (matcher.find()) {
       return matcher.group(1);
     } else {
-      throw new IllegalArgumentException("Invalid URL. Couldn't extract spreadsheet ID.");
+      String errorMessage = Utility.messageBD(new DalConnectionProvider(), "ETRX_WrongSheetURL",
+          OBContext.getOBContext().getLanguage().getLanguage());
+      throw new IllegalArgumentException(errorMessage); // ETRX_WrongSheetURL
     }
   }
 
@@ -177,7 +183,9 @@ public class GoogleServiceUtil {
         .anyMatch(s -> tabName.equalsIgnoreCase(s.getProperties().getTitle()));
 
     if (!foundTab) {
-      throw new OBException("❌ Tab not found: " + tabName);
+      String errorMessage = Utility.messageBD(new DalConnectionProvider(), "ETRX_TabNotFound",
+          OBContext.getOBContext().getLanguage().getLanguage());
+      throw new OBException(String.format(errorMessage, tabName));
     }
 
     ValueRange response = sheetsService.spreadsheets().values()
@@ -370,11 +378,14 @@ public class GoogleServiceUtil {
     }
 
     if (conn.getResponseCode() == 401) {
-      // TODO: DBMessage
-      throw new OBException("Unauthorized Operation - Refresh the token.");
+      String errorMessage = Utility.messageBD(new DalConnectionProvider(), "ETRX_401RefreshToken",
+          OBContext.getOBContext().getLanguage().getLanguage());
+      throw new OBException(errorMessage);
     }
     if (conn.getResponseCode() != 200) {
-      throw new OBException("Failed to create file: HTTP " + conn.getResponseCode());
+      String errorMessage = Utility.messageBD(new DalConnectionProvider(), "ETRX_FailedToCreateFile",
+          OBContext.getOBContext().getLanguage().getLanguage());
+      throw new OBException(String.format(errorMessage, conn.getResponseCode()));
     }
 
     BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
@@ -436,8 +447,15 @@ public class GoogleServiceUtil {
       os.write(body.toString().getBytes(StandardCharsets.UTF_8));
     }
 
+    if (conn.getResponseCode() == 401) {
+      String errorMessage = Utility.messageBD(new DalConnectionProvider(), "ETRX_401RefreshToken",
+          OBContext.getOBContext().getLanguage().getLanguage());
+      throw new OBException(errorMessage);
+    }
     if (conn.getResponseCode() != 200) {
-      throw new OBException("Failed to update spreadsheet: HTTP " + conn.getResponseCode());
+      String errorMessage = Utility.messageBD(new DalConnectionProvider(), "ETRX_FailedToUpdateSheet",
+          OBContext.getOBContext().getLanguage().getLanguage());
+      throw new OBException(String.format(errorMessage, conn.getResponseCode()));
     }
 
     BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));

@@ -32,7 +32,7 @@ OB.ETRX.openGooglePickerPopup = async function (processEndpointName) {
 
         let pickerUrl =
           envURL +
-          `web/com.etendoerp.entendorx/js/EtendoPicker/picker.html?` +
+          `web/com.etendoerp.etendorx/js/EtendoPicker/picker.html?` +
           `accessToken=${encodeURIComponent(accessToken)}&` +
           `envURL=${encodeURIComponent(envURL)}&` +
           `googleApiKey=${encodeURIComponent(googleApiKey)}&` +

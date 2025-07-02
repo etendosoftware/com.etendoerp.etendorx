@@ -166,7 +166,7 @@ class SaveTokenFromMiddlewareTest {
     String iconEncoded = URLEncoder.encode(icon, StandardCharsets.UTF_8);
     String colorEncoded = URLEncoder.encode(iconColor, StandardCharsets.UTF_8);
     return String.format(
-        "/%s/web/com.etendoerp.entendorx/resources/MiddlewareResponse.html" +
+        "/%s/web/com.etendoerp.etendorx/resources/MiddlewareResponse.html" +
             "?title=%s&message=%s&icon=%s&iconColor=%s",
         contextName, titleEncoded, messageEncoded, iconEncoded, colorEncoded
     );

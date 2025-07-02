@@ -28,121 +28,68 @@ OB.ETRX.middlewareToken = {
 
         const modal = document.createElement('div');
         modal.id = 'middleware-provider-modal';
-        modal.style.position = 'fixed';
-        modal.style.top = '0';
-        modal.style.left = '0';
-        modal.style.width = '100vw';
-        modal.style.height = '100vh';
-        modal.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
-        modal.style.display = 'flex';
-        modal.style.alignItems = 'center';
-        modal.style.justifyContent = 'center';
-        modal.style.zIndex = '999999';
 
         const modalContent = document.createElement('div');
-        modalContent.style.backgroundColor = '#f5f5f5';
-        modalContent.style.padding = '20px';
-        modalContent.style.borderRadius = '10px';
-        modalContent.style.minWidth = '400px';
-        modalContent.style.maxWidth = '600px';
-        modalContent.style.maxHeight = '80vh';
-        modalContent.style.overflowY = 'auto';
-        modalContent.style.position = 'relative';
-        modalContent.style.boxShadow = '0 0 20px rgba(0,0,0,0.4)';
-        modalContent.style.fontFamily = 'Arial, sans-serif';
+        modalContent.className = 'middleware-modal-content';
 
         const closeBtn = document.createElement('span');
         closeBtn.innerHTML = '&times;';
-        closeBtn.style.position = 'absolute';
-        closeBtn.style.top = '10px';
-        closeBtn.style.right = '15px';
-        closeBtn.style.fontSize = '24px';
-        closeBtn.style.cursor = 'pointer';
-        closeBtn.style.color = '#444';
-        closeBtn.title = OB.I18N.getLabel('Close');;
+        closeBtn.className = 'middleware-close-btn';
+        closeBtn.title = OB.I18N.getLabel('Close');
         closeBtn.onclick = () => document.body.removeChild(modal);
         modalContent.appendChild(closeBtn);
 
         const title = document.createElement('h2');
         title.innerText = OB.I18N.getLabel('ETRX_SelectAProvider');
-        title.style.color = '#222';
-        title.style.marginTop = '0px';
-        title.style.borderBottom = '1px solid #ccc';
-        title.style.paddingBottom = '10px';
+        title.className = 'middleware-modal-title';
         modalContent.appendChild(title);
 
         providers.forEach(provider => {
           const providerCard = document.createElement('div');
-          providerCard.style.border = '1px solid #ddd';
-          providerCard.style.borderRadius = '8px';
-          providerCard.style.padding = '15px';
-          providerCard.style.marginTop = '20px';
-          providerCard.style.backgroundColor = '#fff';
-          providerCard.style.boxShadow = '2px 2px 10px rgba(0,0,0,0.1)';
+          providerCard.className = 'middleware-provider-card';
 
           const providerTitle = document.createElement('h3');
           providerTitle.innerText = provider.name;
-          providerTitle.style.marginBottom = '4px';
-          providerTitle.style.marginTop = '0px';
-          providerTitle.style.color = '#003366';
-          providerTitle.style.fontSize = '20px';
+          providerTitle.className = 'middleware-provider-title';
           providerCard.appendChild(providerTitle);
 
           const providerDescription = document.createElement('p');
           providerDescription.innerText = OB.I18N.getLabel('ETRX_SelectScope');
-          providerDescription.style.margin = '0 0 10px 0';
-          providerDescription.style.fontSize = '13px';
-          providerDescription.style.color = '#666';
+          providerDescription.className = 'middleware-provider-description';
           providerCard.appendChild(providerDescription);
 
           const horizontalDivider = document.createElement('hr');
-          horizontalDivider.style.border = 'none';
-          horizontalDivider.style.borderTop = '1px solid #ccc';
-          horizontalDivider.style.margin = '10px 0';
+          horizontalDivider.className = 'middleware-divider';
           providerCard.appendChild(horizontalDivider);
 
           const scopeButtonsContainer = document.createElement('div');
-          scopeButtonsContainer.style.display = 'flex';
-          scopeButtonsContainer.style.flexWrap = 'wrap';
-          scopeButtonsContainer.style.gap = '10px';
+          scopeButtonsContainer.className = 'middleware-scope-container';
 
           provider.scopes.forEach(scopeData => {
             const { scope, iconUrl, description } = scopeData;
 
-            const label = scope.includes('drive') ? 'Drive Files' :
-                          scope.includes('calendar') ? 'Calendar' :
-                          scope.includes('gmail') ? 'Gmail' :
-                          scope;
+            const labelMap = {
+               drive: 'Drive Files',
+               calendar: 'Calendar',
+               gmail: 'Gmail'
+             };
 
-            // contenedor del ítem
+             const matchedKey = Object.keys(labelMap).find(key => scope.includes(key));
+             const label = matchedKey ? labelMap[matchedKey] : scope;
+
             const scopeItem = document.createElement('div');
-            scopeItem.style.display = 'flex';
-            scopeItem.style.flexDirection = 'column';
-            scopeItem.style.alignItems = 'center';
-            scopeItem.style.width = '64px';
+            scopeItem.className = 'middleware-scope-item';
 
-            // botón ícono
             const button = document.createElement('button');
-            button.style.width = '48px';
-            button.style.height = '48px';
-            button.style.border = 'none';
-            button.style.borderRadius = '8px';
-            button.style.backgroundColor = '#202452';
-            button.style.cursor = 'pointer';
-            button.style.display = 'flex';
-            button.style.alignItems = 'center';
-            button.style.justifyContent = 'center';
+            button.className = 'middleware-scope-button';
             button.title = description;
 
             const iconImg = document.createElement('img');
             iconImg.src = iconUrl;
             iconImg.alt = label + ' icon';
-            iconImg.style.width = '24px';
-            iconImg.style.height = '24px';
+            iconImg.className = 'middleware-scope-icon';
 
             button.appendChild(iconImg);
-
-            // evento
             button.onclick = () => {
               document.body.removeChild(modal);
               const baseURL = provider.authorizationEndpoint +
@@ -153,7 +100,6 @@ OB.ETRX.middlewareToken = {
 
               const separator = baseURL.includes('?') ? '&' : '?';
               const popUpURL = baseURL + separator + `state=${encodedState}`;
-
               const sizeProperties = `width=${popupWidth},height=${popupHeight},left=${left},top=${upperMargin}`;
               const popup = window.open(popUpURL, 'Authentication Popup', sizeProperties);
               if (!popup) {
@@ -162,18 +108,13 @@ OB.ETRX.middlewareToken = {
               }
             };
 
-            // etiqueta debajo del botón
             const labelText = document.createElement('span');
             labelText.innerText = label;
-            labelText.style.marginTop = '4px';
-            labelText.style.fontSize = '12px';
-            labelText.style.color = '#666';
-            labelText.style.textAlign = 'center';
+            labelText.className = 'middleware-scope-label';
 
             scopeItem.appendChild(button);
             scopeItem.appendChild(labelText);
             scopeButtonsContainer.appendChild(scopeItem);
-
           });
 
           providerCard.appendChild(scopeButtonsContainer);
@@ -182,12 +123,7 @@ OB.ETRX.middlewareToken = {
 
         const cancelBtn = document.createElement('button');
         cancelBtn.innerText = OB.I18N.getLabel('UINAVBA_Cancel');
-        cancelBtn.style.marginTop = '20px';
-        cancelBtn.style.padding = '8px 16px';
-        cancelBtn.style.backgroundColor = '#ccc';
-        cancelBtn.style.border = 'none';
-        cancelBtn.style.borderRadius = '4px';
-        cancelBtn.style.cursor = 'pointer';
+        cancelBtn.className = 'middleware-cancel-btn';
         cancelBtn.onclick = () => document.body.removeChild(modal);
         modalContent.appendChild(cancelBtn);
 
