@@ -17,6 +17,8 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.Calendar;
+import java.util.Date;
 
 /**
  * Servlet to save the token received from the middleware.
@@ -39,6 +41,11 @@ public class SaveTokenFromMiddleware extends HttpBaseServlet {
       newToken.setMiddlewareProvider(providerScope);
       newToken.setEtrxOauthProvider(getETRXoAuthProvider());
       newToken.setUser(OBContext.getOBContext().getUser());
+      Date now = new Date();
+      Calendar calendar = Calendar.getInstance();
+      calendar.setTime(now);
+      calendar.add(Calendar.HOUR_OF_DAY, 1);
+      newToken.setValidUntil(calendar.getTime());
       OBDal.getInstance().save(newToken);
 
       String responseURL = getResponseBody(false);
