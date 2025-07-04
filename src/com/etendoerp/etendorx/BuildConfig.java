@@ -50,7 +50,6 @@ public class BuildConfig extends HttpBaseServlet {
   public static final String SPRING_SECURITY_OAUTH_2_CLIENT_REGISTRATION = "spring.security.oauth2.client.registration.";
   public static final String SPRING_SECURITY_OAUTH_2_CLIENT_PROVIDER = "spring.security.oauth2.client.provider.";
   private static final String MANAGEMENT_ENDPOINT_RESTART_ENABLED = "management.endpoint.restart.enabled";
-  private static final String CONFIG_URL = "http://config:8888";
   private static final String SOURCE = "source";
   private static final String AUTH_SERVICE = "auth";
   private static final String CONFIG_SERVICE = "config";
@@ -183,7 +182,7 @@ public class BuildConfig extends HttpBaseServlet {
       throw new OBException(String.format(Utility.messageBD(new DalConnectionProvider(), "ETRX_NoConfigFound",
           OBContext.getOBContext().getLanguage().getLanguage()), CONFIG_SERVICE));
     }
-    String serverURL = rxConfig == null ? CONFIG_URL : rxConfig.getServiceURL();
+    String serverURL = rxConfig.getServiceURL();
     URL url = new URL(serverURL + serviceURI);
     HttpURLConnection conn = (HttpURLConnection) url.openConnection();
     conn.setRequestMethod("GET");
@@ -240,6 +239,9 @@ public class BuildConfig extends HttpBaseServlet {
   private void updateSourceWithOAuthProvider(JSONObject sourceJSON, ETRXoAuthProvider provider,
       List<OAuthProviderConfigInjector> allInjectors) {
     try {
+      if (StringUtils.equals("EtendoMiddleware", provider.getValue())) {
+        return;
+      }
       String providerName = provider.getValue();
       String apiUrl = provider.getOAuthAPIURL();
       final String providerRegistration = SPRING_SECURITY_OAUTH_2_CLIENT_REGISTRATION + providerName;
