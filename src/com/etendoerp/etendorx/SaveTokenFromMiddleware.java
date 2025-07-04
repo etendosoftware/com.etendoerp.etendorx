@@ -2,6 +2,7 @@ package com.etendoerp.etendorx;
 
 import com.etendoerp.etendorx.data.ETRXTokenInfo;
 import com.etendoerp.etendorx.data.ETRXoAuthProvider;
+import org.apache.commons.lang3.StringUtils;
 import org.hibernate.criterion.Restrictions;
 import org.openbravo.base.HttpBaseServlet;
 import org.openbravo.base.exception.OBException;
@@ -35,6 +36,19 @@ public class SaveTokenFromMiddleware extends HttpBaseServlet {
   public void doGet(HttpServletRequest request, HttpServletResponse response) {
     try {
       OBContext.setAdminMode();
+
+      String error = request.getParameter("error");
+      String errorDescription = request.getParameter("error_description");
+
+      if (StringUtils.isNotBlank(error)) {
+        String formattedError = formatOAuthError(error);
+        String description = (StringUtils.isNotBlank(errorDescription) && !StringUtils.equals("undefined", errorDescription))
+            ? errorDescription : "";
+        String responseURL = getResponseBody(true, formattedError, description);
+        response.sendRedirect(responseURL);
+        response.flushBuffer();
+        return;
+      }
       ETRXTokenInfo newToken = OBProvider.getInstance().get(ETRXTokenInfo.class);
       newToken.setToken(request.getParameter("access_token"));
       String providerScope = request.getParameter("provider") + " - " + request.getParameter("scope");
@@ -63,6 +77,34 @@ public class SaveTokenFromMiddleware extends HttpBaseServlet {
       }
     }
   }
+
+  /**
+   * Converts an error code like "access_denied" to a user-friendly format like "Access Denied".
+   *
+   * @param errorCode the raw error code from OAuth
+   * @return formatted error message
+   */
+  private static String formatOAuthError(String errorCode) {
+    if (StringUtils.isBlank(errorCode)) {
+      return "Unknown Error";
+    }
+
+    String[] parts = errorCode.split("_");
+    StringBuilder formatted = new StringBuilder();
+
+    for (String part : parts) {
+      if (!part.isEmpty()) {
+        formatted.append(Character.toUpperCase(part.charAt(0)));
+        if (part.length() > 1) {
+          formatted.append(part.substring(1).toLowerCase());
+        }
+        formatted.append(" ");
+      }
+    }
+
+    return formatted.toString().trim();
+  }
+
 
   /**
    * Generates the response URL to be sent back to the middleware after saving the token.
@@ -105,4 +147,32 @@ public class SaveTokenFromMiddleware extends HttpBaseServlet {
         .setMaxResults(1)
         .uniqueResult();
   }
+
+  private static String getResponseBody(boolean error, String customTitle, String customMessage) {
+    String contextName = OBPropertiesProvider.getInstance()
+        .getOpenbravoProperties()
+        .getProperty("context.name")
+        .trim();
+
+    String rawTitle = error
+        ? (customTitle != null ? customTitle : "Error")
+        : Utility.messageBD(new DalConnectionProvider(), "ETRX_TokenCreated", OBContext.getOBContext().getLanguage().getLanguage());
+
+    String rawMessage = error
+        ? (customMessage != null ? customMessage : "Se produjo un error al procesar el token.")
+        : Utility.messageBD(new DalConnectionProvider(), "ETRX_TokenCreatedDescription", OBContext.getOBContext().getLanguage().getLanguage());
+
+    String icon = error ? ERROR_ICON : SUCCESS_ICON;
+    String iconColor = error ? RED : GREEN;
+
+    return String.format("/%s/web/com.etendoerp.etendorx/resources/MiddlewareResponse.html"
+            + "?title=%s&message=%s&icon=%s&iconColor=%s",
+        contextName,
+        URLEncoder.encode(rawTitle, StandardCharsets.UTF_8),
+        URLEncoder.encode(rawMessage, StandardCharsets.UTF_8),
+        URLEncoder.encode(icon, StandardCharsets.UTF_8),
+        URLEncoder.encode(iconColor, StandardCharsets.UTF_8)
+    );
+  }
+
 }
