@@ -50,31 +50,31 @@ services:
     networks:
       - etendo
 
-  #  asyncprocess:
-  #    env_file: ".env"
-  #    depends_on:
-  #      config:
-  #        condition: service_healthy
-  #    image: etendo/dynamic-gradle:1.0.0
-  #    ports:
-  #      - "8099:8099"
-  #      - "5024:8000"
-  #    environment:
-  #      - DEPENDENCIES=com.etendorx:asyncprocess:${ETENDORX_VERSION}
-  #      - REPO_URL=${ETENDORX_REPOSITORY_URL}
-  #      - REPO_USER=${ETENDORX_REPOSITORY_USER}
-  #      - REPO_PASSWORD=${ETENDORX_REPOSITORY_PASSWORD}
-  #      - CONFIG_SERVER_URL=${ETENDORX_CONFIG_SERVER_URL}
-  #      - TASK=downloadJar
-  #    networks:
-  #      - etendo
-  #    volumes:
-  #      - async_vol:/root/.gradle
-  #    healthcheck:
-  #      test: ["CMD-SHELL", "wget --spider -q http://localhost:8099/actuator/health || exit 1"]
-  #      interval: 10s
-  #      timeout: 10s
-  #      retries: 60
+  asyncprocess:
+    env_file: ".env"
+    depends_on:
+      config:
+        condition: service_healthy
+    image: etendo/dynamic-gradle:1.0.0
+    ports:
+      - "8099:8099"
+      - "5024:8000"
+    environment:
+      - DEPENDENCIES=com.etendorx:asyncprocess:${ETENDORX_VERSION}
+      - REPO_URL=${ETENDORX_REPOSITORY_URL}
+      - REPO_USER=${ETENDORX_REPOSITORY_USER}
+      - REPO_PASSWORD=${ETENDORX_REPOSITORY_PASSWORD}
+      - CONFIG_SERVER_URL=${ETENDORX_CONFIG_SERVER_URL}
+      - TASK=downloadJar
+    networks:
+      - etendo
+    volumes:
+      - async_vol:/root/.gradle
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://localhost:8099/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 60
 
   kafka-ui:
     image: redpandadata/console
