@@ -23,6 +23,7 @@ import org.openbravo.authentication.AuthenticationManager;
 import org.openbravo.authentication.basic.DefaultAuthenticationManager;
 import org.openbravo.base.HttpBaseUtils;
 import org.openbravo.base.exception.OBException;
+import org.openbravo.base.exception.OBSecurityException;
 import org.openbravo.base.provider.OBProvider;
 import org.openbravo.base.secureApp.VariablesHistory;
 import org.openbravo.base.secureApp.VariablesSecureApp;
@@ -39,8 +40,6 @@ import org.openbravo.service.web.BaseWebServiceServlet;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-
-import org.openbravo.erpCommon.utility.OBMessageUtils;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -202,12 +201,11 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
       final String accessToken = request.getParameter(ACCESS_TOKEN);
       final String code = request.getParameter("code");
 
-      if (misconfiguredSSO(accessToken, code, allowSSO, ssoType)) {
-        showSSOConfigError(request, response);
-        throw new OBException("SSO - Configuration mismatch detected.");
-      }
-
       if (isSSOLoginAttempt(ssoType, code, accessToken)) {
+        if (misconfiguredSSO(accessToken, code, allowSSO, ssoType)) {
+          showSSOConfigError(request, response);
+          throw new OBException("SSO - Configuration mismatch detected.");
+        }
         return handleSSOLogin(code, accessToken, request, response);
       }
 
@@ -307,6 +305,7 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
     String errorDescription = Utility.messageBD(new DalConnectionProvider(), "ETRX_SSOConfigErrorDescription",
         OBContext.getOBContext().getLanguage().getLanguage());
     printPageError(errorTitle, errorDescription, request, response);
+    throw new OBException("SSO - " + errorDescription);
   }
 
   /**
@@ -359,22 +358,25 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
    */
   private static void printPageError(String title, String description, HttpServletRequest request, HttpServletResponse response) throws IOException {
     final Properties openbravoProperties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
+    String authType = ((String) openbravoProperties.get(SSO_AUTH_TYPE)).trim();
     String logoutRedirectUri = StringUtils.remove(request.getRequestURL().toString(),
-            request.getServletPath()).trim();
+        request.getServletPath()).trim();
     String contextName = ((String) openbravoProperties.get(CONTEXT_NAME)).trim();
     String titleStr = URLEncoder.encode(title, StandardCharsets.UTF_8);
     String descriptionStr = URLEncoder.encode(description,
             StandardCharsets.UTF_8);
     String errorUrl = String.format("/%s/web/com.etendoerp.etendorx/resources/Auth0ErrorPage.html"
-                    + "?logoutRedirectUri=%s&title=%s&description=%s",
+                    + "?logoutRedirectUri=%s&title=%s&description=%s&authType=%s",
             contextName,
             URLEncoder.encode(logoutRedirectUri, StandardCharsets.UTF_8),
         titleStr,
-        descriptionStr);
+        descriptionStr,
+        authType);
 
     response.setStatus(HttpServletResponse.SC_FOUND);
     response.setHeader("Location", errorUrl);
     response.flushBuffer();
+    throw new OBException("SSO - " + description + ".");
   }
 
   /**
@@ -432,9 +434,9 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
      * @return true if the configuration is misconfigured, false otherwise
      */
   private static boolean misconfiguredSSO(String token, String code, String allowSSO, String hasSSOType) {
-    return (!StringUtils.isBlank(token) || !StringUtils.isBlank(code))  &&
-            ((StringUtils.equals("Y", allowSSO) && StringUtils.isBlank(hasSSOType)) ||
-                    (StringUtils.equals("N", allowSSO) && !StringUtils.isBlank(hasSSOType)));
+    return ((StringUtils.equals("Y", allowSSO) && StringUtils.isBlank(hasSSOType)) ||
+        ((StringUtils.isBlank(allowSSO) || StringUtils.equals("N", allowSSO)) && !StringUtils.isBlank(hasSSOType)))
+        && (!StringUtils.isBlank(token) || !StringUtils.isBlank(code));
   }
 
   /**
@@ -443,14 +445,18 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
    * @return the preference value as a String
    */
   private static String getAllowSSOPref() {
-    Preference allowSSOPref = (Preference) OBDal.getInstance()
-        .createCriteria(Preference.class)
-        .add(Restrictions.eq(Preference.PROPERTY_PROPERTY, "ETRX_AllowSSOLogin"))
-        .add(Restrictions.eq(Preference.PROPERTY_SELECTED, true))
-        .setFilterOnReadableClients(false)
-        .setFilterOnReadableOrganization(false)
-        .setMaxResults(1).uniqueResult();
-    return allowSSOPref != null ? allowSSOPref.getSearchKey() : "N";
+    try {
+      Preference allowSSOPref = (Preference) OBDal.getInstance()
+          .createCriteria(Preference.class)
+          .add(Restrictions.eq(Preference.PROPERTY_PROPERTY, "ETRX_AllowSSOLogin"))
+          .add(Restrictions.eq(Preference.PROPERTY_SELECTED, true))
+          .setFilterOnReadableClients(false)
+          .setFilterOnReadableOrganization(false)
+          .setMaxResults(1).uniqueResult();
+      return allowSSOPref != null ? allowSSOPref.getSearchKey() : "N";
+    } catch (OBSecurityException e) {
+      return null;
+    }
   }
 
   /**
