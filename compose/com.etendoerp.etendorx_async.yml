@@ -15,8 +15,11 @@ services:
       KAFKA_CLUSTER_ID: "1fAy-_QvR3yHBXb3_K0-Mg"
       KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: "1@kafka:9093"
       KAFKA_CFG_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
-      KAFKA_CFG_LISTENERS: CONTROLLER://0.0.0.0:9093,INTERNAL://0.0.0.0:29092,EXTERNAL://0.0.0.0:9092
-      KAFKA_CFG_ADVERTISED_LISTENERS: INTERNAL://:29092,EXTERNAL://kafka:9092
+      # --- Configuration for Kafka Broker ---
+      KAFKA_CFG_LISTENERS: CONTROLLER://0.0.0.0:9093,INTERNAL://0.0.0.0:9092,EXTERNAL://0.0.0.0:29092
+      KAFKA_CFG_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,EXTERNAL://localhost:29092
+      # For INTERNAL connections (inside the docker network) use the "kafka" hostname and 9092 port
+      # For EXTERNAL connections (outside the docker network) use "localhost" hostname and 29092 port
       KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
       KAFKA_CFG_INTER_BROKER_LISTENER_NAME: "INTERNAL"
       KAFKA_CFG_OFFSETS_TOPIC_REPLICATION_FACTOR: "1"
@@ -41,7 +44,7 @@ services:
     ports:
       - "8083:8083"
     environment:
-      BOOTSTRAP_SERVERS: kafka:29092
+      BOOTSTRAP_SERVERS: kafka:9092
       GROUP_ID: '1'
       CONFIG_STORAGE_TOPIC: my_connect_configs
       OFFSET_STORAGE_TOPIC: my_connect_offsets
