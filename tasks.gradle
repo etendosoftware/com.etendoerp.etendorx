@@ -132,6 +132,14 @@ task "kafkaConnectSetup" {
             throw new GradleException("You must specify the 'kafka.connect.tables' property.")
         }
         def tableIncludeList = project.getProperty('kafka.connect.tables')
+        def dbHost
+        if (project.hasProperty('kafka.connect.bbdd.host')) {
+            dbHost = project.getProperty('kafka.connect.bbdd.host')
+        } else if (project.hasProperty('docker_com.etendoerp.docker_db') && project.getProperty('docker_com.etendoerp.docker_db').toBoolean()) {
+            dbHost = "db"
+        } else {
+            throw new GradleException("You must specify the 'kafka.connect.bbdd.host' property.")
+        }
 
         println "📡 Checking Kafka Connect for connector '$connectorName'..."
 
@@ -141,7 +149,7 @@ task "kafkaConnectSetup" {
             "topic.prefix": "${connectorName}",
             "database.user": "${dbUser}",
             "database.dbname": "${dbName}",
-            "database.hostname": "db",
+            "database.hostname": "${dbHost}",
             "database.password": "${dbPass}",
             "name": "${connectorName}",
             "table.include.list": "${tableIncludeList}",
@@ -160,14 +168,22 @@ task "kafkaConnectSetup" {
             "config": ${configBody}
         }
         """
+        def kafkaConnectHost
+        if (project.hasProperty('kafka.connect.host')) {
+            kafkaConnectHost = project.getProperty('kafka.connect.host')
+        }else if (project.hasProperty('docker_com.etendoerp.etendorx_async') && project.getProperty('docker_com.etendoerp.etendorx_async').toBoolean()) {
+            kafkaConnectHost = "localhost"
+        } else {
+            throw new GradleException("You must specify the 'kafka.connect.host' property.")
+        }
 
-        def checkProcess = ['curl', '-s', '-o', '/dev/null', '-w', '%{http_code}', "http://localhost:8083/connectors/${connectorName}"].execute()
+        def checkProcess = ['curl', '-s', '-o', '/dev/null', '-w', '%{http_code}', "http://${kafkaConnectHost}:8083/connectors/${connectorName}"].execute()
         def statusCode = checkProcess.text.trim()
 
         def method = statusCode == "200" ? "PUT" : "POST"
         def url = statusCode == "200" ?
-                "http://localhost:8083/connectors/${connectorName}/config" :
-                "http://localhost:8083/connectors"
+                "http://${kafkaConnectHost}:8083/connectors/${connectorName}/config" :
+                "http://${kafkaConnectHost}:8083/connectors"
 
         def bodyToSend = (method == "PUT") ? configBody : postBody
 
