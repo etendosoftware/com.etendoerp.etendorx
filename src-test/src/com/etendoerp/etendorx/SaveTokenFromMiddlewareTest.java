@@ -98,6 +98,9 @@ class SaveTokenFromMiddlewareTest {
     when(req.getParameter("access_token")).thenReturn(token);
     when(req.getParameter("provider")).thenReturn(provider);
     when(req.getParameter("scope")).thenReturn(scope);
+    when(req.getParameter("error")).thenReturn(null);
+    when(req.getParameter("error_description")).thenReturn(null);
+
     return req;
   }
 
