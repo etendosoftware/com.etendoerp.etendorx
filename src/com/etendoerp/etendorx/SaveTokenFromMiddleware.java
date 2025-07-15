@@ -20,6 +20,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.Objects;
 
 /**
  * Servlet to save the token received from the middleware.
@@ -155,11 +156,11 @@ public class SaveTokenFromMiddleware extends HttpBaseServlet {
         .trim();
 
     String rawTitle = error
-        ? (customTitle != null ? customTitle : "Error")
+        ? (Objects.requireNonNullElse(customTitle, "Error"))
         : Utility.messageBD(new DalConnectionProvider(), "ETRX_TokenCreated", OBContext.getOBContext().getLanguage().getLanguage());
 
     String rawMessage = error
-        ? (customMessage != null ? customMessage : "Se produjo un error al procesar el token.")
+        ? (Objects.requireNonNullElse(customMessage, "Se produjo un error al procesar el token."))
         : Utility.messageBD(new DalConnectionProvider(), "ETRX_TokenCreatedDescription", OBContext.getOBContext().getLanguage().getLanguage());
 
     String icon = error ? ERROR_ICON : SUCCESS_ICON;
