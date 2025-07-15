@@ -1,6 +1,6 @@
 services:
   obconnsrv:
-    image: etendo/dynamic-gradle:1.0.0
+    image: etendo/dynamic-gradle:1.1.0
     ports:
       - "8101:8101"
       - "5025:8000"
@@ -11,13 +11,27 @@ services:
       - REPO_PASSWORD=${ETENDORX_REPOSITORY_PASSWORD}
       - CONFIG_SERVER_URL=${ETENDORX_CONFIG_SERVER_URL}
       - TASK=downloadJar
+      # --- OpenTelemetry ---
+      - ENABLE_OPEN_TELEMETRY=true
+      - OTEL_SERVICE_NAME=obconnsrv
+      - OTEL_METRICS_EXPORTER=none
+      - OTEL_LOGS_EXPORTER=none
+      - OTEL_TRACES_EXPORTER=otlp
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318
+      - OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
+      - OTEL_EXPORTER_OTLP_TIMEOUT=10000
     networks:
       - etendo
     volumes:
       - obconnsrv:/root/.gradle
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://localhost:8101/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 60
 
   worker:
-    image: etendo/dynamic-gradle:1.0.0
+    image: etendo/dynamic-gradle:1.1.0
     ports:
       - "5026:8000"
       - "8102:8102"
@@ -28,10 +42,24 @@ services:
       - REPO_PASSWORD=${ETENDORX_REPOSITORY_PASSWORD}
       - CONFIG_SERVER_URL=${ETENDORX_CONFIG_SERVER_URL}
       - TASK=downloadJar
+      # --- OpenTelemetry ---
+      - ENABLE_OPEN_TELEMETRY=true
+      - OTEL_SERVICE_NAME=worker
+      - OTEL_METRICS_EXPORTER=none
+      - OTEL_LOGS_EXPORTER=none
+      - OTEL_TRACES_EXPORTER=otlp
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318
+      - OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
+      - OTEL_EXPORTER_OTLP_TIMEOUT=10000
     networks:
       - etendo
     volumes:
       - worker:/root/.gradle
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://localhost:8102/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 60
 
 volumes:
     obconnsrv:
