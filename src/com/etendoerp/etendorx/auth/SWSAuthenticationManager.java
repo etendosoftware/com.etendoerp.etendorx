@@ -23,6 +23,7 @@ import org.openbravo.authentication.AuthenticationManager;
 import org.openbravo.authentication.basic.DefaultAuthenticationManager;
 import org.openbravo.base.HttpBaseUtils;
 import org.openbravo.base.exception.OBException;
+import org.openbravo.base.exception.OBSecurityException;
 import org.openbravo.base.provider.OBProvider;
 import org.openbravo.base.secureApp.VariablesHistory;
 import org.openbravo.base.secureApp.VariablesSecureApp;
@@ -59,6 +60,7 @@ import java.util.Properties;
 public class SWSAuthenticationManager extends DefaultAuthenticationManager {
 
   private static final Logger log4j = LogManager.getLogger();
+  private static final String INVALID_TOKEN_MESSAGE = "SWS - Token is not valid";
   private static final String ACCESS_TOKEN = "access_token";
   private static final String SWS_TOKEN_IS_NOT_VALID = "SWS - Token is not valid";
   private static final String SSO_DOMAIN_URL = "sso.domain.url";
@@ -82,7 +84,6 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
    */
   @Override
   protected String doWebServiceAuthenticate(HttpServletRequest request) {
-
     String authStr = request.getHeader("Authorization");
     String token = null;
     if (StringUtils.startsWith(authStr, "Bearer ")) {
@@ -98,30 +99,49 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
           String orgId = decodedToken.getClaim("organization").asString();
           String warehouseId = decodedToken.getClaim("warehouse").asString();
           String clientId = decodedToken.getClaim("client").asString();
-          if (StringUtils.isEmpty(userId) || StringUtils.isEmpty(roleId) || StringUtils.isEmpty(
-              orgId) || StringUtils.isEmpty(warehouseId) || StringUtils.isEmpty(clientId)) {
-            throw new OBException(SWS_TOKEN_IS_NOT_VALID);
-          }
+          String jti = decodedToken.getClaim("jti").asString();
+          validateToken(userId, roleId, orgId, warehouseId, clientId);
           log4j.debug("SWS accessed by userId {}", userId);
-          OBContext.setOBContext(
-              SecureWebServicesUtils.createContext(userId, roleId, orgId, warehouseId, clientId));
-          OBContext.setOBContextInSession(request, OBContext.getOBContext());
-          SessionInfo.setUserId(userId);
-          SessionInfo.setProcessType("WS");
-          SessionInfo.setProcessId("DAL");
+          setContext(request, userId, roleId, orgId, warehouseId, clientId);
+          setSessionInfo(jti, userId);
+
           try {
             OBContext.setAdminMode();
+
             return userId;
           } finally {
             OBContext.restorePreviousMode();
           }
         }
+      } catch (AuthenticationException e) {
+        throw e;
       } catch (Exception e) {
         throw new OBException(e);
       }
     }
     return super.doWebServiceAuthenticate(request);
   }
+
+    private static void validateToken(String userId, String roleId, String orgId, String warehouseId, String clientId) {
+        if (StringUtils.isEmpty(userId) || StringUtils.isEmpty(roleId) || StringUtils.isEmpty(
+            orgId) || StringUtils.isEmpty(warehouseId) || StringUtils.isEmpty(clientId)) {
+          throw new OBException(INVALID_TOKEN_MESSAGE);
+        }
+    }
+
+    private static void setSessionInfo(String jti, String userId) {
+        SessionInfo.setSessionId(jti);
+        SessionInfo.setUserId(userId);
+        SessionInfo.setProcessType("WS");
+        SessionInfo.setProcessId("DAL");
+    }
+
+    private static void setContext(HttpServletRequest request, String userId, String roleId, String orgId,
+        String warehouseId, String clientId) {
+        OBContext.setOBContext(
+            SecureWebServicesUtils.createContext(userId, roleId, orgId, warehouseId, clientId));
+        OBContext.setOBContextInSession(request, OBContext.getOBContext());
+    }
 
   /**
    * Sets the CORS headers for the response.
@@ -181,12 +201,11 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
       final String accessToken = request.getParameter(ACCESS_TOKEN);
       final String code = request.getParameter("code");
 
-      if (misconfiguredSSO(accessToken, code, allowSSO, ssoType)) {
-        showSSOConfigError(request, response);
-        throw new OBException("SSO - Configuration mismatch detected.");
-      }
-
       if (isSSOLoginAttempt(ssoType, code, accessToken)) {
+        if (misconfiguredSSO(accessToken, code, allowSSO, ssoType)) {
+          showSSOConfigError(request, response);
+          throw new OBException("SSO - Configuration mismatch detected.");
+        }
         return handleSSOLogin(code, accessToken, request, response);
       }
 
@@ -213,6 +232,7 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
     final String secret = OBPropertiesProvider.getInstance().getOpenbravoProperties().getProperty("OAUTH2_SECRET");
     final String issuer = OBPropertiesProvider.getInstance().getOpenbravoProperties().getProperty("OAUTH2_ISSUER");
     TokenVerifier.isValid(token, secret);
+    
     final Map<String, Object> userMetadata = getUserMetadata(token, secret, issuer);
 
     String userId;
@@ -285,6 +305,7 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
     String errorDescription = Utility.messageBD(new DalConnectionProvider(), "ETRX_SSOConfigErrorDescription",
         OBContext.getOBContext().getLanguage().getLanguage());
     printPageError(errorTitle, errorDescription, request, response);
+    throw new OBException("SSO - " + errorDescription);
   }
 
   /**
@@ -337,22 +358,25 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
    */
   private static void printPageError(String title, String description, HttpServletRequest request, HttpServletResponse response) throws IOException {
     final Properties openbravoProperties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
+    String authType = ((String) openbravoProperties.get(SSO_AUTH_TYPE)).trim();
     String logoutRedirectUri = StringUtils.remove(request.getRequestURL().toString(),
-            request.getServletPath()).trim();
+        request.getServletPath()).trim();
     String contextName = ((String) openbravoProperties.get(CONTEXT_NAME)).trim();
     String titleStr = URLEncoder.encode(title, StandardCharsets.UTF_8);
     String descriptionStr = URLEncoder.encode(description,
             StandardCharsets.UTF_8);
     String errorUrl = String.format("/%s/web/com.etendoerp.etendorx/resources/Auth0ErrorPage.html"
-                    + "?logoutRedirectUri=%s&title=%s&description=%s",
+                    + "?logoutRedirectUri=%s&title=%s&description=%s&authType=%s",
             contextName,
             URLEncoder.encode(logoutRedirectUri, StandardCharsets.UTF_8),
         titleStr,
-        descriptionStr);
+        descriptionStr,
+        authType);
 
     response.setStatus(HttpServletResponse.SC_FOUND);
     response.setHeader("Location", errorUrl);
     response.flushBuffer();
+    throw new OBException("SSO - " + description + ".");
   }
 
   /**
@@ -410,9 +434,9 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
      * @return true if the configuration is misconfigured, false otherwise
      */
   private static boolean misconfiguredSSO(String token, String code, String allowSSO, String hasSSOType) {
-    return (!StringUtils.isBlank(token) || !StringUtils.isBlank(code))  &&
-            ((StringUtils.equals("Y", allowSSO) && StringUtils.isBlank(hasSSOType)) ||
-                    (StringUtils.equals("N", allowSSO) && !StringUtils.isBlank(hasSSOType)));
+    return ((StringUtils.equals("Y", allowSSO) && StringUtils.isBlank(hasSSOType)) ||
+        ((StringUtils.isBlank(allowSSO) || StringUtils.equals("N", allowSSO)) && !StringUtils.isBlank(hasSSOType)))
+        && (!StringUtils.isBlank(token) || !StringUtils.isBlank(code));
   }
 
   /**
@@ -421,14 +445,18 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
    * @return the preference value as a String
    */
   private static String getAllowSSOPref() {
-    Preference allowSSOPref = (Preference) OBDal.getInstance()
-        .createCriteria(Preference.class)
-        .add(Restrictions.eq(Preference.PROPERTY_PROPERTY, "ETRX_AllowSSOLogin"))
-        .add(Restrictions.eq(Preference.PROPERTY_SELECTED, true))
-        .setFilterOnReadableClients(false)
-        .setFilterOnReadableOrganization(false)
-        .setMaxResults(1).uniqueResult();
-    return allowSSOPref != null ? allowSSOPref.getSearchKey() : "N";
+    try {
+      Preference allowSSOPref = (Preference) OBDal.getInstance()
+          .createCriteria(Preference.class)
+          .add(Restrictions.eq(Preference.PROPERTY_PROPERTY, "ETRX_AllowSSOLogin"))
+          .add(Restrictions.eq(Preference.PROPERTY_SELECTED, true))
+          .setFilterOnReadableClients(false)
+          .setFilterOnReadableOrganization(false)
+          .setMaxResults(1).uniqueResult();
+      return allowSSOPref != null ? allowSSOPref.getSearchKey() : "N";
+    } catch (OBSecurityException e) {
+      return null;
+    }
   }
 
   /**
