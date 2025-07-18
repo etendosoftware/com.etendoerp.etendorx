@@ -7,7 +7,7 @@
 */
 
 group          = "com.etendoerp"
-version        = "3.2.0"
+version        = "3.2.1"
 description    = "Integration with Etendo RX"
 ext.artifact   = "etendorx"
 ext.repository = "https://maven.pkg.github.com/etendosoftware/com.etendoerp.platform.extensions"
