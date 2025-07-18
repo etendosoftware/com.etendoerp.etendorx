@@ -121,6 +121,96 @@ task "rx.das.stop" {
     }
 }
 
+task "kafkaConnectSetup" {
+    def connectorName = "default"
+    def dbUser = project.hasProperty('bbdd.systemUser') ? project.getProperty('bbdd.systemUser') : 'postgres'
+    def dbName = project.hasProperty('bbdd.sid') ? project.getProperty('bbdd.sid') : 'etendo'
+    def dbPass = project.hasProperty('bbdd.systemPassword') ? project.getProperty('bbdd.systemPassword') : 'syspass'
+
+    doLast {
+        if (!project.hasProperty('kafka.connect.tables')) {
+            throw new GradleException("You must specify the 'kafka.connect.tables' property.")
+        }
+        def tableIncludeList = project.getProperty('kafka.connect.tables')
+        def dbHost
+        if (project.hasProperty('kafka.connect.bbdd.host')) {
+            dbHost = project.getProperty('kafka.connect.bbdd.host')
+        } else if (project.hasProperty('docker_com.etendoerp.docker_db') && project.getProperty('docker_com.etendoerp.docker_db').toBoolean()) {
+            dbHost = "db"
+        } else {
+            throw new GradleException("You must specify the 'kafka.connect.bbdd.host' property.")
+        }
+
+        println "📡 Checking Kafka Connect for connector '$connectorName'..."
+
+        def configBody = """
+        {
+            "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+            "topic.prefix": "${connectorName}",
+            "database.user": "${dbUser}",
+            "database.dbname": "${dbName}",
+            "database.hostname": "${dbHost}",
+            "database.password": "${dbPass}",
+            "name": "${connectorName}",
+            "table.include.list": "${tableIncludeList}",
+            "plugin.name": "pgoutput",
+            "key.converter": "org.apache.kafka.connect.json.JsonConverter",
+            "key.converter.schemas.enable": "false",
+            "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+            "value.converter.schemas.enable": "false",
+            "snapshot.mode": "no_data"
+        }
+        """.stripIndent().replaceAll('\n', '').replaceAll(' +', ' ')
+
+        def postBody = """
+        {
+            "name": "${connectorName}",
+            "config": ${configBody}
+        }
+        """
+        def kafkaConnectHost
+        if (project.hasProperty('kafka.connect.host')) {
+            kafkaConnectHost = project.getProperty('kafka.connect.host')
+        }else if (project.hasProperty('docker_com.etendoerp.etendorx_async') && project.getProperty('docker_com.etendoerp.etendorx_async').toBoolean()) {
+            kafkaConnectHost = "localhost"
+        } else {
+            throw new GradleException("You must specify the 'kafka.connect.host' property.")
+        }
+
+        def checkProcess = ['curl', '-s', '-o', '/dev/null', '-w', '%{http_code}', "http://${kafkaConnectHost}:8083/connectors/${connectorName}"].execute()
+        def statusCode = checkProcess.text.trim()
+
+        def method = statusCode == "200" ? "PUT" : "POST"
+        def url = statusCode == "200" ?
+                "http://${kafkaConnectHost}:8083/connectors/${connectorName}/config" :
+                "http://${kafkaConnectHost}:8083/connectors"
+
+        def bodyToSend = (method == "PUT") ? configBody : postBody
+
+        println "→ Connector $connectorName ${statusCode == '200' ? 'exists' : 'does not exist'}, doing $method"
+
+        def command = [
+                'curl', '--silent', '--show-error', '--fail',
+                '--request', method,
+                '--url', url,
+                '--header', 'Content-Type: application/json',
+                '--data', bodyToSend
+        ]
+
+        def process = command.execute()
+        def output = new StringWriter()
+        def error = new StringWriter()
+        process.consumeProcessOutput(output, error)
+        def exitCode = process.waitFor()
+
+        if (exitCode != 0) {
+            throw new GradleException("❌ Kafka Connect setup failed:\nSTDOUT: ${output}\nSTDERR: ${error}")
+        } else {
+            println "✅ Kafka Connect $method completed.\n"
+        }
+    }
+}
+
 afterEvaluate {
     if (isRXDockerized() && tasks.hasProperty("generateEnvFile")) {
         tasks.named("generateEnvFile").configure { task ->
