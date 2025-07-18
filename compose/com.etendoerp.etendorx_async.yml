@@ -1,13 +1,11 @@
 services:
   kafka:
     image: bitnami/kafka:4.0.0
-    container_name: kafka
     hostname: kafka
     ports:
       - "9092:9092"
       - "9093:9093"
       - "29092:29092"
-      - "9093:9093"
       - "9997:9997"
     environment:
       KAFKA_CFG_PROCESS_ROLES: "controller,broker"
@@ -91,3 +89,4 @@ services:
 
 volumes:
   async_vol:
+

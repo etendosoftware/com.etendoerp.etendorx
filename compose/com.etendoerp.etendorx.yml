@@ -38,7 +38,7 @@ services:
     depends_on:
       config:
         condition: service_healthy
-    image: etendo/dynamic-das:1.1.0
+    image: etendo/dynamic-das:1.0.1
     ports:
       - "8092:8092"
       - "5021:5021"
