@@ -1,7 +1,6 @@
 services:
   kafka:
     image: bitnami/kafka:4.0.0
-    container_name: kafka
     hostname: kafka
     ports:
       - "9092:9092"
@@ -15,9 +14,11 @@ services:
       KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: "1@kafka:9093"
       KAFKA_CFG_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
 
-      KAFKA_CFG_LISTENERS: CONTROLLER://0.0.0.0:9093,INTERNAL://0.0.0.0:29092,EXTERNAL://0.0.0.0:9092
-
-      KAFKA_CFG_ADVERTISED_LISTENERS: INTERNAL://kafka:29092,EXTERNAL://kafka:9092
+      # --- Configuration for Kafka Broker ---
+      KAFKA_CFG_LISTENERS: CONTROLLER://0.0.0.0:9093,INTERNAL://0.0.0.0:9092,EXTERNAL://0.0.0.0:29092
+      KAFKA_CFG_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,EXTERNAL://localhost:29092
+      # For INTERNAL connections (inside the docker network) use the "kafka" hostname and 9092 port
+      # For EXTERNAL connections (outside the docker network) use "localhost" hostname and 29092 port
 
       KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
 
@@ -40,7 +41,7 @@ services:
     ports:
       - "8083:8083"
     environment:
-      BOOTSTRAP_SERVERS: kafka:29092
+      BOOTSTRAP_SERVERS: kafka:9092
       GROUP_ID: '1'
       CONFIG_STORAGE_TOPIC: my_connect_configs
       OFFSET_STORAGE_TOPIC: my_connect_offsets
@@ -81,7 +82,7 @@ services:
     ports:
       - 9094:8080
     environment:
-      - KAFKA_BROKERS=kafka:29092
+      - KAFKA_BROKERS=kafka:9092
       - CONNECT_BOOTSTRAP_SERVERS=connect:8083
     networks:
       - etendo
