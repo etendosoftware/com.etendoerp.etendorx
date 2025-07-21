@@ -15,7 +15,7 @@ pipeline {
         NEXUS_PASSWORD      = credentials('nexus-admin-passwd')
         GITHUB_USER         = 'etendobot'
         GITHUB_TOKEN        = credentials('github-read-package-token')
-        
+
         ACCESS_TOKEN        = credentials('access_token_github')
 
         REPOSITORY_NAME     = 'com.etendoerp.etendorx'
@@ -190,6 +190,7 @@ spec:
                                     def sshCmd = "ssh -i ${keyfile} -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no"
 
                                     echo "-------------------------- Selecting the Classic Correct Branch for Repository Cloning --------------------------"
+                                    env.JACOCO_REPORT_EXISTS = FALSE
                                     env.CLASSIC_BRANCH = env.MAIN_BRANCH
                                     if (env.GIT_BRANCH.startsWith(env.DEVELOP_BRANCH) || ((env.GIT_BRANCH.startsWith("feature") || env.GIT_BRANCH.startsWith("epic")) && !(env.GIT_BRANCH.contains("-Y")))) {
                                         env.CLASSIC_BRANCH = env.DEVELOP_BRANCH
@@ -229,27 +230,20 @@ spec:
                                         echo "---------------------- Setup Classic Repo ----------------------"
                                         sh """
                                         echo "\n
-                                        context.name=${CONTEXT_NAME}\n
-                                        bbdd.sid=${BBDD_SID}\n
-                                        bbdd.port=${BBDD_PORT}\n
-                                        bbdd.systemUser=${BBDD_SYSTEMUSER}\n
-                                        bbdd.systemPassword=${BBDD_SYSTEMPASS}\n
-                                        bbdd.user=${BBDD_USER}\n
-                                        bbdd.password=${BBDD_PASSWORD}\n
-                                        nexusUser=${NEXUS_USER}\n
-                                        nexusPassword=${NEXUS_PASSWORD}\n
-                                        githubUser=${GITHUB_USER}\n
-                                        githubToken=${GITHUB_TOKEN}\n
-                                        allow.root=true\n
+                                        context.name=${CONTEXT_NAME}
+                                        bbdd.sid=${BBDD_SID}
+                                        bbdd.port=${BBDD_PORT}
+                                        bbdd.systemUser=${BBDD_SYSTEMUSER}
+                                        bbdd.systemPassword=${BBDD_SYSTEMPASS}
+                                        bbdd.user=${BBDD_USER}
+                                        bbdd.password=${BBDD_PASSWORD}
+                                        nexusUser=${NEXUS_USER}
+                                        nexusPassword=${NEXUS_PASSWORD}
+                                        githubUser=${GITHUB_USER}
+                                        githubToken=${GITHUB_TOKEN}
+                                        allow.root=true
                                         org.gradle.jvmargs=-Dfile.encoding=UTF-8
-                                        sonarHostUrl=${SONAR_SERVER}
-                                        sonarToken=${SONAR_TOKEN}
-                                        sonarProjectBaseDir=${WORKDIR_MODULE}
-                                        sonarProjectName=${REPOSITORY_NAME}
-                                        sonarProjectKey=${PROJECT_KEY}
-                                        sonarSources=src
-                                        sonarBranchName=${GIT_BRANCH}
-                                        sonarVersion=${GIT_COMMIT}" > gradle.properties
+                                        org.gradle.daemon=false" > gradle.properties
                                         """
                                         sh './gradlew prepareConfig --info --stacktrace'
                                         sh './gradlew setup --info --stacktrace'
@@ -342,6 +336,13 @@ spec:
                             ./gradlew test --tests "com.etendoerp.etendorx.*" --info
                             ./gradlew jacocoRootReport --info
                             """
+
+                            if (fileExists("${CLASSIC_DIR}/build/reports/jacoco/jacocoRootReport/jacocoRootReport.xml")) {
+                                echo '----> Jacoco report found'
+                                env.JACOCO_REPORT_EXISTS = TRUE
+                            } else {
+                                echo '----> Jacoco report not found'
+                            }
                             echo "---------------------- RX Module Tests Successful ----------------------"
                         } catch (Exception e) {
                             echo "---------------------- RX Module Tests Failed ----------------------"
@@ -366,31 +367,63 @@ spec:
         stage('SonarQube Analysis') { // MARK: - SonarQube Analysis
             when {
                 expression {
-                    currentBuild.result == SUCCESS
+                    currentBuild.result == SUCCESS && env.JACOCO_REPORT_EXISTS == TRUE
                 }
             }
             steps {
-                script {
-                    container('compiler') {
+                container('compiler') {
+                    script {
                         try {
                             sh "./pipelines/utils/build-update.sh ${REPOSITORY_NAME} ${COMMIT_INPROGRESS_STATUS} \"Running SonarQube Analysis\" ${ACCESS_TOKEN} ${GIT_COMMIT} ${BUILD_URL} \"${CONTEXT_BUILD}\""
-
-                            echo "---------------------- Running SonarQube ----------------------"
+                            echo '-------------------------- Installing SonarQube Scanner --------------------------'
                             sh """
-                            cd ${CLASSIC_DIR}
-                            ./gradlew sonar --stacktrace --info
+                                apt-get update && apt-get install -y wget unzip
+                                wget https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-${SONAR_VERSION}-linux.zip
+                                unzip sonar-scanner-cli-${SONAR_VERSION}-linux.zip
+                                export PATH=\$PATH:\${WORKSPACE}/sonar-scanner-${SONAR_VERSION}-linux/bin
+                            """
+                            echo '-------------------------- Reading SonarQube Project Key from sonar-project.properties --------------------------'
+                            def sonarPropertiesFile = "${CLASSIC_DIR}/modules/${REPOSITORY_NAME}/sonar-project.properties"
+                            if (!fileExists(sonarPropertiesFile)) {
+                                error("SonarQube properties file not found in ${sonarPropertiesFile}")
+                            }
+                            def sonarProjectKey = sh(script: "grep 'sonar.projectKey' ${sonarPropertiesFile} | cut -d '=' -f2", returnStdout: true).trim()
+                            echo "SonarQube Project Key: ${sonarProjectKey}"
+
+                            echo '-------------------------- Checking if module contains Java source files --------------------------'
+                            def parsedRepositoryName = REPOSITORY_NAME.replace('.', '/')
+                            if (fileExists("${CLASSIC_DIR}/modules/${REPOSITORY_NAME}/src/${parsedRepositoryName}")) {
+                                echo '----> Java source files found in module'
+                                sonarSources = "src/${parsedRepositoryName}"
+                                echo "SonarQube Sources: ${sonarSources}"
+                            }
+
+                            env.WORKDIR_JACOCO = "${pwd()}/${CLASSIC_DIR}/build/reports/jacoco/jacocoRootReport/jacocoRootReport.xml"
+                            def jacocoReportPathAttribute = "-Dsonar.java.coveragePlugin=jacoco -Dsonar.coverage.jacoco.xmlReportPaths=${env.WORKDIR_JACOCO}"
+                            echo "Jacoco Report Path: ${env.WORKDIR_JACOCO}"
+
+                            echo '-------------------------- Executing SonarQube Analysis --------------------------'
+                            sh """
+                                cd ${CLASSIC_DIR}/modules/${REPOSITORY_NAME}
+                                ${WORKSPACE}/sonar-scanner-${SONAR_VERSION}-linux/bin/sonar-scanner -X \
+                                    -Dsonar.projectKey=${sonarProjectKey} \
+                                    -Dsonar.sources=${sonarSources} \
+                                    -Dsonar.host.url=${SONAR_SERVER} \
+                                    -Dsonar.login=${SONAR_TOKEN} \
+                                    -Dsonar.branch.name=${GIT_BRANCH} \
+                                    -Dsonar.projectVersion=${GIT_COMMIT} \
+                                    ${jacocoReportPathAttribute}
                             """
                             echo "---------------------- Getting SonarQube Report URL ----------------------"
                             def branchName = URLEncoder.encode(GIT_BRANCH, 'UTF-8')
                             def projectUrl = "${SONAR_SERVER}/dashboard?id=${PROJECT_KEY}&branch=${branchName}"
                             env.PROJECT_URL = "${projectUrl}"
                             echo "Sonar Project URL: ${PROJECT_URL}"
-
-                            echo "--------------- Execution SonarQube Succesful ---------------"
+                            echo '-------------------------- SonarQube Analysis Completed --------------------------'
                         } catch (Exception e) {
-                            env.ERROR_MESSAGE = "Execution SonarQube Failed"
+                            env.ERROR_MESSAGE = "SonarQube Analysis Failed"
                             echo "--------------- ${env.ERROR_MESSAGE} ---------------"
-                            echo "Exception occurred: " + e.toString()
+                            echo 'Exception occurred: ' + e.toString()
                             currentBuild.result = FAILED
                             error(env.ERROR_MESSAGE)
                         }
