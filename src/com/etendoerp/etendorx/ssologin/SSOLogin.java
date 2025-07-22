@@ -3,18 +3,26 @@ package com.etendoerp.etendorx.ssologin;
 import java.util.Properties;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.openbravo.base.exception.OBException;
 import org.openbravo.base.session.OBPropertiesProvider;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.database.ConnectionProvider;
 import org.openbravo.erpCommon.security.SignInProvider;
+import org.openbravo.erpCommon.utility.SystemInfo;
 import org.openbravo.erpCommon.utility.Utility;
 import org.openbravo.model.ad.system.Client;
 import org.openbravo.service.db.DalConnectionProvider;
+
+import javax.servlet.ServletException;
 
 /**
  * Implementation of the SignInProvider interface for Single Sign-On (SSO) login functionality.
  */
 public class SSOLogin implements SignInProvider {
+
+    private static final Logger log = LogManager.getLogger();
 
     /**
      * Generates the HTML code for the SSO login button to be displayed on the login page.
@@ -83,6 +91,16 @@ public class SSOLogin implements SignInProvider {
             String redirectUri = OBPropertiesProvider.getInstance().getOpenbravoProperties()
                     .getProperty("sso.middleware.redirectUri");
 
+            String accountID = "";
+            try {
+                accountID = SystemInfo.getSystemIdentifier();
+                if (StringUtils.isBlank(accountID)) {
+                    log.warn("[SSO] - Empty System Identifier, account id to middleware will be empty");
+                }
+            } catch (ServletException e) {
+                throw new OBException(e);
+            }
+
             String divider =
                 "<style>" +
                     ".sso-divider-wrapper {" +
@@ -142,23 +160,23 @@ public class SSOLogin implements SignInProvider {
 
                 "<div class='sso-icon-container'>" +
 
-                "<a class='sso-icon-button' href='" + ssoLoginUrl + "?provider=google-oauth2&account_id=etendo_123&redirect_uri=" + redirectUri + "'>" +
+                "<a class='sso-icon-button' href='" + ssoLoginUrl + "?provider=google-oauth2&account_id=" + accountID + "&redirect_uri=" + redirectUri + "'>" +
                 "  <img src='../web/com.etendoerp.etendorx/images/google.png' alt='Google'>" +
                 "</a>" +
 
-                "<a class='sso-icon-button' href='" + ssoLoginUrl + "?provider=windowslive&account_id=etendo_123&redirect_uri=" + redirectUri + "'>" +
+                "<a class='sso-icon-button' href='" + ssoLoginUrl + "?provider=windowslive&account_id=" + accountID + "&redirect_uri=" + redirectUri + "'>" +
                 "  <img src='../web/com.etendoerp.etendorx/images/microsoft.png' alt='Microsoft'>" +
                 "</a>" +
 
-                "<a class='sso-icon-button' href='" + ssoLoginUrl + "?provider=linkedin&account_id=etendo_123&redirect_uri=" + redirectUri + "'>" +
+                "<a class='sso-icon-button' href='" + ssoLoginUrl + "?provider=linkedin&account_id=" + accountID + "&redirect_uri=" + redirectUri + "'>" +
                 "  <img src='../web/com.etendoerp.etendorx/images/linkedin.png' alt='LinkedIn'>" +
                 "</a>" +
 
-                "<a class='sso-icon-button' href='" + ssoLoginUrl + "?provider=github&account_id=etendo_123&redirect_uri=" + redirectUri + "'>" +
+                "<a class='sso-icon-button' href='" + ssoLoginUrl + "?provider=github&account_id=" + accountID + "&redirect_uri=" + redirectUri + "'>" +
                 "  <img src='../web/com.etendoerp.etendorx/images/github.png' alt='GitHub'>" +
                 "</a>" +
 
-                "<a class='sso-icon-button' href='" + ssoLoginUrl + "?provider=facebook&account_id=etendo_123&redirect_uri=" + redirectUri + "'>" +
+                "<a class='sso-icon-button' href='" + ssoLoginUrl + "?provider=facebook&account_id=" + accountID + "&redirect_uri=" + redirectUri + "'>" +
                 "  <img src='../web/com.etendoerp.etendorx/images/facebook.png' alt='Facebook'>" +
                 "</a>" +
 
