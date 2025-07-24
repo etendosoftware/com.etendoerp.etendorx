@@ -3,13 +3,13 @@ package com.etendoerp.etendorx.utils;
 import com.google.api.services.sheets.v4.Sheets;
 import com.google.api.services.sheets.v4.model.Sheet;
 import com.google.api.services.sheets.v4.model.SheetProperties;
-import com.google.api.services.sheets.v4.model.Spreadsheet;
-import com.google.api.services.sheets.v4.model.ValueRange;
 
 import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONObject;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.MockedStatic;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.erpCommon.utility.Utility;
@@ -29,307 +29,230 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
+@ExtendWith(MockitoExtension.class)
 class GoogleServiceUtilTest {
+
+  private static final String TOKEN      = "mockToken";
+  private static final String ACCOUNT_ID = "etendo123";
+
+  private static class LocaleHelper implements AutoCloseable {
+    final MockedStatic<OBContext> obCtx;
+    final MockedStatic<Utility>   util;
+
+    LocaleHelper(String msgKey, String message) {
+      obCtx = mockStatic(OBContext.class);
+      util  = mockStatic(Utility.class);
+
+      OBContext ctx  = mock(OBContext.class);
+      Language  lang = mock(Language.class);
+      obCtx.when(OBContext::getOBContext).thenReturn(ctx);
+      when(ctx.getLanguage()).thenReturn(lang);
+      when(lang.getLanguage()).thenReturn("en_US");
+
+      if (msgKey != null) {
+        util.when(() -> Utility.messageBD(any(), eq(msgKey), any()))
+            .thenReturn(message);
+      }
+    }
+
+    @Override
+    public void close() {
+      obCtx.close();
+      util.close();
+    }
+  }
 
   @Test
   void testExtractSheetIdFromUrl_ValidUrl_ReturnsId() {
-    String url = "https://docs.google.com/spreadsheets/d/abc123def456/edit#gid=0";
-    String id = GoogleServiceUtil.extractSheetIdFromUrl(url);
+    String id = GoogleServiceUtil.extractSheetIdFromUrl(
+        "https://docs.google.com/spreadsheets/d/abc123def456/edit#gid=0"
+    );
     assertEquals("abc123def456", id);
   }
 
   @Test
   void testExtractSheetIdFromUrl_InvalidUrl_ThrowsException() {
-    String url = "https://example.com/not-a-sheet";
-
-    try (MockedStatic<OBContext> obContextMockedStatic = mockStatic(OBContext.class)) {
-      OBContext obContext = mock(OBContext.class);
-      Language language = mock(Language.class);
-
-      obContextMockedStatic.when(OBContext::getOBContext).thenReturn(obContext);
-      when(obContext.getLanguage()).thenReturn(language);
-      when(language.getLanguage()).thenReturn("en_US");
-
-      IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-          () -> GoogleServiceUtil.extractSheetIdFromUrl(url));
-      assertTrue(ex.getMessage().contains("ETRX_WrongSheetURL"));
+    try (var lh = new LocaleHelper("ETRX_WrongSheetURL", "bad‐url")) {
+      IllegalArgumentException ex = assertThrows(
+          IllegalArgumentException.class,
+          () -> GoogleServiceUtil.extractSheetIdFromUrl("https://foo/not-sheet")
+      );
+      assertTrue(ex.getMessage().contains("bad‐url"));
     }
   }
 
   @Test
   void testGetCellValue_WithinBounds_ReturnsValue() {
-    List<Object> row = List.of("A", "B", "C");
-    String value = GoogleServiceUtil.getCellValue(row, 1);
-    assertEquals("B", value);
+    assertEquals("B",
+        GoogleServiceUtil.getCellValue(List.of("A","B","C"), 1)
+    );
   }
 
   @Test
   void testGetCellValue_OutOfBounds_ReturnsEmptyString() {
-    List<Object> row = List.of("A", "B", "C");
-    String value = GoogleServiceUtil.getCellValue(row, 5);
-    assertEquals("", value);
+    assertEquals("",
+        GoogleServiceUtil.getCellValue(List.of("A","B","C"), 99)
+    );
   }
 
   @Test
   void testListAccessibleFiles_WithValidType_ReturnsJSONArray() throws Exception {
-    String token     = "mockToken";
-    String type      = "spreadsheet";
-    String accountID = "etendo123";
-
-    // 1) Preparo el JSON simulado
-    JSONArray mockResponse = new JSONArray();
-    mockResponse.put(
-        new JSONObject()
-            .put("id", "1")
-            .put("name", "Sheet 1")
-            .put("mimeType", "application/vnd.google-apps-spreadsheet")
-    );
-
-    try (MockedStatic<OBContext> obCtx     = mockStatic(OBContext.class);
-         MockedStatic<Utility>   util      = mockStatic(Utility.class);
-         MockedStatic<GoogleServiceUtil> gs = mockStatic(GoogleServiceUtil.class)) {
-
-      // 2) Locale stub (igual que antes)
-      OBContext ctx = mock(OBContext.class);
-      Language  lang= mock(Language.class);
-      obCtx.when(OBContext::getOBContext).thenReturn(ctx);
-      when(ctx.getLanguage()).thenReturn(lang);
-      when(lang.getLanguage()).thenReturn("en_US");
-
-      // 3) Stub total del método bajo prueba
-      gs.when(() -> GoogleServiceUtil.listAccessibleFiles(type, token, accountID))
-          .thenReturn(mockResponse);
-
-      // 4) Invoco y compruebo
-      JSONArray result = GoogleServiceUtil.listAccessibleFiles(type, token, accountID);
-      // Como lo stubee, result == mockResponse
-      assertSame(mockResponse, result);
+    JSONArray mockResp = new JSONArray()
+        .put(new JSONObject()
+            .put("id","1")
+            .put("name","Sheet 1")
+            .put("mimeType","application/vnd.google-apps-spreadsheet")
+        );
+    try (var gs = mockStatic(GoogleServiceUtil.class)) {
+      gs.when(() -> GoogleServiceUtil
+          .listAccessibleFiles("spreadsheet", TOKEN, ACCOUNT_ID)
+      ).thenReturn(mockResp);
+      JSONArray result = GoogleServiceUtil
+          .listAccessibleFiles("spreadsheet", TOKEN, ACCOUNT_ID);
+      assertSame(mockResp, result);
       assertEquals(1, result.length());
-      assertEquals("Sheet 1", result.getJSONObject(0).getString("name"));
+      assertEquals("Sheet 1",
+          result.getJSONObject(0).getString("name")
+      );
     }
   }
 
   @Test
   void testGetTabName_ValidIndex_ReturnsTabName() throws Exception {
-    String token     = "mockToken";
-    String sheetId   = "mockSheetId";
-    String accountID = "etendo123";
-    int index        = 0;
-    String expectedTitle = "Sheet1";
+    String sheetId = "sid", title = "MySheet";
+    try (var gs = mockStatic(GoogleServiceUtil.class, CALLS_REAL_METHODS)) {
+      gs.when(() -> GoogleServiceUtil.getValidAccessTokenOrRefresh(
+          TOKEN, ACCOUNT_ID
+      )).thenReturn(TOKEN);
+      Sheets sheetsSvc = mock(Sheets.class, RETURNS_DEEP_STUBS);
+      when(sheetsSvc.spreadsheets()
+          .get(sheetId)
+          .execute()
+          .getSheets().get(0)
+          .getProperties().getTitle()
+      ).thenReturn(title);
 
-    try (MockedStatic<OBContext> obContextMock = mockStatic(OBContext.class);
-         MockedStatic<Utility> utilityMock     = mockStatic(Utility.class);
-         MockedStatic<GoogleServiceUtil> gsMock = mockStatic(GoogleServiceUtil.class, CALLS_REAL_METHODS)) {
+      gs.when(() -> GoogleServiceUtil.getSheetsService(TOKEN))
+          .thenReturn(sheetsSvc);
 
-      // locale
-      OBContext obContext = mock(OBContext.class);
-      Language lang       = mock(Language.class);
-      obContextMock.when(OBContext::getOBContext).thenReturn(obContext);
-      when(obContext.getLanguage()).thenReturn(lang);
-      when(lang.getLanguage()).thenReturn("en_US");
-
-      // stubeo refresh/validación de token
-      gsMock.when(() -> GoogleServiceUtil.getValidAccessTokenOrRefresh(token, accountID))
-          .thenReturn(token);
-
-      // stub Sheets service
-      Sheet sheetMock = mock(Sheet.class, RETURNS_DEEP_STUBS);
-      when(sheetMock.getProperties().getTitle()).thenReturn(expectedTitle);
-      Spreadsheet spreadsheetMock = mock(Spreadsheet.class);
-      when(spreadsheetMock.getSheets()).thenReturn(List.of(sheetMock));
-
-      Sheets.Spreadsheets.Get getMock = mock(Sheets.Spreadsheets.Get.class);
-      when(getMock.execute()).thenReturn(spreadsheetMock);
-      Sheets.Spreadsheets spreadsheetsMock = mock(Sheets.Spreadsheets.class);
-      when(spreadsheetsMock.get(sheetId)).thenReturn(getMock);
-      Sheets sheetsMock = mock(Sheets.class);
-      when(sheetsMock.spreadsheets()).thenReturn(spreadsheetsMock);
-
-      gsMock.when(() -> GoogleServiceUtil.getSheetsService(token))
-          .thenReturn(sheetsMock);
-
-      String result = GoogleServiceUtil.getTabName(index, sheetId, token, accountID);
-      assertEquals(expectedTitle, result);
+      assertEquals(title,
+          GoogleServiceUtil.getTabName(0, sheetId, TOKEN, ACCOUNT_ID)
+      );
     }
   }
 
   @Test
   void testFindSpreadsheetAndTab_TabExists_ReturnsValues() throws Exception {
-    String token     = "t";
-    String sheetId   = "sid";
-    String tabName   = "MiHoja";
-    String accountID = "etendo123";
-    List<List<Object>> mockValues = List.of(
-        List.of("1","2"),
-        List.of("a","b")
+    String sheetId = "sid", tab = "T1";
+    List<List<Object>> data = List.of(
+        List.of("A","B"),
+        List.of("C","D")
     );
 
-    try (MockedStatic<OBContext> obContextMock = mockStatic(OBContext.class);
-         MockedStatic<Utility>   utilMock      = mockStatic(Utility.class);
-         MockedStatic<GoogleServiceUtil> gsMock = mockStatic(GoogleServiceUtil.class, CALLS_REAL_METHODS)) {
+    try (var gs = mockStatic(GoogleServiceUtil.class, CALLS_REAL_METHODS)) {
+      gs.when(() -> GoogleServiceUtil.getValidAccessTokenOrRefresh(
+          TOKEN, ACCOUNT_ID
+      )).thenReturn(TOKEN);
+      Sheets sheetsSvc = mock(Sheets.class, RETURNS_DEEP_STUBS);
+      Sheet fakeSheet = new Sheet()
+          .setProperties(new SheetProperties().setTitle(tab));
+      when(sheetsSvc.spreadsheets()
+          .get(sheetId)
+          .execute()
+          .getSheets()
+      ).thenReturn(List.of(fakeSheet));
 
-      // locale
-      OBContext ctx = mock(OBContext.class);
-      Language lang = mock(Language.class);
-      obContextMock.when(OBContext::getOBContext).thenReturn(ctx);
-      when(ctx.getLanguage()).thenReturn(lang);
-      when(lang.getLanguage()).thenReturn("en_US");
+      when(sheetsSvc.spreadsheets()
+          .values()
+          .get(sheetId, tab)
+          .execute()
+          .getValues()
+      ).thenReturn(data);
 
-      // stubeo refresh/validación
-      gsMock.when(() -> GoogleServiceUtil.getValidAccessTokenOrRefresh(token, accountID))
-          .thenReturn(token);
-
-      // stub Sheets.metadata
-      Sheets sheetsSvc       = mock(Sheets.class);
-      Sheets.Spreadsheets sp = mock(Sheets.Spreadsheets.class);
-      when(sheetsSvc.spreadsheets()).thenReturn(sp);
-
-      Sheets.Spreadsheets.Get getMeta = mock(Sheets.Spreadsheets.Get.class);
-      Spreadsheet meta = mock(Spreadsheet.class);
-      Sheet sheet = mock(Sheet.class);
-      SheetProperties props = new SheetProperties().setTitle(tabName);
-      when(sheet.getProperties()).thenReturn(props);
-      when(meta.getSheets()).thenReturn(List.of(sheet));
-      when(getMeta.execute()).thenReturn(meta);
-      when(sp.get(sheetId)).thenReturn(getMeta);
-
-      // stub Sheets.values
-      Sheets.Spreadsheets.Values valApi     = mock(Sheets.Spreadsheets.Values.class);
-      Sheets.Spreadsheets.Values.Get getVals = mock(Sheets.Spreadsheets.Values.Get.class);
-      ValueRange vr = mock(ValueRange.class);
-      when(vr.getValues()).thenReturn(mockValues);
-      when(getVals.execute()).thenReturn(vr);
-      when(sp.values()).thenReturn(valApi);
-      when(valApi.get(sheetId, tabName)).thenReturn(getVals);
-
-      gsMock.when(() -> GoogleServiceUtil.getSheetsService(token))
+      gs.when(() -> GoogleServiceUtil.getSheetsService(TOKEN))
           .thenReturn(sheetsSvc);
 
-      List<List<Object>> result = GoogleServiceUtil.findSpreadsheetAndTab(sheetId, tabName, token, accountID);
-      assertEquals(mockValues, result);
+      assertEquals(data,
+          GoogleServiceUtil.findSpreadsheetAndTab(
+              sheetId, tab, TOKEN, ACCOUNT_ID
+          )
+      );
     }
   }
 
   @Test
   void testFindSpreadsheetAndTab_TabNotFound_ThrowsOBException() throws Exception {
-    String token     = "t";
-    String sheetId   = "sid";
-    String wrongTab  = "NoExiste";
-    String accountID = "etendo123";
+    try (var lh = new LocaleHelper("ETRX_TabNotFound","no encontrada");
+         var gs = mockStatic(GoogleServiceUtil.class, CALLS_REAL_METHODS))
+    {
+      gs.when(() -> GoogleServiceUtil.getValidAccessTokenOrRefresh(
+          TOKEN, ACCOUNT_ID
+      )).thenReturn(TOKEN);
 
-    try (MockedStatic<OBContext> obContextMock = mockStatic(OBContext.class);
-         MockedStatic<Utility>   utilMock      = mockStatic(Utility.class);
-         MockedStatic<GoogleServiceUtil> gsMock = mockStatic(GoogleServiceUtil.class, CALLS_REAL_METHODS)) {
+      Sheets sheetsSvc = mock(Sheets.class, RETURNS_DEEP_STUBS);
+      when(sheetsSvc.spreadsheets()
+          .get("sid")
+          .execute()
+          .getSheets()
+      ).thenReturn(List.of(
+          new Sheet().setProperties(
+              new SheetProperties().setTitle("Otra")
+          )
+      ));
 
-      // locale
-      OBContext ctx = mock(OBContext.class);
-      Language lang = mock(Language.class);
-      obContextMock.when(OBContext::getOBContext).thenReturn(ctx);
-      when(ctx.getLanguage()).thenReturn(lang);
-      when(lang.getLanguage()).thenReturn("en_US");
-
-      // stubeo refresh/validación
-      gsMock.when(() -> GoogleServiceUtil.getValidAccessTokenOrRefresh(token, accountID))
-          .thenReturn(token);
-
-      // metadata con otra hoja
-      Sheets sheetsSvc       = mock(Sheets.class);
-      Sheets.Spreadsheets sp = mock(Sheets.Spreadsheets.class);
-      when(sheetsSvc.spreadsheets()).thenReturn(sp);
-
-      Sheets.Spreadsheets.Get getMeta = mock(Sheets.Spreadsheets.Get.class);
-      Spreadsheet meta = mock(Spreadsheet.class);
-      Sheet sheet = mock(Sheet.class);
-      when(sheet.getProperties()).thenReturn(new SheetProperties().setTitle("Otra"));
-      when(meta.getSheets()).thenReturn(List.of(sheet));
-      when(getMeta.execute()).thenReturn(meta);
-      when(sp.get(sheetId)).thenReturn(getMeta);
-
-      gsMock.when(() -> GoogleServiceUtil.getSheetsService(token))
+      gs.when(() -> GoogleServiceUtil.getSheetsService(TOKEN))
           .thenReturn(sheetsSvc);
 
-      utilMock.when(() -> Utility.messageBD(any(), eq("ETRX_TabNotFound"), any()))
-          .thenReturn("Hoja '%s' no encontrada");
-
-      OBException ex = assertThrows(OBException.class,
-          () -> GoogleServiceUtil.findSpreadsheetAndTab(sheetId, wrongTab, token, accountID));
+      OBException ex = assertThrows(OBException.class, () ->
+          GoogleServiceUtil.findSpreadsheetAndTab(
+              "sid", "NoExiste", TOKEN, ACCOUNT_ID
+          )
+      );
       assertTrue(ex.getMessage().contains("no encontrada"));
     }
   }
 
   @Test
   void testFindSpreadsheetAndTab_EmptyValues_ReturnsEmptyList() throws Exception {
-    String token     = "t";
-    String sheetId   = "sid";
-    String tabName   = "MiHoja";
-    String accountID = "etendo123";
+    try (var gs = mockStatic(GoogleServiceUtil.class, CALLS_REAL_METHODS)) {
+      gs.when(() -> GoogleServiceUtil.getValidAccessTokenOrRefresh(
+          TOKEN, ACCOUNT_ID
+      )).thenReturn(TOKEN);
 
-    try (MockedStatic<OBContext> obContextMock = mockStatic(OBContext.class);
-         MockedStatic<Utility>   utilMock      = mockStatic(Utility.class);
-         MockedStatic<GoogleServiceUtil> gsMock = mockStatic(GoogleServiceUtil.class, CALLS_REAL_METHODS)) {
+      Sheets sheetsSvc = mock(Sheets.class, RETURNS_DEEP_STUBS);
+      when(sheetsSvc.spreadsheets()
+          .get("sid")
+          .execute()
+          .getSheets()
+      ).thenReturn(List.of(
+          new Sheet().setProperties(
+              new SheetProperties().setTitle("MiHoja")
+          )
+      ));
+      when(sheetsSvc.spreadsheets()
+          .values()
+          .get("sid","MiHoja")
+          .execute()
+          .getValues()
+      ).thenReturn(null);
 
-      // locale
-      OBContext ctx = mock(OBContext.class);
-      Language lang = mock(Language.class);
-      obContextMock.when(OBContext::getOBContext).thenReturn(ctx);
-      when(ctx.getLanguage()).thenReturn(lang);
-      when(lang.getLanguage()).thenReturn("en_US");
-
-      // stubeo refresh/validación
-      gsMock.when(() -> GoogleServiceUtil.getValidAccessTokenOrRefresh(token, accountID))
-          .thenReturn(token);
-
-      // metadata con la hoja buscada
-      Sheets sheetsSvc       = mock(Sheets.class);
-      Sheets.Spreadsheets sp = mock(Sheets.Spreadsheets.class);
-      when(sheetsSvc.spreadsheets()).thenReturn(sp);
-
-      Sheets.Spreadsheets.Get getMeta = mock(Sheets.Spreadsheets.Get.class);
-      Spreadsheet meta = mock(Spreadsheet.class);
-      Sheet sheet = mock(Sheet.class);
-      when(sheet.getProperties()).thenReturn(new SheetProperties().setTitle(tabName));
-      when(meta.getSheets()).thenReturn(List.of(sheet));
-      when(getMeta.execute()).thenReturn(meta);
-      when(sp.get(sheetId)).thenReturn(getMeta);
-
-      // valores vacíos
-      Sheets.Spreadsheets.Values valApi     = mock(Sheets.Spreadsheets.Values.class);
-      Sheets.Spreadsheets.Values.Get getVals = mock(Sheets.Spreadsheets.Values.Get.class);
-      ValueRange vr = mock(ValueRange.class);
-      when(vr.getValues()).thenReturn(null);
-      when(getVals.execute()).thenReturn(vr);
-      when(sp.values()).thenReturn(valApi);
-      when(valApi.get(sheetId, tabName)).thenReturn(getVals);
-
-      gsMock.when(() -> GoogleServiceUtil.getSheetsService(token))
+      gs.when(() -> GoogleServiceUtil.getSheetsService(TOKEN))
           .thenReturn(sheetsSvc);
 
-      List<List<Object>> result = GoogleServiceUtil.findSpreadsheetAndTab(sheetId, tabName, token, accountID);
-      assertTrue(result.isEmpty());
+      assertTrue(GoogleServiceUtil.findSpreadsheetAndTab(
+          "sid","MiHoja",TOKEN,ACCOUNT_ID
+      ).isEmpty());
     }
   }
 
   @Test
   void testListAccessibleFiles_InvalidType_ThrowsException() {
-    String token     = "tok";
-    String accountID = "etendo123";
-
-    try (MockedStatic<OBContext> obContextMock = mockStatic(OBContext.class);
-         MockedStatic<Utility>   utilMock      = mockStatic(Utility.class)) {
-
-      OBContext ctx = mock(OBContext.class);
-      Language lang = mock(Language.class);
-      obContextMock.when(OBContext::getOBContext).thenReturn(ctx);
-      when(ctx.getLanguage()).thenReturn(lang);
-      when(lang.getLanguage()).thenReturn("en_US");
-
-      utilMock.when(() -> Utility.messageBD(any(), eq("ETRX_UnsupportedFileType"), any()))
-          .thenReturn("Tipo '%s' no soportado");
-
-      IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-          () -> GoogleServiceUtil.listAccessibleFiles("XLS", token, accountID));
-      assertTrue(ex.getMessage().contains("no soportado"));
+    try (var lh = new LocaleHelper("ETRX_UnsupportedFileType","bad‐type")) {
+      IllegalArgumentException ex = assertThrows(
+          IllegalArgumentException.class,
+          () -> GoogleServiceUtil.listAccessibleFiles("XLS", TOKEN, ACCOUNT_ID)
+      );
+      assertTrue(ex.getMessage().contains("bad‐type"));
     }
   }
-
 }
