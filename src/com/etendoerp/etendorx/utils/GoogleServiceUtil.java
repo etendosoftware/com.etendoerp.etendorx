@@ -99,16 +99,29 @@ public class GoogleServiceUtil {
   }
 
   /**
-   * Retrieves the title of the tab at a given index in the specified spreadsheet.
+   * Retrieves the name (title) of a specific tab (sheet) in a Google Spreadsheet by its index.
    *
-   * @param index         the zero-based index of the tab.
-   * @param sheetId       the ID of the spreadsheet.
-   * @param token         the access token.
-   * @param accountID     the internal account identifier used to refresh the token if necessary.
-   * @return the name of the tab at the given index.
-   * @throws OBException if the tab index is invalid or the spreadsheet has no tabs.
+   * <p>This method performs the following steps:
+   * <ul>
+   *   <li>Validates or refreshes the given access token associated with the specified account.</li>
+   *   <li>Builds an authorized Google Sheets service instance.</li>
+   *   <li>Fetches the spreadsheet data using the provided {@code sheetId}.</li>
+   *   <li>Checks whether the spreadsheet contains any tabs (sheets).</li>
+   *   <li>Ensures that the given index is within the valid range of existing sheets.</li>
+   *   <li>Returns the title of the sheet at the specified index.</li>
+   * </ul>
+   *
+   * @param index     Zero-based index of the tab to retrieve.
+   * @param sheetId   The ID of the target Google Spreadsheet.
+   * @param token     The access token used to authenticate with the Google Sheets API.
+   * @param accountID The ID of the account used to validate or refresh the token.
+   * @return The title of the sheet at the given index.
+   *
+   * @throws OBException If the spreadsheet has no sheets or if the index is out of bounds.
+   * @throws IOException If an error occurs while communicating with the Google Sheets API.
    */
-  public static String getTabName(int index, String sheetId, String token, String accountID) throws OBException, IOException {
+  public static String getTabName(int index, String sheetId, String token, String accountID)
+      throws OBException, IOException {
     String validToken = getValidAccessTokenOrRefresh(token, accountID);
     Sheets sheetsService = GoogleServiceUtil.getSheetsService(validToken);
     Spreadsheet spreadsheet = sheetsService.spreadsheets().get(sheetId).execute();
@@ -261,16 +274,19 @@ public class GoogleServiceUtil {
    * </ul>
    *
    * @param type         a simplified keyword representing the file type to retrieve
-   * @param accessToken  a valid OAuth 2.0 access token with access to the user's Drive (e.g., {@code drive.file} or {@code drive.readonly})
+   * @param accessToken  a valid OAuth 2.0 access token with access to the user's Drive
+   *                     (e.g., {@code drive.file} or {@code drive.readonly})
    * @param accountID    the internal account identifier used to refresh the token if necessary.
-   * @return             a {@link JSONArray} containing the matching files, where each file is represented as a {@link JSONObject}
+   * @return             a {@link JSONArray} containing the matching files,
+   *                     where each file is represented as a {@link JSONObject}
    *                     with fields {@code id}, {@code name}, and {@code mimeType}
    *
    * @throws IllegalArgumentException if the provided type keyword is not supported
    * @throws IOException              if a network or API error occurs during the request
    * @throws JSONException            if an error occurs parsing the API response
    */
-  public static JSONArray listAccessibleFiles(String type, String accessToken, String accountID) throws JSONException, IOException {
+  public static JSONArray listAccessibleFiles(String type, String accessToken, String accountID)
+      throws JSONException, IOException {
     String mimeType;
 
     switch (type.toLowerCase()) {
