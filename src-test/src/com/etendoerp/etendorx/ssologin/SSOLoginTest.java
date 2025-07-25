@@ -13,10 +13,13 @@ import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.openbravo.base.session.OBPropertiesProvider;
 import org.openbravo.dal.service.OBDal;
+import org.openbravo.erpCommon.utility.SystemInfo;
 import org.openbravo.model.ad.system.Client;
 import org.openbravo.model.ad.system.Language;
 import org.openbravo.erpCommon.utility.Utility;
 import org.openbravo.service.db.DalConnectionProvider;
+
+import javax.servlet.ServletException;
 
 @ExtendWith(MockitoExtension.class)
 class SSOLoginTest {
@@ -156,41 +159,46 @@ class SSOLoginTest {
    * Must use sso.middleware.url and sso.middleware.redirectUri.
    */
   @Test
-  void testGetLoginPageSignInHTMLCode_whenNonAuth0_returnsIconContainerHtml() {
+  void testGetLoginPageSignInHTMLCode_whenNonAuth0_returnsIconContainerHtml() throws ServletException {
     // 1) Mock properties for non-Auth0 flow
     Properties props = new Properties();
     props.setProperty(SSO_AUTH_TYPE, "OtherType");
     props.setProperty("sso.middleware.url", "http://middleware.example");
     props.setProperty("sso.middleware.redirectUri", "http://redirect");
-    // context.name not needed for this branch
 
     var propsProviderMock = mock(OBPropertiesProvider.class);
     when(propsProviderMock.getOpenbravoProperties()).thenReturn(props);
     obPropsStatic = mockStatic(OBPropertiesProvider.class);
     obPropsStatic.when(OBPropertiesProvider::getInstance).thenReturn(propsProviderMock);
 
-    // 2) Invoke
+    // 2) Mock SystemInfo.getSystemIdentifier()
+    String fakeAccountId = "system_456";
+    var systemInfoMock = mockStatic(SystemInfo.class);
+    systemInfoMock.when(SystemInfo::getSystemIdentifier).thenReturn(fakeAccountId);
+
+    // 3) Invoke
     SSOLogin sso = new SSOLogin();
     String html = sso.getLoginPageSignInHTMLCode();
 
-    // 3) Assertions
-    // Should contain the CSS divider
+    // 4) Assertions
     assertTrue(html.contains("class='sso-divider-wrapper'"));
     assertTrue(html.contains("<span>OR</span>"));
 
-    // Should contain each icon link with correct href: base + "/login?provider=...&account_id=etendo_123&redirect_uri=..."
     String baseLoginUrl = "http://middleware.example/login";
-    assertTrue(html.contains(HREF + baseLoginUrl + "?provider=google-oauth2&account_id=etendo_123&redirect_uri=http://redirect'"));
-    assertTrue(html.contains(HREF + baseLoginUrl + "?provider=windowslive&account_id=etendo_123&redirect_uri=http://redirect'"));
-    assertTrue(html.contains(HREF + baseLoginUrl + "?provider=linkedin&account_id=etendo_123&redirect_uri=http://redirect'"));
-    assertTrue(html.contains(HREF + baseLoginUrl + "?provider=github&account_id=etendo_123&redirect_uri=http://redirect'"));
-    assertTrue(html.contains(HREF + baseLoginUrl + "?provider=facebook&account_id=etendo_123&redirect_uri=http://redirect'"));
+    String expectedRedirect = "&redirect_uri=http://redirect";
 
-    // Should include each image alt tag
+    assertTrue(html.contains(HREF + baseLoginUrl + "?provider=google-oauth2&account_id=" + fakeAccountId + expectedRedirect + "'"));
+    assertTrue(html.contains(HREF + baseLoginUrl + "?provider=windowslive&account_id=" + fakeAccountId + expectedRedirect + "'"));
+    assertTrue(html.contains(HREF + baseLoginUrl + "?provider=linkedin&account_id=" + fakeAccountId + expectedRedirect + "'"));
+    assertTrue(html.contains(HREF + baseLoginUrl + "?provider=github&account_id=" + fakeAccountId + expectedRedirect + "'"));
+    assertTrue(html.contains(HREF + baseLoginUrl + "?provider=facebook&account_id=" + fakeAccountId + expectedRedirect + "'"));
+
     assertTrue(html.contains("alt='Google'"));
     assertTrue(html.contains("alt='Microsoft'"));
     assertTrue(html.contains("alt='LinkedIn'"));
     assertTrue(html.contains("alt='GitHub'"));
     assertTrue(html.contains("alt='Facebook'"));
+
+    systemInfoMock.close();
   }
 }
