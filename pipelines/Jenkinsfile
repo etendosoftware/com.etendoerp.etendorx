@@ -161,7 +161,7 @@ spec:
                             env.STATUSTEST = SUCCESS
                             env.STATUSRX = SUCCESS
                             env.CODE_SCHEMA_VERIFICATION = SUCCESS
-
+                            env.VERIFICATIONS_MESSAGE = ''
 
                             echo "---------------------- Clone and Setup RX Repo Successful ----------------------"
                             currentBuild.result = SUCCESS
@@ -283,14 +283,14 @@ spec:
                 script {
                     try {
                         sh "./pipelines/utils/build-update.sh ${REPOSITORY_NAME} ${COMMIT_INPROGRESS_STATUS} \"Running Code and Schema Verification\" ${ACCESS_TOKEN} ${GIT_COMMIT} ${BUILD_URL} \"${CONTEXT_BUILD}\""
-                        env.VERIFICATIONS_MESSAGE = '<p><strong>Code and Schema Verification:</strong></p>'
+                        def verificationsMessage = '<p><strong>Code and Schema Verification:</strong></p>'
                         if (env.CORE_BRANCH != env.CLASSIC_BRANCH_BACKPORT) {
                             echo "-------------------------- Checking for 'org.apache.commons.lang' usage --------------------------"
                             def commonsLangUsed = sh(script: "grep -rF --exclude-dir=pipelines 'org.apache.commons.lang.' ${WORKDIR_MODULE} || echo 'false'", returnStdout: true).trim()
                             if (commonsLangUsed != FALSE) {
                                 env.COMMONS_LANG_USED = TRUE
                                 def commonsLangMessage = "'org.apache.commons.lang' is used in the module ${REPOSITORY_NAME}. Should be replaced with 'org.apache.commons.lang3'"
-                                env.VERIFICATIONS_MESSAGE += "<p><em>🚨 ${commonsLangMessage}</em></p>"
+                                verificationsMessage += "<p><em>🚨 ${commonsLangMessage}</em></p>"
                                 echo "-------------------------- ${commonsLangMessage} --------------------------"
                                 env.CODE_SCHEMA_VERIFICATION = FAILED
                             }
@@ -306,7 +306,7 @@ spec:
 
                         if (constraintDuplicates) {
                             echo "Duplicate Constraints Found: ${constraintDuplicates}"
-                            env.VERIFICATIONS_MESSAGE += "<p><em>🚨 Duplicate constraints detected in the DB:</em><br><pre>${constraintDuplicates}</pre></p>"
+                            verificationsMessage += "<p><em>🚨 Duplicate constraints detected in the DB:</em><br><pre>${constraintDuplicates}</pre></p>"
                             env.CODE_SCHEMA_VERIFICATION = FAILED
                         }
 
@@ -320,12 +320,13 @@ spec:
 
                         if (orphanedTriggers) {
                             echo "Orphaned Triggers Found: ${orphanedTriggers}"
-                            env.VERIFICATIONS_MESSAGE += "<p><em>🚨 Orphaned triggers detected in the DB:</em><br><pre>${orphanedTriggers}</pre></p>"
-                            env.CODE_SCHEMA_VERIFICATION = FALSE
+                            verificationsMessage += "<p><em>🚨 Orphaned triggers detected in the DB:</em><br><pre>${orphanedTriggers}</pre></p>"
+                            env.CODE_SCHEMA_VERIFICATION = FAILED
                         }
 
                         if (env.CODE_SCHEMA_VERIFICATION == FAILED) {
-                            env.VERIFICATIONS_MESSAGE += "<p>__________________________________________________________</p>"
+                            verificationsMessage += "<p>__________________________________________________________</p>"
+                            env.VERIFICATIONS_MESSAGE = verificationsMessage
                             echo "${env.VERIFICATIONS_MESSAGE}"
                             env.ERROR_MESSAGE = "Code and schema verification Failed"
                             error(env.ERROR_MESSAGE)
