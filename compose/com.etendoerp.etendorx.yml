@@ -1,28 +1,37 @@
+version: '3.8'
+
 services:
   config:
     env_file: ".env"
-    image: etendo/dynamic-gradle:1.0.1
+    build:
+      context: .
+      dockerfile: rx/Dockerfile
+      args:
+        - DEPENDENCIES=com.etendorx:configserver:${ETENDORX_VERSION}
+        - REPO_URL=${ETENDORX_REPOSITORY_URL}
+        - REPO_USER=${ETENDORX_REPOSITORY_USER}
+        - REPO_PASSWORD=${ETENDORX_REPOSITORY_PASSWORD}
+        - SPRING_PROFILES_ACTIVE=native
+        - SPRING_CLOUD_CONFIG_SERVER_NATIVE_SEARCHLOCATIONS=file:///rxconfig
+        - CONFIG_SERVER_URL=
+    image: etendo/config:local
     ports:
       - "8888:8888"
       - "5020:8000"
-    environment:
-      - SPRING_CLOUD_CONFIG_SERVER_NATIVE_SEARCHLOCATIONS=file:///rxconfig
-      - SPRING_PROFILES_ACTIVE=native
-      - DEPENDENCIES=com.etendorx:configserver:${ETENDORX_VERSION}
-      - REPO_URL=${ETENDORX_REPOSITORY_URL}
-      - REPO_USER=${ETENDORX_REPOSITORY_USER}
-      - REPO_PASSWORD=${ETENDORX_REPOSITORY_PASSWORD}
-      - CONFIG_SERVER_URL=
-      - TASK=downloadJar
     networks:
       - etendo
     volumes:
       - ${VOLUMES_PATH}/rxconfig:/rxconfig
     healthcheck:
-      test: ["CMD-SHELL", "wget --spider -q http://localhost:8888/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:8888/actuator/health || exit 1"]
       interval: 10s
-      timeout: 10s
-      retries: 60
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 128M
 
   das:
     env_file: ".env"
@@ -60,52 +69,62 @@ services:
     depends_on:
       config:
         condition: service_healthy
-    image: etendo/dynamic-gradle:1.0.1
+    build:
+      context: .
+      dockerfile: rx/Dockerfile
+      args:
+        - DEPENDENCIES=com.etendorx:auth:${ETENDORX_VERSION}
+        - REPO_URL=${ETENDORX_REPOSITORY_URL}
+        - REPO_USER=${ETENDORX_REPOSITORY_USER}
+        - REPO_PASSWORD=${ETENDORX_REPOSITORY_PASSWORD}
+        - CONFIG_SERVER_URL=${ETENDORX_CONFIG_SERVER_URL}
+    image: etendo/auth:local
     ports:
       - "8094:8094"
       - "5022:8000"
-    environment:
-      - DEPENDENCIES=com.etendorx:auth:${ETENDORX_VERSION}
-      - REPO_URL=${ETENDORX_REPOSITORY_URL}
-      - REPO_USER=${ETENDORX_REPOSITORY_USER}
-      - REPO_PASSWORD=${ETENDORX_REPOSITORY_PASSWORD}
-      - CONFIG_SERVER_URL=${ETENDORX_CONFIG_SERVER_URL}
-      - TASK=downloadJar
     networks:
       - etendo
-    volumes:
-      - auth_vol:/root/.gradle
     healthcheck:
-      test: ["CMD-SHELL", "wget --spider -q http://localhost:8094/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:8094/actuator/health || exit 1"]
       interval: 10s
-      timeout: 10s
-      retries: 60
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 128M
 
   edge:
     env_file: ".env"
     depends_on:
       config:
         condition: service_healthy
-    image: etendo/dynamic-gradle:1.0.1
+    build:
+      context: .
+      dockerfile: rx/Dockerfile
+      args:
+        - DEPENDENCIES=com.etendorx:edge:${ETENDORX_VERSION}
+        - REPO_URL=${ETENDORX_REPOSITORY_URL}
+        - REPO_USER=${ETENDORX_REPOSITORY_USER}
+        - REPO_PASSWORD=${ETENDORX_REPOSITORY_PASSWORD}
+        - CONFIG_SERVER_URL=${ETENDORX_CONFIG_SERVER_URL}
+    image: etendo/edge:local
     ports:
       - "8096:8096"
       - "5023:8000"
-    environment:
-      - DEPENDENCIES=com.etendorx:edge:${ETENDORX_VERSION}
-      - REPO_URL=${ETENDORX_REPOSITORY_URL}
-      - REPO_USER=${ETENDORX_REPOSITORY_USER}
-      - REPO_PASSWORD=${ETENDORX_REPOSITORY_PASSWORD}
-      - CONFIG_SERVER_URL=${ETENDORX_CONFIG_SERVER_URL}
-      - TASK=downloadJar
     networks:
       - etendo
-    volumes:
-      - edge_vol:/root/.gradle
     healthcheck:
-      test: ["CMD-SHELL", "wget --spider -q http://localhost:8096/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:8096/actuator/health || exit 1"]
       interval: 10s
-      timeout: 10s
-      retries: 60
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 128M
 
 networks:
   etendo:
@@ -113,5 +132,3 @@ networks:
 volumes:
   das_cache_vol:
   das_app_vol:
-  auth_vol:
-  edge_vol:

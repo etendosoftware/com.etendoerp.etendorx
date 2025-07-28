@@ -211,6 +211,37 @@ task "kafkaConnectSetup" {
     }
 }
 
+task "rx.copy.docker.files" {
+    description = 'Copies Docker Compose files to the build directory'
+    group = 'Docker'
+
+    doLast {
+        def moduleDir;
+        if (file("modules/com.etendoerp.etendorx").exists()) {
+            moduleDir = file("modules/com.etendoerp.etendorx")
+        } else if (file(layout.buildDirectory.get().asFile.path + "/etendo/modules/com.etendoerp.etendorx").exists()) {
+            moduleDir = file(layout.buildDirectory.get().asFile.path + "/etendo/modules/com.etendoerp.etendorx")
+        } else {
+            throw new GradleException("The project directory does not match the expected structure for EtendoRX.")
+        }
+        def composeDir = file("${moduleDir}/compose/rx")
+        if (!composeDir.exists()) {
+            throw new GradleException("The directory ${composeDir} does not exist.")
+        }
+        def destDir = file("${layout.buildDirectory.get().asFile}/compose/rx")
+        if (!destDir.exists()) {
+            destDir.mkdirs()
+        }
+        composeDir.eachFile { file ->
+            println "Copying Docker Compose file: ${file.name}"
+            copy {
+                from file
+                into destDir
+            }
+        }
+    }
+}
+
 afterEvaluate {
     if (isRXDockerized() && tasks.hasProperty("generateEnvFile")) {
         tasks.named("generateEnvFile").configure { task ->
@@ -224,6 +255,9 @@ afterEvaluate {
         }
         tasks.named("smartbuild").configure { task ->
             task.finalizedBy("rx.das.restart")
+        }
+        tasks.named("copyComposeFiles").configure { task ->
+            task.finalizedBy("rx.copy.docker.files")
         }
     }
 }
