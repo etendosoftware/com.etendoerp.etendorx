@@ -293,7 +293,7 @@ spec:
                         def verificationsMessage = '<p><strong>Code and Schema Verification:</strong></p>'
                         if (env.CORE_BRANCH != env.CLASSIC_BRANCH_BACKPORT) {
                             echo "-------------------------- Checking for 'org.apache.commons.lang' usage --------------------------"
-                            def commonsLangUsed = sh(script: "grep -rF 'org.apache.commons.lang.' ${WORKDIR_MODULE} || echo 'false'", returnStdout: true).trim()
+                            def commonsLangUsed = sh(script: "grep -rF --include='*.java 'org.apache.commons.lang.' ${WORKDIR_MODULE} || echo 'false'", returnStdout: true).trim()
                             if (commonsLangUsed != FALSE) {
                                 env.COMMONS_LANG_USED = TRUE
                                 def commonsLangMessage = "'org.apache.commons.lang' is used in the module ${REPOSITORY_NAME}. Should be replaced with 'org.apache.commons.lang3'"
@@ -304,7 +304,7 @@ spec:
                         }
                     
                         echo "-------------------------- Checking for duplicate constraints --------------------------"
-                        def sqlDuplicateConstraints = "${pwd()}/utils/sql/check_duplicate_constraints.sql"
+                        def sqlDuplicateConstraints = "${pwd()}/pipelines/utils/sql/check_duplicate_constraints.sql"
                         def constraintDuplicates = sh(
                             script: """
                             psql -h localhost -U ${BBDD_SYSTEMUSER} -d ${BBDD_SID} -t -A -F '|' -f ${sqlDuplicateConstraints} | cut -d '|' -f1
@@ -318,7 +318,7 @@ spec:
                         }
 
                         echo "-------------------------- Checking for orphaned triggers --------------------------"
-                        def sqlOrphanedTriggers = "${pwd()}/utils/sql/check_orphaned_triggers.sql"
+                        def sqlOrphanedTriggers = "${pwd()}/pipelines/utils/sql/check_orphaned_triggers.sql"
                         def orphanedTriggers = sh(
                             script: """
                             psql -h localhost -U ${BBDD_SYSTEMUSER} -d ${BBDD_SID} -t -A -F '|' -f ${sqlOrphanedTriggers} | cut -d '|' -f1
