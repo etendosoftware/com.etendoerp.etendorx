@@ -23,6 +23,14 @@ import org.openbravo.service.db.DalConnectionProvider;
 class SSOLoginTest {
 
   private static final String MISCONFIGURED_MESSAGE_SNIPPET = "External providers cannot be displayed.";
+  private static final String AUTH_0 = "Auth0";
+  private static final String SSO_AUTH_TYPE = "sso.auth.type";
+  private static final String CLIENT_123 = "client123";
+  private static final String SSO_CLIENT_ID = "sso.client.id";
+  private static final String SSO_CALLBACK_URL = "sso.callback.url";
+  private static final String CALLBACK_URL = "http://callback";
+  private static final String SSO_DOMAIN_URL = "sso.domain.url";
+  private static final String DOMAIN_URL = "example.auth0.com";
 
   private MockedStatic<OBPropertiesProvider> obPropsStatic;
   private MockedStatic<OBDal> obDalStatic;
@@ -55,9 +63,9 @@ class SSOLoginTest {
   @Test
   void testGetLoginPageSignInHTMLCode_whenAuth0MissingConfig_returnsMisconfiguredMessage() {
     var props = new Properties();
-    props.setProperty("sso.auth.type", "Auth0");
-    props.setProperty("sso.client.id", "client123");
-    props.setProperty("sso.callback.url", "http://callback");
+    props.setProperty(SSO_AUTH_TYPE, AUTH_0);
+    props.setProperty(SSO_CLIENT_ID, CLIENT_123);
+    props.setProperty(SSO_CALLBACK_URL, CALLBACK_URL);
     // domain missing
     var propsProviderMock = mock(OBPropertiesProvider.class);
     when(propsProviderMock.getOpenbravoProperties()).thenReturn(props);
@@ -71,9 +79,9 @@ class SSOLoginTest {
 
     // clientId missing
     props = new Properties();
-    props.setProperty("sso.auth.type", "Auth0");
-    props.setProperty("sso.domain.url", "example.auth0.com");
-    props.setProperty("sso.callback.url", "http://callback");
+    props.setProperty(SSO_AUTH_TYPE, AUTH_0);
+    props.setProperty(SSO_DOMAIN_URL, DOMAIN_URL);
+    props.setProperty(SSO_CALLBACK_URL, CALLBACK_URL);
     when(propsProviderMock.getOpenbravoProperties()).thenReturn(props);
 
     html = sso.getLoginPageSignInHTMLCode();
@@ -81,9 +89,9 @@ class SSOLoginTest {
 
     // redirectUri missing
     props = new Properties();
-    props.setProperty("sso.auth.type", "Auth0");
-    props.setProperty("sso.domain.url", "example.auth0.com");
-    props.setProperty("sso.client.id", "client123");
+    props.setProperty(SSO_AUTH_TYPE, AUTH_0);
+    props.setProperty(SSO_DOMAIN_URL, DOMAIN_URL);
+    props.setProperty(SSO_CLIENT_ID, CLIENT_123);
     when(propsProviderMock.getOpenbravoProperties()).thenReturn(props);
 
     html = sso.getLoginPageSignInHTMLCode();
@@ -93,10 +101,10 @@ class SSOLoginTest {
   @Test
   void testGetLoginPageSignInHTMLCode_whenAuth0ProperConfig_returnsButtonHtml() {
     Properties props = new Properties();
-    props.setProperty("sso.auth.type", "Auth0");
-    props.setProperty("sso.domain.url", "example.auth0.com");
-    props.setProperty("sso.client.id", "client123");
-    props.setProperty("sso.callback.url", "http://callback");
+    props.setProperty(SSO_AUTH_TYPE, AUTH_0);
+    props.setProperty(SSO_DOMAIN_URL, DOMAIN_URL);
+    props.setProperty(SSO_CLIENT_ID, CLIENT_123);
+    props.setProperty(SSO_CALLBACK_URL, CALLBACK_URL);
 
     var propsProviderMock = mock(OBPropertiesProvider.class);
     when(propsProviderMock.getOpenbravoProperties()).thenReturn(props);
@@ -130,7 +138,7 @@ class SSOLoginTest {
   @Test
   void testGetLoginPageSignInHTMLCode_whenNonAuth0_returnsIconContainerHtml() {
     Properties props = new Properties();
-    props.setProperty("sso.auth.type", "Other");
+    props.setProperty(SSO_AUTH_TYPE, "Other");
     props.setProperty("sso.middleware.url", "http://middleware.example");
     props.setProperty("sso.middleware.redirectUri", "http://redirect");
 

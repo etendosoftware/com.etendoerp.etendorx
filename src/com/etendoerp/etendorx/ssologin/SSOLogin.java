@@ -49,7 +49,7 @@ public class SSOLogin implements SignInProvider {
         "  <div class='sso-divider'></div>" +
         "</div>" +
         "<p style='color:grey; text-align:center; margin-top:20px;'>External providers cannot be displayed.</p>" +
-        "<p style='color:grey; text-align:center;'>Contact with the system administrator.</p>";
+        "<p style='color:grey; text-align:center;'>Contact the system administrator.</p>";
 
     /**
      * Generates the HTML code for the SSO login button to be displayed on the login page.
