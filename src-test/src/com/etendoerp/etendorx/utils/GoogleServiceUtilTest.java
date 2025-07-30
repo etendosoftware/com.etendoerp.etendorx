@@ -29,16 +29,48 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
+/**
+ * Unit tests for the {@link GoogleServiceUtil} utility class, which provides methods
+ * for interacting with Google Sheets and Drive.
+ *
+ * <p>This test class uses JUnit 5 and Mockito to validate the behavior of
+ * utility methods related to:
+ * <ul>
+ *   <li>Extracting sheet IDs from URLs</li>
+ *   <li>Accessing and validating Google Sheet tab names</li>
+ *   <li>Reading spreadsheet data</li>
+ *   <li>Listing accessible Google Drive files</li>
+ *   <li>Handling localization and exception messages through OBContext and Utility</li>
+ * </ul>
+ *
+ * <p>The class includes mocked interactions with static methods using {@link MockedStatic},
+ * and simulates Google Sheets API responses using deep stubs.
+ *
+ * @see GoogleServiceUtil
+ */
 @ExtendWith(MockitoExtension.class)
 class GoogleServiceUtilTest {
 
-  private static final String TOKEN      = "mockToken";
+  private static final String TOKEN = "mockToken";
   private static final String ACCOUNT_ID = "etendo123";
+  private static final String SHEET_TITLE = "MiHoja";
 
+  /**
+   * Helper class for mocking static localization context and translated messages.
+   * Mocks {@link OBContext} and {@link Utility} to simulate message retrieval
+   * based on language.
+   */
   private static class LocaleHelper implements AutoCloseable {
     final MockedStatic<OBContext> obCtx;
     final MockedStatic<Utility>   util;
 
+    /**
+     * Constructs the LocaleHelper, mocking OBContext and Utility to return
+     * a specific language and a translated message for a given key.
+     *
+     * @param msgKey the message key to simulate
+     * @param message the localized message to return
+     */
     LocaleHelper(String msgKey, String message) {
       obCtx = mockStatic(OBContext.class);
       util  = mockStatic(Utility.class);
@@ -55,6 +87,7 @@ class GoogleServiceUtilTest {
       }
     }
 
+    /** Closes the mocked static contexts. */
     @Override
     public void close() {
       obCtx.close();
@@ -62,16 +95,22 @@ class GoogleServiceUtilTest {
     }
   }
 
+  /**
+   * Verifies that a valid Google Sheets URL returns the correct sheet ID.
+   */
   @Test
-  void testExtractSheetIdFromUrl_ValidUrl_ReturnsId() {
+  void testExtractSheetIdFromUrlValidUrlReturnsId() {
     String id = GoogleServiceUtil.extractSheetIdFromUrl(
         "https://docs.google.com/spreadsheets/d/abc123def456/edit#gid=0"
     );
     assertEquals("abc123def456", id);
   }
 
+  /**
+   * Verifies that an invalid Google Sheets URL throws an IllegalArgumentException.
+   */
   @Test
-  void testExtractSheetIdFromUrl_InvalidUrl_ThrowsException() {
+  void testExtractSheetIdFromUrlInvalidUrlThrowsException() {
     try (var lh = new LocaleHelper("ETRX_WrongSheetURL", "bad‐url")) {
       IllegalArgumentException ex = assertThrows(
           IllegalArgumentException.class,
@@ -81,22 +120,32 @@ class GoogleServiceUtilTest {
     }
   }
 
+  /**
+   * Verifies that getCellValue returns the correct value when the index is in range.
+   */
   @Test
-  void testGetCellValue_WithinBounds_ReturnsValue() {
+  void testGetCellValueWithinBoundsReturnsValue() {
     assertEquals("B",
         GoogleServiceUtil.getCellValue(List.of("A","B","C"), 1)
     );
   }
 
+  /**
+   * Verifies that getCellValue returns an empty string when index is out of bounds.
+   */
   @Test
-  void testGetCellValue_OutOfBounds_ReturnsEmptyString() {
+  void testGetCellValueOutOfBoundsReturnsEmptyString() {
     assertEquals("",
         GoogleServiceUtil.getCellValue(List.of("A","B","C"), 99)
     );
   }
 
+
+  /**
+   * Mocks and verifies that listAccessibleFiles returns a valid JSONArray of spreadsheet files.
+   */
   @Test
-  void testListAccessibleFiles_WithValidType_ReturnsJSONArray() throws Exception {
+  void testListAccessibleFilesWithValidTypeReturnsJSONArray() throws Exception {
     JSONArray mockResp = new JSONArray()
         .put(new JSONObject()
             .put("id","1")
@@ -117,8 +166,11 @@ class GoogleServiceUtilTest {
     }
   }
 
+  /**
+   * Verifies that getTabName returns the correct sheet tab title.
+   */
   @Test
-  void testGetTabName_ValidIndex_ReturnsTabName() throws Exception {
+  void testGetTabNameValidIndexReturnsTabName() throws Exception {
     String sheetId = "sid", title = "MySheet";
     try (var gs = mockStatic(GoogleServiceUtil.class, CALLS_REAL_METHODS)) {
       gs.when(() -> GoogleServiceUtil.getValidAccessTokenOrRefresh(
@@ -141,8 +193,11 @@ class GoogleServiceUtilTest {
     }
   }
 
+  /**
+   * Verifies that findSpreadsheetAndTab returns spreadsheet data when the tab exists.
+   */
   @Test
-  void testFindSpreadsheetAndTab_TabExists_ReturnsValues() throws Exception {
+  void testFindSpreadsheetAndTabTabExistsReturnsValues() throws Exception {
     String sheetId = "sid", tab = "T1";
     List<List<Object>> data = List.of(
         List.of("A","B"),
@@ -180,8 +235,11 @@ class GoogleServiceUtilTest {
     }
   }
 
+  /**
+   * Verifies that an OBException is thrown when the specified tab is not found.
+   */
   @Test
-  void testFindSpreadsheetAndTab_TabNotFound_ThrowsOBException() throws Exception {
+  void testFindSpreadsheetAndTabTabNotFoundThrowsOBException() throws Exception {
     try (var lh = new LocaleHelper("ETRX_TabNotFound","no encontrada");
          var gs = mockStatic(GoogleServiceUtil.class, CALLS_REAL_METHODS))
     {
@@ -212,8 +270,11 @@ class GoogleServiceUtilTest {
     }
   }
 
+  /**
+   * Verifies that an empty list is returned when no values are found in the sheet tab.
+   */
   @Test
-  void testFindSpreadsheetAndTab_EmptyValues_ReturnsEmptyList() throws Exception {
+  void testFindSpreadsheetAndTabEmptyValuesReturnsEmptyList() throws Exception {
     try (var gs = mockStatic(GoogleServiceUtil.class, CALLS_REAL_METHODS)) {
       gs.when(() -> GoogleServiceUtil.getValidAccessTokenOrRefresh(
           TOKEN, ACCOUNT_ID
@@ -226,12 +287,12 @@ class GoogleServiceUtilTest {
           .getSheets()
       ).thenReturn(List.of(
           new Sheet().setProperties(
-              new SheetProperties().setTitle("MiHoja")
+              new SheetProperties().setTitle(SHEET_TITLE)
           )
       ));
       when(sheetsSvc.spreadsheets()
           .values()
-          .get("sid","MiHoja")
+          .get("sid", SHEET_TITLE)
           .execute()
           .getValues()
       ).thenReturn(null);
@@ -240,13 +301,16 @@ class GoogleServiceUtilTest {
           .thenReturn(sheetsSvc);
 
       assertTrue(GoogleServiceUtil.findSpreadsheetAndTab(
-          "sid","MiHoja",TOKEN,ACCOUNT_ID
+          "sid", SHEET_TITLE,TOKEN,ACCOUNT_ID
       ).isEmpty());
     }
   }
 
+  /**
+   * Verifies that an invalid file type passed to listAccessibleFiles throws an IllegalArgumentException.
+   */
   @Test
-  void testListAccessibleFiles_InvalidType_ThrowsException() {
+  void testListAccessibleFilesInvalidTypeThrowsException() {
     try (var lh = new LocaleHelper("ETRX_UnsupportedFileType","bad‐type")) {
       IllegalArgumentException ex = assertThrows(
           IllegalArgumentException.class,
