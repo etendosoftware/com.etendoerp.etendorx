@@ -48,7 +48,7 @@ class SSOLoginTest {
    * Scenario: "sso.auth.type" is blank or missing → method returns "".
    */
   @Test
-  void testGetLoginPageSignInHTMLCode_whenAuthTypeBlank_returnsEmpty() {
+  void testGetLoginPageSignInHTMLCodeWhenAuthTypeBlankReturnsEmpty() {
     // 1) Mock OBPropertiesProvider to return properties with no "sso.auth.type"
     Properties props = new Properties();
     var propsProviderMock = mock(OBPropertiesProvider.class);
@@ -69,7 +69,7 @@ class SSOLoginTest {
    * Scenario: "sso.auth.type"="Auth0" but one of domain, clientId, or redirectUri is blank → returns "".
    */
   @Test
-  void testGetLoginPageSignInHTMLCode_whenAuth0MissingConfig_returnsEmpty() {
+  void testGetLoginPageSignInHTMLCodeWhenAuth0MissingConfigReturnsEmpty() {
     // Prepare properties with authType="Auth0" but missing "sso.domain.url"
     Properties props = new Properties();
     props.setProperty(SSO_AUTH_TYPE, AUTH_0);
@@ -111,7 +111,7 @@ class SSOLoginTest {
    * Scenario: "sso.auth.type"="Auth0" and domain, clientId, redirectUri all set → returns correct Auth0 button HTML.
    */
   @Test
-  void testGetLoginPageSignInHTMLCode_whenAuth0ProperConfig_returnsButtonHtml() {
+  void testGetLoginPageSignInHTMLCodeWhenAuth0ProperConfigReturnsButtonHtml() {
     // 1) Mock properties for Auth0 flow
     Properties props = new Properties();
     props.setProperty(SSO_AUTH_TYPE, AUTH_0);
@@ -159,7 +159,7 @@ class SSOLoginTest {
    * Must use sso.middleware.url and sso.middleware.redirectUri.
    */
   @Test
-  void testGetLoginPageSignInHTMLCode_whenNonAuth0_returnsIconContainerHtml() throws ServletException {
+  void testGetLoginPageSignInHTMLCodeWhenNonAuth0ReturnsIconContainerHtml() throws ServletException {
     // 1) Mock properties for non-Auth0 flow
     Properties props = new Properties();
     props.setProperty(SSO_AUTH_TYPE, "OtherType");
