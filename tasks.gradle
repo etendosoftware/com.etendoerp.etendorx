@@ -1,3 +1,7 @@
+final String MODULES_PROJECT = "modules"
+final String RX_MODULE = "com.etendoerp.etendorx"
+final String BASE_MODULE_DIR = "modules"
+
 def ETENDORX_PRODUCTION_REPOSITORY_URL = "https://maven.pkg.github.com/etendosoftware/com.etendoerp.platform.extensions"
 def ETENDORX_SNAPSHOT_REPOSITORY_URL = "https://repo.futit.cloud/repository/etendo-snapshot-jars"
 project.ext {
@@ -6,6 +10,10 @@ project.ext {
 
 def isRXDockerized() {
     return project.hasProperty("docker_com.etendoerp.etendorx") && project.property("docker_com.etendoerp.etendorx").toBoolean()
+}
+
+def isJaegerDockerized() {
+    return project.hasProperty("docker_com.etendoerp.etendorx_utils") && project.property("docker_com.etendoerp.etendorx_utils").toBoolean()
 }
 
 task "rx.setup" {
@@ -211,6 +219,63 @@ task "kafkaConnectSetup" {
     }
 }
 
+task "jaeger.build" {
+    if (isRXDockerized()) {
+        description = 'Executing Jaeger Configuration Loader'
+        group = 'Docker'
+
+        doLast {
+            project.logger.info("🔍 Executing Jaeger Configuration Loader")
+            Project moduleProject = project.findProject(":${BASE_MODULE_DIR}")
+            Project rxProject = null
+            if (moduleProject != null) {
+                rxProject = moduleProject.findProject(RX_MODULE)
+            }
+            File jarModulesLocation = new File(project.buildDir, "etendo" + File.separator + MODULES_PROJECT)
+            File rxJarModule = new File(jarModulesLocation, RX_MODULE)
+            if (rxProject != null || rxJarModule.exists()) {
+                def sourcePath = rxProject != null ? rxProject.projectDir.path : rxJarModule.path
+
+                Properties properties = envFile().properties
+                def defaultVolumesPath = properties.hasProperty("VOLUMES_PATH") ? properties.property("VOLUMES_PATH").toString() : new File(project.layout.buildDirectory.asFile.get(), "../volumes").canonicalPath
+                project.copy {
+                    from "${sourcePath}${File.separator}jaeger"
+                    into "${defaultVolumesPath}${File.separator}jaeger"
+                    includeEmptyDirs false
+                    exclude "**/.git/**"
+                    exclude "**/node_modules/**"
+                    exclude "**/.venv/**"
+                    eachFile { fileCopyDetails ->
+                        project.logger.info("Copying Jaeger file : ${fileCopyDetails.file.path}")
+                    }
+                }
+                project.copy {
+                    from "${sourcePath}${File.separator}otel"
+                    into "${defaultVolumesPath}${File.separator}otel"
+                    includeEmptyDirs false
+                    exclude "**/.git/**"
+                    exclude "**/node_modules/**"
+                    exclude "**/.venv/**"
+                    eachFile { fileCopyDetails ->
+                        project.logger.info("Copying Opentelemetry file: ${fileCopyDetails.file.path}")
+                    }
+                }
+            }
+        }
+    }
+}
+
+task 'jaeger.restart' {
+    dependsOn 'jaeger.build'
+    doLast {
+        project.logger.lifecycle("🔍 Restarting Jaeger")
+        if (isJaegerDockerized()) {
+            project.logger.lifecycle("🔍 Restarting Jaeger using Docker")
+            executeDockerComposeCommand("restart jaeger")
+        }
+    }
+}
+
 afterEvaluate {
     if (isRXDockerized() && tasks.hasProperty("generateEnvFile")) {
         tasks.named("generateEnvFile").configure { task ->
@@ -224,6 +289,14 @@ afterEvaluate {
         }
         tasks.named("smartbuild").configure { task ->
             task.finalizedBy("rx.das.restart")
+        }
+    }
+    if (isRXDockerized() && isJaegerDockerized()) {
+        tasks.named("smartbuild").configure { task ->
+            task.finalizedBy("jaeger.restart")
+        }
+        tasks.named("resources.up").configure { task ->
+            task.dependsOn("jaeger.build")
         }
     }
 }

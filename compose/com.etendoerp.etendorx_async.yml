@@ -1,7 +1,6 @@
 services:
   kafka:
     image: bitnami/kafka:4.0.0
-    hostname: kafka
     ports:
       - "9092:9092"
       - "9093:9093"
@@ -57,7 +56,7 @@ services:
     depends_on:
       config:
         condition: service_healthy
-    image: etendo/dynamic-gradle:1.0.1
+    image: etendo/dynamic-gradle:1.1.0
     ports:
       - "8099:8099"
       - "5024:8000"
@@ -68,6 +67,10 @@ services:
       - REPO_PASSWORD=${ETENDORX_REPOSITORY_PASSWORD}
       - CONFIG_SERVER_URL=${ETENDORX_CONFIG_SERVER_URL}
       - TASK=downloadJar
+      # --- OpenTelemetry ---
+      - ENABLE_OPEN_TELEMETRY=false
+      - OTEL_SERVICE_NAME=asyncprocess
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318
     networks:
       - etendo
     volumes:
