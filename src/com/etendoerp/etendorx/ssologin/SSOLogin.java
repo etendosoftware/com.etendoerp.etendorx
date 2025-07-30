@@ -24,6 +24,32 @@ public class SSOLogin implements SignInProvider {
 
     private static final Logger log = LogManager.getLogger();
     public static final String REDIRECT_URI = "&redirect_uri=";
+    private static final String MISCONFIGURED_MESSAGE = "<style>" +
+        ".sso-divider-wrapper {" +
+        "  max-width: 280px;" +
+        "  width: 100%;" +
+        "  margin: 24px auto 12px;" +
+        "}" +
+        ".sso-divider {" +
+        "  display: flex;" +
+        "  align-items: center;" +
+        "  text-align: center;" +
+        "  width: 100%;" +
+        "  color: #999;" +
+        "  font-weight: 600;" +
+        "  font-size: 13px;" +
+        "}" +
+        ".sso-divider::before, .sso-divider::after {" +
+        "  content: \"\";" +
+        "  flex: 1;" +
+        "  border-bottom: 1px solid #ccc;" +
+        "}" +
+        "</style>" +
+        "<div class='sso-divider-wrapper'>" +
+        "  <div class='sso-divider'></div>" +
+        "</div>" +
+        "<p style='color:grey; text-align:center; margin-top:20px;'>External providers cannot be displayed.</p>" +
+        "<p style='color:grey; text-align:center;'>Contact the system administrator.</p>";
 
     /**
      * Generates the HTML code for the SSO login button to be displayed on the login page.
@@ -45,13 +71,15 @@ public class SSOLogin implements SignInProvider {
             String redirectUri = openbravoProperties.getProperty("sso.callback.url");
 
             if (StringUtils.isBlank(domain) || StringUtils.isBlank(clientId) || StringUtils.isBlank(redirectUri)) {
-                return "";
+                log.warn("[SSO] - Missing configuration for Auth0: domain, clientId or redirectUri is blank");
+                return MISCONFIGURED_MESSAGE;
             }
 
             ConnectionProvider cp = new DalConnectionProvider(false);
             Client systemClient = OBDal.getInstance().get(Client.class, "0");
             String systemLanguage = systemClient.getLanguage().getLanguage();
             String loginButtonMessage = Utility.messageBD(cp, "ETRX_LoginSSO", systemLanguage);
+
 
             String ssoButton = "<style>"
                     + ".sso-login-button {"
@@ -68,7 +96,6 @@ public class SSOLogin implements SignInProvider {
                     + ".sso-login-button:hover { opacity: 80%; }"
                     + "</style>"
                     + "<script src=\"https://cdn.auth0.com/js/auth0/9.18.1/auth0.min.js\"></script>"
-//                    + "<script src=\"" + sourceURL + "\"></script>"
                     + "<script>"
                     + "function loginWithSSO() {"
                     + "  var webAuth = new auth0.WebAuth({"
@@ -92,6 +119,11 @@ public class SSOLogin implements SignInProvider {
             String redirectUri = OBPropertiesProvider.getInstance().getOpenbravoProperties()
                     .getProperty("sso.middleware.redirectUri");
 
+            if (StringUtils.isBlank(ssoLoginUrl) || StringUtils.isBlank(redirectUri)) {
+                log.warn("[SSO] - Missing configuration for middleware: url or redirectUri is blank");
+                return MISCONFIGURED_MESSAGE;
+            }
+
             String accountID = "";
             try {
                 accountID = SystemInfo.getSystemIdentifier();
@@ -101,7 +133,6 @@ public class SSOLogin implements SignInProvider {
             } catch (ServletException e) {
                 throw new OBException(e);
             }
-
             String divider =
                 "<style>" +
                     ".sso-divider-wrapper {" +

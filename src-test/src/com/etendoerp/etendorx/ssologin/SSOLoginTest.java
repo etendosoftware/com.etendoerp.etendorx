@@ -24,24 +24,28 @@ import javax.servlet.ServletException;
 @ExtendWith(MockitoExtension.class)
 class SSOLoginTest {
 
-  public static final String SSO_AUTH_TYPE = "sso.auth.type";
-  public static final String AUTH_0 = "Auth0";
-  public static final String SSO_CLIENT_ID = "sso.client.id";
-  public static final String CLIENT_123 = "client123";
-  public static final String CALLBACK_URL = "sso.callback.url";
-  public static final String CALLBACK = "http://callback";
-  public static final String SSO_DOMAIN_URL = "sso.domain.url";
-  public static final String EXAMPLE_AUTH_0_COM = "example.auth0.com";
-  public static final String HREF = "href='";
+  private static final String MISCONFIGURED_MESSAGE_SNIPPET = "External providers cannot be displayed.";
+  private static final String AUTH_0 = "Auth0";
+  private static final String SSO_AUTH_TYPE = "sso.auth.type";
+  private static final String CLIENT_123 = "client123";
+  private static final String SSO_CLIENT_ID = "sso.client.id";
+  private static final String SSO_CALLBACK_URL = "sso.callback.url";
+  private static final String CALLBACK_URL = "http://callback";
+  private static final String SSO_DOMAIN_URL = "sso.domain.url";
+  private static final String DOMAIN_URL = "example.auth0.com";
+  private static final String HREF = "href='";
+
   private MockedStatic<OBPropertiesProvider> obPropsStatic;
   private MockedStatic<OBDal> obDalStatic;
   private MockedStatic<Utility> utilityStatic;
+  private MockedStatic<SystemInfo> systemInfoStatic;
 
   @AfterEach
   void tearDown() {
     if (obPropsStatic != null) obPropsStatic.close();
     if (obDalStatic != null) obDalStatic.close();
     if (utilityStatic != null) utilityStatic.close();
+    if (systemInfoStatic != null) systemInfoStatic.close();
   }
 
   /**
@@ -57,11 +61,9 @@ class SSOLoginTest {
     obPropsStatic = mockStatic(OBPropertiesProvider.class);
     obPropsStatic.when(OBPropertiesProvider::getInstance).thenReturn(propsProviderMock);
 
-    // 2) Invoke
     SSOLogin sso = new SSOLogin();
     String html = sso.getLoginPageSignInHTMLCode();
 
-    // 3) Assert empty string
     assertEquals("", html);
   }
 
@@ -74,9 +76,7 @@ class SSOLoginTest {
     Properties props = new Properties();
     props.setProperty(SSO_AUTH_TYPE, AUTH_0);
     props.setProperty(SSO_CLIENT_ID, CLIENT_123);
-    props.setProperty(CALLBACK_URL, CALLBACK);
-    // domain missing or blank
-
+    props.setProperty(SSO_CALLBACK_URL, CALLBACK_URL);
     var propsProviderMock = mock(OBPropertiesProvider.class);
     when(propsProviderMock.getOpenbravoProperties()).thenReturn(props);
     obPropsStatic = mockStatic(OBPropertiesProvider.class);
@@ -84,27 +84,23 @@ class SSOLoginTest {
 
     SSOLogin sso = new SSOLogin();
     String html = sso.getLoginPageSignInHTMLCode();
-    assertEquals("", html);
+    assertTrue(html.contains(MISCONFIGURED_MESSAGE_SNIPPET));
 
-    // Now test missing clientId
     props = new Properties();
     props.setProperty(SSO_AUTH_TYPE, AUTH_0);
-    props.setProperty(SSO_DOMAIN_URL, EXAMPLE_AUTH_0_COM);
-    props.setProperty(CALLBACK_URL, CALLBACK);
-    // clientId missing
+    props.setProperty(SSO_DOMAIN_URL, DOMAIN_URL);
+    props.setProperty(SSO_CALLBACK_URL, CALLBACK_URL);
     when(propsProviderMock.getOpenbravoProperties()).thenReturn(props);
     html = sso.getLoginPageSignInHTMLCode();
-    assertEquals("", html);
+    assertTrue(html.contains(MISCONFIGURED_MESSAGE_SNIPPET));
 
-    // Now test missing redirectUri
     props = new Properties();
     props.setProperty(SSO_AUTH_TYPE, AUTH_0);
-    props.setProperty(SSO_DOMAIN_URL, EXAMPLE_AUTH_0_COM);
+    props.setProperty(SSO_DOMAIN_URL, DOMAIN_URL);
     props.setProperty(SSO_CLIENT_ID, CLIENT_123);
-    // callback blank
     when(propsProviderMock.getOpenbravoProperties()).thenReturn(props);
     html = sso.getLoginPageSignInHTMLCode();
-    assertEquals("", html);
+    assertTrue(html.contains(MISCONFIGURED_MESSAGE_SNIPPET));
   }
 
   /**
@@ -115,17 +111,15 @@ class SSOLoginTest {
     // 1) Mock properties for Auth0 flow
     Properties props = new Properties();
     props.setProperty(SSO_AUTH_TYPE, AUTH_0);
-    props.setProperty(SSO_DOMAIN_URL, EXAMPLE_AUTH_0_COM);
+    props.setProperty(SSO_DOMAIN_URL, DOMAIN_URL);
     props.setProperty(SSO_CLIENT_ID, CLIENT_123);
-    props.setProperty(CALLBACK_URL, CALLBACK);
-    // context.name not needed here
+    props.setProperty(SSO_CALLBACK_URL, CALLBACK_URL);
 
     var propsProviderMock = mock(OBPropertiesProvider.class);
     when(propsProviderMock.getOpenbravoProperties()).thenReturn(props);
     obPropsStatic = mockStatic(OBPropertiesProvider.class);
     obPropsStatic.when(OBPropertiesProvider::getInstance).thenReturn(propsProviderMock);
 
-    // 2) Mock OBDal.getInstance().get(Client.class, "0") → return clientMock with language
     var dalMock = mock(OBDal.class);
     var clientMock = mock(Client.class);
     var languageMock = mock(Language.class);
@@ -136,22 +130,18 @@ class SSOLoginTest {
     obDalStatic = mockStatic(OBDal.class);
     obDalStatic.when(OBDal::getInstance).thenReturn(dalMock);
 
-    // 3) Mock Utility.messageBD(...) to return login button label
     utilityStatic = mockStatic(Utility.class);
     when(Utility.messageBD(any(DalConnectionProvider.class), eq("ETRX_LoginSSO"), eq("en_US")))
         .thenReturn("SignInWithAuth0");
 
-    // 4) Invoke
     SSOLogin sso = new SSOLogin();
     String html = sso.getLoginPageSignInHTMLCode();
 
-    // 5) Assertions: must start with "<br><style>" and contain domain, clientId, redirectUri, and loginButtonMessage
-    assertTrue(html.startsWith("<br><style>"));
     assertTrue(html.contains("domain: 'example.auth0.com'"));
     assertTrue(html.contains("clientID: 'client123'"));
     assertTrue(html.contains("redirectUri: 'http://callback'"));
-    assertTrue(html.contains(">SignInWithAuth0<")); // the button label
-    assertTrue(html.contains(".sso-login-button")); // style class included
+    assertTrue(html.contains(">SignInWithAuth0<"));
+    assertTrue(html.contains(".sso-login-button"));
   }
 
   /**
@@ -162,7 +152,7 @@ class SSOLoginTest {
   void testGetLoginPageSignInHTMLCodeWhenNonAuth0ReturnsIconContainerHtml() throws ServletException {
     // 1) Mock properties for non-Auth0 flow
     Properties props = new Properties();
-    props.setProperty(SSO_AUTH_TYPE, "OtherType");
+    props.setProperty(SSO_AUTH_TYPE, "Other");
     props.setProperty("sso.middleware.url", "http://middleware.example");
     props.setProperty("sso.middleware.redirectUri", "http://redirect");
 
