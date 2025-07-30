@@ -3,9 +3,12 @@ package com.etendoerp.etendorx.services;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.sql.Timestamp;
 import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.Date;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -28,6 +31,8 @@ import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.hibernate.criterion.Restrictions;
+import org.hibernate.query.Query;
+import org.hibernate.transform.Transformers;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.base.secureApp.DefaultValidationException;
 import org.openbravo.base.secureApp.LoginUtils;
@@ -724,6 +729,10 @@ public class DataSourceServlet implements WebService {
       if (col == null) {
         throw new OBException(OBMessageUtils.messageBD("ETRX_ColumnNotFound"));
       }
+      if (StringUtils.equals(col.getReference().getId(), "95E2A8B50A254B2AAE6774B8C2F28120")) {
+        handleCustomDefinedSelector(request, tab, dataInpFormat, changedColumnInp, db2Input, col);
+        return;
+      }
       if (!StringUtils.equals(col.getReference().getId(), "30")) {
         return;
       }  //is type search.
@@ -786,13 +795,155 @@ public class DataSourceServlet implements WebService {
         throw new OBException("Record " + recordID + " not found in Search selector execution.");
       }
 
-      savePrefixFields(dataInpFormat, changedColumnInp, selectorDefined, obj);
+      savePrefixFields(dataInpFormat, changedColumnInp, selectorDefined, obj, false);
 
 
     } catch (Exception e) {
       log.error("Error in handleColumnSelector", e);
     } finally {
       OBContext.restorePreviousMode();
+    }
+  }
+
+  /**
+   * Handles the column selector for definedSelector type (95E2A8B50A254B2AAE6774B8C2F28120).
+   */
+  private void handleCustomDefinedSelector(HttpServletRequest request, Tab tab, JSONObject dataInpFormat,
+      String changedColumnInp, Map<String, String> db2Input, Column col) {
+    try {
+      OBContext.setAdminMode();
+      Reference reference = col.getReferenceSearchKey();
+      if (reference.getOBUISELSelectorList().isEmpty()) {
+        throw new OBException(OBMessageUtils.messageBD("ETRX_ReferenceNotFound"));
+      }
+      
+      Selector selectorDefined = reference.getOBUISELSelectorList().get(0);
+      if (!selectorDefined.isCustomQuery() || selectorDefined.getOBUISELSelectorFieldList().isEmpty()) {
+        return;
+      }
+
+      // Build the HQL query with filters
+      String hqlQuery = buildHQLQuery(selectorDefined, tab, col, changedColumnInp, dataInpFormat, db2Input, request);
+      
+      // Execute query and find matching record
+      String recordID = dataInpFormat.getString(changedColumnInp);
+      JSONObject matchedRecord = executeHQLAndFindRecord(hqlQuery, recordID, selectorDefined);
+      
+      if (matchedRecord == null) {
+        throw new OBException("Record " + recordID + " not found in definedSelector execution.");
+      }
+
+      savePrefixFields(dataInpFormat, changedColumnInp, selectorDefined, matchedRecord, true);
+
+    } catch (Exception e) {
+      log.error("Error in handleCustomDefinedSelector", e);
+      throw new OBException("Error in handleCustomDefinedSelector: " + e.getMessage());
+    } finally {
+      OBContext.restorePreviousMode();
+    }
+  }
+
+  /**
+   * Builds the complete HQL query with all filters applied.
+   */
+  private String buildHQLQuery(Selector selectorDefined, Tab tab, Column col, String changedColumnInp, 
+      JSONObject dataInpFormat, Map<String, String> db2Input, HttpServletRequest request) throws JSONException, ScriptException {
+    String hqlQuery = selectorDefined.getHQL();
+    String headlessFilterClause = getHeadlessFilterClause(tab, col, changedColumnInp, dataInpFormat);
+    HashMap<String, String> convertToHashMAp = convertToHashMAp(dataInpFormat);
+    String additionalFilterClause = addFilterClause(selectorDefined, convertToHashMAp, tab, request);
+    String additionalFilters = headlessFilterClause + (additionalFilterClause != null ? additionalFilterClause : "");
+    
+    String result;
+    if (StringUtils.isEmpty(additionalFilters.trim())) {
+      result = hqlQuery.replace("and @additional_filters@", "").replace("@additional_filters@", "");
+    } else {
+      result = hqlQuery.replace("@additional_filters@", additionalFilters);
+    }
+    
+    return fullfillSessionsVariables(result, db2Input, dataInpFormat);
+  }
+
+  /**
+   * Executes HQL query and finds the matching record by ID.
+   * Uses selector field information to map results with proper aliases
+   */
+  private JSONObject executeHQLAndFindRecord(String hqlQuery, String recordID, Selector selectorDefined) {
+    try {
+      Query query = OBDal.getInstance().getSession().createQuery(hqlQuery);
+      query.setFirstResult(0);
+      query.setMaxResults(1000);
+      query.setResultTransformer(Transformers.ALIAS_TO_ENTITY_MAP);
+
+      @SuppressWarnings("unchecked")
+      List<Map<String, Object>> results = query.list();
+
+      String valueField = selectorDefined.getValuefield().getDisplayColumnAlias();
+      
+      // Iterate through results to find the matching record
+      for (Map<String, Object> row : results) {
+        JSONObject obj = new JSONObject();
+        
+        // Convert Map to JSONObject, extracting IDs from entity objects
+        for (Map.Entry<String, Object> entry : row.entrySet()) {
+          String key = entry.getKey();
+          Object value = entry.getValue();
+          
+          if (key != null) {
+            Object processedValue = processValue(value);
+            obj.put(key, processedValue);
+          }
+        }
+        
+        // Check if this record matches the recordID we're looking for
+        if (obj.has(valueField) && StringUtils.equals(obj.getString(valueField), recordID)) {
+          return obj;
+        }
+      }
+      
+      // Record not found
+      return null;
+      
+    } catch (Exception e) {
+      log.error("Error executing definedSelector HQL query: " + hqlQuery, e);
+      throw new OBException("Error executing definedSelector query: " + e.getMessage());
+    }
+  }
+
+  /**
+   * Processes a value from Hibernate query results.
+   * Extracts ID from entity objects while preserving simple types and dates.
+   */
+  private Object processValue(Object value) {
+    if (value == null) {
+      return JSONObject.NULL;
+    }
+    
+    // Handle simple types
+    if (value instanceof String || value instanceof Number || value instanceof Boolean) {
+      return value;
+    }
+    
+    // Handle dates with proper formatting
+    if (value instanceof Date && !(value instanceof Timestamp)) {
+      SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+      return dateFormat.format((Date) value);
+    }
+    
+    if (value instanceof Timestamp) {
+      SimpleDateFormat timestampFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
+      return timestampFormat.format((Timestamp) value);
+    }
+    
+    // For entity objects, try to extract the ID
+    try {
+      // Use reflection to get the getId() method
+      java.lang.reflect.Method getIdMethod = value.getClass().getMethod("getId");
+      Object id = getIdMethod.invoke(value);
+      return id != null ? id.toString() : JSONObject.NULL;
+    } catch (Exception e) {
+      // If we can't get the ID, return the string representation
+      return value.toString();
     }
   }
 
@@ -844,12 +995,18 @@ public class DataSourceServlet implements WebService {
    *     If there is an error during JSON processing.
    */
   private static void savePrefixFields(JSONObject dataInpFormat, String changedColumnInp, Selector selectorDefined,
-      JSONObject obj) throws JSONException {
+      JSONObject obj, boolean isCustomHql) throws JSONException {
     List<SelectorField> selectorFieldList = selectorDefined.getOBUISELSelectorFieldList();
     selectorFieldList = selectorFieldList.stream().filter(SelectorField::isOutfield).collect(Collectors.toList());
     for (SelectorField selectorField : selectorFieldList) {
-      String normN = StringUtils.isNotEmpty(
-          selectorField.getProperty()) ? selectorField.getProperty() : selectorField.getName();
+      String normN;
+      if (isCustomHql) {
+        normN = StringUtils.isNotEmpty(
+                selectorField.getDisplayColumnAlias()) ? selectorField.getDisplayColumnAlias() : selectorField.getName();
+      } else {
+        normN = StringUtils.isNotEmpty(
+                selectorField.getProperty()) ? selectorField.getProperty() : selectorField.getName();
+      }
       normN = normN.replace(".", "$");
       if (obj.has(normN)) {
         if (!StringUtils.isEmpty(selectorField.getSuffix())) {
