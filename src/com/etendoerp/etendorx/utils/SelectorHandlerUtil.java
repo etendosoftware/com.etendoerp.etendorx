@@ -31,11 +31,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+/**
+ * Utility class that handles selectors
+ */
 public class SelectorHandlerUtil {
 
     private static final Logger log = LogManager.getLogger();
-    public static final String _START_ROW = "_startRow";
-    public static final String _END_ROW = "_endRow";
+    public static final String START_ROW = "_startRow";
+    public static final String END_ROW = "_endRow";
     public static final String RESPONSE = "response";
 
     /*
@@ -96,7 +99,7 @@ public class SelectorHandlerUtil {
             OBDal.getInstance().refresh(selectorDefined);
             convertToHashMAp.put("_entityName", selectorDefined.getTable().getJavaClassName());
             String whereClauseAndFilters = selectorDefined.getHQLWhereClause() + headlessFilterClause + addFilterClause(selectorDefined,
-                    convertToHashMAp, tab, request);
+                    convertToHashMAp, request);
             whereClauseAndFilters = fullfillSessionsVariables(whereClauseAndFilters, db2Input, dataInpFormat);
             convertToHashMAp.put("whereAndFilterClause", whereClauseAndFilters);
             convertToHashMAp.put("dataSourceName", selectorDefined.getTable().getJavaClassName());
@@ -104,7 +107,6 @@ public class SelectorHandlerUtil {
             convertToHashMAp.put("filterClass", "org.openbravo.userinterface.selector.SelectorDataSourceFilter");
             convertToHashMAp.put("IsSelectorItem", "true");
             convertToHashMAp.put("_extraProperties", getExtraProperties(selectorDefined));
-            int iterations = 0;
             // we will search this record id
             String recordID = dataInpFormat.getString(changedColumnInp);
             //find the column of the table, that determines the "column" where the data is stored. For example, in the case of
@@ -251,15 +253,13 @@ public class SelectorHandlerUtil {
      *     The selector object containing the filter expression.
      * @param hs1
      *     A map of parameters to be used in the filter expression.
-     * @param tab
-     *     The tab object associated with the selector.
      * @param request
      *     The HttpServletRequest object.
      * @return The filter clause to be appended to the query.
      * @throws ScriptException
      *     If there is an error during the evaluation of the filter expression.
      */
-    private static String addFilterClause(Selector selector, HashMap<String, String> hs1, Tab tab,
+    private static String addFilterClause(Selector selector, HashMap<String, String> hs1,
                                           HttpServletRequest request) throws ScriptException {
         // Check if the selector has a filter expression before evaluating
         if (selector.getFilterExpression() == null) {
@@ -354,9 +354,9 @@ public class SelectorHandlerUtil {
         int iterations = 0;
 
         while (obj == null && (totalRows == -1 || endRow < totalRows)) {
-            convertToHashMAp.put(_START_ROW, String.valueOf((iterations * 100)));
+            convertToHashMAp.put(START_ROW, String.valueOf((iterations * 100)));
             endRow = 100 + (iterations * 100);
-            convertToHashMAp.put(_END_ROW, String.valueOf(endRow));
+            convertToHashMAp.put(END_ROW, String.valueOf(endRow));
             String result = dataSourceService.fetch(convertToHashMAp);
             JSONObject resultJson = new JSONObject(result);
             if (totalRows == -1) {
@@ -452,7 +452,7 @@ public class SelectorHandlerUtil {
         String hqlQuery = selectorDefined.getHQL();
         String headlessFilterClause = getHeadlessFilterClause(tab, col, changedColumnInp, dataInpFormat);
         HashMap<String, String> convertToHashMAp = convertToHashMAp(dataInpFormat);
-        String additionalFilterClause = addFilterClause(selectorDefined, convertToHashMAp, tab, request);
+        String additionalFilterClause = addFilterClause(selectorDefined, convertToHashMAp, request);
         String additionalFilters = headlessFilterClause + (additionalFilterClause != null ? additionalFilterClause : "");
 
         String result;
