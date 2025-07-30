@@ -19,6 +19,8 @@ import org.openbravo.model.ad.system.Language;
 import org.openbravo.erpCommon.utility.Utility;
 import org.openbravo.service.db.DalConnectionProvider;
 
+import javax.servlet.ServletException;
+
 @ExtendWith(MockitoExtension.class)
 class SSOLoginTest {
 
@@ -31,6 +33,7 @@ class SSOLoginTest {
   private static final String CALLBACK_URL = "http://callback";
   private static final String SSO_DOMAIN_URL = "sso.domain.url";
   private static final String DOMAIN_URL = "example.auth0.com";
+  private static final String HREF = "href='";
 
   private MockedStatic<OBPropertiesProvider> obPropsStatic;
   private MockedStatic<OBDal> obDalStatic;
@@ -45,8 +48,12 @@ class SSOLoginTest {
     if (systemInfoStatic != null) systemInfoStatic.close();
   }
 
+  /**
+   * Scenario: "sso.auth.type" is blank or missing → method returns "".
+   */
   @Test
-  void testGetLoginPageSignInHTMLCode_whenAuthTypeBlank_returnsEmpty() {
+  void testGetLoginPageSignInHTMLCodeWhenAuthTypeBlankReturnsEmpty() {
+    // 1) Mock OBPropertiesProvider to return properties with no "sso.auth.type"
     Properties props = new Properties();
     var propsProviderMock = mock(OBPropertiesProvider.class);
     when(propsProviderMock.getOpenbravoProperties()).thenReturn(props);
@@ -60,16 +67,18 @@ class SSOLoginTest {
     assertEquals("", html);
   }
 
+  /**
+   * Scenario: "sso.auth.type"="Auth0" but one of domain, clientId, or redirectUri is blank → returns "".
+   */
   @Test
-  void testGetLoginPageSignInHTMLCode_whenAuth0MissingConfig_returnsMisconfiguredMessage() {
-    var props = new Properties();
+  void testGetLoginPageSignInHTMLCodeWhenAuth0MissingConfigReturnsEmpty() {
+    // Prepare properties with authType="Auth0" but missing "sso.domain.url"
+    Properties props = new Properties();
     props.setProperty(SSO_AUTH_TYPE, AUTH_0);
     props.setProperty(SSO_CLIENT_ID, CLIENT_123);
     props.setProperty(SSO_CALLBACK_URL, CALLBACK_URL);
-    // domain missing
     var propsProviderMock = mock(OBPropertiesProvider.class);
     when(propsProviderMock.getOpenbravoProperties()).thenReturn(props);
-
     obPropsStatic = mockStatic(OBPropertiesProvider.class);
     obPropsStatic.when(OBPropertiesProvider::getInstance).thenReturn(propsProviderMock);
 
@@ -77,29 +86,29 @@ class SSOLoginTest {
     String html = sso.getLoginPageSignInHTMLCode();
     assertTrue(html.contains(MISCONFIGURED_MESSAGE_SNIPPET));
 
-    // clientId missing
     props = new Properties();
     props.setProperty(SSO_AUTH_TYPE, AUTH_0);
     props.setProperty(SSO_DOMAIN_URL, DOMAIN_URL);
     props.setProperty(SSO_CALLBACK_URL, CALLBACK_URL);
     when(propsProviderMock.getOpenbravoProperties()).thenReturn(props);
-
     html = sso.getLoginPageSignInHTMLCode();
     assertTrue(html.contains(MISCONFIGURED_MESSAGE_SNIPPET));
 
-    // redirectUri missing
     props = new Properties();
     props.setProperty(SSO_AUTH_TYPE, AUTH_0);
     props.setProperty(SSO_DOMAIN_URL, DOMAIN_URL);
     props.setProperty(SSO_CLIENT_ID, CLIENT_123);
     when(propsProviderMock.getOpenbravoProperties()).thenReturn(props);
-
     html = sso.getLoginPageSignInHTMLCode();
     assertTrue(html.contains(MISCONFIGURED_MESSAGE_SNIPPET));
   }
 
+  /**
+   * Scenario: "sso.auth.type"="Auth0" and domain, clientId, redirectUri all set → returns correct Auth0 button HTML.
+   */
   @Test
-  void testGetLoginPageSignInHTMLCode_whenAuth0ProperConfig_returnsButtonHtml() {
+  void testGetLoginPageSignInHTMLCodeWhenAuth0ProperConfigReturnsButtonHtml() {
+    // 1) Mock properties for Auth0 flow
     Properties props = new Properties();
     props.setProperty(SSO_AUTH_TYPE, AUTH_0);
     props.setProperty(SSO_DOMAIN_URL, DOMAIN_URL);
@@ -135,8 +144,13 @@ class SSOLoginTest {
     assertTrue(html.contains(".sso-login-button"));
   }
 
+  /**
+   * Scenario: "sso.auth.type" is not "Auth0" (e.g., "Other") → return divider + icon container HTML.
+   * Must use sso.middleware.url and sso.middleware.redirectUri.
+   */
   @Test
-  void testGetLoginPageSignInHTMLCode_whenNonAuth0_returnsIconContainerHtml() {
+  void testGetLoginPageSignInHTMLCodeWhenNonAuth0ReturnsIconContainerHtml() throws ServletException {
+    // 1) Mock properties for non-Auth0 flow
     Properties props = new Properties();
     props.setProperty(SSO_AUTH_TYPE, "Other");
     props.setProperty("sso.middleware.url", "http://middleware.example");
@@ -147,16 +161,34 @@ class SSOLoginTest {
     obPropsStatic = mockStatic(OBPropertiesProvider.class);
     obPropsStatic.when(OBPropertiesProvider::getInstance).thenReturn(propsProviderMock);
 
-    String fakeAccountId = "sys_123";
-    systemInfoStatic = mockStatic(SystemInfo.class);
-    systemInfoStatic.when(SystemInfo::getSystemIdentifier).thenReturn(fakeAccountId);
+    // 2) Mock SystemInfo.getSystemIdentifier()
+    String fakeAccountId = "system_456";
+    var systemInfoMock = mockStatic(SystemInfo.class);
+    systemInfoMock.when(SystemInfo::getSystemIdentifier).thenReturn(fakeAccountId);
 
+    // 3) Invoke
     SSOLogin sso = new SSOLogin();
     String html = sso.getLoginPageSignInHTMLCode();
 
+    // 4) Assertions
     assertTrue(html.contains("class='sso-divider-wrapper'"));
+    assertTrue(html.contains("<span>OR</span>"));
+
+    String baseLoginUrl = "http://middleware.example/login";
+    String expectedRedirect = "&redirect_uri=http://redirect";
+
+    assertTrue(html.contains(HREF + baseLoginUrl + "?provider=google-oauth2&account_id=" + fakeAccountId + expectedRedirect + "'"));
+    assertTrue(html.contains(HREF + baseLoginUrl + "?provider=windowslive&account_id=" + fakeAccountId + expectedRedirect + "'"));
+    assertTrue(html.contains(HREF + baseLoginUrl + "?provider=linkedin&account_id=" + fakeAccountId + expectedRedirect + "'"));
+    assertTrue(html.contains(HREF + baseLoginUrl + "?provider=github&account_id=" + fakeAccountId + expectedRedirect + "'"));
+    assertTrue(html.contains(HREF + baseLoginUrl + "?provider=facebook&account_id=" + fakeAccountId + expectedRedirect + "'"));
+
     assertTrue(html.contains("alt='Google'"));
-    assertTrue(html.contains("account_id" + fakeAccountId));
-    assertTrue(html.contains("&redirect_uri=http://redirect"));
+    assertTrue(html.contains("alt='Microsoft'"));
+    assertTrue(html.contains("alt='LinkedIn'"));
+    assertTrue(html.contains("alt='GitHub'"));
+    assertTrue(html.contains("alt='Facebook'"));
+
+    systemInfoMock.close();
   }
 }

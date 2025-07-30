@@ -192,23 +192,23 @@ public class SSOLogin implements SignInProvider {
 
                 "<div class='sso-icon-container'>" +
 
-                "<a class='sso-icon-button' href='" + ssoLoginUrl + "?provider=google-oauth2&account_id" + accountID + REDIRECT_URI + redirectUri + "'>" +
+                "<a class='sso-icon-button' href='" + ssoLoginUrl + "?provider=google-oauth2&account_id=" + accountID + REDIRECT_URI + redirectUri + "'>" +
                 "  <img src='../web/com.etendoerp.etendorx/images/google.png' alt='Google'>" +
                 "</a>" +
 
-                "<a class='sso-icon-button' href='" + ssoLoginUrl + "?provider=windowslive&account_id" + accountID + REDIRECT_URI + redirectUri + "'>" +
+                "<a class='sso-icon-button' href='" + ssoLoginUrl + "?provider=windowslive&account_id=" + accountID + REDIRECT_URI + redirectUri + "'>" +
                 "  <img src='../web/com.etendoerp.etendorx/images/microsoft.png' alt='Microsoft'>" +
                 "</a>" +
 
-                "<a class='sso-icon-button' href='" + ssoLoginUrl + "?provider=linkedin&account_id" + accountID + REDIRECT_URI + redirectUri + "'>" +
+                "<a class='sso-icon-button' href='" + ssoLoginUrl + "?provider=linkedin&account_id=" + accountID + REDIRECT_URI + redirectUri + "'>" +
                 "  <img src='../web/com.etendoerp.etendorx/images/linkedin.png' alt='LinkedIn'>" +
                 "</a>" +
 
-                "<a class='sso-icon-button' href='" + ssoLoginUrl + "?provider=github&account_id" + accountID + REDIRECT_URI + redirectUri + "'>" +
+                "<a class='sso-icon-button' href='" + ssoLoginUrl + "?provider=github&account_id=" + accountID + REDIRECT_URI + redirectUri + "'>" +
                 "  <img src='../web/com.etendoerp.etendorx/images/github.png' alt='GitHub'>" +
                 "</a>" +
 
-                "<a class='sso-icon-button' href='" + ssoLoginUrl + "?provider=facebook&account_id" + accountID + REDIRECT_URI + redirectUri + "'>" +
+                "<a class='sso-icon-button' href='" + ssoLoginUrl + "?provider=facebook&account_id=" + accountID + REDIRECT_URI + redirectUri + "'>" +
                 "  <img src='../web/com.etendoerp.etendorx/images/facebook.png' alt='Facebook'>" +
                 "</a>" +
 
