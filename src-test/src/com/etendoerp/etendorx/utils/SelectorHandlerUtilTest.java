@@ -56,6 +56,9 @@ public class SelectorHandlerUtilTest extends WeldBaseTest {
     @Mock
     private SelectorField mockSelectorField;
 
+    /**
+     * Sets up test fixtures before each test method.
+     */
     @Before
     public void setUp() throws Exception {
         super.setUp();
@@ -63,7 +66,9 @@ public class SelectorHandlerUtilTest extends WeldBaseTest {
         when(mockRequest.getSession()).thenReturn(mockSession);
     }
 
-    // Test core functionality: addFilterClause null check (our main refactoring)
+    /**
+     * Tests addFilterClause when filter expression is null.
+     */
     @Test
     public void testAddFilterClause_NullFilterExpression() throws Exception {
         when(mockSelector.getFilterExpression()).thenReturn(null);
@@ -71,6 +76,9 @@ public class SelectorHandlerUtilTest extends WeldBaseTest {
         assertEquals("", result);
     }
 
+    /**
+     * Tests addFilterClause with a valid filter expression.
+     */
     @Test
     public void testAddFilterClause_ValidFilterExpression() throws Exception {
         when(mockSelector.getFilterExpression()).thenReturn("valid expression");
@@ -78,36 +86,46 @@ public class SelectorHandlerUtilTest extends WeldBaseTest {
         assertEquals(" AND mockFilterResult", result);
     }
 
-    // Test field name normalization
+    /**
+     * Tests field name normalization for custom HQL selectors.
+     */
     @Test
     public void testGetNormalizedFieldName_CustomHql() throws Exception {
         when(mockSelectorField.getDisplayColumnAlias()).thenReturn("test.field.name");
         when(mockSelectorField.getName()).thenReturn("testName");
-        
+
         String result = invokeGetNormalizedFieldName(mockSelectorField, true);
         assertEquals("test$field$name", result);
     }
 
+    /**
+     * Tests field name normalization for regular selectors.
+     */
     @Test
     public void testGetNormalizedFieldName_RegularSelector() throws Exception {
         when(mockSelectorField.getProperty()).thenReturn("entity.property");
         when(mockSelectorField.getName()).thenReturn("testName");
-        
+
         String result = invokeGetNormalizedFieldName(mockSelectorField, false);
         assertEquals("entity$property", result);
     }
 
+    /**
+     * Tests field name normalization fallback to name when other properties are null/empty.
+     */
     @Test
     public void testGetNormalizedFieldName_FallbackToName() throws Exception {
         when(mockSelectorField.getDisplayColumnAlias()).thenReturn(null);
         when(mockSelectorField.getProperty()).thenReturn("");
         when(mockSelectorField.getName()).thenReturn("fallback.name");
-        
+
         String result = invokeGetNormalizedFieldName(mockSelectorField, true);
         assertEquals("fallback$name", result);
     }
 
-    // Test target key generation
+    /**
+     * Tests target key generation when suffix is present.
+     */
     @Test
     public void testGetTargetKey_WithSuffix() throws Exception {
         when(mockSelectorField.getSuffix()).thenReturn("_SUFFIX");
@@ -115,6 +133,9 @@ public class SelectorHandlerUtilTest extends WeldBaseTest {
         assertEquals("testColumn_SUFFIX", result);
     }
 
+    /**
+     * Tests target key generation when suffix is null.
+     */
     @Test
     public void testGetTargetKey_WithoutSuffix() throws Exception {
         when(mockSelectorField.getSuffix()).thenReturn(null);
@@ -122,20 +143,24 @@ public class SelectorHandlerUtilTest extends WeldBaseTest {
         assertEquals("mockedInputName", result);
     }
 
-    // Test JSON to HashMap conversion
+    /**
+     * Tests conversion of JSONObject to HashMap.
+     */
     @Test
     public void testConvertToHashMap() throws Exception {
         JSONObject json = new JSONObject();
         json.put("key1", "value1");
         json.put("key2", 123);
-        
+
         HashMap<String, String> result = invokeConvertToHashMap(json);
         assertEquals(2, result.size());
         assertEquals("value1", result.get("key1"));
         assertEquals("123", result.get("key2"));
     }
 
-    // Test filter clause generation
+    /**
+     * Tests headless filter clause generation when no filter is present.
+     */
     @Test
     public void testGetHeadlessFilterClause_NoFilter() throws Exception {
         List<Field> fieldList = new ArrayList<>();
@@ -143,14 +168,17 @@ public class SelectorHandlerUtilTest extends WeldBaseTest {
         when(mockTab.getADFieldList()).thenReturn(fieldList);
         when(mockField.getColumn()).thenReturn(mockColumn);
         when(mockField.getEtrxFilterClause()).thenReturn(null);
-        
+
         JSONObject data = new JSONObject();
         data.put(TEST_INPUT, TEST_VALUE);
-        
+
         String result = invokeGetHeadlessFilterClause(mockTab, mockColumn, TEST_INPUT, data);
         assertEquals("", result);
     }
 
+    /**
+     * Tests headless filter clause generation when a filter is present.
+     */
     @Test
     public void testGetHeadlessFilterClause_WithFilter() throws Exception {
         List<Field> fieldList = new ArrayList<>();
@@ -158,28 +186,35 @@ public class SelectorHandlerUtilTest extends WeldBaseTest {
         when(mockTab.getADFieldList()).thenReturn(fieldList);
         when(mockField.getColumn()).thenReturn(mockColumn);
         when(mockField.getEtrxFilterClause()).thenReturn("condition = @id@");
-        
+
         JSONObject data = new JSONObject();
         data.put(TEST_INPUT, TEST_VALUE);
-        
+
         String result = invokeGetHeadlessFilterClause(mockTab, mockColumn, TEST_INPUT, data);
         assertEquals(" AND condition = 'testValue'", result);
     }
 
-    // Test edge case: very long strings
+    /**
+     * Tests field name normalization with very long strings.
+     */
     @Test
     public void testEdgeCase_LongStrings() throws Exception {
         String longString = "a".repeat(500) + "." + "b".repeat(500);
         when(mockSelectorField.getDisplayColumnAlias()).thenReturn(longString);
         when(mockSelectorField.getName()).thenReturn(FALLBACK);
-        
+
         String result = invokeGetNormalizedFieldName(mockSelectorField, true);
         assertTrue(result.length() > 1000);
         assertTrue(result.contains("$"));
         assertFalse(result.contains("."));
     }
 
-    // Helper methods for testing private methods
+    /**
+     * Helper method to test addFilterClause functionality.
+     *
+     * @param selector the selector to test
+     * @return the filter clause result
+     */
     private String invokeAddFilterClause(Selector selector) {
         if (selector.getFilterExpression() == null) return "";
         String filterExpression = selector.getFilterExpression();
@@ -187,6 +222,13 @@ public class SelectorHandlerUtilTest extends WeldBaseTest {
         return " AND mockFilterResult";
     }
 
+    /**
+     * Helper method to test field name normalization.
+     *
+     * @param selectorField the selector field to normalize
+     * @param isCustomHql whether this is a custom HQL selector
+     * @return the normalized field name
+     */
     private String invokeGetNormalizedFieldName(SelectorField selectorField, boolean isCustomHql) {
         String fieldName;
         if (isCustomHql) {
@@ -199,11 +241,25 @@ public class SelectorHandlerUtilTest extends WeldBaseTest {
         return fieldName != null ? fieldName.replace(".", "$") : "";
     }
 
+    /**
+     * Helper method to test target key generation.
+     *
+     * @param changedColumnInp the column input
+     * @param selectorField the selector field
+     * @return the target key
+     */
     private String invokeGetTargetKey(String changedColumnInp, SelectorField selectorField) {
         String suffix = selectorField.getSuffix();
         return (suffix != null && !suffix.isEmpty()) ? changedColumnInp + suffix : "mockedInputName";
     }
 
+    /**
+     * Helper method to test JSON to HashMap conversion.
+     *
+     * @param dataInpFormat the JSON object to convert
+     * @return the converted HashMap
+     * @throws JSONException if JSON parsing fails
+     */
     private HashMap<String, String> invokeConvertToHashMap(JSONObject dataInpFormat) throws JSONException {
         HashMap<String, String> map = new HashMap<>();
         var keys = dataInpFormat.keys();
@@ -214,6 +270,16 @@ public class SelectorHandlerUtilTest extends WeldBaseTest {
         return map;
     }
 
+    /**
+     * Helper method to test headless filter clause generation.
+     *
+     * @param tab the tab containing fields
+     * @param col the column to match
+     * @param changedColumnInp the changed column input
+     * @param dataInpFormat the input data
+     * @return the filter clause
+     * @throws JSONException if JSON parsing fails
+     */
     private String invokeGetHeadlessFilterClause(Tab tab, Column col, String changedColumnInp, JSONObject dataInpFormat) throws JSONException {
         for (Field field : tab.getADFieldList()) {
             if (field.getColumn() == col && field.getEtrxFilterClause() != null && !field.getEtrxFilterClause().isEmpty()) {
