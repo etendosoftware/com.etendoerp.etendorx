@@ -1,6 +1,6 @@
 services:
   obconnsrv:
-    image: etendo/dynamic-gradle:1.0.1
+    image: etendo/dynamic-gradle:1.1.0
     ports:
       - "8101:8101"
       - "5025:8000"
@@ -11,6 +11,10 @@ services:
       - REPO_PASSWORD=${ETENDORX_REPOSITORY_PASSWORD}
       - CONFIG_SERVER_URL=${ETENDORX_CONFIG_SERVER_URL}
       - TASK=downloadJar
+      # --- OpenTelemetry ---
+      - ENABLE_OPEN_TELEMETRY=false
+      - OTEL_SERVICE_NAME=obconnsrv
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318
     networks:
       - etendo
     volumes:
@@ -22,10 +26,10 @@ services:
       retries: 60
 
   worker:
-    image: etendo/dynamic-gradle:1.0.1
+    image: etendo/dynamic-gradle:1.1.0
     ports:
-      - "5026:8000"
       - "8102:8102"
+      - "5026:8000"
     environment:
       - DEPENDENCIES=com.etendorx.integration:obconn-wrk:1.0.1
       - REPO_URL=${ETENDORX_REPOSITORY_URL}
@@ -33,6 +37,10 @@ services:
       - REPO_PASSWORD=${ETENDORX_REPOSITORY_PASSWORD}
       - CONFIG_SERVER_URL=${ETENDORX_CONFIG_SERVER_URL}
       - TASK=downloadJar
+      # --- OpenTelemetry ---
+      - ENABLE_OPEN_TELEMETRY=false
+      - OTEL_SERVICE_NAME=worker
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318
     networks:
       - etendo
     volumes:

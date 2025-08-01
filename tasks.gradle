@@ -4,8 +4,50 @@ project.ext {
     ETENDORX_VERSION = "2.3.3"
 }
 
+def volumesDir = project.providers
+    .provider {
+        def volumenPath = project.findProperty('VOLUMES_PATH')
+        if (volumenPath) {
+            return file(volumenPath)
+        } else {
+            return project.layout.buildDirectory.dir("../volumes").get().getAsFile()
+        }
+    }
+
+def sourceDir = project.providers
+    .provider {
+        def red = "\u001B[31;1m"
+        def reset = "\u001B[0m"
+
+        Project moduleProject = project.findProject(":modules")
+        Project rxProject = null
+        if (moduleProject != null) {
+            rxProject = moduleProject.findProject("com.etendoerp.etendorx")
+        }
+        File jarModulesLocation = new File(project.buildDir, "etendo"+File.separator+"com.etendoerp.etendorx")
+        File rxJarModule = new File(jarModulesLocation, "com.etendoerp.etendorx")
+        if (rxProject != null || rxJarModule.exists()) {
+            return rxProject != null ? rxProject.projectDir.path : rxJarModule.path
+        } else {
+            throw new GradleException("${red}❌ Rx module not found.${reset}")
+        }
+    }
+    .map { file(it) }
+
 def isRXDockerized() {
-    return project.hasProperty("docker_com.etendoerp.etendorx") && project.property("docker_com.etendoerp.etendorx").toBoolean()
+    return project.findProperty("docker_com.etendoerp.etendorx")?.toString()?.toBoolean()?:false
+}
+
+def isJaegerDockerized() {
+    return project.findProperty("docker_com.etendoerp.etendorx_utils")?.toString()?.toBoolean()?:false
+}
+
+def isTomcatDockerized() {
+    return project.findProperty("docker_com.etendoerp.tomcat")?.toString()?.toBoolean()?:false
+}
+
+def isEnableOpentelemetryTomcat() {
+    return project.findProperty("otel_com.etendoerp.tomcat")?.toString()?.toBoolean()?:false
 }
 
 task "rx.setup" {
@@ -211,6 +253,86 @@ task "kafkaConnectSetup" {
     }
 }
 
+task "jaeger.build" {
+    description = 'Executing Jaeger and Opentelemetry Configurations'
+    group = 'Docker'
+
+    doLast {
+        def yellow = "\u001B[33;1m"
+        def reset = "\u001B[0m"
+        // Copy Jaeger config.yml to volumes/jaeger
+        if (isRXDockerized() && isJaegerDockerized()) {        
+            project.logger.info("⚙️ Executing Jaeger Configuration Loader")   
+            project.copy {
+                from sourceDir.map { it.toPath().resolve('jaeger').resolve('config.yaml').toFile() }
+                into volumesDir.map { it.toPath().resolve('jaeger').toFile() }
+                eachFile { jaegerConfigFile ->
+                    project.logger.info(">> 📄 Copying Jaeger config file to jaeger volumen : ${jaegerConfigFile.file.path}")
+                }
+            }
+        }
+        // Copy the Opentelemetry Java Agent jar file into ${VOLUMES_PATH}/otel
+        if (isRXDockerized() && isJaegerDockerized()) {
+            project.logger.info("⚙️ Executing Opentelemetry Java Agent Configuration Loader")   
+            project.copy {
+                from sourceDir.map { it.toPath().resolve('otel').resolve('opentelemetry-javaagent.jar').toFile() }
+                into volumesDir.map { it.toPath().resolve('otel').toFile() }
+                eachFile { opentelemetryJarFile ->
+                    project.logger.info(">> 🫙 Copying Opentelemetry Java Agent to otel volumen : ${opentelemetryJarFile.file.path}")
+                }
+            }
+        }
+        // Copy the Opentelemetry Java Agent jar file into ${VOLUMES_PATH}/tomcat/webapps
+        if (isRXDockerized() && isJaegerDockerized() && isTomcatDockerized() && isEnableOpentelemetryTomcat()) {
+            project.logger.info("⚙️ Executing Opentelemetry in Tomcat Configuration Loader")   
+            project.copy {
+                from sourceDir.map { it.toPath().resolve('otel').resolve('opentelemetry-javaagent.jar').toFile() }
+                into volumesDir.map { it.toPath().resolve('tomcat').resolve('webapps').resolve('otel').toFile() }
+                eachFile { opentelemetryJarFile ->
+                    project.logger.info(">> 🫙 Copying Opentelemetry Java Agent to tomcat/webapps volumen : ${opentelemetryJarFile.file.path}")
+                }
+            }
+            project.logger.info("📄 Setting TOMCAT_CATALINA_OPTS in .env file.")
+            def otelFlags = [
+            "-javaagent:/usr/local/tomcat/webapps/otel/opentelemetry-javaagent.jar",
+            "-Dotel.resource.attributes=service.name=tomcat",
+            "-Dotel.metrics.exporter=none",
+            "-Dotel.logs.exporter=none",
+            "-Dotel.traces.exporter=otlp",
+            "-Dotel.exporter.otlp.endpoint=http://jaeger:4318",
+            "-Dotel.exporter.otlp.protocol=http/protobuf"
+            ].join(" \\\n    ")
+            String newEntry = "TOMCAT_CATALINA_OPTS=\"${otelFlags}\""
+            def env = envFile().envFile
+            List<String> lines = env.readLines('UTF-8')
+            int idx = lines.findIndexOf { it.trim().startsWith('TOMCAT_CATALINA_OPTS=') }
+            if (idx >= 0) {
+                lines[idx] = newEntry
+            } else {
+                lines << newEntry
+            }
+            env.withWriter('UTF-8') { writer ->
+                lines.each { writer.writeLine(it) }
+            }
+        } else if (isRXDockerized()){
+            def env = envFile().envFile
+            List<String> lines = env.readLines('UTF-8')
+            project.logger.info("${yellow} \n❌ Removing TOMCAT_CATALINA_OPTS of .env file.${reset}")
+            lines = lines.findAll { !it.trim().startsWith('TOMCAT_CATALINA_OPTS=') }
+        }
+    }
+}
+
+task "jaeger.restart" {
+    dependsOn "jaeger.build"
+    doLast {
+        if (isRXDockerized() && isJaegerDockerized()) {
+            project.logger.lifecycle("🔍 Restarting Jaeger using Docker")
+            executeDockerComposeCommand("restart jaeger")
+        }
+    }
+}
+
 afterEvaluate {
     if (isRXDockerized() && tasks.hasProperty("generateEnvFile")) {
         tasks.named("generateEnvFile").configure { task ->
@@ -224,6 +346,14 @@ afterEvaluate {
         }
         tasks.named("smartbuild").configure { task ->
             task.finalizedBy("rx.das.restart")
+        }
+    }
+    if (isRXDockerized() && isJaegerDockerized()) {
+        tasks.named("smartbuild").configure { task ->
+            task.finalizedBy("jaeger.restart")
+        }
+        tasks.named("resources.up").configure { task ->
+            task.dependsOn("jaeger.build")
         }
     }
 }
