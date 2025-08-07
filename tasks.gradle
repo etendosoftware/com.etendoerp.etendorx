@@ -35,23 +35,31 @@ def sourceDir = project.providers
     .map { file(it) }
 
 def isRXDockerized() {
-    return project.findProperty("docker_com.etendoerp.etendorx")?.toString()?.toBoolean()?:false
+    getTypedProp('docker_com.etendoerp.etendorx') ?: false
 }
 
 def isJaegerDockerized() {
-    return project.findProperty("docker_com.etendoerp.etendorx_utils")?.toString()?.toBoolean()?:false
+    getTypedProp('docker_com.etendoerp.etendorx_utils') ?: false
 }
 
 def isTomcatDockerized() {
-    return project.findProperty("docker_com.etendoerp.tomcat")?.toString()?.toBoolean()?:false
+    getTypedProp('docker_com.etendoerp.tomcat') ?: false
 }
 
 def isEnableOpentelemetryTomcat() {
-    return project.findProperty("otel_com.etendoerp.tomcat")?.toString()?.toBoolean()?:false
+    getTypedProp('otel.tomcat.enable') ?: false
+}
+
+def isConnectorDockerized() {
+    getTypedProp('docker_com.etendoerp.etendorx_connector') ?: false
+}
+
+def isAsyncProcessDockerized() {
+    getTypedProp('docker_com.etendoerp.etendorx_async') ?: false
 }
 
 task "rx.setup" {
-        if (isRXDockerized()) {
+    if (isRXDockerized()) {
         description = 'Finds all Docker Compose YAML files and copies them to build/compose'
         group = 'Docker'
 
@@ -113,36 +121,39 @@ task "rx.env.file" {
         def props = envFile()
         def env = props.envFile
         def properties = props.properties
-        env.withWriterAppend { writer ->
-            writer.write("ETENDORX_VERSION=${project.ext.ETENDORX_VERSION}\n")
-            if ("${ETENDORX_VERSION}".contains("SNAPSHOT")) {
-                writer.write("ETENDORX_REPOSITORY_URL=${ETENDORX_SNAPSHOT_REPOSITORY_URL}\n")
-                writer.write("ETENDORX_REPOSITORY_USER=${properties.getProperty("nexusUser")}\n")
-                writer.write("ETENDORX_REPOSITORY_PASSWORD=${properties.getProperty("nexusPassword")}\n")
-            } else {
-                writer.write("ETENDORX_REPOSITORY_URL=${ETENDORX_PRODUCTION_REPOSITORY_URL}\n")
-                writer.write("ETENDORX_REPOSITORY_USER=${properties.getProperty("githubUser")}\n")
-                writer.write("ETENDORX_REPOSITORY_PASSWORD=${properties.getProperty("githubToken")}\n")
-            }
-            def destUrl = isBBDDEnabled ? "db" : "host.docker.internal"
-            def port = isBBDDEnabled ? "5432" : project.property("bbdd.port")
-            def sid = project.hasProperty("bbdd.sid") ? project.property("bbdd.sid") : "etendo"
-            def contextName = project.hasProperty("context.name") ? project.property("context.name") : "etendo"
-            writer.write("ETENDORX_DB_HOST=${destUrl}\n")
-            writer.write("ETENDORX_DB_PORT=${port}\n")
-            writer.write("ETENDORX_DB_SID=${sid}\n")
+        def version = "${project.ext.ETENDORX_VERSION}"
 
-            def tomcatHost = "tomcat"
-            def tomcatPort = "8080"
-            if (!isTomcatEnabled) {
-                tomcatHost = "host.docker.internal"
-                if (project.hasProperty("docker_com.etendoerp.tomcat_port")) {
-                    tomcatPort = project.property("docker_com.etendoerp.tomcat_port").toString()
-                }
-            }
-            def configServerUrl = "http://${tomcatHost}:${tomcatPort}/${contextName}/buildConfig"
-            writer.write("ETENDORX_CONFIG_SERVER_URL=${configServerUrl}\n")
+        upsertEnvProperty('ETENDORX_VERSION', version)
+        def etendorx_repository_url = "${ETENDORX_PRODUCTION_REPOSITORY_URL}"
+        def etendorx_repository_user = "${properties.getProperty("githubUser")}"
+        def etendorx_repository_password = "${properties.getProperty("githubToken")}"
+        if ("${ETENDORX_VERSION}".contains("SNAPSHOT")) {
+            etendorx_repository_url = "${ETENDORX_SNAPSHOT_REPOSITORY_URL}"
+            etendorx_repository_user = "${properties.getProperty("nexusUser")}"
+            etendorx_repository_password = "${properties.getProperty("nexusPassword")}"
         }
+        upsertEnvProperty('ETENDORX_REPOSITORY_URL', etendorx_repository_url)
+        upsertEnvProperty('ETENDORX_REPOSITORY_USER', etendorx_repository_user)
+        upsertEnvProperty('ETENDORX_REPOSITORY_PASSWORD', etendorx_repository_password)
+
+        def destUrl = isBBDDEnabled ? "db" : "host.docker.internal"
+        def port = isBBDDEnabled ? "5432" : getTypedProp("bbdd.port")
+        def sid = getTypedProp("bbdd.sid") ?: "etendo"
+        def contextName = getTypedProp("context.name") ?: "etendo"
+        upsertEnvProperty("ETENDORX_DB_HOST", destUrl)
+        upsertEnvProperty("ETENDORX_DB_PORT", port)
+        upsertEnvProperty("ETENDORX_DB_SID", sid)
+
+        def tomcatHost = "tomcat"
+        def tomcatPort = "8080"
+        if (!isTomcatEnabled) {
+            tomcatHost = "host.docker.internal"
+            if (project.hasProperty("docker_com.etendoerp.tomcat_port")) {
+                tomcatPort = getTypedProp("docker_com.etendoerp.tomcat_port").toString()
+            }
+        }
+        def configServerUrl = "http://${tomcatHost}:${tomcatPort}/${contextName}/buildConfig"
+        upsertEnvProperty("ETENDORX_CONFIG_SERVER_URL", configServerUrl)
     }
 }
 
@@ -165,18 +176,18 @@ task "rx.das.stop" {
 
 task "kafkaConnectSetup" {
     def connectorName = "default"
-    def dbUser = project.hasProperty('bbdd.systemUser') ? project.getProperty('bbdd.systemUser') : 'postgres'
-    def dbName = project.hasProperty('bbdd.sid') ? project.getProperty('bbdd.sid') : 'etendo'
-    def dbPass = project.hasProperty('bbdd.systemPassword') ? project.getProperty('bbdd.systemPassword') : 'syspass'
+    def dbUser = getTypedProp('bbdd.systemUser') ?: 'postgres'
+    def dbName = getTypedProp('bbdd.sid') ?: 'etendo'
+    def dbPass = getTypedProp('bbdd.systemPassword') ?: 'syspass'
 
     doLast {
         if (!project.hasProperty('kafka.connect.tables')) {
             throw new GradleException("You must specify the 'kafka.connect.tables' property.")
         }
-        def tableIncludeList = project.getProperty('kafka.connect.tables')
+        def tableIncludeList = getTypedProp('kafka.connect.tables')
         def dbHost
         if (project.hasProperty('kafka.connect.bbdd.host')) {
-            dbHost = project.getProperty('kafka.connect.bbdd.host')
+            dbHost = getTypedProp('kafka.connect.bbdd.host')
         } else if (project.hasProperty('docker_com.etendoerp.docker_db') && project.getProperty('docker_com.etendoerp.docker_db').toBoolean()) {
             dbHost = "db"
         } else {
@@ -260,65 +271,82 @@ task "jaeger.build" {
     doLast {
         def yellow = "\u001B[33;1m"
         def reset = "\u001B[0m"
-        // Copy Jaeger config.yml to volumes/jaeger
-        if (isRXDockerized() && isJaegerDockerized()) {        
-            project.logger.info("⚙️ Executing Jaeger Configuration Loader")   
+        def defaultOtlpEndpoint = "http://jaeger:4318"
+        if (isRXDockerized() && isJaegerDockerized()) {
+            // Copy Jaeger config.yml to volumes/jaeger
+            project.logger.debug("⚙️ Executing Jaeger Configuration Loader")
             project.copy {
                 from sourceDir.map { it.toPath().resolve('jaeger').resolve('config.yaml').toFile() }
                 into volumesDir.map { it.toPath().resolve('jaeger').toFile() }
                 eachFile { jaegerConfigFile ->
-                    project.logger.info(">> 📄 Copying Jaeger config file to jaeger volumen : ${jaegerConfigFile.file.path}")
+                    project.logger.debug(">> 📄 Copying Jaeger config file to jaeger volumen : ${jaegerConfigFile.file.path}")
                 }
             }
-        }
-        // Copy the Opentelemetry Java Agent jar file into ${VOLUMES_PATH}/otel
-        if (isRXDockerized() && isJaegerDockerized()) {
-            project.logger.info("⚙️ Executing Opentelemetry Java Agent Configuration Loader")   
+            // Copy the Opentelemetry Java Agent jar file into ${VOLUMES_PATH}/otel
+            project.logger.debug("⚙️ Executing Opentelemetry Java Agent Configuration Loader")
             project.copy {
                 from sourceDir.map { it.toPath().resolve('otel').resolve('opentelemetry-javaagent.jar').toFile() }
                 into volumesDir.map { it.toPath().resolve('otel').toFile() }
                 eachFile { opentelemetryJarFile ->
-                    project.logger.info(">> 🫙 Copying Opentelemetry Java Agent to otel volumen : ${opentelemetryJarFile.file.path}")
+                    project.logger.debug(">> 🫙 Copying Opentelemetry Java Agent to otel volumen : ${opentelemetryJarFile.file.path}")
                 }
             }
-        }
-        // Copy the Opentelemetry Java Agent jar file into ${VOLUMES_PATH}/tomcat/webapps
-        if (isRXDockerized() && isJaegerDockerized() && isTomcatDockerized() && isEnableOpentelemetryTomcat()) {
-            project.logger.info("⚙️ Executing Opentelemetry in Tomcat Configuration Loader")   
-            project.copy {
-                from sourceDir.map { it.toPath().resolve('otel').resolve('opentelemetry-javaagent.jar').toFile() }
-                into volumesDir.map { it.toPath().resolve('tomcat').resolve('webapps').resolve('otel').toFile() }
-                eachFile { opentelemetryJarFile ->
-                    project.logger.info(">> 🫙 Copying Opentelemetry Java Agent to tomcat/webapps volumen : ${opentelemetryJarFile.file.path}")
+            // Copy the Opentelemetry Java Agent jar file into ${VOLUMES_PATH}/tomcat/webapps
+            if (isTomcatDockerized() && isEnableOpentelemetryTomcat()) {
+                project.logger.debug("⚙️ Executing Opentelemetry in Tomcat Configuration Loader")
+                project.copy {
+                    from sourceDir.map { it.toPath().resolve('otel').resolve('opentelemetry-javaagent.jar').toFile() }
+                    into volumesDir.map { it.toPath().resolve('tomcat').resolve('webapps').resolve('otel').toFile() }
+                    eachFile { opentelemetryJarFile ->
+                        project.logger.debug(">> 🫙 Copying Opentelemetry Java Agent to tomcat/webapps volumen : ${opentelemetryJarFile.file.path}")
+                    }
                 }
-            }
-            project.logger.info("📄 Setting TOMCAT_CATALINA_OPTS in .env file.")
-            def otelFlags = [
-            "-javaagent:/usr/local/tomcat/webapps/otel/opentelemetry-javaagent.jar",
-            "-Dotel.resource.attributes=service.name=tomcat",
-            "-Dotel.metrics.exporter=none",
-            "-Dotel.logs.exporter=none",
-            "-Dotel.traces.exporter=otlp",
-            "-Dotel.exporter.otlp.endpoint=http://jaeger:4318",
-            "-Dotel.exporter.otlp.protocol=http/protobuf"
-            ].join(" \\\n    ")
-            String newEntry = "TOMCAT_CATALINA_OPTS=\"${otelFlags}\""
-            def env = envFile().envFile
-            List<String> lines = env.readLines('UTF-8')
-            int idx = lines.findIndexOf { it.trim().startsWith('TOMCAT_CATALINA_OPTS=') }
-            if (idx >= 0) {
-                lines[idx] = newEntry
+                def otel_tomcat_name = getTypedProp("otel.tomcat.name") ?: "tomcat"
+                upsertEnvProperty('OTEL_TOMCAT_NAME', otel_tomcat_name)
+                def otel_tomcat_otlp_endpoint = getTypedProp("otel.tomcat.otlp.endpoint") ?: defaultOtlpEndpoint
+                upsertEnvProperty('OTEL_TOMCAT_OTLP_ENDPOINT', otel_tomcat_otlp_endpoint)
+                def otel_tomcat_metrics_exporter = getTypedProp("otel.tomcat.metrics.exporter") ?: "none"
+                upsertEnvProperty('OTEL_TOMCAT_METRICS_EXPORTER', otel_tomcat_metrics_exporter)
+                def otel_tomcat_logs_exporter = getTypedProp("otel.tomcat.logs.exporter") ?: "none"
+                upsertEnvProperty('OTEL_TOMCAT_LOGS_EXPORTER', otel_tomcat_logs_exporter)
+                def otel_tomcat_traces_exporter = getTypedProp("otel.tomcat.traces.exporter") ?: "otlp"
+                upsertEnvProperty('OTEL_TOMCAT_TRACES_EXPORTER', otel_tomcat_traces_exporter)
+                def otel_tomcat_otlp_protocol = getTypedProp("otel.tomcat.otlp.protocol") ?: "http/protobuf"
+                upsertEnvProperty('OTEL_TOMCAT_OTLP_PROTOCOL', otel_tomcat_otlp_protocol)
+                project.logger.debug("📄 Setting TOMCAT_CATALINA_OPTS in .env file.")
+                def otelFlags = [
+                "-javaagent:/usr/local/tomcat/webapps/otel/opentelemetry-javaagent.jar",
+                "-Dotel.resource.attributes=service.name=${otel_tomcat_name}",
+                "-Dotel.metrics.exporter=${otel_tomcat_metrics_exporter}",
+                "-Dotel.logs.exporter=${otel_tomcat_logs_exporter}",
+                "-Dotel.traces.exporter=${otel_tomcat_traces_exporter}",
+                "-Dotel.exporter.otlp.endpoint=${otel_tomcat_otlp_endpoint}",
+                "-Dotel.exporter.otlp.protocol=${otel_tomcat_otlp_protocol}"
+                ].join(" \\\n    ")
+                String tomcat_catalina_opts = "\"${otelFlags}\""
+                upsertEnvProperty('TOMCAT_CATALINA_OPTS', tomcat_catalina_opts)
             } else {
-                lines << newEntry
+                upsertEnvProperty('OTEL_TOMCAT_ENABLE', false)
+                def env = envFile().envFile
+                List<String> lines = env.readLines('UTF-8')
+                project.logger.debug("${yellow} \n❌ Removing TOMCAT_CATALINA_OPTS of .env file.${reset}")
+                lines = lines.findAll { !it.trim().startsWith('TOMCAT_CATALINA_OPTS=') }
             }
-            env.withWriter('UTF-8') { writer ->
-                lines.each { writer.writeLine(it) }
+        } else if (isRXDockerized()) {
+            upsertEnvProperty('OTEL_CONFIG_ENABLE', false)
+            upsertEnvProperty('OTEL_DAS_ENABLE', false)
+            upsertEnvProperty('OTEL_AUTH_ENABLE', false)
+            upsertEnvProperty('OTEL_EDGE_ENABLE', false)
+            upsertEnvProperty('OTEL_OBCONNSRV_ENABLE', false)
+            upsertEnvProperty('OTEL_WORKER_ENABLE', false)
+            upsertEnvProperty('OTEL_ASYNCPROCESS_ENABLE', false)
+            if (isTomcatDockerized() && isEnableOpentelemetryTomcat()) {
+                upsertEnvProperty('OTEL_TOMCAT_ENABLE', false)
+                def env = envFile().envFile
+                List<String> lines = env.readLines('UTF-8')
+                project.logger.debug("${yellow} \n❌ Removing TOMCAT_CATALINA_OPTS of .env file.${reset}")
+                lines = lines.findAll { !it.trim().startsWith('TOMCAT_CATALINA_OPTS=') }
             }
-        } else if (isRXDockerized()){
-            def env = envFile().envFile
-            List<String> lines = env.readLines('UTF-8')
-            project.logger.info("${yellow} \n❌ Removing TOMCAT_CATALINA_OPTS of .env file.${reset}")
-            lines = lines.findAll { !it.trim().startsWith('TOMCAT_CATALINA_OPTS=') }
         }
     }
 }

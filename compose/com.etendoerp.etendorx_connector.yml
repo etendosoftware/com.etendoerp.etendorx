@@ -3,7 +3,7 @@ services:
     image: etendo/dynamic-gradle:1.1.0
     ports:
       - "8101:8101"
-      - "5025:8000"
+      - "${OBCONNSRV_DEBUG_PORT:-5025}:8000"
     environment:
       - DEPENDENCIES=com.etendorx.integration:obconn-srv:1.0.1
       - REPO_URL=${ETENDORX_REPOSITORY_URL}
@@ -11,10 +11,20 @@ services:
       - REPO_PASSWORD=${ETENDORX_REPOSITORY_PASSWORD}
       - CONFIG_SERVER_URL=${ETENDORX_CONFIG_SERVER_URL}
       - TASK=downloadJar
+      # ---- Debugging & JVM ----
+      - DEBUG_PORT=${OBCONNSRV_DEBUG_PORT:-5025}
+      - DISABLE_DEBUG=${OBCONNSRV_DISABLE_DEBUG:-false}
+      - JAVA_OPTS=${OBCONNSRV_JAVA_OPTS:-}
+      - GRADLE_FLAGS=${OBCONNSRV_GRADLE_FLAGS:-}
       # --- OpenTelemetry ---
-      - ENABLE_OPEN_TELEMETRY=false
-      - OTEL_SERVICE_NAME=obconnsrv
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318
+      - ENABLE_OPEN_TELEMETRY=${OTEL_OBCONNSRV_ENABLE:-false}
+      - OTEL_SERVICE_NAME=${OTEL_OBCONNSRV_NAME:-obconnsrv}
+      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_OBCONNSRV_OTLP_ENDPOINT:-http://jaeger:4318}
+      - OTEL_EXPORTER_OTLP_PROTOCOL=${OTEL_OBCONNSRV_OTLP_PROTOCOL:-http/protobuf}
+      - OTEL_METRICS_EXPORTER=${OTEL_OBCONNSRV_METRICS_EXPORTER:-none}
+      - OTEL_LOGS_EXPORTER=${OTEL_OBCONNSRV_LOGS_EXPORTER:-none}
+      - OTEL_TRACES_EXPORTER=${OTEL_OBCONNSRV_TRACES_EXPORTER:-otlp}
+      - OTEL_EXPORTER_OTLP_TIMEOUT=${OTEL_OBCONNSRV_EXPORTER_OTLP_TIMEOUT:-10000}
     networks:
       - etendo
     volumes:
@@ -29,7 +39,7 @@ services:
     image: etendo/dynamic-gradle:1.1.0
     ports:
       - "8102:8102"
-      - "5026:8000"
+      - "${WORKER_DEBUG_PORT:-5026}:8000"
     environment:
       - DEPENDENCIES=com.etendorx.integration:obconn-wrk:1.0.1
       - REPO_URL=${ETENDORX_REPOSITORY_URL}
@@ -37,10 +47,20 @@ services:
       - REPO_PASSWORD=${ETENDORX_REPOSITORY_PASSWORD}
       - CONFIG_SERVER_URL=${ETENDORX_CONFIG_SERVER_URL}
       - TASK=downloadJar
+      # ---- Debugging & JVM ----
+      - DEBUG_PORT=${WORKER_DEBUG_PORT:-5026}
+      - DISABLE_DEBUG=${WORKER_DISABLE_DEBUG:-false}
+      - JAVA_OPTS=${WORKER_JAVA_OPTS:-}
+      - GRADLE_FLAGS=${WORKER_GRADLE_FLAGS:-}
       # --- OpenTelemetry ---
-      - ENABLE_OPEN_TELEMETRY=false
-      - OTEL_SERVICE_NAME=worker
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318
+      - ENABLE_OPEN_TELEMETRY=${OTEL_WORKER_ENABLE:-false}
+      - OTEL_SERVICE_NAME=${OTEL_WORKER_NAME:-worker}
+      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_WORKER_OTLP_ENDPOINT:-http://jaeger:4318}
+      - OTEL_EXPORTER_OTLP_PROTOCOL=${OTEL_WORKER_OTLP_PROTOCOL:-http/protobuf}
+      - OTEL_METRICS_EXPORTER=${OTEL_WORKER_METRICS_EXPORTER:-none}
+      - OTEL_LOGS_EXPORTER=${OTEL_WORKER_LOGS_EXPORTER:-none}
+      - OTEL_TRACES_EXPORTER=${OTEL_WORKER_TRACES_EXPORTER:-otlp}
+      - OTEL_EXPORTER_OTLP_TIMEOUT=${OTEL_WORKER_EXPORTER_OTLP_TIMEOUT:-10000}
     networks:
       - etendo
     volumes:
