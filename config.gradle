@@ -1,0 +1,492 @@
+// modules/com.etendoerp.etendorx/config.gradle
+
+/**
+ * Interactive configuration for Etendo Rx Module
+ */
+
+// Rx Configuration
+config {
+    // ---- Debugging & JVM ----
+    debugMode {
+        description = "Enable debug mode for the application - Default: false"
+        value = "false"
+        name = "config.debug.mode"  // Maps to config.debug.mode in gradle.properties
+        sensitive = false
+        required = false
+        group = "Rx Docker Configuration"
+    }
+
+    disableDebug {
+        description = "Disable JVM debug agent - Default: false"
+        value = "false"
+        name = "config.disable.debug"  // Maps to config.disable.debug in gradle.properties
+        sensitive = false
+        required = false
+        group = "Rx Docker Configuration"
+    }
+
+    debugport {
+        description = "Config service remote debug port for JVM - Default: 5020"
+        value = "5020"
+        name = "config.debug.port"  // Maps to config.debug.port in gradle.properties
+        sensitive = false
+        required = false
+        group = "Rx Docker Configuration"
+    }
+    
+    javaopts {
+        description = "Additional JVM options - Default: null" 
+        value = ""
+        name = "config.java.opts"  // Maps to config.java.opts in gradle.properties
+        sensitive = false
+        required = false
+        group = "Rx Docker Configuration"
+    }
+
+    gradleflags {
+        description = "Gradle command flags - Default: -no-daemon --info --refresh-dependencies" 
+        value = "-no-daemon --info --refresh-dependencies"
+        name = "config.gradle.flags"  // Maps to config.gradle.flags in gradle.properties
+        sensitive = false
+        required = false
+        group = "Rx Docker Configuration"
+    }
+    // --- OpenTelemetry ---
+    otelenable {
+        description = "Config service enable OpenTelemetry - Default: false"
+        value = "false"
+        name = "otel.config.enable"  // Maps to otel.config.enable in gradle.properties
+        sensitive = false
+        required = false
+        group = "OpenTelemetry Configuration"
+    }
+
+    otelservicename {
+        description = "Config service name for OpenTelemetry - Default: config"
+        value = "config"
+        name = "otel.config.name"  // Maps to otel.config.name in gradle.properties
+        sensitive = false
+        required = false
+        group = "OpenTelemetry Configuration"
+    }
+
+    otelexporterendpoint {
+        description = "Config service base OTLP endpoint URL for OpenTelemetry - Default: http://jaeger:4318"
+        value = "http://jaeger:4318"
+        name = "otel.config.otlp.endpoint"  // Maps to otel.config.otlp.endpoint in gradle.properties
+        sensitive = false
+        required = false
+        group = "OpenTelemetry Configuration"
+    }
+
+    otelexporterprotocol {
+        description = "Config service transport protocol for OTLP - [grpc|http/protobuf|http/json] Default: http/protobuf"
+        value = "http/protobuf"
+        name = "otel.config.otlp.protocol"  // Maps to otel.config.otlp.protocol in gradle.properties
+        sensitive = false
+        required = false
+        group = "OpenTelemetry Configuration"
+    }
+
+    otelmetricsexporter {
+        description = "Config service metrics exporter - [otlp|prometheus|console|logging|none] Default: none"
+        value = "none"
+        name = "otel.metrics.exporter"  // Maps to otel.metrics.exporter in gradle.properties
+        sensitive = false
+        required = false
+        group = "OpenTelemetry Configuration"
+    }
+
+    otellogsexporter {
+        description = "Config service logs exporter - [otlp|console|logging|none] Default: none"
+        value = "none"
+        name = "otel.logs.exporter"  // Maps to otel.logs.exporter in gradle.properties
+        sensitive = false
+        required = false
+        group = "OpenTelemetry Configuration"
+    }
+
+    oteltracesexporter {
+        description = "Config service traces exporter - [otlp|zipkin|console|logging|none] Default: otlp"
+        value = "otlp"
+        name = "otel.traces.exporter"  // Maps to otel.traces.exporter in gradle.properties
+        sensitive = false
+        required = false
+        group = "OpenTelemetry Configuration"
+    }
+
+    otelexporterotlptimeout {
+        description = "Config service Timeout (ms) for OTLP data export (traces, metrics, logs) - Default: 10000"
+        value = "10000"
+        name = "otel.exporter.otlp.timeout"  // Maps to otel.exporter.otlp.timeout in gradle.properties
+        sensitive = false
+        required = false
+        group = "OpenTelemetry Configuration"
+    }
+}
+das {
+    // ----  ----
+    dependencies {
+        description = "Maven GAV coordinates for dynamic dependencies - Default: null"
+        value = ""
+        name = "etendorx.dependencies" // Maps to etendorx.dependencies in gradle.properties
+        sensitive = false
+        required = false
+        group = "Rx Docker Configuration"
+    }
+    // ---- Debugging & JVM ----
+    debugMode {
+        description = "Enable debug mode for the application - Default: false"
+        value = "false"
+        name = "das.debug.mode"  // Maps to das.debug.mode in gradle.properties
+        sensitive = false
+        required = false
+        group = "Rx Docker Configuration"
+    }
+
+    disableDebug {
+        description = "Disable JVM debug agent - Default: false"
+        value = "false"
+        name = "das.disable.debug"  // Maps to das.disable.debug in gradle.properties
+        sensitive = false
+        required = false
+        group = "Rx Docker Configuration"
+    }
+
+    debugport {
+        description = "Das service remote debug port for JVM - Default: 5021"
+        value = "5021"
+        name = "das.debug.port"  // Maps to das.debug.port in gradle.properties
+        sensitive = false
+        required = false
+        group = "Rx Docker Configuration"
+    }
+
+    javaopts {
+        description = "Additional JVM options - Default: null" 
+        value = ""
+        name = "das.java.opts"  // Maps to das.java.opts in gradle.properties
+        sensitive = false
+        required = false
+        group = "Rx Docker Configuration"
+    }
+
+    gradleflags {
+        description = "Gradle command flags - Default: -no-daemon --info --refresh-dependencies" 
+        value = "-no-daemon --info --refresh-dependencies"
+        name = "das.gradle.flags"  // Maps to das.gradle.flags in gradle.properties
+        sensitive = false
+        required = false
+        group = "Rx Docker Configuration"
+    }
+    // --- OpenTelemetry ---
+    otelenable {
+        description = "Das service enable OpenTelemetry - Default: false"
+        value = "false"
+        name = "otel.das.enable"  // Maps to otel.das.enable in gradle.properties
+        sensitive = false
+        required = false
+        group = "OpenTelemetry Configuration"
+    }
+
+    otelservicename {
+        description = "Das service name for OpenTelemetry - Default: das"
+        value = "das"
+        name = "otel.das.name"  // Maps to otel.das.name in gradle.properties
+        sensitive = false
+        required = false
+        group = "OpenTelemetry Configuration"
+    }
+
+    otelexporterendpoint {
+        description = "Das service base OTLP endpoint URL for OpenTelemetry - Default: http://jaeger:4318"
+        value = "http://jaeger:4318"
+        name = "otel.das.otlp.endpoint"  // Maps to otel.das.otlp.endpoint in gradle.properties
+        sensitive = false
+        required = false
+        group = "OpenTelemetry Configuration"
+    }
+
+    otelexporterprotocol {
+        description = "Das service transport protocol for OTLP - [grpc|http/protobuf|http/json] Default: http/protobuf"
+        value = "http/protobuf"
+        name = "otel.das.otlp.protocol"  // Maps to otel.das.otlp.protocol in gradle.properties
+        sensitive = false
+        required = false
+        group = "OpenTelemetry Configuration"
+    }
+
+    otelmetricsexporter {
+        description = "Das service metrics exporter - [otlp|prometheus|console|logging|none] Default: none"
+        value = "none"
+        name = "otel.das.metrics.exporter"  // Maps to otel.das.metrics.exporter in gradle.properties
+        sensitive = false
+        required = false
+        group = "OpenTelemetry Configuration"
+    }
+
+    otellogsexporter {
+        description = "Das service logs exporter - [otlp|console|logging|none] Default: none"
+        value = "none"
+        name = "otel.das.logs.exporter"  // Maps to otel.das.logs.exporter in gradle.properties
+        sensitive = false
+        required = false
+        group = "OpenTelemetry Configuration"
+    }
+
+    oteltracesexporter {
+        description = "Das service traces exporter - [otlp|zipkin|console|logging|none] Default: otlp"
+        value = "otlp"
+        name = "otel.das.traces.exporter"  // Maps to otel.das.traces.exporter in gradle.properties
+        sensitive = false
+        required = false
+        group = "OpenTelemetry Configuration"
+    }
+
+    otelexporterotlptimeout {
+        description = "Das service Timeout (ms) for OTLP data export (traces, metrics, logs) - Default: 10000"
+        value = "10000"
+        name = "otel.das.exporter.otlp.timeout"  // Maps to otel.das.exporter.otlp.timeout in gradle.properties
+        sensitive = false
+        required = false
+        group = "OpenTelemetry Configuration"
+    }
+}
+auth {
+    // ---- Debugging & JVM ----
+    debugMode {
+        description = "Enable debug mode for the application - Default: false"
+        value = "false"
+        name = "auth.debug.mode"  // Maps to auth.debug.mode in gradle.properties
+        sensitive = false
+        required = false
+        group = "Rx Docker Configuration"
+    }
+
+    disableDebug {
+        description = "Disable JVM debug agent - Default: false"
+        value = "false"
+        name = "auth.disable.debug"  // Maps to auth.disable.debug in gradle.properties
+        sensitive = false
+        required = false
+        group = "Rx Docker Configuration"
+    }
+
+    debugport {
+        description = "Auth service remote debug port for JVM - Default: 5020"
+        value = "5022"
+        name = "auth.debug.port"  // Maps to auth.debug.port in gradle.properties
+        sensitive = false
+        required = false
+        group = "Rx Docker Configuration"
+    }
+    
+    javaopts {
+        description = "Additional JVM options - Default: null" 
+        value = ""
+        name = "auth.java.opts"  // Maps to auth.java.opts in gradle.properties
+        sensitive = false
+        required = false
+        group = "Rx Docker Configuration"
+    }
+
+    gradleflags {
+        description = "Gradle command flags - Default: -no-daemon --info --refresh-dependencies" 
+        value = "-no-daemon --info --refresh-dependencies"
+        name = "auth.gradle.flags"  // Maps to auth.gradle.flags in gradle.properties
+        sensitive = false
+        required = false
+        group = "Rx Docker Configuration"
+    }
+    // --- OpenTelemetry ---
+    otelenable {
+        description = "Auth service enable OpenTelemetry - Default: false"
+        value = "false"
+        name = "otel.auth.enable"  // Maps to otel.auth.enable in gradle.properties
+        sensitive = false
+        required = false
+        group = "OpenTelemetry Configuration"
+    }
+
+    otelservicename {
+        description = "Auth service name for OpenTelemetry - Default: auth"
+        value = "auth"
+        name = "otel.auth.name"  // Maps to otel.auth.name in gradle.properties
+        sensitive = false
+        required = false
+        group = "OpenTelemetry Configuration"
+    }
+
+    otelexporterendpoint {
+        description = "Auth service base OTLP endpoint URL for OpenTelemetry - Default: http://jaeger:4318"
+        value = "http://jaeger:4318"
+        name = "otel.auth.otlp.endpoint"  // Maps to otel.auth.otlp.endpoint in gradle.properties
+        sensitive = false
+        required = false
+        group = "OpenTelemetry Configuration"
+    }
+
+    otelexporterprotocol {
+        description = "Auth service transport protocol for OTLP - [grpc|http/protobuf|http/json] Default: http/protobuf"
+        value = "http/protobuf"
+        name = "otel.auth.otlp.protocol"  // Maps to otel.auth.otlp.protocol in gradle.properties
+        sensitive = false
+        required = false
+        group = "OpenTelemetry Configuration"
+    }
+
+    otelmetricsexporter {
+        description = "Auth service metrics exporter - [otlp|prometheus|console|logging|none] Default: none"
+        value = "none"
+        name = "otel.auth.metrics.exporter"  // Maps to otel.auth.metrics.exporter in gradle.properties
+        sensitive = false
+        required = false
+        group = "OpenTelemetry Configuration"
+    }
+
+    otellogsexporter {
+        description = "Auth service logs exporter - [otlp|console|logging|none] Default: none"
+        value = "none"
+        name = "otel.auth.logs.exporter"  // Maps to otel.auth.logs.exporter in gradle.properties
+        sensitive = false
+        required = false
+        group = "OpenTelemetry Configuration"
+    }
+
+    oteltracesexporter {
+        description = "Auth service traces exporter - [otlp|zipkin|console|logging|none] Default: otlp"
+        value = "otlp"
+        name = "otel.auth.traces.exporter"  // Maps to otel.auth.traces.exporter in gradle.properties
+        sensitive = false
+        required = false
+        group = "OpenTelemetry Configuration"
+    }
+
+    otelexporterotlptimeout {
+        description = "Auth service Timeout (ms) for OTLP data export (traces, metrics, logs) - Default: 10000"
+        value = "10000"
+        name = "otel.auth.exporter.otlp.timeout"  // Maps to otel.auth.exporter.otlp.timeout in gradle.properties
+        sensitive = false
+        required = false
+        group = "OpenTelemetry Configuration"
+    }
+}
+edge {
+    // ---- Debugging & JVM ----
+    debugMode {
+        description = "Enable debug mode for the application - Default: false"
+        value = "false"
+        name = "edge.debug.mode"  // Maps to edge.debug.mode in gradle.properties
+        sensitive = false
+        required = false
+        group = "Rx Docker Configuration"
+    }
+
+    disableDebug {
+        description = "Disable JVM debug agent - Default: false"
+        value = "false"
+        name = "edge.disable.debug"  // Maps to edge.disable.debug in gradle.properties
+        sensitive = false
+        required = false
+        group = "Rx Docker Configuration"
+    }
+
+    debugport {
+        description = "Edge service remote debug port for JVM - Default: 5020"
+        value = "5023"
+        name = "edge.debug.port"  // Maps to edge.debug.port in gradle.properties
+        sensitive = false
+        required = false
+        group = "Rx Docker Configuration"
+    }
+    
+    javaopts {
+        description = "Additional JVM options - Default: null" 
+        value = ""
+        name = "edge.java.opts"  // Maps to edge.java.opts in gradle.properties
+        sensitive = false
+        required = false
+        group = "Rx Docker Configuration"
+    }
+
+    gradleflags {
+        description = "Gradle command flags - Default: -no-daemon --info --refresh-dependencies" 
+        value = "-no-daemon --info --refresh-dependencies"
+        name = "edge.gradle.flags"  // Maps to edge.gradle.flags in gradle.properties
+        sensitive = false
+        required = false
+        group = "Rx Docker Configuration"
+    }
+    // --- OpenTelemetry ---
+    otelenable {
+        description = "Edge service enable OpenTelemetry - Default: false"
+        value = "false"
+        name = "otel.edge.enable"  // Maps to otel.edge.enable in gradle.properties
+        sensitive = false
+        required = false
+        group = "OpenTelemetry Configuration"
+    }
+
+    otelservicename {
+        description = "Edge service name for OpenTelemetry - Default: auth"
+        value = "auth"
+        name = "otel.edge.name"  // Maps to otel.edge.name in gradle.properties
+        sensitive = false
+        required = false
+        group = "OpenTelemetry Configuration"
+    }
+
+    otelexporterendpoint {
+        description = "Edge service base OTLP endpoint URL for OpenTelemetry - Default: http://jaeger:4318"
+        value = "http://jaeger:4318"
+        name = "otel.edge.otlp.endpoint"  // Maps to otel.edge.otlp.endpoint in gradle.properties
+        sensitive = false
+        required = false
+        group = "OpenTelemetry Configuration"
+    }
+
+    otelexporterprotocol {
+        description = "Edge service transport protocol for OTLP - [grpc|http/protobuf|http/json] Default: http/protobuf"
+        value = "http/protobuf"
+        name = "otel.edge.otlp.protocol"  // Maps to otel.edge.otlp.protocol in gradle.properties
+        sensitive = false
+        required = false
+        group = "OpenTelemetry Configuration"
+    }
+
+    otelmetricsexporter {
+        description = "Edge service metrics exporter - [otlp|prometheus|console|logging|none] Default: none"
+        value = "none"
+        name = "otel.edge.metrics.exporter"  // Maps to otel.edge.metrics.exporter in gradle.properties
+        sensitive = false
+        required = false
+        group = "OpenTelemetry Configuration"
+    }
+
+    otellogsexporter {
+        description = "Edge service logs exporter - [otlp|console|logging|none] Default: none"
+        value = "none"
+        name = "otel.edge.logs.exporter"  // Maps to otel.edge.logs.exporter in gradle.properties
+        sensitive = false
+        required = false
+        group = "OpenTelemetry Configuration"
+    }
+
+    oteltracesexporter {
+        description = "Edge service traces exporter - [otlp|zipkin|console|logging|none] Default: otlp"
+        value = "otlp"
+        name = "otel.edge.traces.exporter"  // Maps to otel.edge.traces.exporter in gradle.properties
+        sensitive = false
+        required = false
+        group = "OpenTelemetry Configuration"
+    }
+
+    otelexporterotlptimeout {
+        description = "Edge service Timeout (ms) for OTLP data export (traces, metrics, logs) - Default: 10000"
+        value = "10000"
+        name = "otel.edge.exporter.otlp.timeout"  // Maps to otel.edge.exporter.otlp.timeout in gradle.properties
+        sensitive = false
+        required = false
+        group = "OpenTelemetry Configuration"
+    }
+}
