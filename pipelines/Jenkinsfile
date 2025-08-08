@@ -56,6 +56,10 @@ pipeline {
 
         MAIN_BRANCH    = "main"
         DEVELOP_BRANCH = "develop"
+
+        JIRA_ACCESS_TOKEN = credentials('jira-access-token') // Jenkins credential stored as base64-encoded string for another Atlassian user, not etendobot
+
+        EXTRA_MODULES_FILE = "jenkinsExtraModules.txt"
     }
 
     agent { // MARK: - Agent
@@ -214,6 +218,88 @@ spec:
                                     git checkout ${GIT_COMMIT}
                                     cd ../..
                                     """
+                                    echo "-------------------------- Cloning of other modules --------------------------"
+                                    env.EXTRA_MODULES = ''
+                                    env.REPOS_INFO = ''
+                                    def currentBranch = ''
+                                    if (fileExists("${CLASSIC_DIR}/modules/${REPOSITORY_NAME}/${EXTRA_MODULES_FILE}")) {
+                                        env.EXTRA_MODULES = readFile("${CLASSIC_DIR}/modules/${REPOSITORY_NAME}/${EXTRA_MODULES_FILE}").trim()
+                                        
+                                        def extraModules = []
+                                        if (env.EXTRA_MODULES != ''){
+                                            extraModules = env.EXTRA_MODULES.tokenize(',')
+                                            env.REPOS_INFO = "<em>🧲 Branches used in dependent modules:</em><br><ul>"
+                                        }
+                                        def module_package = ''
+
+                                        def isFeatureBranch = env.GIT_BRANCH.startsWith("feature/")
+                                        def epicKey = ''
+                                        if (isFeatureBranch) {
+                                            echo "-------------------------- Feature Branch Detected --------------------------"
+                                            def taskName = env.GIT_BRANCH.replaceAll("feature/", "").replaceAll("-Y\\d+", "")
+                                            epicKey = sh(script: "bash ${rootDir}/utils/jira/jira-utils.sh ${taskName} ${JIRA_BASE_URL} ${JIRA_ACCESS_TOKEN}", returnStdout: true).trim()
+                                            if (epicKey) {
+                                            echo "Epic Key: ${epicKey}"
+                                            if (env.GIT_BRANCH.contains("-Y")) {
+                                                env.EPIC_BRANCH = "epic/${epicKey}-Y${env.GIT_BRANCH.split('-Y')[1]}"
+                                            } else {
+                                                env.EPIC_BRANCH = "epic/${epicKey}"
+                                            }
+                                            echo "Epic Branch: ${env.EPIC_BRANCH}"
+                                            }
+                                        }
+
+                                        for (String module in extraModules) {
+                                            module_package = sh(script: "echo '${module}' | sed -E 's#.*/##' | sed 's/.git\$//'", returnStdout: true).trim()
+                                            echo "------------------------------- Clone ${module_package} Module --------------------------"
+                                            sh """
+                                            cd ${CLASSIC_DIR}/modules
+                                            GIT_SSH_COMMAND='${sshCmd}' git clone ${module}
+                                            """
+
+                                            if (!(env.GIT_BRANCH.contains("-Y")) && !(env.GIT_BRANCH.startsWith("release")) && !(env.GIT_BRANCH.startsWith("main" )) && !(env.GIT_BRANCH.startsWith("master")) && !(env.GIT_BRANCH.startsWith("hotfix"))) {
+                                                echo "-------------------------- Checking out to ${module_package} Module Branch --------------------------"
+                                                if (isFeatureBranch && epicKey) {
+                                                    sh """
+                                                    cd ${CLASSIC_DIR}/modules/${module_package}
+                                                    git checkout ${env.EPIC_BRANCH} || git checkout ${env.DEVELOP_BRANCH}
+                                                    """
+                                                } else {
+                                                    sh """
+                                                    cd ${CLASSIC_DIR}/modules/${module_package}
+                                                    git checkout ${env.DEVELOP_BRANCH}
+                                                    """
+                                                }
+                                            } else if (env.GIT_BRANCH.contains("-Y") || env.GIT_BRANCH.startsWith("release")) {
+                                                if (isFeatureBranch && epicKey) {
+                                                    sh """
+                                                    cd ${CLASSIC_DIR}/modules/${module_package}
+                                                    git checkout ${env.EPIC_BRANCH} || git checkout ${env.BACKPORT_BRANCH}
+                                                    """
+                                                } else {
+                                                    sh """
+                                                    cd ${CLASSIC_DIR}/modules/${module_package}
+                                                    git checkout ${env.BACKPORT_BRANCH}
+                                                    """
+                                                } 
+                                            }
+
+                                            sh """
+                                            cd ${CLASSIC_DIR}/modules/${module_package}
+                                            git checkout ${env.GIT_BRANCH} || echo 'Branch ${env.GIT_BRANCH} not found in ${module_package}'
+                                            """
+                                            currentBranch = sh(script: "cd ${CLASSIC_DIR}/modules/${module_package} && git rev-parse --abbrev-ref HEAD", returnStdout: true).trim()
+                                            env.REPOS_INFO += "<li> Module ${module_package}: ${currentBranch}</li>"
+                                        }
+                                        if (env.REPOS_INFO != '') {
+                                            env.REPOS_INFO += "</ul>"
+                                            echo "${env.REPOS_INFO}"
+                                        } else {
+                                            echo "No extra modules found."
+                                        }
+                                    } else {
+                                        echo "${EXTRA_MODULES_FILE} not found for ${REPOSITORY_NAME}, skipping extra modules checkout."
+                                    }
 
                                     dir(CLASSIC_DIR) {
                                         env.WORKDIR_MODULE = "${pwd()}/modules/${REPOSITORY_NAME}"
@@ -624,6 +710,9 @@ spec:
                         <strong>Commit:</strong> <a href="${URL_REPO}/commits/${env.GIT_COMMIT}">${URL_REPO}/commits/${env.GIT_COMMIT}</a><br />
                         <strong>Author:</strong> ${COMMIT_AUTHOR_NAME} (${COMMIT_AUTHOR_EMAIL})
                     </p>
+
+                    ${env.REPOS_INFO}
+
                     <p>
                         The build has failed unexpectedly.<br />
                         💡 This build was on an Full Etendo (CORE and RX) build environment based on RX module commit.<br />
@@ -670,6 +759,9 @@ spec:
                         <strong>Commit:</strong> <a href="${URL_REPO}/commits/${env.GIT_COMMIT}">${URL_REPO}/commits/${env.GIT_COMMIT}</a><br />
                         <strong>Author:</strong> ${COMMIT_AUTHOR_NAME} (${COMMIT_AUTHOR_EMAIL})
                     </p>
+
+                    ${env.REPOS_INFO}
+
                     <p>
                         ${env.MORE_INFO}
                         To more information on the failing run visit:<br />
