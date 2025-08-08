@@ -7,7 +7,7 @@
 */
 
 group          = "com.etendoerp"
-version        = "3.4.0"
+version        = "3.5.0"
 description    = "Integration with Etendo RX"
 ext.artifact   = "etendorx"
 ext.repository = "https://maven.pkg.github.com/etendosoftware/com.etendoerp.platform.extensions"
@@ -59,7 +59,7 @@ dependencies {
     implementation('com.google.apis:google-api-services-drive:v3-rev197-1.25.0')
     implementation('com.google.http-client:google-http-client-jackson2:1.43.3')
 
-    implementation('com.etendoerp:docker:2.3.0')
+    implementation('com.etendoerp:docker:2.4.0')
     implementation('com.etendoerp:openapi:2.2.0')
 
     implementation('com.etendoerp.platform:etendo-core:[25.2.0,25.3.0)')
