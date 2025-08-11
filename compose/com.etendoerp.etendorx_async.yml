@@ -1,6 +1,7 @@
 services:
   kafka:
     image: bitnami/kafka:4.0.0
+    hostname: kafka
     ports:
       - "9092:9092"
       - "9093:9093"
@@ -56,32 +57,19 @@ services:
     depends_on:
       config:
         condition: service_healthy
-    image: etendo/dynamic-gradle:1.1.0
+    build:
+      context: .
+      dockerfile: rx/Dockerfile
+      args:
+        - DEPENDENCIES=com.etendorx:asyncprocess:${ETENDORX_VERSION}
+        - REPO_URL=${ETENDORX_REPOSITORY_URL}
+        - REPO_USER=${ETENDORX_REPOSITORY_USER}
+        - REPO_PASSWORD=${ETENDORX_REPOSITORY_PASSWORD}
+        - CONFIG_SERVER_URL=${ETENDORX_CONFIG_SERVER_URL}
+    image: etendo/asyncprocess:local
     ports:
       - "8099:8099"
-      - "${ASYNCPROCESS_DEBUG_PORT:-5024}:8000"
-    environment:
-      - DEPENDENCIES=com.etendorx:asyncprocess:${ETENDORX_VERSION}
-      - REPO_URL=${ETENDORX_REPOSITORY_URL}
-      - REPO_USER=${ETENDORX_REPOSITORY_USER}
-      - REPO_PASSWORD=${ETENDORX_REPOSITORY_PASSWORD}
-      - CONFIG_SERVER_URL=${ETENDORX_CONFIG_SERVER_URL}
-      - TASK=downloadJar
-      # ---- Debugging & JVM ----
-      - DEBUG_PORT=${ASYNCPROCESS_DEBUG_PORT:-5024}
-      - DEBUG_MODE=${ASYNCPROCESS_DEBUG_MODE:-false}
-      - DISABLE_DEBUG=${ASYNCPROCESS_DISABLE_DEBUG:-false}
-      - JAVA_OPTS=${ASYNCPROCESS_JAVA_OPTS:-}
-      - GRADLE_FLAGS=${ASYNCPROCESS_GRADLE_FLAGS:-}
-      # --- OpenTelemetry ---
-      - ENABLE_OPEN_TELEMETRY=${OTEL_ASYNCPROCESS_ENABLE:-false}
-      - OTEL_SERVICE_NAME=${OTEL_ASYNCPROCESS_NAME:-asyncprocess}
-      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_ASYNCPROCESS_OTLP_ENDPOINT:-http://jaeger:4318}
-      - OTEL_EXPORTER_OTLP_PROTOCOL=${OTEL_ASYNCPROCESS_OTLP_PROTOCOL:-http/protobuf}
-      - OTEL_METRICS_EXPORTER=${OTEL_ASYNCPROCESS_METRICS_EXPORTER:-none}
-      - OTEL_LOGS_EXPORTER=${OTEL_ASYNCPROCESS_LOGS_EXPORTER:-none}
-      - OTEL_TRACES_EXPORTER=${OTEL_ASYNCPROCESS_TRACES_EXPORTER:-otlp}
-      - OTEL_EXPORTER_OTLP_TIMEOUT=${OTEL_ASYNCPROCESS_EXPORTER_OTLP_TIMEOUT:-10000}
+      - "5024:8000"
     networks:
       - etendo
     volumes:
@@ -91,6 +79,10 @@ services:
       interval: 10s
       timeout: 10s
       retries: 60
+    deploy:
+      resources:
+        limits:
+          memory: 256M
 
 volumes:
   async_vol:
