@@ -24,12 +24,12 @@ def sourceDir = project.providers
         if (moduleProject != null) {
             rxProject = moduleProject.findProject("com.etendoerp.etendorx")
         }
-        File jarModulesLocation = new File(project.buildDir, "etendo"+File.separator+"com.etendoerp.etendorx")
+        File jarModulesLocation = new File(project.buildDir, "etendo"+File.separator+"modules")
         File rxJarModule = new File(jarModulesLocation, "com.etendoerp.etendorx")
         if (rxProject != null || rxJarModule.exists()) {
             return rxProject != null ? rxProject.projectDir.path : rxJarModule.path
         } else {
-            throw new GradleException("${red}❌ Rx module not found.${reset}")
+            throw new GradleException("${red}❌ RX module not found.${reset}")
         }
     }
     .map { file(it) }
@@ -59,11 +59,11 @@ def isAsyncProcessDockerized() {
 }
 
 task "rx.setup" {
-    if (isRXDockerized()) {
-        description = 'Finds all Docker Compose YAML files and copies them to build/compose'
-        group = 'Docker'
+    description = 'Finds all Docker Compose YAML files and copies them to build/compose'
+    group = 'Docker'
 
-        doLast {
+    doLast {
+        if (isRXDockerized()) {
             println("Copying RX config files")
             // Ensure the destination directory exists
             def destDir = layout.buildDirectory.dir("rxconfig").get().asFile
@@ -175,12 +175,13 @@ task "rx.das.stop" {
 }
 
 task "kafkaConnectSetup" {
-    def connectorName = "default"
-    def dbUser = getTypedProp('bbdd.systemUser') ?: 'postgres'
-    def dbName = getTypedProp('bbdd.sid') ?: 'etendo'
-    def dbPass = getTypedProp('bbdd.systemPassword') ?: 'syspass'
 
     doLast {
+        def connectorName = "default"
+        def dbUser = getTypedProp('bbdd.systemUser') ?: 'postgres'
+        def dbName = getTypedProp('bbdd.sid') ?: 'etendo'
+        def dbPass = getTypedProp('bbdd.systemPassword') ?: 'syspass'
+
         if (!project.hasProperty('kafka.connect.tables')) {
             throw new GradleException("You must specify the 'kafka.connect.tables' property.")
         }
@@ -313,6 +314,8 @@ task "jaeger.build" {
                 upsertEnvProperty('OTEL_TOMCAT_TRACES_EXPORTER', otel_tomcat_traces_exporter)
                 def otel_tomcat_otlp_protocol = getTypedProp("otel.tomcat.otlp.protocol") ?: "http/protobuf"
                 upsertEnvProperty('OTEL_TOMCAT_OTLP_PROTOCOL', otel_tomcat_otlp_protocol)
+                def otel_tomcat_otlp_timeout = getTypedProp("otel.tomcat.otlp.timeout") ?: "10000"
+                upsertEnvProperty('OTEL_TOMCAT_OTLP_TIMEOUT', otel_tomcat_otlp_timeout)
                 project.logger.debug("📄 Setting TOMCAT_CATALINA_OPTS in .env file.")
                 def otelFlags = [
                 "-javaagent:/usr/local/tomcat/webapps/otel/opentelemetry-javaagent.jar",
@@ -321,7 +324,8 @@ task "jaeger.build" {
                 "-Dotel.logs.exporter=${otel_tomcat_logs_exporter}",
                 "-Dotel.traces.exporter=${otel_tomcat_traces_exporter}",
                 "-Dotel.exporter.otlp.endpoint=${otel_tomcat_otlp_endpoint}",
-                "-Dotel.exporter.otlp.protocol=${otel_tomcat_otlp_protocol}"
+                "-Dotel.exporter.otlp.protocol=${otel_tomcat_otlp_protocol}",
+                "-Dotel.exporter.otlp.timeout=${otel_tomcat_otlp_timeout}"
                 ].join(" \\\n    ")
                 String tomcat_catalina_opts = "\"${otelFlags}\""
                 upsertEnvProperty('TOMCAT_CATALINA_OPTS', tomcat_catalina_opts)
