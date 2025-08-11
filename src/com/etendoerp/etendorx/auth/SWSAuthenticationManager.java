@@ -454,7 +454,7 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
           .setFilterOnReadableOrganization(false)
           .setMaxResults(1).uniqueResult();
       return allowSSOPref != null ? allowSSOPref.getSearchKey() : "N";
-    } catch (OBSecurityException e) {
+    } catch (Exception e) {
       return null;
     }
   }
