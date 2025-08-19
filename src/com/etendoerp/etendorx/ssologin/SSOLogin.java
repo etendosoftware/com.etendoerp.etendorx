@@ -114,7 +114,7 @@ public class SSOLogin implements SignInProvider {
             return "<br>" + ssoButton;
         } else {
             String ssoLoginUrl = OBPropertiesProvider.getInstance().getOpenbravoProperties()
-                    .getProperty("sso.middleware.url") + "/login";
+                    .getProperty("sso.middleware.url");
 
             String redirectUri = OBPropertiesProvider.getInstance().getOpenbravoProperties()
                     .getProperty("sso.middleware.redirectUri");
@@ -123,6 +123,7 @@ public class SSOLogin implements SignInProvider {
                 log.warn("[SSO] - Missing configuration for middleware: url or redirectUri is blank");
                 return MISCONFIGURED_MESSAGE;
             }
+            ssoLoginUrl += "/login";
 
             String accountID = "";
             try {
