@@ -55,13 +55,7 @@ public class SaveTokenFromMiddleware extends HttpBaseServlet {
       }
       User currentUser = OBContext.getOBContext().getUser();
       Organization currentOrg = OBContext.getOBContext().getCurrentOrganization();
-      List<ETRXTokenInfo> oldTokenList = OBDal.getInstance().createCriteria(ETRXTokenInfo.class)
-          .add(Restrictions.eq(ETRXTokenInfo.PROPERTY_USER, currentUser))
-          .add(Restrictions.eq(ETRXTokenInfo.PROPERTY_ORGANIZATION, currentOrg))
-          .list();
-      for (ETRXTokenInfo oldToken : oldTokenList) {
-        OBDal.getInstance().remove(oldToken);
-      }
+      removeOldTokens(currentUser, currentOrg);
       ETRXTokenInfo newToken = OBProvider.getInstance().get(ETRXTokenInfo.class);
       newToken.setToken(request.getParameter("access_token"));
       String providerScope = request.getParameter("provider") + " - " + request.getParameter("scope");
@@ -89,6 +83,34 @@ public class SaveTokenFromMiddleware extends HttpBaseServlet {
         log4j.error(ex);
         throw new OBException(ex);
       }
+    }
+  }
+
+  /**
+   * Removes all old SSO tokens associated with the given user and organization.
+   * <p>
+   * This method queries the database for {@link ETRXTokenInfo} records matching
+   * the specified {@link User} and {@link Organization}. All matching tokens are
+   * considered obsolete and are deleted from the persistence context using
+   * {@link OBDal#remove(Object)}.
+   * </p>
+   *
+   * <p>
+   * This is typically used to ensure that only the latest token is kept for a
+   * user in a given organization, preventing multiple active tokens for the same
+   * context.
+   * </p>
+   *
+   * @param currentUser the user whose old tokens should be removed
+   * @param currentOrg  the organization in which the tokens are scoped
+   */
+  private static void removeOldTokens(User currentUser, Organization currentOrg) {
+    List<ETRXTokenInfo> oldTokenList = OBDal.getInstance().createCriteria(ETRXTokenInfo.class)
+        .add(Restrictions.eq(ETRXTokenInfo.PROPERTY_USER, currentUser))
+        .add(Restrictions.eq(ETRXTokenInfo.PROPERTY_ORGANIZATION, currentOrg))
+        .list();
+    for (ETRXTokenInfo oldToken : oldTokenList) {
+      OBDal.getInstance().remove(oldToken);
     }
   }
 

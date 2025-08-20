@@ -3,18 +3,26 @@ OB.ETRX.middlewareToken = {
   getMiddlewareToken: function (params, view) {
     const screenWidth = window.screen.width;
     const screenHeight = window.screen.height;
-    const popupWidth = screenWidth * 0.5;
-    const popupHeight = screenHeight * 0.5;
-    const left = (screenWidth - popupWidth) / 2;
-    const upperMargin = (screenHeight - popupHeight) / 2;
+    const popupWidth = Math.round(screenWidth * 0.5);
+    const popupHeight = Math.round(screenHeight * 0.5);
+    const left = Math.round((screenWidth - popupWidth) / 2);
+    const upperMargin = Math.round((screenHeight - popupHeight) / 2);
 
     const selectedRecord = params.button.contextView.viewGrid.getSelectedRecords()[0];
+    if (!selectedRecord) {
+      console.error('No hay registro seleccionado');
+      return;
+    }
+
     const userId = OB.User.id;
     const state = crypto.randomUUID();
     const encodedState = btoa(JSON.stringify({ state, userId }));
 
     fetch(selectedRecord.authorizationEndpoint + '/available-providers')
-      .then(response => response.json())
+      .then(async (response) => {
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        return response.json();
+      })
       .then(data => {
         const providers = Object.keys(data).map(providerKey => ({
           name: providerKey.charAt(0).toUpperCase() + providerKey.slice(1),
@@ -66,16 +74,12 @@ OB.ETRX.middlewareToken = {
           scopeButtonsContainer.className = 'middleware-scope-container';
 
           provider.scopes.forEach(scopeData => {
-            const { scope, iconUrl, description } = scopeData;
+            const { scope: rawScope, iconUrl = '', description = '' } = scopeData || {};
+            const scope = typeof rawScope === 'string' ? rawScope : String(rawScope || '');
 
-            const labelMap = {
-               drive: 'Drive Files',
-               calendar: 'Calendar',
-               gmail: 'Gmail'
-             };
-
-             const matchedKey = Object.keys(labelMap).find(key => scope.includes(key));
-             const label = matchedKey ? labelMap[matchedKey] : scope;
+            const labelMap = { drive: 'Drive Files', calendar: 'Calendar', gmail: 'Gmail' };
+            const matchedKey = Object.keys(labelMap).find(key => scope.includes(key));
+            const label = matchedKey ? labelMap[matchedKey] : scope || 'Scope';
 
             const scopeItem = document.createElement('div');
             scopeItem.className = 'middleware-scope-item';
@@ -90,22 +94,37 @@ OB.ETRX.middlewareToken = {
             iconImg.className = 'middleware-scope-icon';
 
             button.appendChild(iconImg);
-            button.onclick = () => {
-              document.body.removeChild(modal);
-              const baseURL = provider.authorizationEndpoint +
-                '?provider=' + encodeURIComponent(provider.name.toLowerCase()) +
-                '&account_id=etendo_123' +
-                '&scope=' + encodeURIComponent(scope) +
-                '&redirect_uri=' + encodeURIComponent(provider.redirectUri);
 
-              const separator = baseURL.includes('?') ? '&' : '?';
-              const popUpURL = baseURL + separator + `state=${encodedState}`;
+            button.onclick = async () => {
               const sizeProperties = `width=${popupWidth},height=${popupHeight},left=${left},top=${upperMargin}`;
-              const popup = window.open(popUpURL, 'Authentication Popup', sizeProperties);
+              const popup = window.open('', 'Authentication Popup', sizeProperties);
               if (!popup) {
                 console.error(OB.I18N.getLabel('ETRX_PopupNotBeOpened'));
                 alert(OB.I18N.getLabel('ETRX_PopupNotBeOpened'));
+                return;
               }
+
+              let accountId = '';
+              try {
+                accountId = await OB.ETRX.middlewareToken.getAccount();
+              } catch (e) {
+                console.error('No se pudo obtener account_id', e);
+                alert(OB.I18N.getLabel('ETRX_ErrorFetchAccount') || 'No se pudo obtener la cuenta.');
+                popup.close();
+                return;
+              }
+
+              document.body.removeChild(modal);
+
+              const qs = new URLSearchParams({
+                provider: provider.name.toLowerCase(),
+                account_id: accountId,
+                scope,
+                redirect_uri: provider.redirectUri,
+                state: encodedState
+              });
+
+              popup.location.href = `${provider.authorizationEndpoint}?${qs.toString()}`;
             };
 
             const labelText = document.createElement('span');
@@ -132,7 +151,28 @@ OB.ETRX.middlewareToken = {
       })
       .catch(err => {
         console.error(OB.I18N.getLabel('ETRX_ErrorFetchProviders'), err);
-        this.processOwnerView.messageBar.setMessage('error', OB.I18N.getLabel('ETRX_ErrorFetchProviders'), OB.I18N.getLabel('ETRX_ErrorFetchProviders_Description'));
+        this.processOwnerView?.messageBar?.setMessage?.(
+          'error',
+          OB.I18N.getLabel('ETRX_ErrorFetchProviders'),
+          OB.I18N.getLabel('ETRX_ErrorFetchProviders_Description')
+        );
       });
+  }, 
+  
+  getAccount: function () {
+    return new Promise((resolve, reject) => {
+      OB.RemoteCallManager.call(
+        'com.etendoerp.etendorx.GetSSOProperties',
+        { properties: 'account' },
+        {},
+        function callbackOnProcessActionHandler(response, data) {
+          if (data?.message?.severity === 'error') {
+            reject(new Error(data.message.text || 'Account fetch error'));
+          } else {
+            resolve(data?.account || '');
+          }
+        }
+      );
+    });
   }
 };
