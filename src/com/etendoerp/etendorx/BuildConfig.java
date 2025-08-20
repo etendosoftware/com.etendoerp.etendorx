@@ -110,7 +110,7 @@ public class BuildConfig extends HttpBaseServlet {
         tokenUser = OBDal.getInstance().get(User.class, "100");
         String adminToken = SecureWebServicesUtils.generateToken(tokenUser);
         sourceJSON.put("token", sysToken);
-        sourceJSON.put("adminToken", adminToken);
+        sourceJSON.put("admin.token", adminToken);
         sourceJSON.put(PRIVATE_KEY, keys.getString(PRIVATE_KEY));
         updateSourceWithOAuthProviders(sourceEntry.getValue(), allInjectors);
       }

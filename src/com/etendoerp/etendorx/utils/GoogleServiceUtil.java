@@ -119,24 +119,27 @@ public class GoogleServiceUtil {
    * @throws OBException If the spreadsheet has no sheets or if the index is out of bounds.
    * @throws IOException If an error occurs while communicating with the Google Sheets API.
    */
-  public static String getTabName(int index, String sheetId, String token, String accountID)
-      throws OBException, IOException {
-    String validToken = getValidAccessTokenOrRefresh(token, accountID);
-    Sheets sheetsService = GoogleServiceUtil.getSheetsService(validToken);
-    Spreadsheet spreadsheet = sheetsService.spreadsheets().get(sheetId).execute();
-    List<Sheet> sheets = spreadsheet.getSheets();
-
-    if (sheets == null || sheets.isEmpty()) {
-      String errorMessage = Utility.messageBD(new DalConnectionProvider(), "ETRX_SheetHasNoTabs",
-          OBContext.getOBContext().getLanguage().getLanguage());
-      throw new OBException(errorMessage);
+  public static String getTabName(int index, String sheetId, String token, String accountID) throws OBException, IOException {
+    try {
+      String validToken = getValidAccessTokenOrRefresh(token, accountID);
+      Sheets sheetsService = GoogleServiceUtil.getSheetsService(validToken);
+      Spreadsheet spreadsheet = sheetsService.spreadsheets().get(sheetId).execute();
+      List<Sheet> sheets = spreadsheet.getSheets();
+      if (sheets == null || sheets.isEmpty()) {
+        String errorMessage = Utility.messageBD(new DalConnectionProvider(), "ETRX_SheetHasNoTabs",
+            OBContext.getOBContext().getLanguage().getLanguage());
+        throw new OBException(errorMessage);
+      }
+      if (sheets.size() < index) {
+        String errorMessage = Utility.messageBD(new DalConnectionProvider(), "ETRX_WrongTabNumber",
+            OBContext.getOBContext().getLanguage().getLanguage());
+        throw new OBException(errorMessage);
+      }
+      return sheets.get(index).getProperties().getTitle();
+    } catch (Exception e) {
+      log4j.error("Error reading tab name", e);
+      throw new OBException("Failed to get tab name", e);
     }
-    if (sheets.size() < index) {
-      String errorMessage = Utility.messageBD(new DalConnectionProvider(), "ETRX_WrongTabNumber",
-          OBContext.getOBContext().getLanguage().getLanguage());
-      throw new OBException(errorMessage);
-    }
-    return sheets.get(index).getProperties().getTitle();
   }
 
   /**
@@ -193,10 +196,8 @@ public class GoogleServiceUtil {
   public static List<List<Object>> findSpreadsheetAndTab(String sheetId, String tabName, String token, String accountID) throws IOException {
     String validToken = getValidAccessTokenOrRefresh(token, accountID);
     Sheets sheetsService = GoogleServiceUtil.getSheetsService(validToken);
-
     Spreadsheet spreadsheet = sheetsService.spreadsheets().get(sheetId).execute();
     List<Sheet> sheets = spreadsheet.getSheets();
-
     boolean foundTab = sheets.stream()
         .anyMatch(s -> tabName.equalsIgnoreCase(s.getProperties().getTitle()));
 
@@ -205,13 +206,10 @@ public class GoogleServiceUtil {
           OBContext.getOBContext().getLanguage().getLanguage());
       throw new OBException(String.format(errorMessage, tabName));
     }
-
     ValueRange response = sheetsService.spreadsheets().values()
         .get(sheetId, tabName)
         .execute();
-
     List<List<Object>> values = response.getValues();
-
     if (values == null || values.isEmpty()) {
       log4j.warn("Empty tab: {}", tabName);
       return List.of();
@@ -284,7 +282,6 @@ public class GoogleServiceUtil {
   public static JSONArray listAccessibleFiles(String type, String accessToken, String accountID)
       throws JSONException, IOException {
     String mimeType;
-
     switch (type.toLowerCase()) {
       case SPREADSHEET:
         mimeType = "application/vnd.google-apps.spreadsheet";
@@ -326,7 +323,7 @@ public class GoogleServiceUtil {
    * @throws JSONException if there is an error parsing the API response
    * @throws OBException   if the API returns a non-200 HTTP status code, indicating a request failure
    */
-  private static JSONArray listAccessibleFilesByMimeType(String mimeType, String accessToken, String accountID) throws IOException, JSONException {
+  protected static JSONArray listAccessibleFilesByMimeType(String mimeType, String accessToken, String accountID) throws IOException, JSONException {
     String endpoint = "https://www.googleapis.com/drive/v3/files" +
         "?q=mimeType='" + mimeType + "'" +
         "&fields=files(id,name,mimeType)" +
