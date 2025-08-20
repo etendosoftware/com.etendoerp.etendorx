@@ -1,10 +1,10 @@
 package com.etendoerp.etendorx.utils;
 
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
+import com.google.api.client.http.HttpHeaders;
 import com.google.api.client.http.HttpRequest;
 import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.client.http.HttpTransport;
-import com.google.api.client.http.HttpHeaders;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.jackson2.JacksonFactory;
@@ -43,9 +43,6 @@ import static org.openbravo.base.secureApp.LoginUtils.log4j;
  */
 public class GoogleServiceUtil {
 
-  private static final String APPLICATION_NAME = "Google Sheets Java Integration";
-  private static final JsonFactory JSON_FACTORY = JacksonFactory.getDefaultInstance();
-  private static final HttpTransport HTTP_TRANSPORT = new NetHttpTransport();
   public static final String BEARER = "Bearer ";
   public static final String SPREADSHEET = "spreadsheet";
   public static final String DOC = "doc";
@@ -55,6 +52,9 @@ public class GoogleServiceUtil {
   public static final String AUTHORIZATION = "Authorization";
   public static final String APPLICATION_JSON = "application/json";
   public static final String ACCEPT = "Accept";
+  private static final String APPLICATION_NAME = "Google Sheets Java Integration";
+  private static final JsonFactory JSON_FACTORY = JacksonFactory.getDefaultInstance();
+  private static final HttpTransport HTTP_TRANSPORT = new NetHttpTransport();
 
   private GoogleServiceUtil() {
     throw new IllegalStateException("Utility class");
@@ -116,7 +116,6 @@ public class GoogleServiceUtil {
    * @param token     The access token used to authenticate with the Google Sheets API.
    * @param accountID The ID of the account used to validate or refresh the token.
    * @return The title of the sheet at the given index.
-   *
    * @throws OBException If the spreadsheet has no sheets or if the index is out of bounds.
    * @throws IOException If an error occurs while communicating with the Google Sheets API.
    */
@@ -186,12 +185,11 @@ public class GoogleServiceUtil {
    * an {@link OBException} is thrown. If the tab exists but has no data, an empty list is returned.
    * </p>
    *
-   * @param sheetId     the ID of the Google Spreadsheet (not the full URL)
-   * @param tabName     the name of the tab (sheet) to search for (case-insensitive)
-   * @param token       a valid OAuth 2.0 access token with Sheets read access
-   * @param accountID   the internal account identifier used to refresh the token if necessary.
+   * @param sheetId   the ID of the Google Spreadsheet (not the full URL)
+   * @param tabName   the name of the tab (sheet) to search for (case-insensitive)
+   * @param token     a valid OAuth 2.0 access token with Sheets read access
+   * @param accountID the internal account identifier used to refresh the token if necessary.
    * @return a list of rows from the tab; each row is a list of cell values. Returns an empty list if the tab is found but contains no data.
-   *
    * @throws OBException if the specified tab name does not exist in the spreadsheet
    * @throws IOException if an error occurs while communicating with the Google Sheets API
    */
@@ -229,12 +227,11 @@ public class GoogleServiceUtil {
    * The method returns the values as a list of rows, where each row is a list of cell values.
    * </p>
    *
-   * @param accessToken   a valid OAuth 2.0 access token with permission to read from Google Sheets (e.g., {@code https://www.googleapis.com/auth/spreadsheets.readonly})
-   * @param accountID     the internal account identifier used to refresh the token if necessary.
-   * @param fileId        the ID of the Google Spreadsheet to read from
-   * @param range         the A1-notation range to read (e.g., {@code "Sheet1!A1:C10"}); if blank or null, defaults to {@code "A1:Z1000"}
-   * @return              a {@link List} of rows, where each row is a {@link List} of cell values ({@code Object})
-   *
+   * @param accessToken a valid OAuth 2.0 access token with permission to read from Google Sheets (e.g., {@code https://www.googleapis.com/auth/spreadsheets.readonly})
+   * @param accountID   the internal account identifier used to refresh the token if necessary.
+   * @param fileId      the ID of the Google Spreadsheet to read from
+   * @param range       the A1-notation range to read (e.g., {@code "Sheet1!A1:C10"}); if blank or null, defaults to {@code "A1:Z1000"}
+   * @return a {@link List} of rows, where each row is a {@link List} of cell values ({@code Object})
    * @throws IOException if a network error occurs or the API request fails
    */
   public static List<List<Object>> readSheet(String accessToken, String accountID, String fileId, String range) throws IOException {
@@ -271,14 +268,13 @@ public class GoogleServiceUtil {
    *   <li>{@code "pdf"}, {@code "pdfs"} → PDF files uploaded to Drive ({@code application/pdf})</li>
    * </ul>
    *
-   * @param type         a simplified keyword representing the file type to retrieve
-   * @param accessToken  a valid OAuth 2.0 access token with access to the user's Drive
-   *                     (e.g., {@code drive.file} or {@code drive.readonly})
-   * @param accountID    the internal account identifier used to refresh the token if necessary.
-   * @return             a {@link JSONArray} containing the matching files,
-   *                     where each file is represented as a {@link JSONObject}
-   *                     with fields {@code id}, {@code name}, and {@code mimeType}
-   *
+   * @param type        a simplified keyword representing the file type to retrieve
+   * @param accessToken a valid OAuth 2.0 access token with access to the user's Drive
+   *                    (e.g., {@code drive.file} or {@code drive.readonly})
+   * @param accountID   the internal account identifier used to refresh the token if necessary.
+   * @return a {@link JSONArray} containing the matching files,
+   * where each file is represented as a {@link JSONObject}
+   * with fields {@code id}, {@code name}, and {@code mimeType}
    * @throws IllegalArgumentException if the provided type keyword is not supported
    * @throws IOException              if a network or API error occurs during the request
    * @throws JSONException            if an error occurs parsing the API response
@@ -310,7 +306,7 @@ public class GoogleServiceUtil {
     return listAccessibleFilesByMimeType(mimeType, accessToken, accountID);
   }
 
-   /**
+  /**
    * Retrieves a list of files from the user's Google Drive that match a specific MIME type.
    * <p>
    * This method sends a GET request to the Google Drive API's {@code /drive/v3/files} endpoint,
@@ -318,12 +314,11 @@ public class GoogleServiceUtil {
    * that the authenticated user has access to.
    * </p>
    *
-   * @param mimeType     the MIME type to filter files by (e.g., {@code application/vnd.google-apps.spreadsheet} for Google Sheets)
-   * @param accessToken  a valid OAuth 2.0 access token with appropriate permissions (e.g., {@code drive.file} or {@code drive.readonly})
-   *  @param accountID   the internal account identifier used to refresh the token if necessary.
-   * @return             a {@link JSONArray} containing metadata for the matching files; each file is represented
-   *                     as a {@link JSONObject} with keys {@code id}, {@code name}, and {@code mimeType}
-   *
+   * @param mimeType    the MIME type to filter files by (e.g., {@code application/vnd.google-apps.spreadsheet} for Google Sheets)
+   * @param accessToken a valid OAuth 2.0 access token with appropriate permissions (e.g., {@code drive.file} or {@code drive.readonly})
+   * @param accountID   the internal account identifier used to refresh the token if necessary.
+   * @return a {@link JSONArray} containing metadata for the matching files; each file is represented
+   * as a {@link JSONObject} with keys {@code id}, {@code name}, and {@code mimeType}
    * @throws IOException   if a network error occurs while sending or receiving the API request
    * @throws JSONException if there is an error parsing the API response
    * @throws OBException   if the API returns a non-200 HTTP status code, indicating a request failure
@@ -363,12 +358,11 @@ public class GoogleServiceUtil {
    * </ul>
    * </p>
    *
-   * @param name         the desired name for the new file
-   * @param mimeType     the MIME type of the file to be created; determines the file type in Drive
-   * @param accessToken  a valid OAuth 2.0 access token with sufficient permissions (e.g., {@code drive.file} scope)
-   * @param accountID    the internal account identifier used to refresh the token if necessary.
-   * @return             a {@link JSONObject} containing metadata of the created file, such as {@code id}, {@code name}, and {@code mimeType}
-   *
+   * @param name        the desired name for the new file
+   * @param mimeType    the MIME type of the file to be created; determines the file type in Drive
+   * @param accessToken a valid OAuth 2.0 access token with sufficient permissions (e.g., {@code drive.file} scope)
+   * @param accountID   the internal account identifier used to refresh the token if necessary.
+   * @return a {@link JSONObject} containing metadata of the created file, such as {@code id}, {@code name}, and {@code mimeType}
    * @throws IOException   if an I/O error occurs during communication with the API
    * @throws JSONException if there is an error constructing the request or parsing the response
    * @throws OBException   if the API returns a non-200 HTTP status code, indicating the file creation failed
@@ -490,12 +484,12 @@ public class GoogleServiceUtil {
    * the response body is read from the input stream and converted into a {@link JSONObject}.
    * </p>
    *
-   * @param conn the {@link HttpURLConnection} from which the response will be read.
+   * @param conn         the {@link HttpURLConnection} from which the response will be read.
    * @param errorMessage a custom error message to be included in the exception if the status code is not 200.
    * @return a {@link JSONObject} representing the response body.
-   * @throws IOException if an I/O error occurs while reading from the connection.
+   * @throws IOException   if an I/O error occurs while reading from the connection.
    * @throws JSONException if the response body cannot be converted into a {@link JSONObject}.
-   * @throws OBException if the status code is not 200, indicating a failure in the request.
+   * @throws OBException   if the status code is not 200, indicating a failure in the request.
    */
   private static JSONObject getResponseJSONObject(HttpURLConnection conn, String errorMessage) throws IOException, JSONException {
     int status = conn.getResponseCode();
@@ -523,20 +517,19 @@ public class GoogleServiceUtil {
    * the "RAW" input option, meaning values are written exactly as they are passed without formatting.
    * </p>
    *
-   * @param fileId       the unique identifier of the Google Spreadsheet (found in the URL of the sheet)
-   * @param accessToken  a valid OAuth 2.0 access token with permissions to edit the spreadsheet
-   * @param accountID    the internal account identifier used to refresh the token if necessary
-   * @param range        the A1 notation of the range to update (e.g., "Sheet1!A1:C5")
-   * @param values       a 2D list of values to write, where each inner list represents a row
-   * @return             a {@link JSONObject} containing the response from the Google Sheets API,
-   *                     including updated range and cell count information
-   *
+   * @param fileId      the unique identifier of the Google Spreadsheet (found in the URL of the sheet)
+   * @param accessToken a valid OAuth 2.0 access token with permissions to edit the spreadsheet
+   * @param accountID   the internal account identifier used to refresh the token if necessary
+   * @param range       the A1 notation of the range to update (e.g., "Sheet1!A1:C5")
+   * @param values      a 2D list of values to write, where each inner list represents a row
+   * @return a {@link JSONObject} containing the response from the Google Sheets API,
+   * including updated range and cell count information
    * @throws IOException   if an I/O error occurs while sending or receiving data
    * @throws JSONException if there is an error parsing the API response or constructing the request body
    * @throws OBException   if the API responds with a non-200 HTTP status code, indicating failure
    */
   public static JSONObject updateSpreadsheetValues(String fileId, String accessToken, String accountID, String range,
-       List<List<Object>> values) throws IOException, JSONException {
+                                                   List<List<Object>> values) throws IOException, JSONException {
     URL url = new URL("https://sheets.googleapis.com/v4/spreadsheets/" +
         fileId + "/values/" + range + "?valueInputOption=RAW");
     HttpURLConnection conn = (HttpURLConnection) url.openConnection();
