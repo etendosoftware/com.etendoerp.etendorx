@@ -11,6 +11,8 @@ import org.openbravo.base.session.OBPropertiesProvider;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.Utility;
+import org.openbravo.model.ad.access.User;
+import org.openbravo.model.common.enterprise.Organization;
 import org.openbravo.service.db.DalConnectionProvider;
 
 import javax.servlet.http.HttpServletRequest;
@@ -20,6 +22,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -50,12 +53,22 @@ public class SaveTokenFromMiddleware extends HttpBaseServlet {
         response.flushBuffer();
         return;
       }
+      User currentUser = OBContext.getOBContext().getUser();
+      Organization currentOrg = OBContext.getOBContext().getCurrentOrganization();
+      List<ETRXTokenInfo> oldTokenList = OBDal.getInstance().createCriteria(ETRXTokenInfo.class)
+          .add(Restrictions.eq(ETRXTokenInfo.PROPERTY_USER, currentUser))
+          .add(Restrictions.eq(ETRXTokenInfo.PROPERTY_ORGANIZATION, currentOrg))
+          .list();
+      for (ETRXTokenInfo oldToken : oldTokenList) {
+        OBDal.getInstance().remove(oldToken);
+      }
       ETRXTokenInfo newToken = OBProvider.getInstance().get(ETRXTokenInfo.class);
       newToken.setToken(request.getParameter("access_token"));
       String providerScope = request.getParameter("provider") + " - " + request.getParameter("scope");
       newToken.setMiddlewareProvider(providerScope);
       newToken.setEtrxOauthProvider(getETRXoAuthProvider());
-      newToken.setUser(OBContext.getOBContext().getUser());
+      newToken.setUser(currentUser);
+      newToken.setOrganization(currentOrg);
       Date now = new Date();
       Calendar calendar = Calendar.getInstance();
       calendar.setTime(now);
