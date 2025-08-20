@@ -1,17 +1,15 @@
 package com.etendoerp.etendorx.auth;
 
+import com.auth0.jwk.JwkProvider;
+import com.auth0.jwk.UrlJwkProvider;
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.JWTVerifier;
 import com.auth0.jwt.algorithms.Algorithm;
 import com.auth0.jwt.interfaces.DecodedJWT;
-import com.auth0.jwk.JwkProvider;
-import com.auth0.jwk.UrlJwkProvider;
-
 import com.auth0.jwt.interfaces.RSAKeyProvider;
 import com.etendoerp.etendorx.data.ETRXTokenUser;
 import com.etendoerp.etendorx.utils.TokenVerifier;
 import com.smf.securewebservices.utils.SecureWebServicesUtils;
-
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -40,7 +38,6 @@ import org.openbravo.service.web.BaseWebServiceServlet;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -59,20 +56,286 @@ import java.util.Properties;
  */
 public class SWSAuthenticationManager extends DefaultAuthenticationManager {
 
+  public static final String MIDDLEWARE_ISSUER = "https://etendo-sso.us.auth0.com/";
+  public static final String CONTEXT_NAME = "context.name";
+  public static final String SSO_AUTH_TYPE = "sso.auth.type";
   private static final Logger log4j = LogManager.getLogger();
   private static final String INVALID_TOKEN_MESSAGE = "SWS - Token is not valid";
   private static final String ACCESS_TOKEN = "access_token";
   private static final String SWS_TOKEN_IS_NOT_VALID = "SWS - Token is not valid";
   private static final String SSO_DOMAIN_URL = "sso.domain.url";
-  public static final String MIDDLEWARE_ISSUER = "https://etendo-sso.us.auth0.com/";
-  public static final String CONTEXT_NAME = "context.name";
-  public static final String SSO_AUTH_TYPE = "sso.auth.type";
 
   /**
    * Default constructor.
    */
   public SWSAuthenticationManager() {
     super();
+  }
+
+  /**
+   * Validates that all the required identifiers from the token are present and not empty.
+   * <p>
+   * If any of the provided values are missing or empty, an {@link OBException} is thrown
+   * indicating that the token is invalid.
+   *
+   * @param userId      the identifier of the user
+   * @param roleId      the identifier of the role
+   * @param orgId       the identifier of the organization
+   * @param warehouseId the identifier of the warehouse
+   * @param clientId    the identifier of the client
+   * @throws OBException if any of the arguments is null or empty
+   */
+  private static void validateToken(String userId, String roleId, String orgId, String warehouseId, String clientId) {
+    if (StringUtils.isEmpty(userId) || StringUtils.isEmpty(roleId) || StringUtils.isEmpty(
+        orgId) || StringUtils.isEmpty(warehouseId) || StringUtils.isEmpty(clientId)) {
+      throw new OBException(INVALID_TOKEN_MESSAGE);
+    }
+  }
+
+  /**
+   * Sets the session information for the current execution context.
+   * <p>
+   * This method initializes the {@link SessionInfo} with the token ID (JTI), user ID,
+   * and fixed values for process type and process ID, used in the DAL web service layer.
+   *
+   * @param jti    the unique identifier of the token (JWT ID)
+   * @param userId the identifier of the user
+   */
+  private static void setSessionInfo(String jti, String userId) {
+    SessionInfo.setSessionId(jti);
+    SessionInfo.setUserId(userId);
+    SessionInfo.setProcessType("WS");
+    SessionInfo.setProcessId("DAL");
+  }
+
+  /**
+   * Sets the Openbravo context for the current request based on the provided identifiers.
+   * <p>
+   * It creates a new {@link OBContext} with the given user, role, organization,
+   * warehouse and client, and binds it both to the current thread and the HTTP session.
+   *
+   * @param request     the current HTTP request
+   * @param userId      the identifier of the user
+   * @param roleId      the identifier of the role
+   * @param orgId       the identifier of the organization
+   * @param warehouseId the identifier of the warehouse
+   * @param clientId    the identifier of the client
+   */
+  private static void setContext(HttpServletRequest request, String userId, String roleId, String orgId,
+                                 String warehouseId, String clientId) {
+    OBContext.setOBContext(
+        SecureWebServicesUtils.createContext(userId, roleId, orgId, warehouseId, clientId));
+    OBContext.setOBContextInSession(request, OBContext.getOBContext());
+  }
+
+  /**
+   * Decodes the provided token using the specified secret and issuer.
+   *
+   * @param token  the JWT token to be decoded
+   * @param secret the secret key used for decoding
+   * @param issuer the issuer of the token
+   * @return a DecodedJWT object containing the decoded token information
+   */
+  private static DecodedJWT decodeToken(String token, String secret, String issuer) {
+    Algorithm algorithm = Algorithm.HMAC256(secret);
+    JWTVerifier verifier = JWT.require(algorithm).withIssuer(issuer).build();
+    return verifier.verify(token);
+  }
+
+  /**
+   * Redirects the user to a custom error page with a provided title and description.
+   * <p>
+   * This method constructs a URL to the predefined Auth0 error page, embedding the error
+   * title and description as URL parameters. It also includes a logout redirection URI so
+   * users can return to the ERP after acknowledging the error.
+   * <p>
+   * The final URL is constructed based on Openbravo's context path and configuration, and
+   * the response is redirected using HTTP status 302 (Found).
+   *
+   * @param title       The title of the error message to be displayed on the error page.
+   * @param description The detailed description of the error.
+   * @param request     The {@link HttpServletRequest} used to extract the base URL and context.
+   * @param response    The {@link HttpServletResponse} used to send the redirect to the error page.
+   * @throws IOException If the response cannot be written or redirected properly.
+   */
+  private static void printPageError(String title, String description, HttpServletRequest request,
+                                     HttpServletResponse response) throws IOException {
+    final Properties openbravoProperties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
+    String authType = ((String) openbravoProperties.get(SSO_AUTH_TYPE)).trim();
+    String logoutRedirectUri = StringUtils.remove(request.getRequestURL().toString(),
+        request.getServletPath()).trim();
+    String contextName = ((String) openbravoProperties.get(CONTEXT_NAME)).trim();
+    String titleStr = URLEncoder.encode(title, StandardCharsets.UTF_8);
+    String descriptionStr = URLEncoder.encode(description,
+        StandardCharsets.UTF_8);
+    String errorUrl = String.format("/%s/web/com.etendoerp.etendorx/resources/Auth0ErrorPage.html"
+            + "?logoutRedirectUri=%s&title=%s&description=%s&authType=%s",
+        contextName,
+        URLEncoder.encode(logoutRedirectUri, StandardCharsets.UTF_8),
+        titleStr,
+        descriptionStr,
+        authType);
+
+    response.setStatus(HttpServletResponse.SC_FOUND);
+    response.setHeader("Location", errorUrl);
+    response.flushBuffer();
+    throw new OBException("SSO - " + description + ".");
+  }
+
+  /**
+   * Checks if the SSO configuration is misconfigured based on the provided parameters.
+   *
+   * @param token      the string token
+   * @param code       the code from auth0
+   * @param allowSSO   the preference value for allowing SSO login
+   * @param hasSSOType the SSO type
+   * @return true if the configuration is misconfigured, false otherwise
+   */
+  private static boolean misconfiguredSSO(String token, String code, String allowSSO, String hasSSOType) {
+    return ((StringUtils.equals("Y", allowSSO) && StringUtils.isBlank(hasSSOType)) ||
+        ((StringUtils.isBlank(allowSSO) || StringUtils.equals("N", allowSSO)) && !StringUtils.isBlank(hasSSOType)))
+        && (!StringUtils.isBlank(token) || !StringUtils.isBlank(code));
+  }
+
+  /**
+   * Retrieves the preference value for allowing SSO login.
+   *
+   * @return the preference value as a String
+   */
+  private static String getAllowSSOPref() {
+    try {
+      Preference allowSSOPref = (Preference) OBDal.getInstance()
+          .createCriteria(Preference.class)
+          .add(Restrictions.eq(Preference.PROPERTY_PROPERTY, "ETRX_AllowSSOLogin"))
+          .add(Restrictions.eq(Preference.PROPERTY_SELECTED, true))
+          .setFilterOnReadableClients(false)
+          .setFilterOnReadableOrganization(false)
+          .setMaxResults(1).uniqueResult();
+      return allowSSOPref != null ? allowSSOPref.getSearchKey() : "N";
+    } catch (OBSecurityException e) {
+      return null;
+    }
+  }
+
+  /**
+   * Retrieves the user metadata from the provided token.
+   *
+   * @param token  the JWT token
+   * @param secret the secret key used for decoding
+   * @param issuer the issuer of the token
+   * @return a Map containing the user metadata
+   */
+  private static Map<String, Object> getUserMetadata(String token, String secret, String issuer) {
+    Map<String, Object> userMetadata = null;
+    try {
+      DecodedJWT decodedToken = decodeToken(token, secret, issuer);
+      Object userMeta = decodedToken.getClaim("user_metadata").as(Object.class);
+      if (userMeta instanceof Map) {
+        userMetadata = (Map<String, Object>) userMeta;
+      }
+      if (userMetadata == null) {
+        throw new OBException(SWS_TOKEN_IS_NOT_VALID);
+      }
+    } catch (Exception e) {
+      throw new OBException(SWS_TOKEN_IS_NOT_VALID);
+    }
+    return userMetadata;
+  }
+
+  /**
+   * Handles the case when the user is null after authentication.
+   *
+   * @param request  the HttpServletRequest object
+   * @param response the HttpServletResponse object
+   * @throws IOException if an I/O error occurs
+   */
+  private static void handleWhenUserIsNull(HttpServletRequest request,
+                                           HttpServletResponse response) throws IOException {
+    final Properties openbravoProperties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
+    String ssoAuthType = ((String) openbravoProperties.get(SSO_AUTH_TYPE)).trim();
+
+    String contextName = ((String) openbravoProperties.get(CONTEXT_NAME)).trim();
+    String errorTitle = URLEncoder.encode("No User linked", StandardCharsets.UTF_8);
+    String errorDescription = URLEncoder.encode(
+        "You need to log in with an ERP user and then, link the SSO account",
+        StandardCharsets.UTF_8);
+
+    String baseUrl = StringUtils.remove(request.getRequestURL().toString(), request.getServletPath()).trim();
+    String logoutRedirectUri = URLEncoder.encode(baseUrl, StandardCharsets.UTF_8);
+
+    String ssoNoUserLinkURL;
+    if ("Auth0".equalsIgnoreCase(ssoAuthType)) {
+      String ssoDomain = ((String) openbravoProperties.get(SSO_DOMAIN_URL)).trim();
+      String clientId = ((String) openbravoProperties.get("sso.client.id")).trim();
+      ssoNoUserLinkURL = String.format(
+          "/%s/web/com.etendoerp.etendorx/resources/Auth0ErrorPage.html"
+              + "?authType=Auth0"
+              + "&ssoDomain=%s"
+              + "&clientId=%s"
+              + "&logoutRedirectUri=%s"
+              + "&title=%s"
+              + "&description=%s",
+          contextName,
+          URLEncoder.encode(ssoDomain, StandardCharsets.UTF_8),
+          URLEncoder.encode(clientId, StandardCharsets.UTF_8),
+          logoutRedirectUri,
+          errorTitle,
+          errorDescription
+      );
+    } else {
+      String middlewareUrl = ((String) openbravoProperties.get("sso.middleware.url")).trim();
+      ssoNoUserLinkURL = String.format(
+          "/%s/web/com.etendoerp.etendorx/resources/Auth0ErrorPage.html"
+              + "?authType=Middleware"
+              + "&middlewareUrl=%s"
+              + "&logoutRedirectUri=%s"
+              + "&title=%s"
+              + "&description=%s",
+          contextName,
+          URLEncoder.encode(middlewareUrl, StandardCharsets.UTF_8),
+          logoutRedirectUri,
+          errorTitle,
+          errorDescription
+      );
+    }
+    response.setStatus(HttpServletResponse.SC_FOUND);
+    response.setHeader("Location", ssoNoUserLinkURL);
+    response.flushBuffer();
+    throw new OBException("SSO - No user link to SSO Account.");
+  }
+
+  /**
+   * Constructs the parameters for the token request based on the provided information.
+   *
+   * @param isPKCE       indicates if PKCE is used
+   * @param clientId     the client ID
+   * @param code         the authorization code
+   * @param strDirection the redirect URI
+   * @param codeVerifier the code verifier (if PKCE is used)
+   * @param clientSecret the client secret (if not using PKCE)
+   * @return a formatted string containing the parameters for the token request
+   */
+  private static String getParams(boolean isPKCE, String clientId, String code, String strDirection,
+                                  String codeVerifier, String clientSecret) {
+    String params;
+    if (isPKCE) {
+      params = String.format(
+          "grant_type=authorization_code&client_id=%s&code=%s&redirect_uri=%s&code_verifier=%s",
+          URLEncoder.encode(clientId, StandardCharsets.UTF_8),
+          URLEncoder.encode(code, StandardCharsets.UTF_8),
+          URLEncoder.encode(strDirection, StandardCharsets.UTF_8),
+          URLEncoder.encode(codeVerifier, StandardCharsets.UTF_8)
+      );
+    } else {
+      params = String.format(
+          "grant_type=authorization_code&client_id=%s&client_secret=%s&code=%s&redirect_uri=%s",
+          URLEncoder.encode(clientId, StandardCharsets.UTF_8),
+          URLEncoder.encode(clientSecret, StandardCharsets.UTF_8),
+          URLEncoder.encode(code, StandardCharsets.UTF_8),
+          URLEncoder.encode(strDirection, StandardCharsets.UTF_8)
+      );
+    }
+    return params;
   }
 
   /**
@@ -122,27 +385,6 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
     return super.doWebServiceAuthenticate(request);
   }
 
-    private static void validateToken(String userId, String roleId, String orgId, String warehouseId, String clientId) {
-        if (StringUtils.isEmpty(userId) || StringUtils.isEmpty(roleId) || StringUtils.isEmpty(
-            orgId) || StringUtils.isEmpty(warehouseId) || StringUtils.isEmpty(clientId)) {
-          throw new OBException(INVALID_TOKEN_MESSAGE);
-        }
-    }
-
-    private static void setSessionInfo(String jti, String userId) {
-        SessionInfo.setSessionId(jti);
-        SessionInfo.setUserId(userId);
-        SessionInfo.setProcessType("WS");
-        SessionInfo.setProcessId("DAL");
-    }
-
-    private static void setContext(HttpServletRequest request, String userId, String roleId, String orgId,
-        String warehouseId, String clientId) {
-        OBContext.setOBContext(
-            SecureWebServicesUtils.createContext(userId, roleId, orgId, warehouseId, clientId));
-        OBContext.setOBContextInSession(request, OBContext.getOBContext());
-    }
-
   /**
    * Sets the CORS headers for the response.
    *
@@ -164,20 +406,6 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
           "Content-Type, origin, accept, X-Requested-With");
       response.setHeader("Access-Control-Max-Age", "1000");
     }
-  }
-
-/**
-   * Decodes the provided token using the specified secret and issuer.
-   *
-   * @param token  the JWT token to be decoded
-   * @param secret the secret key used for decoding
-   * @param issuer the issuer of the token
-   * @return a DecodedJWT object containing the decoded token information
-   */
-  private static DecodedJWT decodeToken(String token, String secret, String issuer) {
-    Algorithm algorithm = Algorithm.HMAC256(secret);
-    JWTVerifier verifier = JWT.require(algorithm).withIssuer(issuer).build();
-    return verifier.verify(token);
   }
 
   /**
@@ -232,7 +460,7 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
     final String secret = OBPropertiesProvider.getInstance().getOpenbravoProperties().getProperty("OAUTH2_SECRET");
     final String issuer = OBPropertiesProvider.getInstance().getOpenbravoProperties().getProperty("OAUTH2_ISSUER");
     TokenVerifier.isValid(token, secret);
-    
+
     final Map<String, Object> userMetadata = getUserMetadata(token, secret, issuer);
 
     String userId;
@@ -281,9 +509,9 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
    * Determines whether the current request is attempting to perform an SSO login,
    * based on the presence of a configured SSO type and either a token or authorization code.
    *
-   * @param ssoType      the type of SSO authentication configured
-   * @param code         the authorization code from the SSO provider, if present
-   * @param accessToken  the access token from the SSO provider, if present
+   * @param ssoType     the type of SSO authentication configured
+   * @param code        the authorization code from the SSO provider, if present
+   * @param accessToken the access token from the SSO provider, if present
    * @return true if an SSO login attempt is detected, false otherwise
    */
   private boolean isSSOLoginAttempt(String ssoType, String code, String accessToken) {
@@ -295,8 +523,8 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
    * Displays an error page indicating that the SSO configuration is invalid or incomplete.
    * The error messages are retrieved from the Openbravo message catalog using the user's language.
    *
-   * @param request   the current HTTP request
-   * @param response  the current HTTP response
+   * @param request  the current HTTP request
+   * @param response the current HTTP response
    * @throws IOException if an error occurs while writing the response
    */
   private void showSSOConfigError(HttpServletRequest request, HttpServletResponse response) throws IOException {
@@ -313,14 +541,15 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
    * decoding its contents, locating the corresponding Openbravo user, and initializing the login session.
    * If successful, redirects the user to the application's context path.
    *
-   * @param code         the authorization code received from the SSO provider, if any
-   * @param accessToken  the access token received from the SSO provider, if any
-   * @param request      the current HTTP request
-   * @param response     the current HTTP response
+   * @param code        the authorization code received from the SSO provider, if any
+   * @param accessToken the access token received from the SSO provider, if any
+   * @param request     the current HTTP request
+   * @param response    the current HTTP response
    * @return the ID of the authenticated user
    * @throws IOException if an error occurs during redirection or response output
    */
-  private String handleSSOLogin(String code, String accessToken, HttpServletRequest request, HttpServletResponse response) throws IOException {
+  private String handleSSOLogin(String code, String accessToken, HttpServletRequest request,
+                                HttpServletResponse response) throws IOException {
     log4j.debug("SSO Code to request token: {}", code);
     log4j.debug("SSO Token coming from the request: {}", accessToken);
 
@@ -339,46 +568,6 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
     return adUser.getId();
   }
 
-
-  /**
-   * Redirects the user to a custom error page with a provided title and description.
-   * <p>
-   * This method constructs a URL to the predefined Auth0 error page, embedding the error
-   * title and description as URL parameters. It also includes a logout redirection URI so
-   * users can return to the ERP after acknowledging the error.
-   * <p>
-   * The final URL is constructed based on Openbravo's context path and configuration, and
-   * the response is redirected using HTTP status 302 (Found).
-   *
-   * @param title       The title of the error message to be displayed on the error page.
-   * @param description The detailed description of the error.
-   * @param request     The {@link HttpServletRequest} used to extract the base URL and context.
-   * @param response    The {@link HttpServletResponse} used to send the redirect to the error page.
-   * @throws IOException If the response cannot be written or redirected properly.
-   */
-  private static void printPageError(String title, String description, HttpServletRequest request, HttpServletResponse response) throws IOException {
-    final Properties openbravoProperties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
-    String authType = ((String) openbravoProperties.get(SSO_AUTH_TYPE)).trim();
-    String logoutRedirectUri = StringUtils.remove(request.getRequestURL().toString(),
-        request.getServletPath()).trim();
-    String contextName = ((String) openbravoProperties.get(CONTEXT_NAME)).trim();
-    String titleStr = URLEncoder.encode(title, StandardCharsets.UTF_8);
-    String descriptionStr = URLEncoder.encode(description,
-            StandardCharsets.UTF_8);
-    String errorUrl = String.format("/%s/web/com.etendoerp.etendorx/resources/Auth0ErrorPage.html"
-                    + "?logoutRedirectUri=%s&title=%s&description=%s&authType=%s",
-            contextName,
-            URLEncoder.encode(logoutRedirectUri, StandardCharsets.UTF_8),
-        titleStr,
-        descriptionStr,
-        authType);
-
-    response.setStatus(HttpServletResponse.SC_FOUND);
-    response.setHeader("Location", errorUrl);
-    response.flushBuffer();
-    throw new OBException("SSO - " + description + ".");
-  }
-
   /**
    * Validates a received JWT by verifying its signature against the JWKS exposed by the middleware.
    * <p>
@@ -393,14 +582,16 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
    * @param token    The JWT received from the OAuth2 authentication flow.
    * @param request  The {@link HttpServletRequest} object, used for error handling and messaging.
    * @param response The {@link HttpServletResponse} object, used to return error information to the client.
-   * @throws IOException  If a network or response writing error occurs.
-   * @throws OBException  If the token is invalid or verification fails.
+   * @throws IOException If a network or response writing error occurs.
+   * @throws OBException If the token is invalid or verification fails.
    */
-  private void validateToken(String token, HttpServletRequest request, HttpServletResponse response) throws IOException {
+  private void validateToken(String token, HttpServletRequest request,
+                             HttpServletResponse response) throws IOException {
     try {
       Properties obProperties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
       String integrationType = obProperties.getProperty(SSO_AUTH_TYPE);
-      String baseURL = StringUtils.equals("Middleware", integrationType) ? obProperties.getProperty("sso.middleware.url") :
+      String baseURL = StringUtils.equals("Middleware", integrationType) ? obProperties.getProperty(
+          "sso.middleware.url") :
           "https://" + obProperties.getProperty(SSO_DOMAIN_URL);
       URL jwkURL = new URL(baseURL + "/.well-known/jwks.json");
       JwkProvider provider = new UrlJwkProvider(jwkURL);
@@ -422,127 +613,6 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
       printPageError(errorTitle, e.getMessage(), request, response);
       throw new OBException(e);
     }
-  }
-
-  /**
-     * Checks if the SSO configuration is misconfigured based on the provided parameters.
-     *
-     * @param token       the string token
-     * @param code        the code from auth0
-     * @param allowSSO    the preference value for allowing SSO login
-     * @param hasSSOType  the SSO type
-     * @return true if the configuration is misconfigured, false otherwise
-     */
-  private static boolean misconfiguredSSO(String token, String code, String allowSSO, String hasSSOType) {
-    return ((StringUtils.equals("Y", allowSSO) && StringUtils.isBlank(hasSSOType)) ||
-        ((StringUtils.isBlank(allowSSO) || StringUtils.equals("N", allowSSO)) && !StringUtils.isBlank(hasSSOType)))
-        && (!StringUtils.isBlank(token) || !StringUtils.isBlank(code));
-  }
-
-  /**
-   * Retrieves the preference value for allowing SSO login.
-   *
-   * @return the preference value as a String
-   */
-  private static String getAllowSSOPref() {
-    try {
-      Preference allowSSOPref = (Preference) OBDal.getInstance()
-          .createCriteria(Preference.class)
-          .add(Restrictions.eq(Preference.PROPERTY_PROPERTY, "ETRX_AllowSSOLogin"))
-          .add(Restrictions.eq(Preference.PROPERTY_SELECTED, true))
-          .setFilterOnReadableClients(false)
-          .setFilterOnReadableOrganization(false)
-          .setMaxResults(1).uniqueResult();
-      return allowSSOPref != null ? allowSSOPref.getSearchKey() : "N";
-    } catch (OBSecurityException e) {
-      return null;
-    }
-  }
-
-  /**
-   * Retrieves the user metadata from the provided token.
-   *
-   * @param token  the JWT token
-   * @param secret the secret key used for decoding
-   * @param issuer the issuer of the token
-   * @return a Map containing the user metadata
-   */
-  private static Map<String, Object> getUserMetadata(String token, String secret, String issuer) {
-    Map<String, Object> userMetadata = null;
-    try {
-      DecodedJWT decodedToken = decodeToken(token, secret, issuer);
-      Object userMeta = decodedToken.getClaim("user_metadata").as(Object.class);
-      if(userMeta instanceof Map) {
-        userMetadata = (Map<String, Object>) userMeta;
-      }
-      if(userMetadata == null) {
-        throw new OBException(SWS_TOKEN_IS_NOT_VALID);
-      }
-    } catch (Exception e) {
-      throw new OBException(SWS_TOKEN_IS_NOT_VALID);
-    }
-    return userMetadata;
-  }
-
-  /**
-   * Handles the case when the user is null after authentication.
-   *
-   * @param request  the HttpServletRequest object
-   * @param response the HttpServletResponse object
-   * @throws IOException if an I/O error occurs
-   */
-  private static void handleWhenUserIsNull(HttpServletRequest request, HttpServletResponse response) throws IOException {
-    final Properties openbravoProperties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
-    String ssoAuthType = ((String) openbravoProperties.get(SSO_AUTH_TYPE)).trim();
-
-    String contextName = ((String) openbravoProperties.get(CONTEXT_NAME)).trim();
-    String errorTitle = URLEncoder.encode("No User linked", StandardCharsets.UTF_8);
-    String errorDescription = URLEncoder.encode(
-        "You need to log in with an ERP user and then, link the SSO account",
-        StandardCharsets.UTF_8);
-
-    String baseUrl = StringUtils.remove(request.getRequestURL().toString(), request.getServletPath()).trim();
-    String logoutRedirectUri = URLEncoder.encode(baseUrl, StandardCharsets.UTF_8);
-
-    String ssoNoUserLinkURL;
-    if ("Auth0".equalsIgnoreCase(ssoAuthType)) {
-      String ssoDomain     = ((String) openbravoProperties.get(SSO_DOMAIN_URL)).trim();
-      String clientId      = ((String) openbravoProperties.get("sso.client.id")).trim();
-      ssoNoUserLinkURL = String.format(
-          "/%s/web/com.etendoerp.etendorx/resources/Auth0ErrorPage.html"
-              + "?authType=Auth0"
-              + "&ssoDomain=%s"
-              + "&clientId=%s"
-              + "&logoutRedirectUri=%s"
-              + "&title=%s"
-              + "&description=%s",
-          contextName,
-          URLEncoder.encode(ssoDomain, StandardCharsets.UTF_8),
-          URLEncoder.encode(clientId, StandardCharsets.UTF_8),
-          logoutRedirectUri,
-          errorTitle,
-          errorDescription
-      );
-    } else {
-      String middlewareUrl = ((String) openbravoProperties.get("sso.middleware.url")).trim();
-      ssoNoUserLinkURL = String.format(
-          "/%s/web/com.etendoerp.etendorx/resources/Auth0ErrorPage.html"
-              + "?authType=Middleware"
-              + "&middlewareUrl=%s"
-              + "&logoutRedirectUri=%s"
-              + "&title=%s"
-              + "&description=%s",
-          contextName,
-          URLEncoder.encode(middlewareUrl, StandardCharsets.UTF_8),
-          logoutRedirectUri,
-          errorTitle,
-          errorDescription
-      );
-    }
-    response.setStatus(HttpServletResponse.SC_FOUND);
-    response.setHeader("Location", ssoNoUserLinkURL);
-    response.flushBuffer();
-    throw new OBException("SSO - No user link to SSO Account.");
   }
 
   /**
@@ -617,7 +687,8 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
       con.setDoOutput(true);
 
       String clientId = OBPropertiesProvider.getInstance().getOpenbravoProperties().getProperty("sso.client.id");
-      String clientSecret = OBPropertiesProvider.getInstance().getOpenbravoProperties().getProperty("sso.client.secret");
+      String clientSecret = OBPropertiesProvider.getInstance().getOpenbravoProperties().getProperty(
+          "sso.client.secret");
 
       String codeVerifier = (String) request.getSession().getAttribute("code_verifier");
       boolean isPKCE = (codeVerifier != null && !codeVerifier.isEmpty());
@@ -648,40 +719,6 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
       log4j.error(e);
     }
     return token;
-  }
-
-  /**
-   * Constructs the parameters for the token request based on the provided information.
-   *
-   * @param isPKCE        indicates if PKCE is used
-   * @param clientId      the client ID
-   * @param code          the authorization code
-   * @param strDirection  the redirect URI
-   * @param codeVerifier  the code verifier (if PKCE is used)
-   * @param clientSecret  the client secret (if not using PKCE)
-   * @return a formatted string containing the parameters for the token request
-   */
-  private static String getParams(boolean isPKCE, String clientId, String code, String strDirection,
-      String codeVerifier, String clientSecret) {
-    String params;
-    if (isPKCE) {
-      params = String.format(
-          "grant_type=authorization_code&client_id=%s&code=%s&redirect_uri=%s&code_verifier=%s",
-          URLEncoder.encode(clientId, StandardCharsets.UTF_8),
-          URLEncoder.encode(code, StandardCharsets.UTF_8),
-          URLEncoder.encode(strDirection, StandardCharsets.UTF_8),
-          URLEncoder.encode(codeVerifier, StandardCharsets.UTF_8)
-      );
-    } else {
-      params = String.format(
-          "grant_type=authorization_code&client_id=%s&client_secret=%s&code=%s&redirect_uri=%s",
-          URLEncoder.encode(clientId, StandardCharsets.UTF_8),
-          URLEncoder.encode(clientSecret, StandardCharsets.UTF_8),
-          URLEncoder.encode(code, StandardCharsets.UTF_8),
-          URLEncoder.encode(strDirection, StandardCharsets.UTF_8)
-      );
-    }
-    return params;
   }
 
   /**
