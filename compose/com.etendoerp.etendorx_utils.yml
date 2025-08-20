@@ -24,8 +24,9 @@ services:
       - "16686:16686"   # Jaeger UI
       - "4317:4317"     # OTLP gRPC
       - "4318:4318"     # OTLP HTTP
-      - "5778:5778"     # health-check & debug
+      - "5778:5778"     # Remote Sampling (HTTP /sampling)
       - "9411:9411"     # Zipkin HTTP
+      - "13133:13133"   # Management: health (/status)
     command:
       - "--config"
       - "/jaeger/config.yaml"
@@ -33,3 +34,17 @@ services:
       - etendo
     volumes:
       - ${VOLUMES_PATH}/jaeger/config.yaml:/jaeger/config.yaml
+
+  jaeger-health:
+    image: curlimages/curl:8.15.0
+    command: ["sh", "-c", "sleep infinity"]
+    depends_on:
+      - jaeger
+    networks:
+      - etendo
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://jaeger:13133/status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
