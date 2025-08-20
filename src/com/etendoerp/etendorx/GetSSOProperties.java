@@ -1,8 +1,5 @@
 package com.etendoerp.etendorx;
 
-import java.util.Map;
-import java.util.Properties;
-
 import org.apache.commons.lang3.StringUtils;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
@@ -14,6 +11,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.servlet.ServletException;
+import java.util.Map;
+import java.util.Properties;
 
 /**
  * This class is responsible for retrieving SSO properties from the Openbravo properties file.
@@ -21,6 +20,35 @@ import javax.servlet.ServletException;
  */
 public class GetSSOProperties extends BaseActionHandler {
   private static final Logger log = LoggerFactory.getLogger(GetSSOProperties.class);
+
+  /**
+   * Obtains the account identifier for the current system.
+   * <p>
+   * This method attempts to retrieve the system identifier using
+   * {@link SystemInfo#getSystemIdentifier()}. If the identifier is blank,
+   * a warning is logged and the account ID returned to the middleware will be empty.
+   * </p>
+   *
+   * <p>
+   * In case of a {@link javax.servlet.ServletException}, the exception is wrapped
+   * and rethrown as an {@link org.openbravo.base.exception.OBException}.
+   * </p>
+   *
+   * @return the account identifier of the system, or an empty string if the identifier is blank
+   * @throws org.openbravo.base.exception.OBException if an error occurs while retrieving the system identifier
+   */
+  private static String getAccountID() {
+    String accountID;
+    try {
+      accountID = SystemInfo.getSystemIdentifier();
+      if (StringUtils.isBlank(accountID)) {
+        log.warn("[SSO] - Empty System Identifier, account id to middleware will be empty");
+      }
+    } catch (ServletException e) {
+      throw new OBException(e);
+    }
+    return accountID;
+  }
 
   /**
    * This method is called to execute the action of retrieving SSO properties.
@@ -51,34 +79,5 @@ public class GetSSOProperties extends BaseActionHandler {
       throw new OBException("Error while getting SSO properties", e);
     }
     return result;
-  }
-
-  /**
-   * Obtains the account identifier for the current system.
-   * <p>
-   * This method attempts to retrieve the system identifier using
-   * {@link SystemInfo#getSystemIdentifier()}. If the identifier is blank, 
-   * a warning is logged and the account ID returned to the middleware will be empty.
-   * </p>
-   *
-   * <p>
-   * In case of a {@link javax.servlet.ServletException}, the exception is wrapped
-   * and rethrown as an {@link org.openbravo.base.exception.OBException}.
-   * </p>
-   *
-   * @return the account identifier of the system, or an empty string if the identifier is blank
-   * @throws org.openbravo.base.exception.OBException if an error occurs while retrieving the system identifier
-   */
-  private static String getAccountID() {
-    String accountID;
-    try {
-      accountID = SystemInfo.getSystemIdentifier();
-      if (StringUtils.isBlank(accountID)) {
-        log.warn("[SSO] - Empty System Identifier, account id to middleware will be empty");
-      }
-    } catch (ServletException e) {
-      throw new OBException(e);
-    }
-    return accountID;
   }
 }

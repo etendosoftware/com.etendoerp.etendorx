@@ -34,6 +34,35 @@ public class GetOAuthToken extends HttpBaseServlet {
   private static final Logger log = LoggerFactory.getLogger(GetOAuthToken.class);
 
   /**
+   * Obtains the account identifier for the current system.
+   * <p>
+   * This method attempts to retrieve the system identifier using
+   * {@link SystemInfo#getSystemIdentifier()}. If the identifier is blank,
+   * a warning is logged and the account ID returned to the middleware will be empty.
+   * </p>
+   *
+   * <p>
+   * In case of a {@link javax.servlet.ServletException}, the exception is wrapped
+   * and rethrown as an {@link org.openbravo.base.exception.OBException}.
+   * </p>
+   *
+   * @return the account identifier of the system, or an empty string if the identifier is blank
+   * @throws org.openbravo.base.exception.OBException if an error occurs while retrieving the system identifier
+   */
+  private static String getValidToken(ETRXTokenInfo token) {
+    String accountID = "";
+    try {
+      accountID = SystemInfo.getSystemIdentifier();
+      if (StringUtils.isBlank(accountID)) {
+        log.warn("[SSO] - Empty System Identifier, account id to middleware will be empty");
+      }
+    } catch (ServletException e) {
+      throw new OBException(e);
+    }
+    return GoogleServiceUtil.getValidAccessTokenOrRefresh(token.getToken(), accountID);
+  }
+
+  /**
    * Handles the HTTP GET request by returning the OAuth access token JSON for the current user.
    *
    * <p>The response content type is {@code application/json} with UTF-8 encoding.
@@ -65,8 +94,7 @@ public class GetOAuthToken extends HttpBaseServlet {
       if (token == null) {
         throw new OBException("Token not found.");
       }
-      String validToken = getValidToken(token);
-      tokenInfo.put("accessToken", validToken);
+      tokenInfo.put("accessToken", getValidToken(token));
 
       response.setContentType("application/json");
       response.setCharacterEncoding("UTF-8");
@@ -85,34 +113,5 @@ public class GetOAuthToken extends HttpBaseServlet {
         log.error("Ignored error: {}", ignored.getMessage());
       }
     }
-  }
-
-  /**
-   * Obtains the account identifier for the current system.
-   * <p>
-   * This method attempts to retrieve the system identifier using
-   * {@link SystemInfo#getSystemIdentifier()}. If the identifier is blank, 
-   * a warning is logged and the account ID returned to the middleware will be empty.
-   * </p>
-   *
-   * <p>
-   * In case of a {@link javax.servlet.ServletException}, the exception is wrapped
-   * and rethrown as an {@link org.openbravo.base.exception.OBException}.
-   * </p>
-   *
-   * @return the account identifier of the system, or an empty string if the identifier is blank
-   * @throws org.openbravo.base.exception.OBException if an error occurs while retrieving the system identifier
-   */
-  private static String getValidToken(ETRXTokenInfo token) {
-    String accountID = "";
-    try {
-      accountID = SystemInfo.getSystemIdentifier();
-      if (StringUtils.isBlank(accountID)) {
-        log.warn("[SSO] - Empty System Identifier, account id to middleware will be empty");
-      }
-    } catch (ServletException e) {
-      throw new OBException(e);
-    }
-    return GoogleServiceUtil.getValidAccessTokenOrRefresh(token.getToken(), accountID);
   }
 }

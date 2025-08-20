@@ -108,8 +108,12 @@ OB.ETRX.middlewareToken = {
               try {
                 accountId = await OB.ETRX.middlewareToken.getAccount();
               } catch (e) {
-                console.error('No se pudo obtener account_id', e);
-                alert(OB.I18N.getLabel('ETRX_ErrorFetchAccount') || 'No se pudo obtener la cuenta.');
+                console.error(OB.I18N.getLabel('ETRX_ErrorFetchAccount'), e);
+                this.processOwnerView?.messageBar?.setMessage?.(
+                  'error',
+                  OB.I18N.getLabel('ETRX_ErrorFetchAccount'),
+                  OB.I18N.getLabel('ETRX_ErrorFetchAccount_Description')
+                );
                 popup.close();
                 return;
               }
