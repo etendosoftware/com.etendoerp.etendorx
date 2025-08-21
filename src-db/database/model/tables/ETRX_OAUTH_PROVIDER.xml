@@ -93,16 +93,16 @@
         <default><![CDATA[N]]></default>
         <onCreateDefault/>
       </column>
+      <column name="PROVIDER_SCOPE" primaryKey="false" required="true" type="VARCHAR" size="255" autoIncrement="false">
+        <default><![CDATA[openid, profile, email]]></default>
+        <onCreateDefault/>
+      </column>
       <column name="CLIENT_SECRET" primaryKey="false" required="true" type="VARCHAR" size="255" autoIncrement="false">
         <default/>
         <onCreateDefault/>
       </column>
       <column name="JWKSETURI" primaryKey="false" required="false" type="VARCHAR" size="255" autoIncrement="false">
         <default/>
-        <onCreateDefault/>
-      </column>
-      <column name="PROVIDER_SCOPE" primaryKey="false" required="true" type="VARCHAR" size="255" autoIncrement="false">
-        <default><![CDATA[openid, profile, email]]></default>
         <onCreateDefault/>
       </column>
       <column name="GET_MIDDLEWARE_TOKEN" primaryKey="false" required="true" type="CHAR" size="1" autoIncrement="false">
