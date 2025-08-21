@@ -324,6 +324,10 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
     String customDescription = StringUtils.isNotEmpty(description) ? description : "";
     String finalDescription = String.format(PUT_DESCRIPTION_TEMPLATE, entityName, customDescription);
 
+    // Add path parameter for ID
+    List<Parameter> putParams = new ArrayList<>(formInitParams);
+    putParams.add(createPathParameter("id", "Entity ID to update"));
+
     EndpointConfig patchConfig = new EndpointConfig.Builder()
         .tag(tag)
         .actionValue(entityName + "/{id}")
@@ -331,7 +335,7 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
         .description(finalDescription)
         .responseSchema(formInitResponseSchema)
         .responseExample(formInitResponseExample.toString())
-        .parameters(formInitParams)
+        .parameters(putParams)
         .requestBodySchema(formInitRequestSchema)
         .requestBodyExample(formInitRequestExample)
         .httpMethod(OpenAPIConstants.PUT)
@@ -369,6 +373,10 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
     String customDescription = StringUtils.isNotEmpty(description) ? description : "";
     String finalDescription = String.format(GET_BY_ID_DESCRIPTION_TEMPLATE, entityName, customDescription);
 
+    // Add path parameter for ID
+    List<Parameter> getByIdParams = new ArrayList<>(formInitParams);
+    getByIdParams.add(createPathParameter("id", "Entity ID to retrieve"));
+
     EndpointConfig getIDConfig = new EndpointConfig.Builder()
         .tag(tag)
         .actionValue(entityName + "/{id}")
@@ -376,7 +384,7 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
         .description(finalDescription)
         .responseSchema(formInitResponseSchema)
         .responseExample(formInitResponseExample.toString())
-        .parameters(formInitParams)
+        .parameters(getByIdParams)
         .requestBodySchema(formInitRequestSchema)
         .requestBodyExample(formInitRequestExample)
         .httpMethod(OpenAPIConstants.GET)
@@ -574,7 +582,25 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
   }
 
   /**
-   * Creates a Parameter object.
+   * Creates a Parameter object for path parameters.
+   *
+   * @param name
+   *     the name of the parameter.
+   * @param description
+   *     the description of the parameter.
+   * @return the created Parameter object.
+   */
+  private Parameter createPathParameter(String name, String description) {
+    return new Parameter()
+        .in("path")
+        .name(name)
+        .required(true)
+        .schema(new Schema<String>().type(OpenAPIConstants.STRING))
+        .description(description);
+  }
+
+  /**
+   * Creates a Parameter object for query parameters.
    *
    * @param name
    *     the name of the parameter.
