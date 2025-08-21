@@ -178,7 +178,7 @@ task "kafkaConnectSetup" {
         def dbUser = getTypedProp('bbdd.systemUser') ?: 'postgres'
         def dbName = getTypedProp('bbdd.sid') ?: 'etendo'
         def dbPass = getTypedProp('bbdd.systemPassword') ?: 'syspass'
-        def dbPort = isBBDDEnabled ? '5432' : project.property("bbdd.port").toString()
+        def dbPort = isBBDDEnabled ? '5432' : getTypedProp("bbdd.port") ?: '5432'
 
         if (!project.hasProperty('kafka.connect.tables')) {
             throw new GradleException("You must specify the 'kafka.connect.tables' property.")
