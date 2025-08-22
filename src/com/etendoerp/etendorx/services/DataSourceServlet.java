@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -429,6 +430,9 @@ public class DataSourceServlet implements WebService {
       org.openbravo.service.datasource.DataSourceServlet servlet,
       JSONObject payload, JSONArray jsonData, int status)
       throws Exception, OpenAPINotFoundThrowable {
+    // Clear session variables to prevent cross-record contamination
+    clearSessionVariables(null);
+    
     EtendoRequestWrapper newRequest = getEtendoPostWrapper(request, tab,
         createPayLoad(request, payload), fieldList, newUri);
     HttpServletResponse wrappedResponse = new EtendoResponseWrapper(response);
@@ -633,6 +637,9 @@ public class DataSourceServlet implements WebService {
     dataFromNewRecord = DataSourceUtils.keyConvertion(dataFromNewRecord, norm2input);
 
 
+    // Clear session variables to avoid conflicts between records
+    clearSessionVariables(null);
+
     //Initialization of new record, saving the data in input format
     var formInit = WeldUtils.getInstanceFromStaticBeanManager(EtendoFormInitComponent.class);
     var formInitResponse = formInit.execute(parameters, content);
@@ -660,8 +667,15 @@ public class DataSourceServlet implements WebService {
       Map<String, Object> parameters2 = createParameters(request, tab.getId(), parentId, recordId, changedColumnInp,
           "CHANGE");
 
+      // Clear session variables before CHANGE events (always clear for all field types)
+      clearSessionVariables(dataInpFormat);
+
       String contentForChange = dataInpFormat.toString();
       var formInitChangeResponse = formInit.execute(parameters2, contentForChange);
+      
+      // Debug logging to see what FormInitializationComponent returns
+      log.info("FormInit Change Response: {}", formInitChangeResponse.toString());
+      
       DataSourceUtils.applyColumnValues(formInitChangeResponse, dbname2input, dataInpFormat);
     }
 
@@ -753,6 +767,9 @@ public class DataSourceServlet implements WebService {
     Map<String, Object> parameters = createParameters(request,
         DataSourceUtils.getTabByDataSourceName(extractedParts[0]).getId(), null, recordId, null, "EDIT");
 
+    // Clear session variables to avoid conflicts between records
+    clearSessionVariables(null);
+
     String content = "{}";
     var formInitResponse = WeldUtils.getInstanceFromStaticBeanManager(EtendoFormInitComponent.class).execute(parameters,
         content);
@@ -789,6 +806,10 @@ public class DataSourceServlet implements WebService {
       Map<String, Object> parameters2 = createParameters(request,
           DataSourceUtils.getTabByDataSourceName(extractedParts[0]).getId(), null, recordId, changedColumnInp,
           "CHANGE");
+      
+      // Clear session variables before CHANGE events (always clear for all field types)
+      clearSessionVariables(dataInpFormat);
+      
       String contentForChange = dataInpFormat.toString();
       var formInitChangeResponse = WeldUtils.getInstanceFromStaticBeanManager(EtendoFormInitComponent.class).execute(
           parameters2, contentForChange);
@@ -894,5 +915,44 @@ public class DataSourceServlet implements WebService {
   public void doPut(String path, HttpServletRequest request, HttpServletResponse response) throws Exception {
     fillSessionVariableInRequest(request);
     upsertEntity(OpenAPIConstants.PUT, path, request, response);
+  }
+
+  /**
+   * Clears session variables to prevent conflicts between records.
+   * This method removes session variables that are used by callouts and form initialization
+   * to ensure that when processing multiple records, each record starts with a clean session state.
+   *
+   * @param dataInpFormat optional JSONObject containing the input format data with "inp" parameters to clear
+   */
+  private void clearSessionVariables(JSONObject dataInpFormat) {
+    RequestContext requestContext = RequestContext.get();
+    
+    // Collect all "inp" parameter names from dataInpFormat if available
+    List<String> inpParametersToClean = new ArrayList<>();
+    if (dataInpFormat != null) {
+      @SuppressWarnings("unchecked")
+      Iterator<String> keys = dataInpFormat.keys();
+      while (keys.hasNext()) {
+        String key = keys.next();
+        if (key.startsWith("inp")) {
+          inpParametersToClean.add(key);
+        }
+      }
+    }
+    
+    // Clear RequestContext session attributes and request parameters
+    for (String param : inpParametersToClean) {
+      // Clear from RequestContext session attributes
+      Object sessionValue = requestContext.getSessionAttribute(param);
+      if (sessionValue != null) {
+        requestContext.setSessionAttribute(param, null);
+      }
+      
+      // Clear from RequestContext request parameters
+      String requestValue = requestContext.getRequestParameter(param);
+      if (requestValue != null) {
+        requestContext.setRequestParameter(param, null);
+      }
+    }
   }
 }

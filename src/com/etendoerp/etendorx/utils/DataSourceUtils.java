@@ -2,6 +2,7 @@ package com.etendoerp.etendorx.utils;
 
 
 import java.math.BigDecimal;
+import java.text.NumberFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.LinkedHashMap;
@@ -221,7 +222,14 @@ public class DataSourceUtils {
     }
     switch (type) {
       case "BigDecimal":
-        return new BigDecimal(value);
+        try {
+          NumberFormat numberFormat = NumberFormat.getInstance();
+          Number number = numberFormat.parse(value);
+          return new BigDecimal(number.toString());
+        } catch (ParseException e) {
+          // Fallback to original behavior if parsing fails
+          return new BigDecimal(value);
+        }
       case "Long":
         return Long.parseLong(value);
       case "Boolean":
@@ -439,6 +447,11 @@ public class DataSourceUtils {
       String inpkey = mapConvertionKey.getOrDefault(oldKey, oldKey);
       JSONObject value = columnValues.getJSONObject(oldKey);
       Object val = getClassicValue(value);
+      
+      // Debug logging to see what values are being extracted
+      log.info("Applying column value - Key: {}, InpKey: {}, Value: {}, ClassicValue: {}", 
+          oldKey, inpkey, value.toString(), val);
+      
       if (val != null && (!(val instanceof String) || org.apache.commons.lang3.StringUtils.isNotEmpty((String) val))) {
         dataFromNewRecord.put(inpkey, val);
       }
@@ -591,7 +604,19 @@ public class DataSourceUtils {
     }
     switch (type) {
       case "BigDecimal":
-        return o.toString();
+        if (o instanceof BigDecimal) {
+          NumberFormat numberFormat = NumberFormat.getInstance();
+          return numberFormat.format(o);
+        } else {
+          // If it's not a BigDecimal, try to parse it as a number first
+          try {
+            BigDecimal bd = new BigDecimal(o.toString());
+            NumberFormat numberFormat = NumberFormat.getInstance();
+            return numberFormat.format(bd);
+          } catch (NumberFormatException e) {
+            return o.toString();
+          }
+        }
       case "Long":
         if (o instanceof Integer) {
           return Integer.toString((Integer) o);
