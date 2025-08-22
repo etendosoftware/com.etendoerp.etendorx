@@ -71,11 +71,9 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
       "Only send the fields you want to explicitly set; do not include fields whose values you do not know or " +
       "wish to leave as default. The backend will automatically populate unspecified fields with their default values. %s";
   public static final String PUT_DESCRIPTION_TEMPLATE = "This endpoint updates existing record(s) in the %s entity. " +
-      "Only send fields which need changes. This endpoint works like a PATCH operation, meaning it will only update the fields you provide. ";
+      "Only send fields which need changes. This endpoint works like a PATCH operation, meaning it will only update the fields you provide. %s";
 
-  public static final String DESCRIPTION_TEMPLATE = "This endpoint is used to initialize a form with default values. This endpoint uses a q parameter to filter data. %n%s";
   private static final Logger log = LoggerFactory.getLogger(DynamicDatasourceEndpoint.class);
-  public static final String GET_DATA_FROM_S_ENTITY = "Get data from %s entity";
 
   private ThreadLocal<String> requestedTag = new ThreadLocal<>();
 

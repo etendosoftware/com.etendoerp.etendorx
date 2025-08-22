@@ -24,7 +24,6 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
-
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
@@ -44,8 +43,6 @@ import org.openbravo.test.base.TestConstants;
 
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
-import com.etendoerp.etendorx.data.ETRXTokenUser;
-import com.etendoerp.etendorx.utils.TokenVerifier;
 
 /**
  * Unit tests for the SWSAuthenticationManager class.
