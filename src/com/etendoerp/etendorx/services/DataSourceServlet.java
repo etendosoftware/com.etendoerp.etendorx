@@ -672,10 +672,6 @@ public class DataSourceServlet implements WebService {
 
       String contentForChange = dataInpFormat.toString();
       var formInitChangeResponse = formInit.execute(parameters2, contentForChange);
-      
-      // Debug logging to see what FormInitializationComponent returns
-      log.info("FormInit Change Response: {}", formInitChangeResponse.toString());
-      
       DataSourceUtils.applyColumnValues(formInitChangeResponse, dbname2input, dataInpFormat);
     }
 
