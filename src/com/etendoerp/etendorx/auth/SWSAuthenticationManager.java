@@ -79,7 +79,8 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
    * This method is called to authenticate the user based on the provided request.
    * It checks if the request contains a valid token and retrieves the user information from it.
    *
-   * @param request the HttpServletRequest object containing the request information
+   * @param request
+   *     the HttpServletRequest object containing the request information
    * @return the user ID of the authenticated user
    */
   @Override
@@ -122,34 +123,38 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
     return super.doWebServiceAuthenticate(request);
   }
 
-    private static void validateToken(String userId, String roleId, String orgId, String warehouseId, String clientId) {
-        if (StringUtils.isEmpty(userId) || StringUtils.isEmpty(roleId) || StringUtils.isEmpty(
-            orgId) || StringUtils.isEmpty(warehouseId) || StringUtils.isEmpty(clientId)) {
-          throw new OBException(INVALID_TOKEN_MESSAGE);
-        }
+  private static void validateToken(String userId, String roleId, String orgId, String warehouseId, String clientId) {
+    if (StringUtils.isEmpty(userId) || StringUtils.isEmpty(roleId) || StringUtils.isEmpty(
+        orgId) || StringUtils.isEmpty(warehouseId) || StringUtils.isEmpty(clientId)) {
+      throw new OBException(INVALID_TOKEN_MESSAGE);
     }
+  }
 
-    private static void setSessionInfo(String jti, String userId) {
-        SessionInfo.setSessionId(jti);
-        SessionInfo.setUserId(userId);
-        SessionInfo.setProcessType("WS");
-        SessionInfo.setProcessId("DAL");
-    }
+  private static void setSessionInfo(String jti, String userId) {
+    SessionInfo.setSessionId(jti);
+    SessionInfo.setUserId(userId);
+    SessionInfo.setProcessType("WS");
+    SessionInfo.setProcessId("DAL");
+  }
 
-    private static void setContext(HttpServletRequest request, String userId, String roleId, String orgId,
-        String warehouseId, String clientId) {
-        OBContext.setOBContext(
-            SecureWebServicesUtils.createContext(userId, roleId, orgId, warehouseId, clientId));
-        OBContext.setOBContextInSession(request, OBContext.getOBContext());
-    }
+  private static void setContext(HttpServletRequest request, String userId, String roleId, String orgId,
+      String warehouseId, String clientId) {
+    OBContext.setOBContext(
+        SecureWebServicesUtils.createContext(userId, roleId, orgId, warehouseId, clientId));
+    OBContext.setOBContextInSession(request, OBContext.getOBContext());
+  }
 
   /**
    * Sets the CORS headers for the response.
    *
-   * @param request  the HttpServletRequest object
-   * @param response the HttpServletResponse object
-   * @throws ServletException if an error occurs during servlet processing
-   * @throws IOException      if an I/O error occurs
+   * @param request
+   *     the HttpServletRequest object
+   * @param response
+   *     the HttpServletResponse object
+   * @throws ServletException
+   *     if an error occurs during servlet processing
+   * @throws IOException
+   *     if an I/O error occurs
    */
   protected void setCORSHeaders(HttpServletRequest request, HttpServletResponse response)
       throws ServletException, IOException {
@@ -166,12 +171,15 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
     }
   }
 
-/**
+  /**
    * Decodes the provided token using the specified secret and issuer.
    *
-   * @param token  the JWT token to be decoded
-   * @param secret the secret key used for decoding
-   * @param issuer the issuer of the token
+   * @param token
+   *     the JWT token to be decoded
+   * @param secret
+   *     the secret key used for decoding
+   * @param issuer
+   *     the issuer of the token
    * @return a DecodedJWT object containing the decoded token information
    */
   private static DecodedJWT decodeToken(String token, String secret, String issuer) {
@@ -184,12 +192,17 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
    * This method is called to authenticate the user based on the provided request and response.
    * It checks if the request contains a valid token and retrieves the user information from it.
    *
-   * @param request  the HttpServletRequest object containing the request information
-   * @param response the HttpServletResponse object to send the response
+   * @param request
+   *     the HttpServletRequest object containing the request information
+   * @param response
+   *     the HttpServletResponse object to send the response
    * @return the user ID of the authenticated user
-   * @throws AuthenticationException if an error occurs during authentication
-   * @throws ServletException        if an error occurs during servlet processing
-   * @throws IOException             if an I/O error occurs
+   * @throws AuthenticationException
+   *     if an error occurs during authentication
+   * @throws ServletException
+   *     if an error occurs during servlet processing
+   * @throws IOException
+   *     if an I/O error occurs
    */
   @Override
   protected String doAuthenticate(HttpServletRequest request, HttpServletResponse response)
@@ -232,7 +245,7 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
     final String secret = OBPropertiesProvider.getInstance().getOpenbravoProperties().getProperty("OAUTH2_SECRET");
     final String issuer = OBPropertiesProvider.getInstance().getOpenbravoProperties().getProperty("OAUTH2_ISSUER");
     TokenVerifier.isValid(token, secret);
-    
+
     final Map<String, Object> userMetadata = getUserMetadata(token, secret, issuer);
 
     String userId;
@@ -323,9 +336,12 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
    * Determines whether the current request is attempting to perform an SSO login,
    * based on the presence of a configured SSO type and either a token or authorization code.
    *
-   * @param ssoType      the type of SSO authentication configured
-   * @param code         the authorization code from the SSO provider, if present
-   * @param accessToken  the access token from the SSO provider, if present
+   * @param ssoType
+   *     the type of SSO authentication configured
+   * @param code
+   *     the authorization code from the SSO provider, if present
+   * @param accessToken
+   *     the access token from the SSO provider, if present
    * @return true if an SSO login attempt is detected, false otherwise
    */
   private boolean isSSOLoginAttempt(String ssoType, String code, String accessToken) {
@@ -337,9 +353,12 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
    * Displays an error page indicating that the SSO configuration is invalid or incomplete.
    * The error messages are retrieved from the Openbravo message catalog using the user's language.
    *
-   * @param request   the current HTTP request
-   * @param response  the current HTTP response
-   * @throws IOException if an error occurs while writing the response
+   * @param request
+   *     the current HTTP request
+   * @param response
+   *     the current HTTP response
+   * @throws IOException
+   *     if an error occurs while writing the response
    */
   private void showSSOConfigError(HttpServletRequest request, HttpServletResponse response) throws IOException {
     String errorTitle = Utility.messageBD(new DalConnectionProvider(), "ETRX_SSOConfigErrorTitle",
@@ -355,14 +374,20 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
    * decoding its contents, locating the corresponding Openbravo user, and initializing the login session.
    * If successful, redirects the user to the application's context path.
    *
-   * @param code         the authorization code received from the SSO provider, if any
-   * @param accessToken  the access token received from the SSO provider, if any
-   * @param request      the current HTTP request
-   * @param response     the current HTTP response
+   * @param code
+   *     the authorization code received from the SSO provider, if any
+   * @param accessToken
+   *     the access token received from the SSO provider, if any
+   * @param request
+   *     the current HTTP request
+   * @param response
+   *     the current HTTP response
    * @return the ID of the authenticated user
-   * @throws IOException if an error occurs during redirection or response output
+   * @throws IOException
+   *     if an error occurs during redirection or response output
    */
-  private String handleSSOLogin(String code, String accessToken, HttpServletRequest request, HttpServletResponse response) throws IOException {
+  private String handleSSOLogin(String code, String accessToken, HttpServletRequest request,
+      HttpServletResponse response) throws IOException {
     log4j.debug("SSO Code to request token: {}", code);
     log4j.debug("SSO Token coming from the request: {}", accessToken);
 
@@ -392,13 +417,19 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
    * The final URL is constructed based on Openbravo's context path and configuration, and
    * the response is redirected using HTTP status 302 (Found).
    *
-   * @param title       The title of the error message to be displayed on the error page.
-   * @param description The detailed description of the error.
-   * @param request     The {@link HttpServletRequest} used to extract the base URL and context.
-   * @param response    The {@link HttpServletResponse} used to send the redirect to the error page.
-   * @throws IOException If the response cannot be written or redirected properly.
+   * @param title
+   *     The title of the error message to be displayed on the error page.
+   * @param description
+   *     The detailed description of the error.
+   * @param request
+   *     The {@link HttpServletRequest} used to extract the base URL and context.
+   * @param response
+   *     The {@link HttpServletResponse} used to send the redirect to the error page.
+   * @throws IOException
+   *     If the response cannot be written or redirected properly.
    */
-  private static void printPageError(String title, String description, HttpServletRequest request, HttpServletResponse response) throws IOException {
+  private static void printPageError(String title, String description, HttpServletRequest request,
+      HttpServletResponse response) throws IOException {
     final Properties openbravoProperties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
     String authType = ((String) openbravoProperties.get(SSO_AUTH_TYPE)).trim();
     String logoutRedirectUri = StringUtils.remove(request.getRequestURL().toString(),
@@ -406,11 +437,11 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
     String contextName = ((String) openbravoProperties.get(CONTEXT_NAME)).trim();
     String titleStr = URLEncoder.encode(title, StandardCharsets.UTF_8);
     String descriptionStr = URLEncoder.encode(description,
-            StandardCharsets.UTF_8);
+        StandardCharsets.UTF_8);
     String errorUrl = String.format("/%s/web/com.etendoerp.etendorx/resources/Auth0ErrorPage.html"
-                    + "?logoutRedirectUri=%s&title=%s&description=%s&authType=%s",
-            contextName,
-            URLEncoder.encode(logoutRedirectUri, StandardCharsets.UTF_8),
+            + "?logoutRedirectUri=%s&title=%s&description=%s&authType=%s",
+        contextName,
+        URLEncoder.encode(logoutRedirectUri, StandardCharsets.UTF_8),
         titleStr,
         descriptionStr,
         authType);
@@ -432,17 +463,24 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
    * invalid signature, expired token, or other issues, an error message is logged and an
    * {@link OBException} is thrown.
    *
-   * @param token    The JWT received from the OAuth2 authentication flow.
-   * @param request  The {@link HttpServletRequest} object, used for error handling and messaging.
-   * @param response The {@link HttpServletResponse} object, used to return error information to the client.
-   * @throws IOException  If a network or response writing error occurs.
-   * @throws OBException  If the token is invalid or verification fails.
+   * @param token
+   *     The JWT received from the OAuth2 authentication flow.
+   * @param request
+   *     The {@link HttpServletRequest} object, used for error handling and messaging.
+   * @param response
+   *     The {@link HttpServletResponse} object, used to return error information to the client.
+   * @throws IOException
+   *     If a network or response writing error occurs.
+   * @throws OBException
+   *     If the token is invalid or verification fails.
    */
-  private void validateToken(String token, HttpServletRequest request, HttpServletResponse response) throws IOException {
+  private void validateToken(String token, HttpServletRequest request,
+      HttpServletResponse response) throws IOException {
     try {
       Properties obProperties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
       String integrationType = obProperties.getProperty(SSO_AUTH_TYPE);
-      String baseURL = StringUtils.equals("Middleware", integrationType) ? obProperties.getProperty("sso.middleware.url") :
+      String baseURL = StringUtils.equals("Middleware", integrationType) ? obProperties.getProperty(
+          "sso.middleware.url") :
           "https://" + obProperties.getProperty(SSO_DOMAIN_URL);
       URL jwkURL = new URL(baseURL + "/.well-known/jwks.json");
       JwkProvider provider = new UrlJwkProvider(jwkURL);
@@ -467,14 +505,18 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
   }
 
   /**
-     * Checks if the SSO configuration is misconfigured based on the provided parameters.
-     *
-     * @param token       the string token
-     * @param code        the code from auth0
-     * @param allowSSO    the preference value for allowing SSO login
-     * @param hasSSOType  the SSO type
-     * @return true if the configuration is misconfigured, false otherwise
-     */
+   * Checks if the SSO configuration is misconfigured based on the provided parameters.
+   *
+   * @param token
+   *     the string token
+   * @param code
+   *     the code from auth0
+   * @param allowSSO
+   *     the preference value for allowing SSO login
+   * @param hasSSOType
+   *     the SSO type
+   * @return true if the configuration is misconfigured, false otherwise
+   */
   private static boolean misconfiguredSSO(String token, String code, String allowSSO, String hasSSOType) {
     return ((StringUtils.equals("Y", allowSSO) && StringUtils.isBlank(hasSSOType)) ||
         ((StringUtils.isBlank(allowSSO) || StringUtils.equals("N", allowSSO)) && !StringUtils.isBlank(hasSSOType)))
@@ -504,9 +546,12 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
   /**
    * Retrieves the user metadata from the provided token.
    *
-   * @param token  the JWT token
-   * @param secret the secret key used for decoding
-   * @param issuer the issuer of the token
+   * @param token
+   *     the JWT token
+   * @param secret
+   *     the secret key used for decoding
+   * @param issuer
+   *     the issuer of the token
    * @return a Map containing the user metadata
    */
   private static Map<String, Object> getUserMetadata(String token, String secret, String issuer) {
@@ -514,10 +559,10 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
     try {
       DecodedJWT decodedToken = decodeToken(token, secret, issuer);
       Object userMeta = decodedToken.getClaim("user_metadata").as(Object.class);
-      if(userMeta instanceof Map) {
+      if (userMeta instanceof Map) {
         userMetadata = (Map<String, Object>) userMeta;
       }
-      if(userMetadata == null) {
+      if (userMetadata == null) {
         throw new OBException(SWS_TOKEN_IS_NOT_VALID);
       }
     } catch (Exception e) {
@@ -529,11 +574,15 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
   /**
    * Handles the case when the user is null after authentication.
    *
-   * @param request  the HttpServletRequest object
-   * @param response the HttpServletResponse object
-   * @throws IOException if an I/O error occurs
+   * @param request
+   *     the HttpServletRequest object
+   * @param response
+   *     the HttpServletResponse object
+   * @throws IOException
+   *     if an I/O error occurs
    */
-  private static void handleWhenUserIsNull(HttpServletRequest request, HttpServletResponse response) throws IOException {
+  private static void handleWhenUserIsNull(HttpServletRequest request,
+      HttpServletResponse response) throws IOException {
     final Properties openbravoProperties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
     String ssoAuthType = ((String) openbravoProperties.get(SSO_AUTH_TYPE)).trim();
 
@@ -548,8 +597,8 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
 
     String ssoNoUserLinkURL;
     if ("Auth0".equalsIgnoreCase(ssoAuthType)) {
-      String ssoDomain     = ((String) openbravoProperties.get(SSO_DOMAIN_URL)).trim();
-      String clientId      = ((String) openbravoProperties.get("sso.client.id")).trim();
+      String ssoDomain = ((String) openbravoProperties.get(SSO_DOMAIN_URL)).trim();
+      String clientId = ((String) openbravoProperties.get("sso.client.id")).trim();
       ssoNoUserLinkURL = String.format(
           "/%s/web/com.etendoerp.etendorx/resources/Auth0ErrorPage.html"
               + "?authType=Auth0"
@@ -590,8 +639,10 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
   /**
    * Matches the user based on the provided token and subject.
    *
-   * @param token the authentication token
-   * @param sub   the subject identifier from the token
+   * @param token
+   *     the authentication token
+   * @param sub
+   *     the subject identifier from the token
    * @return the matched User object, or null if no match is found
    */
   private User matchUser(String token, String sub) {
@@ -620,7 +671,8 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
   /**
    * Decodes the provided token and extracts its claims.
    *
-   * @param token the authentication token
+   * @param token
+   *     the authentication token
    * @return a HashMap containing the token claims
    */
   private HashMap<String, String> decodeToken(String token) {
@@ -643,13 +695,15 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
   /**
    * Retrieves the authentication token from the request.
    *
-   * @param request the HttpServletRequest object
+   * @param request
+   *     the HttpServletRequest object
    * @return the authentication token, or null if the token could not be retrieved
    */
   private String getAuthToken(HttpServletRequest request) {
     String code = request.getParameter("code");
     String token = "";
-    String domain = OBPropertiesProvider.getInstance().getOpenbravoProperties().getProperty(SSO_DOMAIN_URL);
+    Properties openbravoProperties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
+    String domain = openbravoProperties.getProperty(SSO_DOMAIN_URL);
     String tokenEndpoint = "https://" + domain + "/oauth/token";
     try {
       URL url = new URL(tokenEndpoint);
@@ -658,12 +712,15 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
       con.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
       con.setDoOutput(true);
 
-      String clientId = OBPropertiesProvider.getInstance().getOpenbravoProperties().getProperty("sso.client.id");
-      String clientSecret = OBPropertiesProvider.getInstance().getOpenbravoProperties().getProperty("sso.client.secret");
+      String clientId = openbravoProperties.getProperty("sso.client.id");
+      String clientSecret = openbravoProperties.getProperty(
+          "sso.client.secret");
+      String tomcatPort = !StringUtils.isBlank(openbravoProperties.getProperty("tomcat.port")) ?
+          ":" + openbravoProperties.getProperty("tomcat.port") : ":8080";
 
       String codeVerifier = (String) request.getSession().getAttribute("code_verifier");
       boolean isPKCE = (codeVerifier != null && !codeVerifier.isEmpty());
-      String strDirection = request.getScheme() + "://" + request.getServerName() + ":8080" + request.getContextPath() + "/secureApp/LoginHandler.html";
+      String strDirection = request.getScheme() + "://" + request.getServerName() + tomcatPort + request.getContextPath() + "/secureApp/LoginHandler.html";
       String params;
       params = getParams(isPKCE, clientId, code, strDirection, codeVerifier, clientSecret);
 
@@ -695,12 +752,18 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
   /**
    * Constructs the parameters for the token request based on the provided information.
    *
-   * @param isPKCE        indicates if PKCE is used
-   * @param clientId      the client ID
-   * @param code          the authorization code
-   * @param strDirection  the redirect URI
-   * @param codeVerifier  the code verifier (if PKCE is used)
-   * @param clientSecret  the client secret (if not using PKCE)
+   * @param isPKCE
+   *     indicates if PKCE is used
+   * @param clientId
+   *     the client ID
+   * @param code
+   *     the authorization code
+   * @param strDirection
+   *     the redirect URI
+   * @param codeVerifier
+   *     the code verifier (if PKCE is used)
+   * @param clientSecret
+   *     the client secret (if not using PKCE)
    * @return a formatted string containing the parameters for the token request
    */
   private static String getParams(boolean isPKCE, String clientId, String code, String strDirection,
@@ -729,8 +792,10 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
   /**
    * Prepares the login session for the user.
    *
-   * @param request the HttpServletRequest object
-   * @param user    the User object representing the authenticated user
+   * @param request
+   *     the HttpServletRequest object
+   * @param user
+   *     the User object representing the authenticated user
    */
   private void prepareLoginSession(HttpServletRequest request, User user) {
     loginName.set(user.getName());

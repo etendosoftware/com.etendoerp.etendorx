@@ -3,7 +3,7 @@ server:
 
 spring:
   datasource:
-    url: jdbc:postgresql://{BBDD_URL}:5432/{BBDD_SID}
+    url: jdbc:postgresql://{BBDD_URL}:{BBDD_PORT}/{BBDD_SID}
     username: tad
     password: tad
   jackson:
