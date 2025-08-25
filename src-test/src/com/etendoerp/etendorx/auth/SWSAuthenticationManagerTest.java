@@ -43,8 +43,6 @@ import org.openbravo.test.base.TestConstants;
 
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
-import com.etendoerp.etendorx.data.ETRXTokenUser;
-import com.etendoerp.etendorx.utils.TokenVerifier;
 
 /**
  * Unit tests for the SWSAuthenticationManager class.
@@ -53,6 +51,7 @@ public class SWSAuthenticationManagerTest extends WeldBaseTest {
 
   public static final String TEST_SECRET = "testSecret";
   public static final String AUTHORIZATION = "Authorization";
+  public static final String BEARER_PREFIX = "Bearer ";
   public static final String USER_ID_123 = "userId123";
   public static final String EXAMPLE_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyLCJpc3MiOiJpc3N1ZXIiLCJ1c2VyX21ldGFkYXRhIjp7Im5hbWUiOiJ0ZXN0VXNlciJ9fQ.I8eODDNFArRF4up9iLpLjAdizOy8obNTtTgiRpEyGk0";
 
@@ -143,7 +142,7 @@ public class SWSAuthenticationManagerTest extends WeldBaseTest {
           .sign(algorithm);
 
       // Setup mocks
-      when(mockRequest.getHeader(AUTHORIZATION)).thenReturn("Bearer " + token);
+      when(mockRequest.getHeader(AUTHORIZATION)).thenReturn(BEARER_PREFIX + token);
 
       // Invoke method
       String result = authManager.doWebServiceAuthenticate(mockRequest);
@@ -168,7 +167,7 @@ public class SWSAuthenticationManagerTest extends WeldBaseTest {
         .sign(algorithm);
 
     // Setup mocks
-    when(mockRequest.getHeader(AUTHORIZATION)).thenReturn("Bearer " + token);
+    when(mockRequest.getHeader(AUTHORIZATION)).thenReturn(BEARER_PREFIX + token);
 
     // Invoke method
     authManager.doWebServiceAuthenticate(mockRequest);
@@ -320,5 +319,31 @@ public class SWSAuthenticationManagerTest extends WeldBaseTest {
       verify(OBDal.getInstance()).save(mockUser);
       verify(OBDal.getInstance()).flush();
     }
+  }
+
+  /**
+   * Tests the validStructureBearerToken method with various inputs to ensure proper validation.
+   */
+  @Test
+  public void testValidStructureBearerToken() {
+    // Test cases that should return false
+    assertEquals(false, authManager.validStructureBearerToken(null));
+    assertEquals(false, authManager.validStructureBearerToken(""));
+    assertEquals(false, authManager.validStructureBearerToken("   "));
+    assertEquals(false, authManager.validStructureBearerToken("token"));
+    assertEquals(false, authManager.validStructureBearerToken("Basic token"));
+    assertEquals(false, authManager.validStructureBearerToken(BEARER_PREFIX));
+    assertEquals(false, authManager.validStructureBearerToken(BEARER_PREFIX + "   "));
+    assertEquals(false, authManager.validStructureBearerToken(BEARER_PREFIX + "null"));
+    assertEquals(false, authManager.validStructureBearerToken(BEARER_PREFIX + "undefined"));
+    assertEquals(false, authManager.validStructureBearerToken(BEARER_PREFIX + "NULL"));
+    assertEquals(false, authManager.validStructureBearerToken(BEARER_PREFIX + "UNDEFINED"));
+
+    // Test cases that should return true
+    assertEquals(true, authManager.validStructureBearerToken(BEARER_PREFIX + "validToken"));
+    assertEquals(true, authManager.validStructureBearerToken("bearer validToken"));
+    assertEquals(true, authManager.validStructureBearerToken(BEARER_PREFIX + "   validToken   "));
+    assertEquals(true, authManager.validStructureBearerToken("   " + BEARER_PREFIX + "validToken   "));
+    assertEquals(true, authManager.validStructureBearerToken(BEARER_PREFIX + "abc.def.ghi"));
   }
 }

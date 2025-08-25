@@ -3,9 +3,11 @@ package com.etendoerp.etendorx.openapi;
 import java.util.List;
 
 import com.etendoerp.openapi.OpenAPIDefaultRequest;
+import com.etendoerp.openapi.data.OpenAPIRequest;
+import com.etendoerp.openapi.data.OpenApiFlowPoint;
 
-import io.swagger.v3.oas.models.media.Content;
 import io.swagger.v3.oas.models.Operation;
+import io.swagger.v3.oas.models.media.Content;
 import io.swagger.v3.oas.models.media.MediaType;
 import io.swagger.v3.oas.models.media.Schema;
 import io.swagger.v3.oas.models.media.StringSchema;
@@ -26,12 +28,14 @@ public class ImageUploadOpenAPI extends OpenAPIDefaultRequest {
   }
 
   @Override
-  public Operation getPOSTEndpoint() {
+  public Operation getPOSTEndpoint(OpenApiFlowPoint flowPoint) {
     //PathItem
     Operation endpoint = new Operation();
-    endpoint.setSummary("Upload an image to EtendoERP");
-    endpoint.setDescription("Upload an image to EtendoERP, it can uses a configuration associated to a Column ID to " +
-        "automatically resize the image.");
+    if (flowPoint != null && flowPoint.getEtapiOpenapiReq() != null) {
+      OpenAPIRequest etapiOpenapiReq = flowPoint.getEtapiOpenapiReq();
+      endpoint.setSummary(etapiOpenapiReq.getDescription());
+      endpoint.setDescription(etapiOpenapiReq.getPostDescription());
+    }
 
     Schema reqSchema = new Schema()
         .addProperties("filename", new StringSchema().description("The name of the file").example("image.jpg"))

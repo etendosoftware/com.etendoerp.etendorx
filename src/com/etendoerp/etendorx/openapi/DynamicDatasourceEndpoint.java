@@ -5,6 +5,7 @@ import static com.etendoerp.etendorx.utils.DataSourceUtils.getHQLColumnName;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
@@ -55,6 +56,23 @@ import io.swagger.v3.oas.models.tags.Tag;
 public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
 
   public static final String Q_HELP = "## Q Parameter:\n" + "The \"q\" parameter is used to construct search queries that filter data according to specified conditions. " + "These conditions can include: " + "Equality and Inequality: Use operators like == for equality and != for inequality to match exact values. " + "Case Sensitivity: Use =c= for case-sensitive matches and =ic= for case-insensitive matches, especially useful " + "for string comparisons. " + "Range Comparisons: Use operators like >, <, >=, <= to filter data within a certain range. " + "Null Checks: Use =is=null to find records with null values and =isnot=null for non-null values. " + "String Matching: Use =sw= for \"starts with\", =ew= for \"ends with\", and =c= for \"contains\". " + "Case-insensitive versions are also available, such as =isw= and =iew=. " + "Set and Existence Checks: Use =ins= to check if a value is in a set, =nis= for not in a set, and =exists to " + "check for existence. " + "Logical operators like AND (; or and) and OR (, or or) can be used to combine multiple conditions, " + "allowing for complex queries that can filter data based on multiple criteria simultaneously. " + "This flexible querying system enables precise data retrieval tailored to specific needs." + " If a search term has spaces, it should be enclosed in simple quotes. For example, to search for a name " + "containing the words \"John Doe\", use q=name=sw='John Doe'. ";
+
+  // Templates for summaries
+  public static final String GET_SUMMARY_TEMPLATE = "Get data from %s entity";
+  public static final String GET_BY_ID_SUMMARY_TEMPLATE = "Obtain a single %s record";
+  public static final String POST_SUMMARY_TEMPLATE = "Create a new %s record";
+  public static final String PUT_SUMMARY_TEMPLATE = "Update a %s record";
+
+  // Templates for descriptions
+  public static final String GET_DESCRIPTION_TEMPLATE = "This endpoint retrieves multiple records from the %s entity. " +
+      "Use the 'q' parameter to filter data with various criteria. %s";
+  public static final String GET_BY_ID_DESCRIPTION_TEMPLATE = "This endpoint retrieves a single record from the %s entity by its ID. %s";
+  public static final String POST_DESCRIPTION_TEMPLATE = "This endpoint creates new record(s) in the %s entity. " +
+      "Only send the fields you want to explicitly set; do not include fields whose values you do not know or " +
+      "wish to leave as default. The backend will automatically populate unspecified fields with their default values. %s";
+  public static final String PUT_DESCRIPTION_TEMPLATE = "This endpoint updates existing record(s) in the %s entity. " +
+      "Only send fields which need changes. This endpoint works like a PATCH operation, meaning it will only update the fields you provide. %s";
+
   private static final Logger log = LoggerFactory.getLogger(DynamicDatasourceEndpoint.class);
 
   private ThreadLocal<String> requestedTag = new ThreadLocal<>();
@@ -155,7 +173,7 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
    * @param descriptions
    *     a HashMap containing endpoint descriptions.
    */
-  public void fullfillDescription(OpenAPI openAPI, AtomicBoolean addedEndpoints, HashMap<String, String> descriptions) {
+  public void fullfillDescription(OpenAPI openAPI, AtomicBoolean addedEndpoints, Map<String, String> descriptions) {
     var info = openAPI.getInfo();
     if (openAPI.getInfo() == null) {
       info = new io.swagger.v3.oas.models.info.Info();
@@ -165,12 +183,12 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
     if (addedEndpoints.get()) {
       sb.append("## Dynamic Datasource API endpoints descriptions:\n");
       for (String key : descriptions.keySet()) {
-        sb.append(String.format("### %s:\n %s\n", key, descriptions.get(key)));
+        sb.append(String.format("### %s:%n %s%n", key, descriptions.get(key)));
       }
       // Add help for Q parameter
       sb.append(Q_HELP);
     }
-    info.setDescription(String.format("%s\n%s", info.getDescription(), sb.toString()));
+    info.setDescription(String.format("%s%n%s", info.getDescription(), sb));
   }
 
   /**
@@ -199,7 +217,7 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
     JSONObject formInitResponseExample = new JSONObject();
     try {
       List<OpenAPIRequestField> etrxOpenapiFieldList = openAPIRXTab.getEtrxOpenapiFieldList();
-      HashMap<String, String> fieldDescriptions = new HashMap<String, String>();
+      HashMap<String, String> fieldDescriptions = new HashMap<>();
       for (OpenAPIRequestField opf : etrxOpenapiFieldList) {
         if (StringUtils.isNotEmpty(opf.getDescription())) {
           fieldDescriptions.put(opf.getField().getId(), opf.getDescription());
@@ -222,21 +240,22 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
     String formInitRequestExample = formInitJSON.toString();
     List<Parameter> formInitParams = new ArrayList<>();
 
-    if (endpoint.isPost()) {
-      createPOSTEndpoint(openAPI, entityName, tag, formInitResponseSchema, formInitResponseExample, formInitParams,
-          formInitRequestSchema, formInitRequestExample, etapiOpenapiReq.getDescription());
-    }
-    if (endpoint.isGet()) {
-      createGETEndpoint(openAPI, entityName, tag, formInitResponseSchema, formInitResponseExample);
-    }
-    if (endpoint.isGetbyid()) {
-      createSingleGETEndpoint(openAPI, entityName, tag, formInitResponseSchema, formInitResponseExample, formInitParams,
-          formInitRequestSchema, formInitRequestExample);
-    }
 
-    if (endpoint.isPut()) {
+    if (Boolean.TRUE.equals(endpoint.isGet())) {
+      createGETEndpoint(openAPI, entityName, tag, formInitResponseSchema, formInitResponseExample,
+          endpoint.getEtapiOpenapiReq().getGETDescription());
+    }
+    if (Boolean.TRUE.equals(endpoint.isGetbyid())) {
+      createSingleGETEndpoint(openAPI, entityName, tag, formInitResponseSchema, formInitResponseExample, formInitParams,
+          formInitRequestSchema, formInitRequestExample, endpoint.getEtapiOpenapiReq().getGetbyidDescription());
+    }
+    if (Boolean.TRUE.equals(endpoint.isPost())) {
+      createPOSTEndpoint(openAPI, entityName, tag, formInitResponseSchema, formInitResponseExample, formInitParams,
+          formInitRequestSchema, formInitRequestExample, endpoint.getEtapiOpenapiReq().getPostDescription());
+    }
+    if (Boolean.TRUE.equals(endpoint.isPut())) {
       createPUTEndpoint(openAPI, entityName, tag, formInitResponseSchema, formInitResponseExample, formInitParams,
-          formInitRequestSchema, formInitRequestExample);
+          formInitRequestSchema, formInitRequestExample, endpoint.getEtapiOpenapiReq().getPUTDescription());
     }
   }
 
@@ -293,16 +312,32 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
    *     the schema for the request body
    * @param formInitRequestExample
    *     the example of the request body
+   * @param description
+   *     custom description for the endpoint
    */
   private void createPUTEndpoint(OpenAPI openAPI, String entityName, String tag, Schema<?> formInitResponseSchema,
       JSONObject formInitResponseExample, List<Parameter> formInitParams, Schema<?> formInitRequestSchema,
-      String formInitRequestExample) {
-    EndpointConfig patchConfig = new EndpointConfig.Builder().tag(tag).actionValue(entityName + "/{id}").summary(
-        "Save a single record").description(
-        "This endpoint is used to save record data. Only send fields which needs changes.").responseSchema(
-        formInitResponseSchema).responseExample(formInitResponseExample.toString()).parameters(
-        formInitParams).requestBodySchema(formInitRequestSchema).requestBodyExample(formInitRequestExample).httpMethod(
-        OpenAPIConstants.PUT).build();
+      String formInitRequestExample, String description) {
+
+    String customDescription = StringUtils.isNotEmpty(description) ? description : "";
+    String finalDescription = String.format(PUT_DESCRIPTION_TEMPLATE, entityName, customDescription);
+
+    // Add path parameter for ID
+    List<Parameter> putParams = new ArrayList<>(formInitParams);
+    putParams.add(createPathParameter("id", "Entity ID to update"));
+
+    EndpointConfig patchConfig = new EndpointConfig.Builder()
+        .tag(tag)
+        .actionValue(entityName + "/{id}")
+        .summary(String.format(PUT_SUMMARY_TEMPLATE, entityName))
+        .description(finalDescription)
+        .responseSchema(formInitResponseSchema)
+        .responseExample(formInitResponseExample.toString())
+        .parameters(putParams)
+        .requestBodySchema(formInitRequestSchema)
+        .requestBodyExample(formInitRequestExample)
+        .httpMethod(OpenAPIConstants.PUT)
+        .build();
 
     createEndpoint(openAPI, patchConfig);
   }
@@ -326,16 +361,32 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
    *     the schema for the request body
    * @param formInitRequestExample
    *     the example of the request body
+   * @param description
+   *     custom description for the endpoint
    */
   private void createSingleGETEndpoint(OpenAPI openAPI, String entityName, String tag, Schema<?> formInitResponseSchema,
       JSONObject formInitResponseExample, List<Parameter> formInitParams, Schema<?> formInitRequestSchema,
-      String formInitRequestExample) {
-    // GET of a single record
-    EndpointConfig getIDConfig = new EndpointConfig.Builder().tag(tag).actionValue(entityName + "/{id}").summary(
-        "Obtain a single record").description("This endpoint is used to obtain a single record.").responseSchema(
-        formInitResponseSchema).responseExample(formInitResponseExample.toString()).parameters(
-        formInitParams).requestBodySchema(formInitRequestSchema).requestBodyExample(formInitRequestExample).httpMethod(
-        OpenAPIConstants.GET).build();
+      String formInitRequestExample, String description) {
+
+    String customDescription = StringUtils.isNotEmpty(description) ? description : "";
+    String finalDescription = String.format(GET_BY_ID_DESCRIPTION_TEMPLATE, entityName, customDescription);
+
+    // Add path parameter for ID
+    List<Parameter> getByIdParams = new ArrayList<>(formInitParams);
+    getByIdParams.add(createPathParameter("id", "Entity ID to retrieve"));
+
+    EndpointConfig getIDConfig = new EndpointConfig.Builder()
+        .tag(tag)
+        .actionValue(entityName + "/{id}")
+        .summary(String.format(GET_BY_ID_SUMMARY_TEMPLATE, entityName))
+        .description(finalDescription)
+        .responseSchema(formInitResponseSchema)
+        .responseExample(formInitResponseExample.toString())
+        .parameters(getByIdParams)
+        .requestBodySchema(formInitRequestSchema)
+        .requestBodyExample(formInitRequestExample)
+        .httpMethod(OpenAPIConstants.GET)
+        .build();
 
     createEndpoint(openAPI, getIDConfig);
   }
@@ -353,21 +404,30 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
    *     the schema for the response
    * @param formInitResponseExample
    *     the example of the response
+   * @param description
+   *     custom description for the endpoint
    */
   void createGETEndpoint(OpenAPI openAPI, String entityName, String tag, Schema<?> formInitResponseSchema,
-      JSONObject formInitResponseExample) {
+      JSONObject formInitResponseExample, String description) {
     List<Parameter> getParams = new ArrayList<>();
     getParams.add(createParameter("q", false, OpenAPIConstants.STRING, "field==A6750F0D15334FB890C254369AC750A8",
         "Search parameter to retrieve filtered data with a criteria"));
     getParams.add(createParameter("_startRow", true, OpenAPIConstants.STRING, "0", "Starting row to fetch."));
     getParams.add(createParameter("_endRow", true, OpenAPIConstants.STRING, "10", "End row to fetch."));
 
-    // Create EndpointConfig for GET using the Builder
-    EndpointConfig getConfig = new EndpointConfig.Builder().tag(tag).actionValue(entityName).summary(
-        "Get data from this entity").description(
-        "This endpoint is used to initialize a form with default values. This endpoint uses a q parameter to filter data.").responseSchema(
-        formInitResponseSchema).responseExample(formInitResponseExample.toString()).parameters(getParams).httpMethod(
-        OpenAPIConstants.GET).build();
+    String customDescription = StringUtils.isNotEmpty(description) ? description : "";
+    String finalDescription = String.format(GET_DESCRIPTION_TEMPLATE, entityName, customDescription);
+
+    EndpointConfig getConfig = new EndpointConfig.Builder()
+        .tag(tag)
+        .actionValue(entityName)
+        .summary(String.format(GET_SUMMARY_TEMPLATE, entityName))
+        .description(finalDescription)
+        .responseSchema(formInitResponseSchema)
+        .responseExample(formInitResponseExample.toString())
+        .parameters(getParams)
+        .httpMethod(OpenAPIConstants.GET)
+        .build();
 
     createEndpoint(openAPI, getConfig);
   }
@@ -398,34 +458,28 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
    *     the schema for the request body
    * @param formInitRequestExample
    *     the example of the request body
+   * @param description
+   *     custom description for the endpoint
    */
   void createPOSTEndpoint(OpenAPI openAPI, String entityName, String tag, Schema<?> formInitResponseSchema,
       JSONObject formInitResponseExample, List<Parameter> formInitParams, Schema<?> formInitRequestSchema,
       String formInitRequestExample, String description) {
-    StringBuilder postDescription = new StringBuilder();
-    postDescription.append("When using this POST endpoint, only send the fields you want to ");
-    postDescription.append("explicitly set; do not include fields whose values you do not know or");
-    postDescription.append(" wish to leave as default. The backend will automatically populate ");
-    postDescription.append(" unspecified fields with their default values. For example, if the ");
-    postDescription.append("resource supports fields like name, age (default: 18), and city ");
-    postDescription.append("default: “Unknown”), and you only want to set name, your request ");
-    postDescription.append("should be { \"name\": \"John Doe\" }. Avoid sending null values for ");
-    postDescription.append("unknown fields or including unnecessary fields, such as { \"name\": ");
-    postDescription.append("\"John Doe\", \"age\": null, \"city\": null }, as this could override");
-    postDescription.append("default values. The backend will respond with the complete object, ");
-    postDescription.append("including defaults for fields you did not specify.");
 
-    if (description != null) {
-      postDescription.append("\n------------------\n");
-      postDescription.append(description);
-    }
+    String customDescription = StringUtils.isNotEmpty(description) ? description : "";
+    String finalDescription = String.format(POST_DESCRIPTION_TEMPLATE, entityName, customDescription);
 
-    // Create EndpointConfig for POST using the Builder
-    EndpointConfig postConfig = new EndpointConfig.Builder().tag(tag).actionValue(entityName).summary(
-        "Creates a record with default values").description(postDescription.toString()).responseSchema(
-        formInitResponseSchema).responseExample(formInitResponseExample.toString()).parameters(
-        formInitParams).requestBodySchema(formInitRequestSchema).requestBodyExample(formInitRequestExample).httpMethod(
-        OpenAPIConstants.POST).build();
+    EndpointConfig postConfig = new EndpointConfig.Builder()
+        .tag(tag)
+        .actionValue(entityName)
+        .summary(String.format(POST_SUMMARY_TEMPLATE, entityName))
+        .description(finalDescription)
+        .responseSchema(formInitResponseSchema)
+        .responseExample(formInitResponseExample.toString())
+        .parameters(formInitParams)
+        .requestBodySchema(formInitRequestSchema)
+        .requestBodyExample(formInitRequestExample)
+        .httpMethod(OpenAPIConstants.POST)
+        .build();
 
     createEndpoint(openAPI, postConfig);
   }
@@ -526,7 +580,25 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
   }
 
   /**
-   * Creates a Parameter object.
+   * Creates a Parameter object for path parameters.
+   *
+   * @param name
+   *     the name of the parameter.
+   * @param description
+   *     the description of the parameter.
+   * @return the created Parameter object.
+   */
+  private Parameter createPathParameter(String name, String description) {
+    return new Parameter()
+        .in("path")
+        .name(name)
+        .required(true)
+        .schema(new Schema<String>().type(OpenAPIConstants.STRING))
+        .description(description);
+  }
+
+  /**
+   * Creates a Parameter object for query parameters.
    *
    * @param name
    *     the name of the parameter.
@@ -573,7 +645,9 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
    * @param fields
    *     the list of fields.
    * @param defaultMode
+   *     whether to use default mode
    * @param fieldDescriptions
+   *     descriptions for fields
    * @return the defined schema.
    */
   Schema<?> defineFormInitRequestSchema(List<Field> fields, boolean defaultMode,
@@ -603,7 +677,7 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
         fieldSchema = new Schema<>().type(OpenAPIConstants.STRING);
         Reference ref = field.getColumn().getReference();
         if (DataSourceUtils.isReferenceToAnotherTable(ref)) {
-          //el campo deben ser STRINGS de 32 caracteres ALfanunericios
+          //the field must be a STRING of 32 alphanumeric characters
           fieldSchema.maxLength(32);
           fieldSchema.pattern("^[a-zA-Z0-9]*$");
           fieldSchema.example("");
