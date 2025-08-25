@@ -118,7 +118,8 @@ public class SelectorHandlerUtil {
             JSONObject obj = searchForRecord(dataSourceService, convertToHashMAp, recordID, valueProperty);
             if (obj == null) {
                 log.error("Record not found in selector");
-                throw new OBException(OBMessageUtils.messageBD("ETRX_RecordNotFound"));
+                throw new OBException(
+                        String.format(OBMessageUtils.messageBD("ETRX_RecordNotFound"), recordID));
             }
 
             savePrefixFields(dataInpFormat, changedColumnInp, selectorDefined, obj, false);
@@ -179,7 +180,8 @@ public class SelectorHandlerUtil {
 
             if (matchedRecord == null) {
                 log.error("Record not found in selector");
-                throw new OBException(OBMessageUtils.messageBD("ETRX_RecordNotFound"));
+                throw new OBException(
+                        String.format(OBMessageUtils.messageBD("ETRX_RecordNotFound"), recordID));
             }
 
             savePrefixFields(dataInpFormat, changedColumnInp, selectorDefined, matchedRecord, true);
@@ -471,44 +473,76 @@ public class SelectorHandlerUtil {
      */
     private static JSONObject executeHQLAndFindRecord(String hqlQuery, String recordID, Selector selectorDefined) {
         try {
-            Query query = OBDal.getInstance().getSession().createQuery(hqlQuery);
-            query.setFirstResult(0);
-            query.setMaxResults(1000);
-            query.setResultTransformer(Transformers.ALIAS_TO_ENTITY_MAP);
-
-            @SuppressWarnings("unchecked")
-            List<Map<String, Object>> results = query.list();
-
             String valueField = selectorDefined.getValuefield().getDisplayColumnAlias();
+            int iterations = 0;
 
-            // Iterate through results to find the matching record
-            for (Map<String, Object> row : results) {
-                JSONObject obj = new JSONObject();
-
-                // Convert Map to JSONObject, extracting IDs from entity objects
-                for (Map.Entry<String, Object> entry : row.entrySet()) {
-                    String key = entry.getKey();
-                    Object value = entry.getValue();
-
-                    if (key != null) {
-                        Object processedValue = processValue(value);
-                        obj.put(key, processedValue);
-                    }
+            while (true) {
+                List<Map<String, Object>> results = executeHQLQueryBatch(hqlQuery, iterations);
+                
+                if (results.isEmpty()) {
+                    break;
                 }
 
-                // Check if this record matches the recordID we're looking for
-                if (obj.has(valueField) && StringUtils.equals(obj.getString(valueField), recordID)) {
-                    return obj;
+                JSONObject matchedRecord = findMatchingRecordInBatch(results, recordID, valueField);
+                if (matchedRecord != null) {
+                    return matchedRecord;
                 }
+
+                iterations++;
             }
 
-            // Record not found
             return null;
 
         } catch (Exception e) {
-            log.error("Error executing definedSelector HQL query: " + hqlQuery, e);
             throw new OBException(OBMessageUtils.messageBD("ETRX_ErrorExecutingHQL") + e.getMessage());
         }
+    }
+
+    /**
+     * Executes a single batch of the HQL query with pagination.
+     */
+    private static List<Map<String, Object>> executeHQLQueryBatch(String hqlQuery, int iterations) {
+        Query query = OBDal.getInstance().getSession().createQuery(hqlQuery);
+        query.setFirstResult(iterations * 100);
+        query.setMaxResults(100);
+        query.setResultTransformer(Transformers.ALIAS_TO_ENTITY_MAP);
+
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> results = query.list();
+        return results;
+    }
+
+    /**
+     * Searches through a batch of results to find a matching record.
+     */
+    private static JSONObject findMatchingRecordInBatch(List<Map<String, Object>> results, String recordID, String valueField) throws JSONException {
+        for (Map<String, Object> row : results) {
+            JSONObject obj = convertRowToJSONObject(row);
+            
+            if (obj.has(valueField) && StringUtils.equals(obj.getString(valueField), recordID)) {
+                return obj;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Converts a database row to a JSONObject.
+     */
+    private static JSONObject convertRowToJSONObject(Map<String, Object> row) throws JSONException {
+        JSONObject obj = new JSONObject();
+
+        for (Map.Entry<String, Object> entry : row.entrySet()) {
+            String key = entry.getKey();
+            Object value = entry.getValue();
+
+            if (key != null) {
+                Object processedValue = processValue(value);
+                obj.put(key, processedValue);
+            }
+        }
+
+        return obj;
     }
 
     /**

@@ -221,7 +221,18 @@ public class DataSourceUtils {
     }
     switch (type) {
       case "BigDecimal":
-        return new BigDecimal(value);
+        String normalized;
+        int lastComma = value.lastIndexOf(',');
+        int lastDot   = value.lastIndexOf('.');
+
+        if (lastComma > lastDot) {
+          normalized = value.replace(".", "").replace(",", ".");
+        } else if (lastDot > lastComma) {
+          normalized = value.replace(",", "");
+        } else {
+          normalized = value.replace(",", ".");
+        }
+        return new BigDecimal(normalized);
       case "Long":
         return Long.parseLong(value);
       case "Boolean":
