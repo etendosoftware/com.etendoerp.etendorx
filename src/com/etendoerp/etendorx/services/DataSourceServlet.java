@@ -18,8 +18,8 @@ import javax.script.ScriptException;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import javax.xml.crypto.Data;
 
+import com.etendoerp.etendorx.utils.SelectorHandlerUtil;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.entity.ContentType;
 import org.apache.logging.log4j.LogManager;
@@ -35,21 +35,16 @@ import org.openbravo.base.secureApp.LoginUtils.RoleDefaults;
 import org.openbravo.base.secureApp.VariablesSecureApp;
 import org.openbravo.base.weld.WeldUtils;
 import org.openbravo.client.application.OBBindingsConstants;
-import org.openbravo.client.application.ParameterUtils;
 import org.openbravo.client.kernel.RequestContext;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
 import org.openbravo.model.ad.datamodel.Column;
-import org.openbravo.model.ad.domain.Reference;
 import org.openbravo.model.ad.ui.Field;
 import org.openbravo.model.ad.ui.Tab;
-import org.openbravo.service.datasource.DefaultDataSourceService;
 import org.openbravo.service.db.DalConnectionProvider;
 import org.openbravo.service.web.WebService;
-import org.openbravo.userinterface.selector.Selector;
-import org.openbravo.userinterface.selector.SelectorField;
 
 import com.etendoerp.etendorx.data.OpenAPIRequestField;
 import com.etendoerp.etendorx.data.OpenAPITab;
@@ -659,7 +654,7 @@ public class DataSourceServlet implements WebService {
       var type = columnTypes.get(changedColumnN);
       dataInpFormat.put(changedColumnInp,
           DataSourceUtils.valueConvertToInputFormat(propsToChange.get(changedColumnN), type));
-      handleColumnSelector(request, tab, dataInpFormat, changedColumnN, changedColumnInp, dbname2input);
+      SelectorHandlerUtil.handleColumnSelector(request, tab, dataInpFormat, changedColumnN, changedColumnInp, dbname2input);
 
       // suppose to change in productID
       Map<String, Object> parameters2 = createParameters(request, tab.getId(), parentId, recordId, changedColumnInp,
@@ -690,315 +685,6 @@ public class DataSourceServlet implements WebService {
    */
   private static void logChangeEvent(String changedColumnN) {
     log.debug(" Recreating logic for change event, setting value for: {}", changedColumnN);
-  }
-
-  /**
-   * Handles the column selector for a specified column.
-   * <p>
-   * This method processes the column selector for the specified column, evaluates the filter clause,
-   * and updates the data input format with the selected values.
-   *
-   * @param request
-   *     The HttpServletRequest object.
-   * @param tab
-   *     The Tab object associated with the selector.
-   * @param dataInpFormat
-   *     The JSON object containing the data input format.
-   * @param changedColumnN
-   *     The name of the column that has changed.
-   * @param changedColumnInp
-   *     The input format name of the column that has changed.
-   * @param db2Input
-   *     A map of database column names to input format names.
-   * @throws JSONException
-   *     If there is an error during JSON processing.
-   * @throws ScriptException
-   *     If there is an error during the evaluation of the filter expression.
-   */
-  private void handleColumnSelector(HttpServletRequest request, Tab tab, JSONObject dataInpFormat,
-      String changedColumnN, String changedColumnInp,
-      Map<String, String> db2Input) throws JSONException, ScriptException {
-    try {
-      OBContext.setAdminMode();
-      Column col = getColumnByHQLName(tab, changedColumnN);
-      if (col == null) {
-        throw new OBException(OBMessageUtils.messageBD("ETRX_ColumnNotFound"));
-      }
-      if (!StringUtils.equals(col.getReference().getId(), "30")) {
-        return;
-      }  //is type search.
-      Reference reference = col.getReferenceSearchKey();
-      if (reference.getOBUISELSelectorList().isEmpty()) {
-        throw new OBException(OBMessageUtils.messageBD("ETRX_ReferenceNotFound"));
-      }
-
-      String headlessFilterClause = getHeadlessFilterClause(tab, col, changedColumnInp, dataInpFormat);
-      org.openbravo.model.ad.domain.Selector selectorValidation = reference.getADSelectorList().get(0);
-      Selector selectorDefined = reference.getOBUISELSelectorList().get(0);
-      DefaultDataSourceService dataSourceService = new DefaultDataSourceService();
-      HashMap<String, String> convertToHashMAp = convertToHashMAp(dataInpFormat);
-      OBDal.getInstance().refresh(selectorDefined);
-      convertToHashMAp.put("_entityName", selectorDefined.getTable().getJavaClassName());
-      String whereClauseAndFilters = selectorDefined.getHQLWhereClause() + headlessFilterClause + addFilterClause(selectorDefined,
-              convertToHashMAp, tab, request);
-      whereClauseAndFilters = fullfillSessionsVariables(whereClauseAndFilters, db2Input, dataInpFormat);
-      convertToHashMAp.put("whereAndFilterClause", whereClauseAndFilters);
-      convertToHashMAp.put("dataSourceName", selectorDefined.getTable().getJavaClassName());
-      convertToHashMAp.put("_selectorDefinitionId", selectorDefined.getId());
-      convertToHashMAp.put("filterClass", "org.openbravo.userinterface.selector.SelectorDataSourceFilter");
-      convertToHashMAp.put("IsSelectorItem", "true");
-      convertToHashMAp.put("_extraProperties", getExtraProperties(selectorDefined));
-      int iterations = 0;
-      // we will search this record id
-      String recordID = dataInpFormat.getString(changedColumnInp);
-      //find the column of the table, that determines the "column" where the data is stored. For example, in the case of
-      // a selector of "M_Product", the value stored in the column "M_Product_ID"
-      Column valueColumn = getValueColumn(selectorValidation, selectorDefined);
-      // ask for the name of the propertie where the record id is stored in the results
-      String valuePropertie = DataSourceUtils.getHQLColumnName(valueColumn)[0];
-
-      JSONObject obj = null;
-      int totalRows = -1;
-      int endRow = -1;
-
-      while (obj == null && (totalRows == -1 || endRow < totalRows)) {
-        convertToHashMAp.put(_START_ROW, String.valueOf(0 + (iterations * 100)));
-        endRow = 100 + (iterations * 100);
-        convertToHashMAp.put(_END_ROW, String.valueOf(endRow));
-        String result = dataSourceService.fetch(convertToHashMAp);
-        JSONObject resultJson = new JSONObject(result);
-        if (totalRows == -1) {
-          totalRows = resultJson.getJSONObject(RESPONSE).getInt("totalRows");
-        }
-        var arr = resultJson.getJSONObject(RESPONSE).getJSONArray("data");
-
-        for (int i = 0; i < arr.length(); i++) {
-          JSONObject current = arr.getJSONObject(i);
-          if (StringUtils.equals(current.getString(valuePropertie), recordID)) {
-            obj = current;
-            break;
-          }
-        }
-        iterations++;
-      }
-      if (obj == null) {
-        log.error("Record not found in selector");
-        throw new OBException("Record " + recordID + " not found in Search selector execution.");
-      }
-
-      savePrefixFields(dataInpFormat, changedColumnInp, selectorDefined, obj);
-
-
-    } catch (Exception e) {
-      log.error("Error in handleColumnSelector", e);
-    } finally {
-      OBContext.restorePreviousMode();
-    }
-  }
-
-  /**
-   * Builds the filter clause for the given column based on the field's EtrxFilterClause.
-   * <p>
-   * If a field associated with the specified column has a non-null filter clause, this method
-   * replaces occurrences of "@id@" (case-insensitive) with the value of the changed column from
-   * the input format and returns it as part of an SQL WHERE clause.
-   *
-   * @param tab
-   *     The tab containing the list of fields to search through.
-   * @param col
-   *     The column to find the associated field and filter clause.
-   * @param changedColumnInp
-   *     The input format name of the changed column.
-   * @param dataInpFormat
-   *     The JSON object containing the current input values.
-   * @return
-   *     The filter clause string, or an empty string if no applicable clause is found.
-   * @throws JSONException
-   *     If an error occurs while reading values from the JSON object.
-   */
-  private String getHeadlessFilterClause(Tab tab, Column col, String changedColumnInp, JSONObject dataInpFormat) throws JSONException {
-    for (Field field : tab.getADFieldList()) {
-      if (field.getColumn() == col && !StringUtils.isEmpty(field.getEtrxFilterClause())) {
-        return " AND " + field.getEtrxFilterClause()
-                .replaceAll("(?i)@id@", "'" + dataInpFormat.getString(changedColumnInp) + "'");
-      }
-    }
-    return "";
-  }
-
-
-  /**
-   * Saves the prefix fields from the selector into the data input format.
-   * <p>
-   * This method iterates over the outfields of the selector and adds their values to the data input format.
-   *
-   * @param dataInpFormat
-   *     The JSON object containing the data input format.
-   * @param changedColumnInp
-   *     The input format name of the column that has changed.
-   * @param selectorDefined
-   *     The defined selector object.
-   * @param obj
-   *     The JSON object containing the selector field values.
-   * @throws JSONException
-   *     If there is an error during JSON processing.
-   */
-  private static void savePrefixFields(JSONObject dataInpFormat, String changedColumnInp, Selector selectorDefined,
-      JSONObject obj) throws JSONException {
-    List<SelectorField> selectorFieldList = selectorDefined.getOBUISELSelectorFieldList();
-    selectorFieldList = selectorFieldList.stream().filter(SelectorField::isOutfield).collect(Collectors.toList());
-    for (SelectorField selectorField : selectorFieldList) {
-      String normN = StringUtils.isNotEmpty(
-          selectorField.getProperty()) ? selectorField.getProperty() : selectorField.getName();
-      normN = normN.replace(".", "$");
-      if (obj.has(normN)) {
-        if (!StringUtils.isEmpty(selectorField.getSuffix())) {
-          dataInpFormat.put(changedColumnInp + selectorField.getSuffix(), obj.get(normN));
-        } else {
-          dataInpFormat.put(DataSourceUtils.getInpName(selectorField.getColumn()), obj.get(normN));
-        }
-      }
-    }
-  }
-
-  /**
-   * Retrieves the column by its HQL name from the given tab.
-   * <p>
-   * This method iterates over the columns of the tab and returns the column that matches the given HQL name.
-   *
-   * @param tab
-   *     The Tab object containing the columns.
-   * @param changedColumnN
-   *     The HQL name of the column to be retrieved.
-   * @return The Column object that matches the given HQL name, or null if not found.
-   */
-  private static Column getColumnByHQLName(Tab tab, String changedColumnN) {
-    Column col = null;
-    List<Column> adColumnList = DataSourceUtils.getAdColumnList(tab);
-    for (Column column : adColumnList) {
-      if (StringUtils.equals((DataSourceUtils.getHQLColumnName(column))[0], changedColumnN)) {
-        col = column;
-        break;
-      }
-    }
-    return col;
-  }
-
-  /**
-   * Retrieves the value column for the given selector.
-   * <p>
-   * This method determines the value column based on the provided selector. If the selector is defined
-   * and has a value field that is not a custom query, it returns the value field's column. Otherwise,
-   * it returns the column from the selector validation.
-   *
-   * @param selectorValidation
-   *     The selector validation object.
-   * @param selectorDefined
-   *     The defined selector object.
-   * @return The value column for the given selector.
-   */
-  private static Column getValueColumn(org.openbravo.model.ad.domain.Selector selectorValidation,
-      Selector selectorDefined) {
-    if (selectorDefined != null && selectorDefined.getValuefield() != null && !selectorDefined.isCustomQuery()) {
-      return selectorDefined.getValuefield().getColumn();
-    } else {
-      return selectorValidation.getColumn();
-    }
-  }
-
-  /**
-   * Replaces session variables in the where clause and filters.
-   * <p>
-   * This method replaces placeholders in the where clause and filters with actual values from the provided
-   * data input format.
-   *
-   * @param whereClauseAndFilters
-   *     The where clause and filters containing placeholders.
-   * @param db2Input
-   *     A map of database column names to input format names.
-   * @param dataInpFormat
-   *     The JSON object containing the data input format.
-   * @return The where clause and filters with placeholders replaced by actual values.
-   * @throws JSONException
-   *     If there is an error during JSON processing.
-   */
-  private String fullfillSessionsVariables(String whereClauseAndFilters, Map<String, String> db2Input,
-      JSONObject dataInpFormat) throws JSONException {
-    String result = whereClauseAndFilters;
-    for (Map.Entry<String, String> entry : db2Input.entrySet()) {
-      if (dataInpFormat.has(entry.getValue())) {
-        result = StringUtils.replaceIgnoreCase(result, "@" + entry.getKey() + "@",
-            String.format("'%s'", dataInpFormat.get(entry.getValue())));
-      }
-    }
-    return result;
-  }
-
-  /**
-   * Retrieves the extra properties for the given selector.
-   * <p>
-   * This method collects the extra properties for the given selector, including the value field and outfields,
-   * and returns them as a comma-separated string.
-   *
-   * @param selector
-   *     The selector object.
-   * @return A comma-separated string of extra properties for the given selector.
-   */
-  private static String getExtraProperties(Selector selector) {
-    return selector.getOBUISELSelectorFieldList().stream().filter(
-        sf -> selector.getValuefield() == sf || sf.isOutfield()).sorted(
-        Comparator.comparing(SelectorField::getSortno)).map(
-        sf -> StringUtils.replace(sf.getProperty(), ".", "$")).collect(Collectors.joining(","));
-  }
-
-  /**
-   * Adds a filter clause to the selector's query.
-   * <p>
-   * This method checks if the selector has a filter clause that uses OB. If it does,
-   * the filter clause is evaluated in JavaScript and appended to the query.
-   *
-   * @param selector
-   *     The selector object containing the filter expression.
-   * @param hs1
-   *     A map of parameters to be used in the filter expression.
-   * @param tab
-   *     The tab object associated with the selector.
-   * @param request
-   *     The HttpServletRequest object.
-   * @return The filter clause to be appended to the query.
-   * @throws ScriptException
-   *     If there is an error during the evaluation of the filter expression.
-   */
-  private String addFilterClause(Selector selector, HashMap<String, String> hs1, Tab tab,
-      HttpServletRequest request) throws ScriptException {
-    // Check if the selector has a filter clause and it uses OB., because we need to evaluate in JS.
-    var result = (String) ParameterUtils.getJSExpressionResult(hs1, request.getSession(),
-        selector.getFilterExpression());
-    if (StringUtils.isNotEmpty(result)) {
-      return " AND " + result;
-    }
-    return result;
-  }
-
-  /**
-   * Converts a JSONObject to a HashMap.
-   * <p>
-   * This method iterates over the keys of the provided JSONObject and adds them to a HashMap.
-   *
-   * @param dataInpFormat
-   *     The JSONObject to be converted.
-   * @return A HashMap containing the key-value pairs from the JSONObject.
-   * @throws JSONException
-   *     If there is an error during JSON processing.
-   */
-  private HashMap<String, String> convertToHashMAp(JSONObject dataInpFormat) throws JSONException {
-    HashMap<String, String> map = new HashMap<>();
-    var keys = dataInpFormat.keys();
-    while (keys.hasNext()) {
-      String key = (String) keys.next();
-      map.put(key, dataInpFormat.get(key).toString());
-    }
-    return map;
   }
 
   /**
@@ -1097,7 +783,7 @@ public class DataSourceServlet implements WebService {
       String type = columnTypes.get(changedColumnN);
       String valueInpFormat = DataSourceUtils.valueConvertToInputFormat(newData.get(changedColumnN), type);
       dataInpFormat.put(changedColumnInp, valueInpFormat);
-      handleColumnSelector(request, DataSourceUtils.getTabByDataSourceName(extractedParts[0]), dataInpFormat,
+      SelectorHandlerUtil.handleColumnSelector(request, DataSourceUtils.getTabByDataSourceName(extractedParts[0]), dataInpFormat,
           changedColumnN, changedColumnInp, dbname2input);
       // suppose to change in productID
       Map<String, Object> parameters2 = createParameters(request,

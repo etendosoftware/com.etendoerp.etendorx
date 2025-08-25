@@ -1,0 +1,66 @@
+INSERT INTO public.smfsws_config(smfsws_config_id, ad_client_id, ad_org_id, isactive, created, createdby, updated, updatedby, expirationtime, privatekey)
+	VALUES ('0D9967787D6743DD9715860DE642171F','0','0','Y','2025-08-12 18:30:03.973','100','2025-08-12 18:30:03.973','100',0,'__PRIVATE_KEY_JSON__');
+
+INSERT INTO public.etrx_config(etrx_config_id, ad_client_id, ad_org_id, isactive, created, createdby, updated, updatedby, service_name, service_url, updateable_configs, public_url, restart_services)
+	VALUES ('2D18913D0D0747A794DEBC1EB1370156','0','0','Y','2025-08-12 20:49:11.745','100','2025-08-12 20:49:11.745','100','auth','http://auth:8094','Y','http://localhost:8094','Y');
+INSERT INTO public.etrx_config(etrx_config_id, ad_client_id, ad_org_id, isactive, created, createdby, updated, updatedby, service_name, service_url, updateable_configs, public_url, restart_services)
+	VALUES ('79A4AF3BEE9D40CC8FD6A4F56AE9A22A','0','0','Y','2025-08-12 20:49:11.755','100','2025-08-12 20:49:11.755','100','edge','http://edge:8096','Y','http://localhost:8096','Y');
+INSERT INTO public.etrx_config(etrx_config_id, ad_client_id, ad_org_id, isactive, created, createdby, updated, updatedby, service_name, service_url, updateable_configs, public_url, restart_services)
+	VALUES ('E1E5802D4ECE460997AA470317ADBE40','0','0','Y','2025-08-12 20:49:11.759','100','2025-08-12 20:49:11.759','100','config','http://config:8888','N','http://localhost:8888','Y');
+INSERT INTO public.etrx_config(etrx_config_id, ad_client_id, ad_org_id, isactive, created, createdby, updated, updatedby, service_name, service_url, updateable_configs, public_url, restart_services)
+	VALUES ('F14B8721BBC44E72847D7CC28209318A','0','0','Y','2025-08-12 20:49:11.754','100','2025-08-12 20:49:11.754','100','das','http://das:8092','Y','http://localhost:8092','Y');
+INSERT INTO public.etrx_config(etrx_config_id, ad_client_id, ad_org_id, isactive, created, createdby, updated, updatedby, service_name, service_url, updateable_configs, public_url, restart_services)
+	VALUES ('84D17527B48A48E7981001FE8A70296B','0','0','Y','2025-08-14 17:17:42.494','100','2025-08-14 17:18:26.013','100','worker','http://worker:0','Y','http://localhost:0','Y');
+INSERT INTO public.etrx_config(etrx_config_id, ad_client_id, ad_org_id, isactive, created, createdby, updated, updatedby, service_name, service_url, updateable_configs, public_url, restart_services)
+	VALUES ('4CBB9069F64F443B97FC1DAAC480B0F8','0','0','Y','2025-08-14 17:17:42.495','100','2025-08-14 17:18:38.105','100','obconnsrv','http://obconnsrv:8101','Y','http://localhost:8101','Y');
+INSERT INTO public.etrx_config(etrx_config_id, ad_client_id, ad_org_id, isactive, created, createdby, updated, updatedby, service_name, service_url, updateable_configs, public_url, restart_services)
+	VALUES ('0315E397DE9242348A904634EEDF9BC8','0','0','Y','2025-08-14 17:17:42.491','100','2025-08-14 18:02:44.144','100','asyncprocess','http://asyncprocess:9092','Y','http://localhost:9092','Y');
+
+INSERT INTO public.etrx_service_param(etrx_service_param_id, ad_client_id, ad_org_id, isactive, created, createdby, updated, updatedby, param_value, param_key, etrx_config_id)
+	VALUES ('084DF2BA23584161B4BAD5AD15B993A9','0','0','Y','2025-08-12 20:49:11.754','100','2025-08-12 20:49:11.754','100','http://das:8092','das.url','F14B8721BBC44E72847D7CC28209318A');
+INSERT INTO public.etrx_service_param(etrx_service_param_id, ad_client_id, ad_org_id, isactive, created, createdby, updated, updatedby, param_value, param_key, etrx_config_id)
+	VALUES ('26611A5270F147CC8B88CFB5D7F0EB2A','0','0','Y','2025-08-12 20:49:11.76','100','2025-08-12 20:49:11.76','100','http://das:8092','das.url','E1E5802D4ECE460997AA470317ADBE40');
+INSERT INTO public.etrx_service_param(etrx_service_param_id, ad_client_id, ad_org_id, isactive, created, createdby, updated, updatedby, param_value, param_key, etrx_config_id)
+	VALUES ('31A0C4EBD56842C88AD88E18E4985294','0','0','Y','2025-08-12 20:49:11.761','100','2025-08-12 20:49:11.761','100','http://tomcat:8080','classic.url','E1E5802D4ECE460997AA470317ADBE40');
+INSERT INTO public.etrx_service_param(etrx_service_param_id, ad_client_id, ad_org_id, isactive, created, createdby, updated, updatedby, param_value, param_key, etrx_config_id)
+	VALUES ('52BA8AC612C047FDB0024990366F300E','0','0','Y','2025-08-12 20:49:11.753','100','2025-08-12 20:49:11.753','100','http://tomcat:8080','classic.url','2D18913D0D0747A794DEBC1EB1370156');
+INSERT INTO public.etrx_service_param(etrx_service_param_id, ad_client_id, ad_org_id, isactive, created, createdby, updated, updatedby, param_value, param_key, etrx_config_id)
+	VALUES ('7B161910FA494279B3BCAB9A65CB50DD','0','0','Y','2025-08-12 20:49:11.751','100','2025-08-12 20:49:11.751','100','http://das:8092','das.url','2D18913D0D0747A794DEBC1EB1370156');
+INSERT INTO public.etrx_service_param(etrx_service_param_id, ad_client_id, ad_org_id, isactive, created, createdby, updated, updatedby, param_value, param_key, etrx_config_id)
+	VALUES ('80B0D6B1342B42449DCC41CD8B014715','0','0','Y','2025-08-12 20:49:11.758','100','2025-08-12 20:49:11.758','100','http://tomcat:8080','classic.url','79A4AF3BEE9D40CC8FD6A4F56AE9A22A');
+INSERT INTO public.etrx_service_param(etrx_service_param_id, ad_client_id, ad_org_id, isactive, created, createdby, updated, updatedby, param_value, param_key, etrx_config_id)
+	VALUES ('BB9BF660917842B986B59748A7C70E77','0','0','Y','2025-08-12 20:49:11.756','100','2025-08-12 20:49:11.756','100','http://das:8092','das.url','79A4AF3BEE9D40CC8FD6A4F56AE9A22A');
+INSERT INTO public.etrx_service_param(etrx_service_param_id, ad_client_id, ad_org_id, isactive, created, createdby, updated, updatedby, param_value, param_key, etrx_config_id)
+	VALUES ('CF4F2E63AAC14BEAA793924B90E9B0D3','0','0','Y','2025-08-12 20:49:11.755','100','2025-08-12 20:49:11.755','100','http://tomcat:8080','classic.url','F14B8721BBC44E72847D7CC28209318A');
+INSERT INTO public.etrx_service_param(etrx_service_param_id, ad_client_id, ad_org_id, isactive, created, createdby, updated, updatedby, param_value, param_key, etrx_config_id)
+	VALUES ('8F57EDD2E0C64582986310F757A2D303','0','0','Y','2025-08-14 17:17:42.493','100','2025-08-14 17:17:42.493','100','http://das:8092','das.url','0315E397DE9242348A904634EEDF9BC8');
+INSERT INTO public.etrx_service_param(etrx_service_param_id, ad_client_id, ad_org_id, isactive, created, createdby, updated, updatedby, param_value, param_key, etrx_config_id)
+	VALUES ('ABA1432F59574AFF9803AE89ED9A8D3A','0','0','Y','2025-08-14 17:17:42.494','100','2025-08-14 17:17:42.494','100','http://tomcat:8080','classic.url','0315E397DE9242348A904634EEDF9BC8');
+INSERT INTO public.etrx_service_param(etrx_service_param_id, ad_client_id, ad_org_id, isactive, created, createdby, updated, updatedby, param_value, param_key, etrx_config_id)
+	VALUES ('FF2B5532CC1642E6A568FD4D800D58C7','0','0','Y','2025-08-14 17:17:42.495','100','2025-08-14 17:17:42.495','100','http://das:8092','das.url','84D17527B48A48E7981001FE8A70296B');
+INSERT INTO public.etrx_service_param(etrx_service_param_id, ad_client_id, ad_org_id, isactive, created, createdby, updated, updatedby, param_value, param_key, etrx_config_id)
+	VALUES ('C4983BD0A8D34C95B17D590046E0E921','0','0','Y','2025-08-14 17:17:42.495','100','2025-08-14 17:17:42.495','100','http://tomcat:8080','classic.url','84D17527B48A48E7981001FE8A70296B');
+INSERT INTO public.etrx_service_param(etrx_service_param_id, ad_client_id, ad_org_id, isactive, created, createdby, updated, updatedby, param_value, param_key, etrx_config_id)
+	VALUES ('77382772B67E4B4CB340BACE07E6AE5A','0','0','Y','2025-08-14 17:17:42.495','100','2025-08-14 17:17:42.495','100','http://das:8092','das.url','4CBB9069F64F443B97FC1DAAC480B0F8');
+INSERT INTO public.etrx_service_param(etrx_service_param_id, ad_client_id, ad_org_id, isactive, created, createdby, updated, updatedby, param_value, param_key, etrx_config_id)
+	VALUES ('8071B168A0874026977706521A680251','0','0','Y','2025-08-14 17:17:42.504','100','2025-08-14 17:17:42.504','100','http://tomcat:8080','classic.url','4CBB9069F64F443B97FC1DAAC480B0F8');
+INSERT INTO public.etrx_service_param(etrx_service_param_id, ad_client_id, ad_org_id, isactive, created, createdby, updated, updatedby, param_value, param_key, etrx_config_id)
+	VALUES ('289A63C1A8F54F96AE235EE1BB49BA2C','0','0','Y','2025-08-14 17:18:14.816','100','2025-08-14 17:20:29.186','100','936C4AB8B8C94EBA8A6170B0402A2A06','connector.instance','84D17527B48A48E7981001FE8A70296B');
+
+INSERT INTO public.etrx_connector(etrx_connector_id, ad_client_id, ad_org_id, isactive, created, createdby, updated, updatedby, name, ad_module_id)
+	VALUES ('5FC3FF78117B4C0F8564AFA17F505B05','23C59575B9CF467C9620760EB255B389','0','Y','2025-08-14 16:21:30.294','100','2025-08-14 16:21:30.294','100','PetClinic',null);
+INSERT INTO public.etrx_instance_connector(etrx_instance_connector_id, ad_client_id, ad_org_id, isactive, created, createdby, updated, updatedby, name, url, username, password, authorization_type, token, etrx_connector_id, to_external_endpoint, to_etendo_endpoint, ad_user_id)
+	VALUES ('936C4AB8B8C94EBA8A6170B0402A2A06','23C59575B9CF467C9620760EB255B389','0','Y','2025-08-14 17:17:05.155','100','2025-08-14 17:17:05.155','100','PetClinic Connector Instance','http://localhost:9966','admin','EvuN2+JEWoQ=','BASIC',null,'5FC3FF78117B4C0F8564AFA17F505B05',null,null,'100');
+INSERT INTO public.etrx_instance_mapping(
+	etrx_instance_mapping_id, ad_client_id, ad_org_id, isactive, created, createdby, updated, updatedby, etrx_entity_mapping_id, etrx_instance_connector_id, filter)
+	VALUES ('12882289C5184306A611F159147E569B','23C59575B9CF467C9620760EB255B389','0','Y','2025-08-14 17:17:16.194','100','2025-08-14 17:17:16.194','100','ED92864AA4FD4FE09D104C661419B8C3','936C4AB8B8C94EBA8A6170B0402A2A06',null);
+INSERT INTO public.etrx_instance_mapping(
+	etrx_instance_mapping_id, ad_client_id, ad_org_id, isactive, created, createdby, updated, updatedby, etrx_entity_mapping_id, etrx_instance_connector_id, filter)
+	VALUES ('5E672C6CB67344819C6A382B2613A824','23C59575B9CF467C9620760EB255B389','0','Y','2025-08-14 17:17:21.078','100','2025-08-14 17:17:21.078','100','CF2B3F9374BD4EC7AF211AF652796853','936C4AB8B8C94EBA8A6170B0402A2A06',null);
+
+INSERT INTO public.pet_type(pet_type_id, ad_client_id, ad_org_id, isactive, created, createdby, updated, updatedby, name)
+	VALUES ('6061BDD6B2024A9980EF14941F9350CF','23C59575B9CF467C9620760EB255B389','0','Y','2025-08-14 17:47:29.209','100','2025-08-14 17:47:29.209','100','Test Pet Type');
+INSERT INTO public.pet_owner(pet_owner_id, ad_client_id, ad_org_id, isactive, created, createdby, updated, updatedby, first_name, last_name, address, city, telephone)
+	VALUES ('D4ABB5B0DA924B948F5D4D8961F82B62','23C59575B9CF467C9620760EB255B389','0','Y','2025-08-14 17:47:53.045','100','2025-08-14 17:47:53.045','100','Demo','Demo','Demo 123','Demo','123456');
+INSERT INTO public.pet_pet(pet_pet_id, ad_client_id, ad_org_id, isactive, created, createdby, updated, updatedby, name, birth_date, pet_owner_id, pet_type_id)
+	VALUES ('D013EB8D71C14C849327860E0DADDDC1','23C59575B9CF467C9620760EB255B389','0','Y','2025-08-14 17:48:13.558','100','2025-08-14 17:48:13.558','100','Demo Pet','2000-01-01 00:00:00','D4ABB5B0DA924B948F5D4D8961F82B62','6061BDD6B2024A9980EF14941F9350CF');
