@@ -59,7 +59,7 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
 
   private ThreadLocal<String> requestedTag = new ThreadLocal<>();
 
-  private static final List<String> extraFields = List.of("_identifier", "$ref", "active", "creationDate", "createdBy",
+  static final List<String> extraFields = List.of("_identifier", "$ref", "active", "creationDate", "createdBy",
       "createdBy$_identifier", "updated", "updatedBy", "updatedBy$_identifier");
 
   /**
@@ -244,6 +244,9 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
 
     for (Field adField : fields) {
       Column column = adField.getColumn();
+      if (column == null) {
+        continue;
+      }
       String fieldConverted = getHQLColumnName(false, column.getTable().getDBTableName(), column.getDBColumnName())[0];
       responseJSON.put(fieldConverted, "");
       if (DataSourceUtils.isReferenceToAnotherTable(column.getReference())) {
@@ -438,7 +441,7 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
    * @return true if the field is mandatory, false otherwise.
    */
   private boolean isMandatory(Field adField) {
-    return adField.getColumn().isMandatory();
+    return adField.getColumn() != null && adField.getColumn().isMandatory();
   }
 
 
