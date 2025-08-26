@@ -107,13 +107,8 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
           setContext(request, userId, roleId, orgId, warehouseId, clientId);
           setSessionInfo(jti, userId);
 
-          if (request.getSession(false) != null) {
-            // if has header X-CSRF-Token, then set the session attribute #CSRF_TOKEN
-            String csrfToken = request.getHeader("X-CSRF-Token");
-            if (StringUtils.isNotEmpty(csrfToken) && request.getSession(false) != null) {
-              request.getSession(false).setAttribute("#CSRF_TOKEN", csrfToken);
-            }
-          }
+          handleCSRFToken(request);
+
           try {
             OBContext.setAdminMode();
 
@@ -129,6 +124,20 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
       }
     }
     return super.doWebServiceAuthenticate(request);
+  }
+
+  /**
+   * Handles CSRF token validation and session attribute setting.
+   *
+   * @param request the HttpServletRequest object containing the request information
+   */
+  private static void handleCSRFToken(HttpServletRequest request) {
+    if (request.getSession(false) != null) {
+      String csrfToken = request.getHeader("X-CSRF-Token");
+      if (StringUtils.isNotEmpty(csrfToken)) {
+        request.getSession(false).setAttribute("#CSRF_TOKEN", csrfToken);
+      }
+    }
   }
 
   private static void validateToken(String userId, String roleId, String orgId, String warehouseId, String clientId) {
