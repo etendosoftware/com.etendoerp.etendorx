@@ -25,6 +25,7 @@ import org.openbravo.base.HttpBaseUtils;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.base.exception.OBSecurityException;
 import org.openbravo.base.provider.OBProvider;
+import org.openbravo.base.secureApp.LoginUtils;
 import org.openbravo.base.secureApp.VariablesHistory;
 import org.openbravo.base.secureApp.VariablesSecureApp;
 import org.openbravo.base.session.OBPropertiesProvider;
@@ -106,6 +107,13 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
           setContext(request, userId, roleId, orgId, warehouseId, clientId);
           setSessionInfo(jti, userId);
 
+          if (request.getSession(false) != null) {
+            // if has header X-CSRF-Token, then set the session attribute #CSRF_TOKEN
+            String csrfToken = request.getHeader("X-CSRF-Token");
+            if (StringUtils.isNotEmpty(csrfToken) && request.getSession(false) != null) {
+              request.getSession(false).setAttribute("#CSRF_TOKEN", csrfToken);
+            }
+          }
           try {
             OBContext.setAdminMode();
 
@@ -142,6 +150,16 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
     OBContext.setOBContext(
         SecureWebServicesUtils.createContext(userId, roleId, orgId, warehouseId, clientId));
     OBContext.setOBContextInSession(request, OBContext.getOBContext());
+    final VariablesSecureApp vars = new VariablesSecureApp(request);
+    if ( OBContext.getOBContext().getLanguage() != null ) {
+      try {
+        LoginUtils.fillSessionArguments(new DalConnectionProvider(false), vars, userId,
+            OBContext.getOBContext().getLanguage().getLanguage(),
+            OBContext.getOBContext().isRTL() ? "Y" : "N", roleId, clientId, orgId, warehouseId);
+      } catch (ServletException e) {
+        throw new OBException(e);
+      }
+    }
   }
 
   /**
