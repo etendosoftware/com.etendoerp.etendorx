@@ -717,132 +717,132 @@ pipeline {
     }
   }
 
-post { // MARK: - Post Actions
-        fixed {
-            mail to: EMAIL_ADDRESS,
-            subject: "✅ FIXED - ${currentBuild.fullDisplayName}",
-            mimeType: "text/html",
-            body: """
-            <html>
-                <head>
-                    <style>
-                        body { font-family: 'Arial', sans-serif; }
-                        .header { font-size: 16px; font-weight: bold; color: #333; }
-                    </style>
-                </head>
-                <body>
-                    <p><em>${new Date()}</em></p>
-                    <p>__________________________________________________________</p>
+  post { // MARK: - Post Actions
+    fixed {
+      mail to: EMAIL_ADDRESS,
+      subject: "✅ FIXED - ${currentBuild.fullDisplayName}",
+      mimeType: "text/html",
+      body: """
+      <html>
+          <head>
+              <style>
+                  body { font-family: 'Arial', sans-serif; }
+                  .header { font-size: 16px; font-weight: bold; color: #333; }
+              </style>
+          </head>
+          <body>
+              <p><em>${new Date()}</em></p>
+              <p>__________________________________________________________</p>
 
-                    <h2 class="header">✅ ERRORS FIXED ✅</h2>
+              <h2 class="header">✅ ERRORS FIXED ✅</h2>
 
-                    <p>
-                        <strong>Commit:</strong> <a href="${URL_REPO}/commits/${env.GIT_COMMIT}">${URL_REPO}/commits/${env.GIT_COMMIT}</a><br />
-                        <strong>Author:</strong> ${COMMIT_AUTHOR_NAME} (${COMMIT_AUTHOR_EMAIL})
-                    </p>
-                    <p>
-                        The build has been fixed.<br />
-                        💡 This build was on an Full Etendo (CORE and RX) build environment based on RX module commit.<br />
-                        For more information about the run, visit:<br />
-                        <a href="${env.BUILD_URL}">${env.BUILD_URL}</a>
-                    </p>
-                    <p>__________________________________________________________</p>
-                </body>
-            </html>
-            """
-        }
-        failure {
-            script {
-                sh "./pipelines/utils/build-update.sh ${MODULE_PACKAGE} ${COMMIT_FAILED_STATUS} \"Build Failed\" ${ACCESS_TOKEN} ${GIT_COMMIT} ${BUILD_URL} \"${CONTEXT_BUILD}\""
-                echo "---------------------- Failed Build Environments ----------------------"
-                echo "Failed Build Environments"
-            }
-            mail to: EMAIL_ADDRESS,
-            subject: "⛔ ERROR - ${currentBuild.fullDisplayName}",
-            mimeType: "text/html",
-            body:  """
-            <html>
-                <head>
-                    <style>
-                        body { font-family: 'Arial', sans-serif; }
-                        .header { font-size: 16px; font-weight: bold; color: #333; }
-                    </style>
-                </head>
-                <body>
-                    <p><em>${new Date()}</em></p>
-                    <p>__________________________________________________________</p>
-
-                    <h2 class="header">🚫 BUILD FAILED 🚫</h2>
-
-                    <p>
-                        <strong>Commit:</strong> <a href="${URL_REPO}/commits/${env.GIT_COMMIT}">${URL_REPO}/commits/${env.GIT_COMMIT}</a><br />
-                        <strong>Author:</strong> ${COMMIT_AUTHOR_NAME} (${COMMIT_AUTHOR_EMAIL})
-                    </p>
-
-                    ${env.REPOS_INFO}
-
-                    <p>
-                        The build has failed unexpectedly.<br />
-                        💡 This build was on an Full Etendo (CORE and RX) build environment based on RX module commit.<br />
-                        To more information on the failing run visit:<br />
-                        <a href="${env.BUILD_URL}">${env.BUILD_URL}</a>
-                    </p>
-            __________________________________________________________
-            """
-        }
-        unstable {
-            script {
-                sh "./pipelines/utils/build-update.sh ${MODULE_PACKAGE} ${COMMIT_FAILED_STATUS} \"${env.ERROR_MESSAGE}\" ${ACCESS_TOKEN} ${GIT_COMMIT} ${BUILD_URL} \"${CONTEXT_BUILD}\""
-                echo "---------------------- ${env.ERROR_MESSAGE} ----------------------"
-                def moreInfo = ''
-                if (env.STATUSTEST == FAILED) {
-                    moreInfo = "Tests have been detected that have failed in Etendo RX module Dockerized test with Opentelemetry.<br/>"
-                    moreInfo += "💡 These tests were run on a Dockerized Postgres database environment.<br />"
-                    echo "---------------------- RX Module Tests Failed ----------------------"
-                } else {
-                    echo "---------------------- RX Module Tests Successful ----------------------"
-                }
-                env.MORE_INFO = moreInfo
-            }
-            mail to: EMAIL_ADDRESS,
-            subject: "⚠️ ${env.ERROR_MESSAGE} - ${currentBuild.fullDisplayName}",
-            mimeType: "text/html",
-            body: """
-            <html>
-                <head>
-                    <style>
-                        body { font-family: 'Arial', sans-serif; }
-                        .header { font-size: 16px; font-weight: bold; color: #333; }
-                    </style>
-                </head>
-                <body>
-                    <p><em>${new Date()}</em></p>
-                    <p>__________________________________________________________</p>
-
-                    <h2 class="header">⚠️ ${env.ERROR_MESSAGE} ⚠️</h2>
-
-                    ${env.VERIFICATIONS_MESSAGE}
-
-                    <p>
-                        <strong>Commit:</strong> <a href="${URL_REPO}/commits/${env.GIT_COMMIT}">${URL_REPO}/commits/${env.GIT_COMMIT}</a><br />
-                        <strong>Author:</strong> ${COMMIT_AUTHOR_NAME} (${COMMIT_AUTHOR_EMAIL})
-                    </p>
-
-                    ${env.REPOS_INFO}
-
-                    <p>
-                        ${env.MORE_INFO}
-                        To more information on the failing run visit:<br />
-                        <a href="${env.BUILD_URL}">${env.BUILD_URL}</a>
-                    </p>
-            __________________________________________________________
-            """
-        }
-        success {
-            script {
-                sh "./pipelines/utils/build-update.sh ${MODULE_PACKAGE} ${COMMIT_SUCCESS_STATUS} \"Test Finalized Successfully\" ${ACCESS_TOKEN} ${GIT_COMMIT} ${BUILD_URL} \"${CONTEXT_BUILD}\""
-                echo "---------------------- DONE ----------------------"
-            }
-        }
+              <p>
+                  <strong>Commit:</strong> <a href="${URL_REPO}/commits/${env.GIT_COMMIT}">${URL_REPO}/commits/${env.GIT_COMMIT}</a><br />
+                  <strong>Author:</strong> ${COMMIT_AUTHOR_NAME} (${COMMIT_AUTHOR_EMAIL})
+              </p>
+              <p>
+                  The build has been fixed.<br />
+                  💡 This build was on an Full Etendo (CORE and RX) build environment based on RX module commit.<br />
+                  For more information about the run, visit:<br />
+                  <a href="${env.BUILD_URL}">${env.BUILD_URL}</a>
+              </p>
+              <p>__________________________________________________________</p>
+          </body>
+      </html>
+      """
     }
+    failure {
+      script {
+        sh "./pipelines/utils/build-update.sh ${MODULE_PACKAGE} ${COMMIT_FAILED_STATUS} \"Build Failed\" ${ACCESS_TOKEN} ${GIT_COMMIT} ${BUILD_URL} \"${CONTEXT_BUILD}\""
+        echo "---------------------- Failed Build Environments ----------------------"
+        echo "Failed Build Environments"
+      }
+      mail to: EMAIL_ADDRESS,
+      subject: "⛔ ERROR - ${currentBuild.fullDisplayName}",
+      mimeType: "text/html",
+      body:  """
+      <html>
+          <head>
+              <style>
+                  body { font-family: 'Arial', sans-serif; }
+                  .header { font-size: 16px; font-weight: bold; color: #333; }
+              </style>
+          </head>
+          <body>
+              <p><em>${new Date()}</em></p>
+              <p>__________________________________________________________</p>
+
+              <h2 class="header">🚫 BUILD FAILED 🚫</h2>
+
+              <p>
+                  <strong>Commit:</strong> <a href="${URL_REPO}/commits/${env.GIT_COMMIT}">${URL_REPO}/commits/${env.GIT_COMMIT}</a><br />
+                  <strong>Author:</strong> ${COMMIT_AUTHOR_NAME} (${COMMIT_AUTHOR_EMAIL})
+              </p>
+
+              ${env.REPOS_INFO}
+
+              <p>
+                  The build has failed unexpectedly.<br />
+                  💡 This build was on an Full Etendo (CORE and RX) build environment based on RX module commit.<br />
+                  To more information on the failing run visit:<br />
+                  <a href="${env.BUILD_URL}">${env.BUILD_URL}</a>
+              </p>
+      __________________________________________________________
+      """
+    }
+    unstable {
+      script {
+        sh "./pipelines/utils/build-update.sh ${MODULE_PACKAGE} ${COMMIT_FAILED_STATUS} \"${env.ERROR_MESSAGE}\" ${ACCESS_TOKEN} ${GIT_COMMIT} ${BUILD_URL} \"${CONTEXT_BUILD}\""
+        echo "---------------------- ${env.ERROR_MESSAGE} ----------------------"
+        def moreInfo = ''
+        if (env.STATUSTEST == FAILED) {
+          moreInfo = "Tests have been detected that have failed in Etendo RX module Dockerized test with Opentelemetry.<br/>"
+          moreInfo += "💡 These tests were run on a Dockerized Postgres database environment.<br />"
+          echo "---------------------- RX Module Tests Failed ----------------------"
+        } else {
+          echo "---------------------- RX Module Tests Successful ----------------------"
+        }
+        env.MORE_INFO = moreInfo
+      }
+      mail to: EMAIL_ADDRESS,
+      subject: "⚠️ ${env.ERROR_MESSAGE} - ${currentBuild.fullDisplayName}",
+      mimeType: "text/html",
+      body: """
+      <html>
+          <head>
+              <style>
+                  body { font-family: 'Arial', sans-serif; }
+                  .header { font-size: 16px; font-weight: bold; color: #333; }
+              </style>
+          </head>
+          <body>
+              <p><em>${new Date()}</em></p>
+              <p>__________________________________________________________</p>
+
+              <h2 class="header">⚠️ ${env.ERROR_MESSAGE} ⚠️</h2>
+
+              ${env.VERIFICATIONS_MESSAGE}
+
+              <p>
+                  <strong>Commit:</strong> <a href="${URL_REPO}/commits/${env.GIT_COMMIT}">${URL_REPO}/commits/${env.GIT_COMMIT}</a><br />
+                  <strong>Author:</strong> ${COMMIT_AUTHOR_NAME} (${COMMIT_AUTHOR_EMAIL})
+              </p>
+
+              ${env.REPOS_INFO}
+
+              <p>
+                  ${env.MORE_INFO}
+                  To more information on the failing run visit:<br />
+                  <a href="${env.BUILD_URL}">${env.BUILD_URL}</a>
+              </p>
+      __________________________________________________________
+      """
+    }
+    success {
+      script {
+        sh "./pipelines/utils/build-update.sh ${MODULE_PACKAGE} ${COMMIT_SUCCESS_STATUS} \"Test Finalized Successfully\" ${ACCESS_TOKEN} ${GIT_COMMIT} ${BUILD_URL} \"${CONTEXT_BUILD}\""
+        echo "---------------------- DONE ----------------------"
+      }
+    }
+  }
 }
