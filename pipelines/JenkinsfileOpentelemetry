@@ -1,0 +1,848 @@
+pipeline {
+  options {
+    disableConcurrentBuilds()
+  }
+
+  environment {
+    CONTEXT_NAME              = 'etendo'
+    BBDD_SID                  = 'etendo'
+    BBDD_PORT                 = '5432'
+    BBDD_SYSTEMUSER           = 'postgres'
+    BBDD_SYSTEMPASS           = 'syspass'
+    BBDD_USER                 = 'tad'
+    BBDD_PASSWORD             = 'tad'
+    POSTGRES_HOST             = 'localhost'
+    TOMCAT_PORT               = '8080'
+    NEXUS_USER                = credentials('nexus-admin-user')
+    NEXUS_PASSWORD            = credentials('nexus-admin-passwd')
+    GITHUB_USER               = 'etendobot'
+    GITHUB_TOKEN              = credentials('github-read-package-token')
+    ACCESS_TOKEN              = credentials('access_token_github')
+    EMAIL_ADDRESS             = credentials('email_builds')
+    CONTEXT_BUILD             = 'Opentelemetry Tests'
+
+    COMMIT_AUTHOR_NAME        = sh(returnStdout: true, script: "git log -1 --pretty=format:'%an'").trim()
+    COMMIT_AUTHOR_EMAIL       = sh(returnStdout: true, script: "git log -1 --pretty=format:'%ae'").trim()
+
+    MODULE_PACKAGE            = 'com.etendoerp.etendorx'
+    ETENDO_BASE_URL           = 'https://github.com/etendosoftware/etendo_base'
+    URL_REPO                  = 'https://github.com/etendosoftware/com.etendoerp.etendorx'
+    RX_MODULE_SSH             = 'git@github.com:etendosoftware/com.etendoerp.etendorx.git'
+    EXTRA_MODULES_FILE        = "jenkinsExtraModulesOpentelemetry.txt"
+    SQL_CONFIG_FILE           = "insert_opentelemetry_rx_configuration.sql"
+
+    JAVA_HOME                 = '/usr/lib/jvm/java-17-openjdk-amd64'
+    ETENDO_BASE               = 'etendo_base'
+
+    COMMIT_INPROGRESS_STATUS  = 'pending'
+    COMMIT_SUCCESS_STATUS     = 'success'
+    COMMIT_FAILED_STATUS      = 'failure'
+
+    SUCCESS                   = 'SUCCESS'
+    FAILED                    = 'FAILED'
+    UNSTABLE                  = "UNSTABLE"
+    ABORTED                   = "ABORTED"
+
+    NEXT_CLASSIC_VERSION      = '25.3.0'
+    BASE_BRANCH_BACKPORT      = "release/24.4"
+    MAIN_BRANCH               = "main"
+    DEVELOP_BRANCH            = "develop"
+
+    SWS_PRIVATE_KEY           = credentials('sws-rx-private-key')
+    JIRA_BASE_URL             = credentials('jira-url')
+    JIRA_ACCESS_TOKEN         = credentials('jira-access-token') // Jenkins credential stored as base64-encoded string for another Atlassian user, not etendobot
+    AUTHORIZATION_TOKEN       = credentials('sws-rx-token')
+  }
+
+  agent { // MARK: - Agent
+    kubernetes {
+      inheritFrom 'jenkins-node-rx'
+      defaultContainer 'jnlp'
+      yamlFile 'pipelines/DockerizedAgent.yaml'
+    }
+  }
+
+  stages {
+    stage ('Checking commit files') { // MARK: - Check for changes in specific directories
+      steps {
+        container('compiler') {
+          script {
+            try {
+              env.WORKDIR_MODULE = "${ETENDO_BASE}/modules/${MODULE_PACKAGE}"
+              def ws = sh(returnStdout: true, script: 'pwd').trim()
+              sh "git config --global --add safe.directory '${ws}'"
+              def base = sh(script: "git rev-parse --verify HEAD~1 2>/dev/null || echo ''", returnStdout: true).trim()
+              def cmd  = base ? "git diff --name-only ${base} HEAD"
+                              : "git show --name-only --pretty='' HEAD"
+              def changedFilesRaw = sh(script: cmd, returnStdout: true).trim()
+              def changedFiles = changedFilesRaw ? changedFilesRaw.split('\n') : []
+              echo "Changed files: ${changedFiles}"
+              def relevantChange = changedFiles.any { it.startsWith("compose/") || it.startsWith("pipelines/utils/sql/") }
+              if (!relevantChange) {
+                currentBuild.result = ABORTED
+                sh "./pipelines/utils/build-update.sh ${MODULE_PACKAGE} ${COMMIT_SUCCESS_STATUS} \"Skipped\" $ACCESS_TOKEN ${GIT_COMMIT} ${BUILD_URL} \"${CONTEXT_BUILD}\""
+                return
+              }
+              currentBuild.result = 'SUCCESS'
+            } catch (Exception e) {
+              env.ERROR_MESSAGE = "Build & Compile Etendo Classic Failed"
+              echo "--------------- ${env.ERROR_MESSAGE} ---------------"
+              echo 'Exception occurred: ' + e.toString()
+              currentBuild.result = FAILED
+              error(env.ERROR_MESSAGE)
+            }
+          }
+        }
+      }
+    }
+    stage('Wait for DinD') { // MARK: - Wait for DinD
+      when {
+        expression { currentBuild.result == SUCCESS }
+      }
+      steps {
+        container('compiler') {
+          script {
+            try {
+              echo '---------------- Waiting for DinD to be ready ----------------'
+              timeout(time: 60, unit: 'SECONDS') {
+                int i = 0
+                waitUntil {
+                  i++
+                  int rc = sh(script: 'docker version >/dev/null 2>&1', returnStatus: true)
+                  if (rc == 0) {
+                    echo "✅ DinD is ready (after ${i} checks)"
+                    return true
+                  } else {
+                    echo "⏳ Waiting for DinD... attempt ${i}"
+                    sleep time: 2, unit: 'SECONDS'
+                    return false
+                  }
+                }
+              }
+            } catch (Exception e) {
+              env.ERROR_MESSAGE = "Wait for DinD Failed "
+              echo "--------------- ${env.ERROR_MESSAGE} ---------------"
+              echo 'Exception occurred: ' + e.toString()
+              currentBuild.result = FAILED
+              error(env.ERROR_MESSAGE)
+            }
+          }
+        }
+      }
+    }
+    stage ('Build & Compile Etendo Classic') { // MARK: - Build & Compile Etendo Classic
+      when {
+        expression { currentBuild.result == SUCCESS }
+      }
+      steps {
+        container('compiler') {
+          script {
+            sh "./pipelines/utils/build-update.sh ${MODULE_PACKAGE} ${COMMIT_INPROGRESS_STATUS} \"Build Environment Etendo Classic\" $ACCESS_TOKEN ${GIT_COMMIT} ${BUILD_URL} \"${CONTEXT_BUILD}\""
+            withCredentials([sshUserPrivateKey(credentialsId: 'my-credentials', keyFileVariable: 'keyfile')]) {
+              withCredentials([usernamePassword(credentialsId: "koodu_credentials", passwordVariable: 'GIT_PASSWORD', usernameVariable: 'GIT_USERNAME')]) {
+                env.WORKDIR_MODULE = "${ETENDO_BASE}/modules/${MODULE_PACKAGE}"
+                def sshCmd = "ssh -i ${keyfile} -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no"
+                try {
+                  echo "---------------- Choice of etendo_base branch ----------------"
+                  env.BASE_BRANCH = env.MAIN_BRANCH
+                  if (env.GIT_BRANCH.contains("-Y") || env.GIT_BRANCH.startsWith("release")) {
+                    env.BASE_BRANCH = env.BASE_BRANCH_BACKPORT
+                  }
+
+                  echo '--------------- Building Etendo Base environment ----------------'
+                  sh "git clone ${ETENDO_BASE_URL}"
+
+                  echo "---------------------- Clonning RX Module Repository ----------------------"
+                  sh """
+                  cd ${ETENDO_BASE}
+                  mkdir -p modules
+                  cd modules
+                  GIT_SSH_COMMAND=\"${sshCmd}\" git clone ${RX_MODULE_SSH}
+                  cd ${MODULE_PACKAGE}
+                  git checkout ${GIT_COMMIT}
+                  cd ../..
+                  """
+
+                  echo "-------------------------- Cloning of other modules --------------------------"
+                  env.EXTRA_MODULES = ''
+                  env.REPOS_INFO = ''
+                  def currentBranch = ''
+                  if (fileExists("${env.WORKDIR_MODULE}/pipelines/${EXTRA_MODULES_FILE}")) {
+                    env.EXTRA_MODULES = readFile("${env.WORKDIR_MODULE}/pipelines/${EXTRA_MODULES_FILE}").trim()
+
+                    def extraModules = []
+                    if (env.EXTRA_MODULES != ''){
+                      extraModules = env.EXTRA_MODULES.tokenize(',')
+                      env.REPOS_INFO = "<em>🧲 Branches used in dependent modules:</em><br><ul>"
+                    }
+                    def module_package = ''
+
+                    def isFeatureBranch = env.GIT_BRANCH.startsWith("feature/")
+                    def epicKey = ''
+                    if (isFeatureBranch) {
+                      echo "-------------------------- Feature Branch Detected --------------------------"
+                      def taskName = env.GIT_BRANCH.replaceAll("feature/", "").replaceAll("-Y\\d+", "")
+                      epicKey = sh(script: "bash ${env.WORKDIR_MODULE}/pipelines/utils/jira/jira-utils.sh ${taskName} ${JIRA_BASE_URL} $JIRA_ACCESS_TOKEN", returnStdout: true).trim()
+                      if (epicKey) {
+                        echo "Epic Key: ${epicKey}"
+                        if (env.GIT_BRANCH.contains("-Y")) {
+                          env.EPIC_BRANCH = "epic/${epicKey}-Y${env.GIT_BRANCH.split('-Y')[1]}"
+                        } else {
+                          env.EPIC_BRANCH = "epic/${epicKey}"
+                        }
+                        echo "Epic Branch: ${env.EPIC_BRANCH}"
+                      }
+                    }
+
+                    for (String module in extraModules) {
+                      module_package = sh(script: "echo '${module}' | sed -E 's#.*/##' | sed 's/.git\$//'", returnStdout: true).trim()
+                      echo "------------------------------- Clone ${module_package} Module --------------------------"
+                      sh """
+                      cd ${ETENDO_BASE}/modules
+                      GIT_SSH_COMMAND='${sshCmd}' git clone ${module}
+                      """
+
+                      if (!(env.GIT_BRANCH.contains("-Y")) && !(env.GIT_BRANCH.startsWith("release")) && !(env.GIT_BRANCH.startsWith("main" )) && !(env.GIT_BRANCH.startsWith("master")) && !(env.GIT_BRANCH.startsWith("hotfix"))) {
+                        echo "-------------------------- Checking out to ${module_package} Module Branch --------------------------"
+                        if (isFeatureBranch && epicKey) {
+                          sh """
+                          cd ${ETENDO_BASE}/modules/${module_package}
+                          git checkout ${env.EPIC_BRANCH} || git checkout ${env.DEVELOP_BRANCH}
+                          """
+                        } else {
+                          sh """
+                          cd ${ETENDO_BASE}/modules/${module_package}
+                          git checkout ${env.DEVELOP_BRANCH}
+                          """
+                        }
+                      } else if (env.GIT_BRANCH.contains("-Y") || env.GIT_BRANCH.startsWith("release")) {
+                        if (isFeatureBranch && epicKey) {
+                          sh """
+                          cd ${ETENDO_BASE}/modules/${module_package}
+                          git checkout ${env.EPIC_BRANCH} || git checkout ${env.BACKPORT_BRANCH}
+                          """
+                        } else {
+                          sh """
+                          cd ${ETENDO_BASE}/modules/${module_package}
+                          git checkout ${env.BACKPORT_BRANCH}
+                          """
+                        } 
+                      }
+
+                      sh """
+                      cd ${ETENDO_BASE}/modules/${module_package}
+                      git checkout ${env.GIT_BRANCH} || echo 'Branch ${env.GIT_BRANCH} not found in ${module_package}'
+                      """
+                      currentBranch = sh(script: "cd ${ETENDO_BASE}/modules/${module_package} && git rev-parse --abbrev-ref HEAD", returnStdout: true).trim()
+                      env.REPOS_INFO += "<li> Module ${module_package}: ${currentBranch}</li>"
+                    }
+                    if (env.REPOS_INFO != '') {
+                      env.REPOS_INFO += "</ul>"
+                      echo "${env.REPOS_INFO}"
+                    } else {
+                      echo "No extra modules found."
+                    }
+                  } else {
+                    echo "${EXTRA_MODULES_FILE} not found for ${MODULE_PACKAGE}, skipping extra modules checkout."
+                  }
+
+                  dir(ETENDO_BASE) {
+                    echo "---------------------- Setup Classic Repository ----------------------"
+                    sh """
+                    echo "\n
+                    context.name=${CONTEXT_NAME}
+                    bbdd.sid=${BBDD_SID}
+                    bbdd.port=${BBDD_PORT}
+                    bbdd.systemUser=${BBDD_SYSTEMUSER}
+                    bbdd.systemPassword=${BBDD_SYSTEMPASS}
+                    bbdd.user=${BBDD_USER}
+                    bbdd.password=${BBDD_PASSWORD}
+                    nexusUser=${NEXUS_USER}
+                    nexusPassword=${NEXUS_PASSWORD}
+                    tomcat.port=${TOMCAT_PORT}
+                    githubUser=${GITHUB_USER}
+                    githubToken=${GITHUB_TOKEN}
+                    allow.root=true
+                    docker_com.etendoerp.docker_db=true
+                    docker_com.etendoerp.tomcat=true
+                    org.gradle.jvmargs=-Dfile.encoding=UTF-8
+                    org.gradle.daemon=false" > gradle.properties
+                    """
+                    echo "---------------- Add dependencies ----------------"
+                    def buildGradleContent = """
+                    dependencies {
+                        implementation(\"com.etendoerp.platform:etendo-core:[25.1.0,${NEXT_CLASSIC_VERSION})\")
+                    }
+                    """
+                    sh """
+                    echo '${buildGradleContent}' >> build.gradle
+                    """
+                    sh './gradlew prepareConfig -PignoreConsistency=true --info --stacktrace'
+                    sleep time: 3, unit: 'SECONDS'
+                    sh './gradlew setup -PignoreConsistency=true --info --stacktrace'
+                    sleep time: 3, unit: 'SECONDS'
+                    sh "printenv"
+                    sh './gradlew resources.up -PignoreConsistency=true --info --stacktrace'
+                    sleep time: 3, unit: 'SECONDS'
+                    echo "---------------------- Building Classic Environment ----------------------"
+                    sh './gradlew install -PignoreConsistency=true --info --stacktrace'
+                    echo "---------------------- Classic Environment Successful ----------------------"
+                  }
+                } catch (Exception e) {
+                  env.ERROR_MESSAGE = "Build & Compile Etendo Classic Failed"
+                  echo "--------------- ${env.ERROR_MESSAGE} ---------------"
+                  echo 'Exception occurred: ' + e.toString()
+                  currentBuild.result = FAILED
+                  error(env.ERROR_MESSAGE)
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    stage ('Setup Rx Configuration') { // MARK: - Setup Rx Configuration
+      when {
+        expression { currentBuild.result == SUCCESS }
+      }
+      steps {
+        container('compiler') {
+          script {
+            try {
+              echo "-------------------- Setup Rx Configuration --------------------"
+              def sqlConfigurationTemplate = "${env.WORKDIR_MODULE}/pipelines/utils/sql/${SQL_CONFIG_FILE}.template"
+              if (!fileExists(sqlConfigurationTemplate)) {
+                error("❌ Rx configuration SQL not found at: ${sqlConfigurationTemplate}")
+              }
+              def sqlConfiguration = "${env.WORKDIR_MODULE}/pipelines/utils/sql/${SQL_CONFIG_FILE}"
+              sh(script: """#!/usr/bin/env bash
+              set -euo pipefail
+
+              sqlConfigurationTemplate='${sqlConfigurationTemplate}'
+              sqlConfiguration='${sqlConfiguration}'
+
+              repl="\$SWS_PRIVATE_KEY"
+
+              repl="\$(printf %s "\$repl" | tr -d '\\r\\n')"
+
+              awk -v repl="\$repl" '{
+               gsub(/__PRIVATE_KEY_JSON__/, repl);
+              }1' "\$sqlConfigurationTemplate" > "\$sqlConfiguration"
+              """)
+              echo '⚙️ Attempting to insert default RX configuration...'
+              withEnv(["PGPASSWORD=${env.BBDD_PASSWORD}"]) {
+                def outSqlConfiguration = sh(
+                script: """
+                  psql -h ${POSTGRES_HOST} -p ${BBDD_PORT} -U ${BBDD_USER} -d ${BBDD_SID} -t -A -F '|' -f ${sqlConfiguration} | cut -d '|' -f1
+                """, returnStdout: true
+                ).trim()
+                if (outSqlConfiguration) {
+                  echo "Default RX Configuration Inserted: ${outSqlConfiguration}"
+                }
+              }
+              dir(ETENDO_BASE) {
+                echo "---------------- Add dependencies ----------------"
+                sh """
+                rm -f gradle.properties
+                echo "\n
+                context.name=${CONTEXT_NAME}
+                bbdd.sid=${BBDD_SID}
+                bbdd.port=${BBDD_PORT}
+                bbdd.systemUser=${BBDD_SYSTEMUSER}
+                bbdd.systemPassword=${BBDD_SYSTEMPASS}
+                bbdd.user=${BBDD_USER}
+                bbdd.password=${BBDD_PASSWORD}
+                nexusUser=${NEXUS_USER}
+                nexusPassword=${NEXUS_PASSWORD}
+                tomcat.port=${TOMCAT_PORT}
+                githubUser=${GITHUB_USER}
+                githubToken=${GITHUB_TOKEN}
+                allow.root=true
+                docker_com.etendoerp.docker_db=true
+                docker_com.etendoerp.tomcat=true
+                docker_com.etendoerp.etendorx=true
+                otel.tomcat.enable=true
+                otel.config.enable=true
+                otel.das.enable=true
+                otel.auth.enable=true
+                otel.edge.enable=true
+                config.debug.mode=true
+                das.debug.mode=true
+                auth.debug.mode=true
+                edge.debug.mode=true
+                kafka.enable=false
+                docker_com.etendoerp.etendorx_utils=true
+                docker_com.etendoerp.etendorx_async=true
+                docker.exclude=kafka,connect,asyncprocess,kafka-ui
+                org.gradle.jvmargs=-Dfile.encoding=UTF-8
+                org.gradle.daemon=false" > gradle.properties
+                """
+                echo "---------------- Add dependencies ----------------"
+                def buildGradleContent = """
+                dependencies {
+                    implementation(\"com.etendoerp.platform:etendo-core:[25.1.0,${NEXT_CLASSIC_VERSION})\")
+                }
+                """
+                sh """
+                echo '${buildGradleContent}' >> build.gradle
+                """
+                sh './gradlew prepareConfig -PignoreConsistency=true --info --stacktrace'
+                sleep time: 3, unit: 'SECONDS'
+                sh './gradlew setup -PignoreConsistency=true --info --stacktrace'
+                sleep time: 3, unit: 'SECONDS'
+                sh "printenv"
+                sh './gradlew resources.up -PignoreConsistency=true --info --stacktrace'
+                sleep time: 3, unit: 'SECONDS'
+                sh './gradlew smartbuild -PignoreConsistency=true --info --stacktrace'
+                sleep time: 3, unit: 'SECONDS'
+              }
+            } catch (Exception e) {
+              env.ERROR_MESSAGE = "Setup Rx Configuration Failed"
+              echo "--------------- ${env.ERROR_MESSAGE} ---------------"
+              echo 'Exception occurred: ' + e.toString()
+              currentBuild.result = FAILED
+              error(env.ERROR_MESSAGE)
+            }
+          }
+        }
+      }
+    }
+    stage ('Verifying Docker Containers') { // MARK: - Verifying Docker Containers
+      when {
+        expression { currentBuild.result == SUCCESS }
+      }
+      steps {
+        container('compiler') {
+          script {
+            try {
+              echo "-------------------- Verifying Rx Services Docker Containers --------------------"
+                sleep time: 15, unit: 'SECONDS'
+                def containersToCheck = ["etendo-edge-1","etendo-das-1","etendo-config-1","etendo-auth-1","etendo-db-1","etendo-tomcat-1","etendo-jaeger-health-1"]
+                containersToCheck.each { name ->
+                  def status = sh(
+                      script: "docker inspect -f '{{.State.Status}}' ${name} || echo 'not-found'",
+                      returnStdout: true
+                  ).trim()
+                  echo "${name} -> ${status}"
+                  if (status != "running") {
+                    sh """
+                    echo '--- Inspect (summary) ${name} ---'
+                    docker inspect -f 'ExitCode={{.State.ExitCode}} OOMKilled={{.State.OOMKilled}} Error={{.State.Error}} FinishedAt={{.State.FinishedAt}}' ${name} || true
+                    echo '--- Last logs ${name} ---'
+                    docker logs --tail=200 ${name} || true
+                    echo '--- Health (if present) ${name} ---'
+                    docker inspect -f '{{json .State.Health}}' ${name} 2>/dev/null || true
+                    """
+                    error("Container ${name} is not in 'running' state (status=${status}).")
+                  }
+                }
+                echo "All Docker Containers are running"
+            } catch (Exception e) {
+              env.ERROR_MESSAGE = "Verifying Docker Containers Failed"
+              echo "--------------- ${env.ERROR_MESSAGE} ---------------"
+              echo 'Exception occurred: ' + e.toString()
+              currentBuild.result = FAILED
+              error(env.ERROR_MESSAGE)
+            }
+          }
+        }
+      }
+    }
+    stage ('Rx Services Test Status') { // MARK: - Rx Services Test Status
+      when {
+        expression { currentBuild.result == SUCCESS }
+      }
+      steps {
+        container('compiler') {
+          script {
+            try {
+              echo "-------------------- Rx Services Test Status --------------------"
+              def containersToCheck = ["etendo-edge-1", "etendo-das-1","etendo-config-1","etendo-auth-1","etendo-tomcat-1","etendo-db-1","etendo-jaeger-health-1"]
+              def maxWaitMinutes = 12
+              sleep time: 3, unit: 'SECONDS'
+              timeout(time: maxWaitMinutes, unit: 'MINUTES') {
+                waitUntil {
+                  def pending = []
+                  def bad = []
+                  containersToCheck.each { name ->
+                    // health: healthy | unhealthy | starting | no-healthcheck | not-found
+                    def health = sh(
+                      script: "docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}no-healthcheck{{end}}' ${name} 2>/dev/null || echo 'not-found'",
+                      returnStdout: true
+                    ).trim()
+                    echo "${name} -> health=${health}"
+                    switch (health) {
+                      case 'healthy':
+                        // ok
+                        break
+                      case 'unhealthy':
+                        // Show last few health logs for context (no jq dependency)
+                        sh(
+                          label: "Health logs (${name})",
+                          script: """
+                          echo '--- Inspect (summary) ${name} ---'
+                          docker inspect -f 'ExitCode={{.State.ExitCode}} OOMKilled={{.State.OOMKilled}} Error={{.State.Error}} FinishedAt={{.State.FinishedAt}}' ${name} || true
+                          echo '--- Last logs ${name} ---'
+                          docker logs --tail=200 ${name} || true
+                          echo '--- Health (if present) ${name} ---'
+                          docker inspect -f '{{json .State.Health}}' ${name} 2>/dev/null || true
+                          docker inspect --format='{{range .State.Health.Log}}{{println .Start \"|\" .ExitCode \"|\" (printf \"%q\" .Output)}}{{end}}' ${name} 2>/dev/null \
+                          | tail -n 6 || true
+                          """
+                        )
+                        bad << name
+                        break
+                      case 'starting':
+                        pending << "${name}(starting)"
+                        break
+                      case 'no-healthcheck':
+                        // Shouldn't happen since all have healthchecks, but keep it explicit
+                        pending << "${name}(no-healthcheck)"
+                        break
+                      default:
+                        // not-found or other
+                        pending << "${name}(${health})"
+                    }
+                  }
+                  if (!bad.isEmpty()) {
+                    error "Container(s) reported UNHEALTHY: ${bad.join(', ')}"
+                  }
+                  if (!pending.isEmpty()) {
+                    echo "Waiting for health: ${pending.join(', ')}"
+                    sleep time: 3, unit: 'SECONDS'
+                    return false
+                  }
+                  return true
+                }
+              }
+            } catch (Exception e) {
+              env.ERROR_MESSAGE = "Rx Services Test Status Failed"
+              echo "--------------- ${env.ERROR_MESSAGE} ---------------"
+              echo 'Exception occurred: ' + e.toString()
+              currentBuild.result = FAILED
+              error(env.ERROR_MESSAGE)
+            }
+          }
+        }
+      }
+    }
+    stage ('Tomcat Sending Traces Test') { // MARK: - Tomcat Sending Traces Test
+      when {
+        expression { currentBuild.result == SUCCESS }
+      }
+      steps {
+        container('compiler') {
+          script {
+            try {
+              echo "-------------------- Tomcat Sending Traces Test --------------------"
+              def timeout = 60 // Timeout in seconds
+              def interval = 5 // Interval between checks in seconds
+              def elapsed = 0
+              def tomcatReady = false
+              def tomcatResponse = "";
+              def url = "http://localhost:${TOMCAT_PORT}/${CONTEXT_NAME}/security/Login_FS.html"
+              env.TOMCAT_TRACE_ID = sh(script: "openssl rand -hex 16", returnStdout: true).trim()
+              env.TOMCAT_SPAN_ID = sh(script: "openssl rand -hex 8", returnStdout: true).trim()
+              env.TOMCAT_TRACEPARENT = "00-${env.TOMCAT_TRACE_ID}-${env.TOMCAT_SPAN_ID}-01"
+              while (elapsed < timeout) {
+                try {
+                  tomcatResponse = sh(
+                    script: """curl -sS -o /dev/null -v -w "%{http_code}" \\
+                              -H "traceparent: ${env.TOMCAT_TRACEPARENT}" \\
+                              "${url}" """,
+                  returnStdout: true).trim()
+                  echo "Tomcat response code: ${tomcatResponse}"
+                } catch (e) {
+                  tomcatResponse = "000"
+                }
+
+                if (tomcatResponse == "200") {
+                  tomcatReady = true
+                  break
+                }
+
+                echo "Tomcat not ready yet. Response code: ${tomcatResponse}. Retrying in ${interval} seconds..."
+                sleep interval
+                elapsed += interval
+              }
+              if (!tomcatReady) {
+                error("Tomcat did not start within the timeout period of ${timeout} seconds.")
+              }
+              echo "Tomcat response code: ${tomcatResponse}"
+              if (tomcatResponse != "200") {
+                error("Tomcat did not respond with 200. Response code: ${tomcatResponse}")
+              }
+            } catch (Exception e) {
+              env.ERROR_MESSAGE = "Tomcat Sending Traces Test Failed"
+              echo "--------------- ${env.ERROR_MESSAGE} ---------------"
+              echo 'Exception occurred: ' + e.toString()
+              currentBuild.result = FAILED
+              error(env.ERROR_MESSAGE)
+            }
+          }
+        }
+      }
+    }
+    stage ('Testing Jaeger Traces') { // MARK: - Testing Jaeger Traces
+      when {
+        expression { currentBuild.result == SUCCESS }
+      }
+      steps {
+        container('compiler') {
+          script {
+            try {
+              echo "-------------------- Testing Jaeger Traces --------------------"
+              // Edge request
+              env.EDGE_TRACE_ID = sh(script: "openssl rand -hex 16", returnStdout: true).trim()
+              env.EDGE_SPAN_ID  = sh(script: "openssl rand -hex 8",  returnStdout: true).trim()
+              env.EDGE_TRACEPARENT = "00-${env.EDGE_TRACE_ID}-${env.EDGE_SPAN_ID}-01"
+              echo "EDGE_TRACE_ID=${env.EDGE_TRACE_ID}"
+              def edge_url = "http://localhost:8096/das/petclinic/Pet_Pet"
+              def edge_request_http_code = sh(
+                script: """curl -sS -o response.json -v -w "%{http_code}" \\
+                          --location -H "Authorization: Bearer $AUTHORIZATION_TOKEN" \\
+                          -H "traceparent: ${env.EDGE_TRACEPARENT}" \\
+                          "${edge_url}" """,
+                returnStdout: true
+                ).trim()
+              if (edge_request_http_code != '200') { 
+                error("Error in Edge request http response code '${edge_request_http_code}'") 
+              } else {
+                echo "✅ Edge request successful"
+              }
+              sleep time: 2, unit: 'SECONDS'
+              def jaeger_edge_check = "http://localhost:16686/api/traces/${env.EDGE_TRACE_ID}?prettyPrint=true"
+              retry(10) {
+                sleep time: 2, unit: 'SECONDS'
+                def jaeger_edge_check_http_code = sh(
+                  script: """curl -sS -o /dev/null -v -w "%{http_code}" "${jaeger_edge_check}" || echo "000" """,
+                  returnStdout: true
+                  ).trim()
+                if (jaeger_edge_check_http_code != '200') {
+                  error "Edge trace ${env.EDGE_TRACE_ID} not found in Jaeger (HTTP ${jaeger_edge_check_http_code})"
+                } else {
+                  echo "✅ Edge trace ${env.EDGE_TRACE_ID} found in Jaeger"
+                }
+              }
+
+              // Das request
+              env.DAS_TRACE_ID = sh(script: "openssl rand -hex 16", returnStdout: true).trim()
+              env.DAS_SPAN_ID  = sh(script: "openssl rand -hex 8",  returnStdout: true).trim()
+              env.DAS_TRACEPARENT = "00-${env.DAS_TRACE_ID}-${env.DAS_SPAN_ID}-01"
+              echo "DAS_TRACE_ID=${env.DAS_TRACE_ID}"
+              def das_url = "http://localhost:8092/petclinic/Pet_Pet"
+              def das_request_http_code = sh(
+                script: """curl -sS -o response.json -v -w "%{http_code}" \\
+                          --location -H "Authorization: Bearer $AUTHORIZATION_TOKEN" \\
+                          -H "traceparent: ${env.DAS_TRACEPARENT}" \\
+                          "${das_url}" """,
+                returnStdout: true
+                ).trim()
+              if (das_request_http_code != '200') {
+                error("Error in Das request http response code '${das_request_http_code}'")
+              } else {
+                echo "✅ Das request successful"
+              }
+              sleep time: 2, unit: 'SECONDS'
+              def jaeger_das_check = "http://localhost:16686/api/traces/${env.DAS_TRACE_ID}?prettyPrint=true"
+              retry(10) {
+                sleep time: 2, unit: 'SECONDS'
+                def jaeger_das_check_http_code = sh(
+                  script: """curl -sS -o /dev/null -v -w "%{http_code}" "${jaeger_das_check}" || echo "000" """,
+                  returnStdout: true
+                  ).trim()
+                if (jaeger_das_check_http_code != '200') {
+                  error "Das trace ${env.DAS_TRACE_ID} not found in Jaeger (HTTP ${jaeger_das_check_http_code})"
+                } else {
+                  echo "✅ Das trace ${env.DAS_TRACE_ID} found in Jaeger"
+                }
+              }
+              // Tomcat request
+              def jaeger_tomcat_check = "http://localhost:16686/api/traces/${env.TOMCAT_TRACE_ID}?prettyPrint=true"
+              retry(10) {
+                sleep time: 2, unit: 'SECONDS'
+                def jaeger_tomcat_check_http_code = sh(
+                  script: """curl -sS -o /dev/null -v -w "%{http_code}" "${jaeger_tomcat_check}" || echo "000" """,
+                  returnStdout: true
+                  ).trim()
+                if (jaeger_tomcat_check_http_code != '200') {
+                  error "Tomcat trace ${env.TOMCAT_TRACE_ID} not found in Jaeger (HTTP ${jaeger_tomcat_check_http_code})"
+                } else {
+                  echo "✅ Tomcat trace ${env.TOMCAT_TRACE_ID} found in Jaeger"
+                }
+              }
+            } catch (Exception e) {
+              env.ERROR_MESSAGE = "Testing Jaeger Traces Failed"
+              echo "--------------- ${env.ERROR_MESSAGE} ---------------"
+              echo 'Exception occurred: ' + e.toString()
+              currentBuild.result = FAILED
+              error(env.ERROR_MESSAGE)
+            }
+          }
+        }
+      }
+    }
+    stage ('Stopping Rx Services') { // MARK: - Stopping Rx Services
+      when {
+        expression { currentBuild.result == SUCCESS }
+      }
+      steps {
+        container('compiler') {
+          script {
+            try {
+              echo "-------------------- Stopping Rx Services --------------------"
+              sh """
+              cd ${ETENDO_BASE}
+              ./gradlew resources.stop -PignoreConsistency=true --info --stacktrace
+              """
+              sleep time: 3, unit: 'SECONDS'
+              def containersToStop = ["etendo-edge-1","etendo-das-1","etendo-config-1","etendo-auth-1","etendo-tomcat-1","etendo-db-1","etendo-jaeger-health-1"]
+              containersToStop.each { name ->
+                def status = sh(script: "docker inspect -f '{{.State.Status}}' ${name} || echo 'not-found'", returnStdout: true).trim()
+                echo "${name} -> ${status}"
+                if (status != "exited") {
+                  error("The container ${name} is still in state '${status}'")
+                }
+              }
+            } catch (Exception e) {
+              env.ERROR_MESSAGE = "Stopping Rx Services Failed"
+              echo "--------------- ${env.ERROR_MESSAGE} ---------------"
+              echo 'Exception occurred: ' + e.toString()
+              currentBuild.result = FAILED
+              error(env.ERROR_MESSAGE)
+            }
+          }
+        }
+      }
+    }
+  }
+
+  post { // MARK: - Post Actions
+    fixed {
+      mail to: EMAIL_ADDRESS,
+      subject: "✅ FIXED - ${currentBuild.fullDisplayName}",
+      mimeType: "text/html",
+      body: """
+      <html>
+          <head>
+              <style>
+                  body { font-family: 'Arial', sans-serif; }
+                  .header { font-size: 16px; font-weight: bold; color: #333; }
+              </style>
+          </head>
+          <body>
+              <p><em>${new Date()}</em></p>
+              <p>__________________________________________________________</p>
+
+              <h2 class="header">✅ ERRORS FIXED ✅</h2>
+
+              <p>
+                  <strong>Commit:</strong> <a href="${URL_REPO}/commits/${env.GIT_COMMIT}">${URL_REPO}/commits/${env.GIT_COMMIT}</a><br />
+                  <strong>Author:</strong> ${COMMIT_AUTHOR_NAME} (${COMMIT_AUTHOR_EMAIL})
+              </p>
+              <p>
+                  The build has been fixed.<br />
+                  💡 This build was on an Full Etendo (CORE and RX) build environment based on RX module commit.<br />
+                  For more information about the run, visit:<br />
+                  <a href="${env.BUILD_URL}">${env.BUILD_URL}</a>
+              </p>
+              <p>__________________________________________________________</p>
+          </body>
+      </html>
+      """
+    }
+    failure {
+      script {
+        sh "./pipelines/utils/build-update.sh ${MODULE_PACKAGE} ${COMMIT_FAILED_STATUS} \"Build Failed\" ${ACCESS_TOKEN} ${GIT_COMMIT} ${BUILD_URL} \"${CONTEXT_BUILD}\""
+        echo "---------------------- Failed Build Environments ----------------------"
+        echo "Failed Build Environments"
+      }
+      mail to: EMAIL_ADDRESS,
+      subject: "⛔ ERROR - ${currentBuild.fullDisplayName}",
+      mimeType: "text/html",
+      body:  """
+      <html>
+          <head>
+              <style>
+                  body { font-family: 'Arial', sans-serif; }
+                  .header { font-size: 16px; font-weight: bold; color: #333; }
+              </style>
+          </head>
+          <body>
+              <p><em>${new Date()}</em></p>
+              <p>__________________________________________________________</p>
+
+              <h2 class="header">🚫 BUILD FAILED 🚫</h2>
+
+              <p>
+                  <strong>Commit:</strong> <a href="${URL_REPO}/commits/${env.GIT_COMMIT}">${URL_REPO}/commits/${env.GIT_COMMIT}</a><br />
+                  <strong>Author:</strong> ${COMMIT_AUTHOR_NAME} (${COMMIT_AUTHOR_EMAIL})
+              </p>
+
+              ${env.REPOS_INFO}
+
+              <p>
+                  The build has failed unexpectedly.<br />
+                  💡 This build was on an Full Etendo (CORE and RX) build environment based on RX module commit.<br />
+                  To more information on the failing run visit:<br />
+                  <a href="${env.BUILD_URL}">${env.BUILD_URL}</a>
+              </p>
+      __________________________________________________________
+      """
+    }
+    unstable {
+      script {
+        sh "./pipelines/utils/build-update.sh ${MODULE_PACKAGE} ${COMMIT_FAILED_STATUS} \"${env.ERROR_MESSAGE}\" ${ACCESS_TOKEN} ${GIT_COMMIT} ${BUILD_URL} \"${CONTEXT_BUILD}\""
+        echo "---------------------- ${env.ERROR_MESSAGE} ----------------------"
+        def moreInfo = ''
+        if (env.STATUSTEST == FAILED) {
+          moreInfo = "Tests have been detected that have failed in Etendo RX module Dockerized test with Opentelemetry.<br/>"
+          moreInfo += "💡 These tests were run on a Dockerized Postgres database environment.<br />"
+          echo "---------------------- RX Module Tests Failed ----------------------"
+        } else {
+          echo "---------------------- RX Module Tests Successful ----------------------"
+        }
+        env.MORE_INFO = moreInfo
+      }
+      mail to: EMAIL_ADDRESS,
+      subject: "⚠️ ${env.ERROR_MESSAGE} - ${currentBuild.fullDisplayName}",
+      mimeType: "text/html",
+      body: """
+      <html>
+          <head>
+              <style>
+                  body { font-family: 'Arial', sans-serif; }
+                  .header { font-size: 16px; font-weight: bold; color: #333; }
+              </style>
+          </head>
+          <body>
+              <p><em>${new Date()}</em></p>
+              <p>__________________________________________________________</p>
+
+              <h2 class="header">⚠️ ${env.ERROR_MESSAGE} ⚠️</h2>
+
+              ${env.VERIFICATIONS_MESSAGE}
+
+              <p>
+                  <strong>Commit:</strong> <a href="${URL_REPO}/commits/${env.GIT_COMMIT}">${URL_REPO}/commits/${env.GIT_COMMIT}</a><br />
+                  <strong>Author:</strong> ${COMMIT_AUTHOR_NAME} (${COMMIT_AUTHOR_EMAIL})
+              </p>
+
+              ${env.REPOS_INFO}
+
+              <p>
+                  ${env.MORE_INFO}
+                  To more information on the failing run visit:<br />
+                  <a href="${env.BUILD_URL}">${env.BUILD_URL}</a>
+              </p>
+      __________________________________________________________
+      """
+    }
+    success {
+      script {
+        sh "./pipelines/utils/build-update.sh ${MODULE_PACKAGE} ${COMMIT_SUCCESS_STATUS} \"Test Finalized Successfully\" ${ACCESS_TOKEN} ${GIT_COMMIT} ${BUILD_URL} \"${CONTEXT_BUILD}\""
+        echo "---------------------- DONE ----------------------"
+      }
+    }
+  }
+}

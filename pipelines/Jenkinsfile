@@ -237,6 +237,7 @@ spec:
                                         if (isFeatureBranch) {
                                             echo "-------------------------- Feature Branch Detected --------------------------"
                                             def taskName = env.GIT_BRANCH.replaceAll("feature/", "").replaceAll("-Y\\d+", "")
+                                            def rootDir = pwd()
                                             epicKey = sh(script: "bash ${rootDir}/utils/jira/jira-utils.sh ${taskName} ${JIRA_BASE_URL} ${JIRA_ACCESS_TOKEN}", returnStdout: true).trim()
                                             if (epicKey) {
                                             echo "Epic Key: ${epicKey}"

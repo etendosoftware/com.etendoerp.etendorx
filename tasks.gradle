@@ -99,6 +99,7 @@ task "rx.setup" {
                     }
                     def content = destFile.text
                     content = content.replace('{TOMCAT_URL}', isTomcatEnabled ? 'tomcat' : 'host.docker.internal')
+                    content = content.replace('{TOMCAT_PORT}', isTomcatEnabled ? '8080' : tomcatPort.toString())
                     content = content.replace('{BBDD_URL}', isBBDDEnabled ? 'db' : 'host.docker.internal')
                     content = content.replace('{BBDD_PORT}', isBBDDEnabled ? '5432' : project.property("bbdd.port").toString())
                     content = content.replace('{BBDD_SID}', project.property("bbdd.sid").toString())
@@ -145,12 +146,8 @@ task "rx.env.file" {
         upsertEnvProperty("ETENDORX_DB_SID", sid)
 
         def tomcatHost = "tomcat"
-        def tomcatPort = "8080"
         if (!isTomcatEnabled) {
             tomcatHost = "host.docker.internal"
-            if (project.hasProperty("docker_com.etendoerp.tomcat_port")) {
-                tomcatPort = getTypedProp("docker_com.etendoerp.tomcat_port").toString()
-            }
         }
         def configServerUrl = "http://${tomcatHost}:${tomcatPort}/${contextName}/buildConfig"
         upsertEnvProperty("ETENDORX_CONFIG_SERVER_URL", configServerUrl)
@@ -181,6 +178,7 @@ task "kafkaConnectSetup" {
         def dbUser = getTypedProp('bbdd.systemUser') ?: 'postgres'
         def dbName = getTypedProp('bbdd.sid') ?: 'etendo'
         def dbPass = getTypedProp('bbdd.systemPassword') ?: 'syspass'
+        def dbPort = isBBDDEnabled ? '5432' : getTypedProp("bbdd.port") ?: '5432'
 
         if (!project.hasProperty('kafka.connect.tables')) {
             throw new GradleException("You must specify the 'kafka.connect.tables' property.")
@@ -205,6 +203,7 @@ task "kafkaConnectSetup" {
             "database.dbname": "${dbName}",
             "database.hostname": "${dbHost}",
             "database.password": "${dbPass}",
+            "database.port": "${dbPort}",
             "name": "${connectorName}",
             "table.include.list": "${tableIncludeList}",
             "plugin.name": "pgoutput",
@@ -225,7 +224,7 @@ task "kafkaConnectSetup" {
         def kafkaConnectHost
         if (project.hasProperty('kafka.connect.host')) {
             kafkaConnectHost = project.getProperty('kafka.connect.host')
-        }else if (project.hasProperty('docker_com.etendoerp.etendorx_async') && project.getProperty('docker_com.etendoerp.etendorx_async').toBoolean()) {
+        } else if (project.hasProperty('docker_com.etendoerp.etendorx_async') && project.getProperty('docker_com.etendoerp.etendorx_async').toBoolean()) {
             kafkaConnectHost = "localhost"
         } else {
             throw new GradleException("You must specify the 'kafka.connect.host' property.")
@@ -258,7 +257,7 @@ task "kafkaConnectSetup" {
         def exitCode = process.waitFor()
 
         if (exitCode != 0) {
-            throw new GradleException("❌ Kafka Connect setup failed:\nSTDOUT: ${output}\nSTDERR: ${error}")
+            throw new GradleException("❌ Error configuring Kafka Connect.\nCommand executed:\n${command.join(' ')}\nExit code: ${exitCode}\nSTDOUT:\n${output}\nSTDERR:\n${error}\n")
         } else {
             println "✅ Kafka Connect $method completed.\n"
         }
@@ -318,14 +317,14 @@ task "jaeger.build" {
                 upsertEnvProperty('OTEL_TOMCAT_OTLP_TIMEOUT', otel_tomcat_otlp_timeout)
                 project.logger.debug("📄 Setting TOMCAT_CATALINA_OPTS in .env file.")
                 def otelFlags = [
-                "-javaagent:/usr/local/tomcat/webapps/otel/opentelemetry-javaagent.jar",
-                "-Dotel.resource.attributes=service.name=${otel_tomcat_name}",
-                "-Dotel.metrics.exporter=${otel_tomcat_metrics_exporter}",
-                "-Dotel.logs.exporter=${otel_tomcat_logs_exporter}",
-                "-Dotel.traces.exporter=${otel_tomcat_traces_exporter}",
-                "-Dotel.exporter.otlp.endpoint=${otel_tomcat_otlp_endpoint}",
-                "-Dotel.exporter.otlp.protocol=${otel_tomcat_otlp_protocol}",
-                "-Dotel.exporter.otlp.timeout=${otel_tomcat_otlp_timeout}"
+                        "-javaagent:/usr/local/tomcat/webapps/otel/opentelemetry-javaagent.jar",
+                        "-Dotel.resource.attributes=service.name=${otel_tomcat_name}",
+                        "-Dotel.metrics.exporter=${otel_tomcat_metrics_exporter}",
+                        "-Dotel.logs.exporter=${otel_tomcat_logs_exporter}",
+                        "-Dotel.traces.exporter=${otel_tomcat_traces_exporter}",
+                        "-Dotel.exporter.otlp.endpoint=${otel_tomcat_otlp_endpoint}",
+                        "-Dotel.exporter.otlp.protocol=${otel_tomcat_otlp_protocol}",
+                        "-Dotel.exporter.otlp.timeout=${otel_tomcat_otlp_timeout}"
                 ].join(" \\\n    ")
                 String tomcat_catalina_opts = "\"${otelFlags}\""
                 upsertEnvProperty('TOMCAT_CATALINA_OPTS', tomcat_catalina_opts)
@@ -355,16 +354,6 @@ task "jaeger.build" {
     }
 }
 
-task "jaeger.restart" {
-    dependsOn "jaeger.build"
-    doLast {
-        if (isRXDockerized() && isJaegerDockerized()) {
-            project.logger.lifecycle("🔍 Restarting Jaeger using Docker")
-            executeDockerComposeCommand("restart jaeger")
-        }
-    }
-}
-
 afterEvaluate {
     if (isRXDockerized() && tasks.hasProperty("generateEnvFile")) {
         tasks.named("generateEnvFile").configure { task ->
@@ -379,13 +368,13 @@ afterEvaluate {
         tasks.named("smartbuild").configure { task ->
             task.finalizedBy("rx.das.restart")
         }
-    }
-    if (isRXDockerized() && isJaegerDockerized()) {
-        tasks.named("smartbuild").configure { task ->
-            task.finalizedBy("jaeger.restart")
-        }
-        tasks.named("resources.up").configure { task ->
-            task.dependsOn("jaeger.build")
+        if (isJaegerDockerized()) {
+            tasks.named("smartbuild").configure { task ->
+                task.dependsOn("jaeger.build")
+            }
+            tasks.named("resources.up").configure { task ->
+                task.dependsOn("jaeger.build")
+            }
         }
     }
 }

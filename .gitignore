@@ -55,3 +55,4 @@ build/
 etendo.artifact.properties
 /.gradle/
 out/production/*
+bin/

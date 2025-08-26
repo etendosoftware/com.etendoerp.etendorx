@@ -72,19 +72,6 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
     super();
   }
 
-  /**
-   * Validates that all the required identifiers from the token are present and not empty.
-   * <p>
-   * If any of the provided values are missing or empty, an {@link OBException} is thrown
-   * indicating that the token is invalid.
-   *
-   * @param userId      the identifier of the user
-   * @param roleId      the identifier of the role
-   * @param orgId       the identifier of the organization
-   * @param warehouseId the identifier of the warehouse
-   * @param clientId    the identifier of the client
-   * @throws OBException if any of the arguments is null or empty
-   */
   private static void validateToken(String userId, String roleId, String orgId, String warehouseId, String clientId) {
     if (StringUtils.isEmpty(userId) || StringUtils.isEmpty(roleId) || StringUtils.isEmpty(
         orgId) || StringUtils.isEmpty(warehouseId) || StringUtils.isEmpty(clientId)) {
@@ -92,15 +79,6 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
     }
   }
 
-  /**
-   * Sets the session information for the current execution context.
-   * <p>
-   * This method initializes the {@link SessionInfo} with the token ID (JTI), user ID,
-   * and fixed values for process type and process ID, used in the DAL web service layer.
-   *
-   * @param jti    the unique identifier of the token (JWT ID)
-   * @param userId the identifier of the user
-   */
   private static void setSessionInfo(String jti, String userId) {
     SessionInfo.setSessionId(jti);
     SessionInfo.setUserId(userId);
@@ -108,19 +86,6 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
     SessionInfo.setProcessId("DAL");
   }
 
-  /**
-   * Sets the Openbravo context for the current request based on the provided identifiers.
-   * <p>
-   * It creates a new {@link OBContext} with the given user, role, organization,
-   * warehouse and client, and binds it both to the current thread and the HTTP session.
-   *
-   * @param request     the current HTTP request
-   * @param userId      the identifier of the user
-   * @param roleId      the identifier of the role
-   * @param orgId       the identifier of the organization
-   * @param warehouseId the identifier of the warehouse
-   * @param clientId    the identifier of the client
-   */
   private static void setContext(HttpServletRequest request, String userId, String roleId, String orgId,
                                  String warehouseId, String clientId) {
     OBContext.setOBContext(
@@ -677,7 +642,8 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
   private String getAuthToken(HttpServletRequest request) {
     String code = request.getParameter("code");
     String token = "";
-    String domain = OBPropertiesProvider.getInstance().getOpenbravoProperties().getProperty(SSO_DOMAIN_URL);
+    Properties openbravoProperties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
+    String domain = openbravoProperties.getProperty(SSO_DOMAIN_URL);
     String tokenEndpoint = "https://" + domain + "/oauth/token";
     try {
       URL url = new URL(tokenEndpoint);
@@ -686,13 +652,15 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
       con.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
       con.setDoOutput(true);
 
-      String clientId = OBPropertiesProvider.getInstance().getOpenbravoProperties().getProperty("sso.client.id");
-      String clientSecret = OBPropertiesProvider.getInstance().getOpenbravoProperties().getProperty(
+      String clientId = openbravoProperties.getProperty("sso.client.id");
+      String clientSecret = openbravoProperties.getProperty(
           "sso.client.secret");
+      String tomcatPort = !StringUtils.isBlank(openbravoProperties.getProperty("tomcat.port")) ?
+          ":" + openbravoProperties.getProperty("tomcat.port") : ":8080";
 
       String codeVerifier = (String) request.getSession().getAttribute("code_verifier");
       boolean isPKCE = (codeVerifier != null && !codeVerifier.isEmpty());
-      String strDirection = request.getScheme() + "://" + request.getServerName() + ":8080" + request.getContextPath() + "/secureApp/LoginHandler.html";
+      String strDirection = request.getScheme() + "://" + request.getServerName() + tomcatPort + request.getContextPath() + "/secureApp/LoginHandler.html";
       String params;
       params = getParams(isPKCE, clientId, code, strDirection, codeVerifier, clientSecret);
 
@@ -750,4 +718,3 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
         strDirectionLocal + "/" + (!StringUtils.isBlank(qString) ? "?" + qString : ""));
   }
 }
-
