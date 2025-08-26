@@ -58,6 +58,7 @@ pipeline {
         DEVELOP_BRANCH = "develop"
 
         JIRA_ACCESS_TOKEN = credentials('jira-access-token') // Jenkins credential stored as base64-encoded string for another Atlassian user, not etendobot
+        JIRA_BASE_URL     = credentials('jira-url')
 
         EXTRA_MODULES_FILE = "jenkinsExtraModules.txt"
     }
