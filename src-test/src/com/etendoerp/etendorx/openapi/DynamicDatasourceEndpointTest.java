@@ -143,6 +143,7 @@ public class DynamicDatasourceEndpointTest extends WeldBaseTest {
    *
    * @return a mocked OpenApiFlow object
    */
+  @SuppressWarnings("unused")
   private OpenApiFlow getMockedOpenApiFlow() {
     OpenApiFlow mockFlow = mock(OpenApiFlow.class);
     when(mockFlow.getName()).thenReturn("TestFlow");
@@ -274,5 +275,50 @@ public class DynamicDatasourceEndpointTest extends WeldBaseTest {
     // Then
     assertNotNull(schema.getProperties().get("status"));
     assertNotNull(schema.getProperties().get("data"));
+  }
+
+  @Test
+  public void testGetRequestBody_SkipsNullColumnsAndAddsExtraFields() throws Throwable {
+    // Prepare fields: one with column, one with null column
+    final String TABLE_NAME = "my_table";
+    final String COLUMN_NAME = "my_col";
+    Field fieldWithCol = mock(Field.class);
+    Column col = mock(Column.class);
+    org.openbravo.model.ad.datamodel.Table table = mock(org.openbravo.model.ad.datamodel.Table.class);
+    when(col.getTable()).thenReturn(table);
+    when(table.getDBTableName()).thenReturn(TABLE_NAME);
+    when(col.getDBColumnName()).thenReturn(COLUMN_NAME);
+    when(fieldWithCol.getColumn()).thenReturn(col);
+
+    Field fieldWithNull = mock(Field.class);
+    when(fieldWithNull.getColumn()).thenReturn(null);
+
+    java.util.List<Field> fields = List.of(fieldWithCol, fieldWithNull);
+    JSONObject responseJSON = new JSONObject();
+
+    // Use MethodHandles to invoke private static getRequestBody
+    java.lang.invoke.MethodHandles.Lookup lookup = java.lang.invoke.MethodHandles.privateLookupIn(
+        DynamicDatasourceEndpoint.class, java.lang.invoke.MethodHandles.lookup());
+    java.lang.invoke.MethodHandle mh = lookup.findStatic(DynamicDatasourceEndpoint.class, "getRequestBody",
+        java.lang.invoke.MethodType.methodType(void.class, org.codehaus.jettison.json.JSONObject.class,
+            java.util.List.class));
+    // Mock DataSourceUtils.getHQLColumnName to avoid DAL/model access during test
+    try (var dsUtilsStatic = mockStatic(com.etendoerp.etendorx.utils.DataSourceUtils.class)) {
+      dsUtilsStatic.when(
+          () -> com.etendoerp.etendorx.utils.DataSourceUtils.getHQLColumnName(org.mockito.ArgumentMatchers.eq(false),
+              org.mockito.ArgumentMatchers.eq("my_table"), org.mockito.ArgumentMatchers.eq("my_col"))).thenReturn(
+          new String[]{ "my_table_my_col" });
+      mh.invoke(responseJSON, fields);
+    }
+
+    // Check that the converted field key exists. We mocked DataSourceUtils to return TABLE_NAME + "_" + COLUMN_NAME
+    String expectedKey = TABLE_NAME + "_" + COLUMN_NAME;
+    org.junit.Assert.assertTrue(responseJSON.has(expectedKey));
+
+    // The field with null column should not produce any key
+    // Ensure extraFields are present
+    for (String ef : DynamicDatasourceEndpoint.extraFields) {
+      org.junit.Assert.assertTrue(responseJSON.has(ef));
+    }
   }
 }
