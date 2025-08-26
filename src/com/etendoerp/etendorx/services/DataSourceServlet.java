@@ -19,7 +19,6 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import com.etendoerp.etendorx.utils.SelectorHandlerUtil;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.entity.ContentType;
 import org.apache.logging.log4j.LogManager;
@@ -53,6 +52,7 @@ import com.etendoerp.etendorx.services.wrapper.EtendoRequestWrapper;
 import com.etendoerp.etendorx.services.wrapper.EtendoResponseWrapper;
 import com.etendoerp.etendorx.services.wrapper.RequestField;
 import com.etendoerp.etendorx.utils.DataSourceUtils;
+import com.etendoerp.etendorx.utils.SelectorHandlerUtil;
 import com.etendoerp.openapi.data.OpenAPIRequest;
 import com.smf.securewebservices.rsql.OBRestUtils;
 import com.smf.securewebservices.utils.SecureWebServicesUtils;
@@ -356,6 +356,7 @@ public class DataSourceServlet implements WebService {
 
   /**
    * Processes the POST request.
+   *
    * @param request
    * @param response
    * @param tab
@@ -394,8 +395,8 @@ public class DataSourceServlet implements WebService {
 
   /**
    * Prepares the payloads for the POST request.
+   *
    * @param jsonBody
-   * @return
    * @throws JSONException
    */
   private JSONArray preparePayloads(String jsonBody) throws JSONException {
@@ -411,6 +412,7 @@ public class DataSourceServlet implements WebService {
 
   /**
    * Processes the payload for the POST request.
+   *
    * @param request
    * @param response
    * @param tab
@@ -420,7 +422,6 @@ public class DataSourceServlet implements WebService {
    * @param payload
    * @param jsonData
    * @param status
-   * @return
    * @throws Exception
    * @throws OpenAPINotFoundThrowable
    */
@@ -456,6 +457,7 @@ public class DataSourceServlet implements WebService {
 
   /**
    * Sends the response back to the client.
+   *
    * @param response
    * @param jsonResponse
    * @param status
@@ -474,6 +476,7 @@ public class DataSourceServlet implements WebService {
 
   /**
    * Processes the PUT request.
+   *
    * @param request
    * @param response
    * @param fieldList
@@ -553,9 +556,13 @@ public class DataSourceServlet implements WebService {
       }
       tab = req.getETRXOpenAPITabList().get(0).getRelatedTabs();
       for (Field field : tab.getADFieldList()) {
+        Column column = field.getColumn();
+        if (column == null) {
+          continue;
+        }
         String name = DataSourceUtils.getHQLColumnName(field)[0];
         fieldList.add(
-            new RequestField(name, field.getColumn(), getSeqNo(req.getETRXOpenAPITabList().get(0), field.getColumn())));
+            new RequestField(name, column, getSeqNo(req.getETRXOpenAPITabList().get(0), column)));
       }
       fieldList.sort(Comparator.comparing(RequestField::getSeqNo));
     } finally {
@@ -569,10 +576,12 @@ public class DataSourceServlet implements WebService {
    * in the given OpenAPITab. If the field column is not found or the sequence number
    * is null, it returns {@link Long#MAX_VALUE}.
    *
-   * @param openAPITab  The OpenAPITab object containing the list of OpenAPIRequestField objects.
-   * @param fieldColumn The Column object representing the field column to search for.
+   * @param openAPITab
+   *     The OpenAPITab object containing the list of OpenAPIRequestField objects.
+   * @param fieldColumn
+   *     The Column object representing the field column to search for.
    * @return The sequence number (seqno) of the matching field, or {@link Long#MAX_VALUE}
-   *         if the field is not found or its sequence number is null.
+   *     if the field is not found or its sequence number is null.
    */
   private static Long getSeqNo(OpenAPITab openAPITab, Column fieldColumn) {
     Optional<OpenAPIRequestField> optField = openAPITab.getEtrxOpenapiFieldList().stream().filter(
@@ -654,7 +663,8 @@ public class DataSourceServlet implements WebService {
       var type = columnTypes.get(changedColumnN);
       dataInpFormat.put(changedColumnInp,
           DataSourceUtils.valueConvertToInputFormat(propsToChange.get(changedColumnN), type));
-      SelectorHandlerUtil.handleColumnSelector(request, tab, dataInpFormat, changedColumnN, changedColumnInp, dbname2input);
+      SelectorHandlerUtil.handleColumnSelector(request, tab, dataInpFormat, changedColumnN, changedColumnInp,
+          dbname2input);
 
       // suppose to change in productID
       Map<String, Object> parameters2 = createParameters(request, tab.getId(), parentId, recordId, changedColumnInp,
@@ -783,7 +793,8 @@ public class DataSourceServlet implements WebService {
       String type = columnTypes.get(changedColumnN);
       String valueInpFormat = DataSourceUtils.valueConvertToInputFormat(newData.get(changedColumnN), type);
       dataInpFormat.put(changedColumnInp, valueInpFormat);
-      SelectorHandlerUtil.handleColumnSelector(request, DataSourceUtils.getTabByDataSourceName(extractedParts[0]), dataInpFormat,
+      SelectorHandlerUtil.handleColumnSelector(request, DataSourceUtils.getTabByDataSourceName(extractedParts[0]),
+          dataInpFormat,
           changedColumnN, changedColumnInp, dbname2input);
       // suppose to change in productID
       Map<String, Object> parameters2 = createParameters(request,
