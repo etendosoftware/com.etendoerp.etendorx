@@ -231,7 +231,7 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
     if (StringUtils.isEmpty(token)) {
       String authStr = request.getHeader("Authorization");
 
-      if (authStr != null && StringUtils.startsWith(authStr, "Bearer ")) {
+      if (validStructureBearerToken(authStr)) {
         return doWebServiceAuthenticate(request);
       } else {
         return super.doAuthenticate(request, response);
@@ -288,6 +288,48 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
       OBContext.restorePreviousMode();
     }
     return super.doAuthenticate(request, response);
+  }
+
+  /**
+   * Validates the structure of a given Bearer token string.
+   * <p>
+   * This method performs a lightweight validation of the JWT format:
+   * <ul>
+   *   <li>Trims the input string to remove leading/trailing spaces.</li>
+   *   <li>Checks that the string starts with the "Bearer " prefix (case-insensitive).</li>
+   *   <li>Extracts the token portion after the prefix and trims it again to handle extra spaces
+   *       (e.g., "Bearer     token").</li>
+   *   <li>Rejects tokens that are equal to "null", "undefined", or empty, which are common invalid values
+   *       received when the token is not provided correctly.</li>
+   *   <li>Splits the token by dots and ensures it contains exactly three parts,
+   *       as expected in the standard JWT structure (header.payload.signature).</li>
+   * </ul>
+   * <p>
+   * Note: This method only validates the <b>structure</b> of the token, not its cryptographic
+   * signature, expiration, or claims.
+   *
+   * @param authStr
+   *     the authorization string containing the token (e.g., "Bearer &lt;token&gt;")
+   * @return {@code true} if the token has a valid Bearer/JWT-like structure, {@code false} otherwise
+   */
+  public boolean validStructureBearerToken(String authStr) {
+    if (authStr == null) {
+      return false;
+    }
+    String trimmedAuthStr = StringUtils.trim(authStr);
+    // Extract the token by trimming the input and removing the "Bearer " prefix
+    if (StringUtils.isBlank(trimmedAuthStr) || !StringUtils.startsWithIgnoreCase(trimmedAuthStr, "Bearer ")) {
+      return false;
+    }
+    String token = StringUtils.trim(trimmedAuthStr).substring(7);
+    //Trim the token to avoid spaces, example: "Bearer     token"
+    token = StringUtils.trim(token);
+
+    // Check if the token is "null", "undefined", or empty, most common cases when the token is not provided correctly
+    return !StringUtils.isEmpty(token) &&
+        !StringUtils.equalsIgnoreCase(token, "null") &&
+        !StringUtils.equalsIgnoreCase(token, "undefined");
+
   }
 
   /**
