@@ -252,7 +252,7 @@ public class DynamicDatasourceEndpointTest extends WeldBaseTest {
     JSONObject mockExample = new JSONObject();
 
     OpenAPI myNewOpenAPI = new OpenAPI();
-    dynamicDatasourceEndpoint.createGETEndpoint(myNewOpenAPI, "TestEntity", "TestTag", mockResponseSchema, mockExample);
+    dynamicDatasourceEndpoint.createGETEndpoint(myNewOpenAPI, "TestEntity", "TestTag", mockResponseSchema, mockExample, "test description");
 
     // Then
     assertNotNull(myNewOpenAPI.getPaths());

@@ -354,16 +354,6 @@ task "jaeger.build" {
     }
 }
 
-task "jaeger.restart" {
-    dependsOn "jaeger.build"
-    doLast {
-        if (isRXDockerized() && isJaegerDockerized()) {
-            project.logger.lifecycle("🔍 Restarting Jaeger using Docker")
-            executeDockerComposeCommand("restart jaeger")
-        }
-    }
-}
-
 afterEvaluate {
     if (isRXDockerized() && tasks.hasProperty("generateEnvFile")) {
         tasks.named("generateEnvFile").configure { task ->
@@ -378,13 +368,13 @@ afterEvaluate {
         tasks.named("smartbuild").configure { task ->
             task.finalizedBy("rx.das.restart")
         }
-    }
-    if (isRXDockerized() && isJaegerDockerized()) {
-        tasks.named("smartbuild").configure { task ->
-            task.finalizedBy("jaeger.restart")
-        }
-        tasks.named("resources.up").configure { task ->
-            task.dependsOn("jaeger.build")
+        if (isJaegerDockerized()) {
+            tasks.named("smartbuild").configure { task ->
+                task.dependsOn("jaeger.build")
+            }
+            tasks.named("resources.up").configure { task ->
+                task.dependsOn("jaeger.build")
+            }
         }
     }
 }
