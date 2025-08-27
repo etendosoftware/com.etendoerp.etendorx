@@ -14,7 +14,7 @@ ARG REPO_USER
 ARG REPO_PASSWORD
 
 # --- Tools Installation ---
-RUN apk add --no-cache wget unzip curl
+RUN apk add --no-cache wget unzip curl postgresql-client
 
 # --- Gradle Installation ---
 RUN wget https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip -P /tmp \

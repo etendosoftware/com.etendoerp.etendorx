@@ -15,6 +15,55 @@ export USER_DEPENDENCIES=${DEPENDENCIES}
 echo "🚀 [ETAPA DE BUILD] Iniciando la generación de artefactos..."
 echo "--------------------------------------------------------"
 
+# --- Function to check database connectivity ---
+check_database_connectivity() {
+    echo "🔍 Checking database connectivity..."
+    
+    # Install PostgreSQL client if not available
+    if ! command -v psql > /dev/null 2>&1; then
+        echo "  -> Installing PostgreSQL client..."
+        apk add --no-cache postgresql-client
+    fi
+    
+    # Test database connection
+    if timeout 10 psql -h host.docker.internal -p "${DB_PORT}" -U tad -d "${DB_SID}" -c "SELECT 1;" > /dev/null 2>&1; then
+        echo "✅ Database is accessible"
+        return 0
+    else
+        echo "❌ Database is not accessible"
+        return 1
+    fi
+}
+
+# --- 1. Database Connectivity Check ---
+echo "🔗 [PASO 0/3] Verificando conectividad con la base de datos..."
+if ! check_database_connectivity; then
+    echo "⚠️  Database is not accessible. Skipping source code generation and compilation."
+    echo "   DAS will start but will show a 'compilation needed' message on port 8092."
+    echo "   Please ensure the database is accessible and restart the container to compile."
+    
+    # Create minimal structure to allow DAS to start
+    mkdir -p /app/libs
+    mkdir -p /app/modules_gen/com.etendorx.entities/build/libs
+    
+    # Download only the DAS application without entities generation
+    echo "📦 Downloading DAS application..."
+    export DEPENDENCIES="com.etendorx:das:${ETENDORX_VERSION}"
+    gradle "${TASK}" ${GRADLE_FLAGS} -PDEPENDENCIES="${DEPENDENCIES}"
+    
+    # Download user dependencies
+    if [ -n "${USER_DEPENDENCIES}" ]; then
+        echo "📦 Downloading user dependencies..."
+        export DEPENDENCIES=${USER_DEPENDENCIES}
+        gradle "${TASK}" ${GRADLE_FLAGS} -PDEPENDENCIES="${DEPENDENCIES}"
+    fi
+    
+    gradle --stop
+    
+    echo "✅ DAS will start without compilation. Access port 8092 for compilation status."
+    exit 0
+fi
+
 # --- 1. Generación Dinámica de Entidades ---
 echo "🧬 [PASO 1/3] Generando entidades desde la base de datos..."
 echo "  -> Configurando dependencia para la herramienta 'generate-entities'."
