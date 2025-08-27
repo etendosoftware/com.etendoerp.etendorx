@@ -3,7 +3,7 @@ services:
     env_file: ".env"
     build:
       context: .
-      dockerfile: rx/Dockerfile
+      dockerfile: dynamic/Dockerfile
       args:
         - DEPENDENCIES=com.etendorx:configserver:${ETENDORX_VERSION}
         - REPO_URL=${ETENDORX_REPOSITORY_URL}
@@ -56,15 +56,18 @@ services:
         condition: service_healthy
     build:
       context: .
-      dockerfile: rx/Dockerfile
+      dockerfile: das/Dockerfile
       args:
-        - DEPENDENCIES=com.etendorx:configserver:${ETENDORX_VERSION}
+        - DEPENDENCIES=${ETENDORX_DEPENDENCIES}
         - REPO_URL=${ETENDORX_REPOSITORY_URL}
         - REPO_USER=${ETENDORX_REPOSITORY_USER}
         - REPO_PASSWORD=${ETENDORX_REPOSITORY_PASSWORD}
         - SPRING_PROFILES_ACTIVE=native
         - SPRING_CLOUD_CONFIG_SERVER_NATIVE_SEARCHLOCATIONS=file:///rxconfig
         - CONFIG_SERVER_URL=
+        - DB_HOST=${ETENDORX_DB_HOST}
+        - DB_PORT=${ETENDORX_DB_PORT}
+        - DB_SID=${ETENDORX_DB_SID}
     ports:
       - "8092:8092"
       - "${DAS_DEBUG_PORT:-5021}:5021"
@@ -93,16 +96,16 @@ services:
       - OTEL_LOGS_EXPORTER=${OTEL_DAS_LOGS_EXPORTER:-none}
       - OTEL_TRACES_EXPORTER=${OTEL_DAS_TRACES_EXPORTER:-otlp}
       - OTEL_EXPORTER_OTLP_TIMEOUT=${OTEL_DAS_EXPORTER_OTLP_TIMEOUT:-10000}
+    mem_limit: 1.5g
+    cpus: 1.0
     networks:
       - etendo
-    volumes:
-      - das_cache_vol:/root/.gradle
-      - das_app_vol:/app/
     healthcheck:
       test: ["CMD-SHELL", "wget --spider -q http://localhost:8092/actuator/health || exit 1"]
       interval: 10s
       timeout: 10s
       retries: 60
+
 
   auth:
     env_file: ".env"
@@ -111,7 +114,7 @@ services:
         condition: service_healthy
     build:
       context: .
-      dockerfile: rx/Dockerfile
+      dockerfile: dynamic/Dockerfile
       args:
         - DEPENDENCIES=com.etendorx:configserver:${ETENDORX_VERSION}
         - REPO_URL=${ETENDORX_REPOSITORY_URL}
@@ -162,7 +165,7 @@ services:
         condition: service_healthy
     build:
       context: .
-      dockerfile: rx/Dockerfile
+      dockerfile: dynamic/Dockerfile
       args:
         - DEPENDENCIES=com.etendorx:configserver:${ETENDORX_VERSION}
         - REPO_URL=${ETENDORX_REPOSITORY_URL}

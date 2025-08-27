@@ -55,7 +55,7 @@ services:
     env_file: ".env"
     build:
       context: .
-      dockerfile: rx/Dockerfile
+      dockerfile: dynamic/Dockerfile
       args:
         - DEPENDENCIES=com.etendorx:configserver:${ETENDORX_VERSION}
         - REPO_URL=${ETENDORX_REPOSITORY_URL}
