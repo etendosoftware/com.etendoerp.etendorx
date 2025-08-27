@@ -504,7 +504,8 @@ public class GoogleServiceUtil {
    */
   public static void validateAccessToken(String accessToken) throws OBException {
     try {
-      URL url = new URL("https://oauth2.googleapis.com/tokeninfo?access_token=" + accessToken);
+      URL url = new URL("https://oauth2.googleapis.com/tokeninfo?access_token=" +
+          URLEncoder.encode(accessToken, StandardCharsets.UTF_8));
       HttpURLConnection conn = (HttpURLConnection) url.openConnection();
       conn.setRequestMethod("GET");
       conn.setRequestProperty(ACCEPT, APPLICATION_JSON);
