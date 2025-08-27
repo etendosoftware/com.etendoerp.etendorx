@@ -105,8 +105,8 @@ public class SaveTokenFromMiddleware extends HttpBaseServlet {
         OBContext.getOBContext().getLanguage().getLanguage());
     String description = Utility.messageBD(new DalConnectionProvider(), "ETRX_TokenCreatedDescription",
         OBContext.getOBContext().getLanguage().getLanguage());
-    String rawTitle = error ? "" : tokenCreated;
-    String rawMessage = error ? "" : description;
+    String rawTitle = error ? "Error" : tokenCreated;
+    String rawMessage = error ? "Error saving token" : description;
     String icon = error ? ERROR_ICON : SUCCESS_ICON;
     String iconColor = error ? RED : GREEN;
 
@@ -209,7 +209,8 @@ public class SaveTokenFromMiddleware extends HttpBaseServlet {
         log4j.error(ex);
         throw new OBException(ex);
       }
+    } finally {
+      OBContext.restorePreviousMode();
     }
   }
-
 }
