@@ -109,6 +109,14 @@ task "rx.setup" {
                 }
             }
             executeDockerComposeCommand("cp ${destDir} config:/")
+            def destDirCopy = layout.buildDirectory.dir("compose").get().asFile
+            def composeDirs = ['dynamic', 'das']
+            composeDirs.each { dirName ->
+                copy {
+                    from fileTree(dir: sourceDir.map { it.toPath().resolve("compose/${dirName}").toFile() })
+                    into "${destDirCopy}/${dirName}"
+                }
+            }
         }
     }
 }

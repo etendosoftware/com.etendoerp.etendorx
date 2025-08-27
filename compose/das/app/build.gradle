@@ -16,10 +16,9 @@ repositories {
 def dynamicDependencies = System.getenv("DEPENDENCIES")?.split(",") ?: []
 
 dependencies {
+  // Add the dependencies to the project
   dynamicDependencies.each { dep ->
-    if(dep.trim().isEmpty()) {
-      return
-    }
+    // Add the dependency to the project with the flag transitive = false
     implementation(dep.trim()) {
       transitive = false
     }
@@ -40,7 +39,6 @@ task downloadJar(type: Copy) {
   into 'libs'
   include '**/*.jar'
   rename { fileName ->
-    println("fileName: $fileName")
     def destName = fileName.substring(fileName.lastIndexOf('/') + 1)
     if(fileName.startsWith('das-') || fileName.startsWith('generate-entities-')) {
       destName = 'app.jar'
@@ -61,15 +59,12 @@ task runJar(dependsOn: 'downloadJar', type: Exec) {
 
 task waitForConfigServer {
   doLast {
-    // get environment variable CONFIG_SERVER_URL
     def configServerUrl = System.getenv("CONFIG_SERVER_URL")
     println("CONFIG_SERVER_URL: $configServerUrl")
-    // check if the environment variable CONFIG_SERVER_URL is set
     if (configServerUrl == null || configServerUrl.isEmpty()) {
       println("Skipping the wait for the config server")
       return
     }
-    // wait for the config server to be ready
     def ready = false
     println "Waiting for the config server to be ready..."
     while (!ready) {
