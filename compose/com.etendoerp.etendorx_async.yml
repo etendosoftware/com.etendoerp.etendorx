@@ -25,7 +25,9 @@ services:
       ENV KAFKA_METADATA_LOG_MAX_RECORD_BYTES_BETWEEN_SNAPSHOTS: 2800
       # --- JMX opcional ---
       JMX_PORT: "9997"
-      KAFKA_JMX_OPTS: -Dcom.sun.management.jmxremote=true -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Djava.net.preferIPv4Stack=true -Dcom.sun.management.jmxremote.local.only=false -Dcom.sun.management.jmxremote.rmi.port=9997
+      KAFKA_JMX_OPTS: "-Dcom.sun.management.jmxremote=true -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Djava.net.preferIPv4Stack=true -Dcom.sun.management.jmxremote.local.only=false -Dcom.sun.management.jmxremote.rmi.port=9997"
+      # Optimizaciones de la JVM para Kafka
+      KAFKA_HEAP_OPTS: "-Xms512M -Xmx512M"
     networks:
       - etendo
     deploy:
@@ -46,10 +48,16 @@ services:
       CONFIG_STORAGE_TOPIC: my_connect_configs
       OFFSET_STORAGE_TOPIC: my_connect_offsets
       STATUS_STORAGE_TOPIC: my_connect_statuses
+      KAFKA_HEAP_OPTS: "-Xms512M -Xmx512M"
     depends_on:
       - kafka
     networks:
       - etendo
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 1G
 
   asyncprocess:
     env_file: ".env"
@@ -57,7 +65,7 @@ services:
       context: .
       dockerfile: dynamic/Dockerfile
       args:
-        - DEPENDENCIES=com.etendorx:configserver:${ETENDORX_VERSION}
+        - DEPENDENCIES=com.etendorx:asyncprocess:${ETENDORX_VERSION}
         - REPO_URL=${ETENDORX_REPOSITORY_URL}
         - REPO_USER=${ETENDORX_REPOSITORY_USER}
         - REPO_PASSWORD=${ETENDORX_REPOSITORY_PASSWORD}
@@ -82,7 +90,7 @@ services:
       - DEBUG_PORT=${ASYNCPROCESS_DEBUG_PORT:-5024}
       - DEBUG_MODE=${ASYNCPROCESS_DEBUG_MODE:-false}
       - DISABLE_DEBUG=${ASYNCPROCESS_DISABLE_DEBUG:-false}
-      - JAVA_OPTS=${ASYNCPROCESS_JAVA_OPTS:-}
+      - JAVA_OPTS=-XX:MaxRAMPercentage=75.0 -XX:+UseG1GC ${ASYNCPROCESS_JAVA_OPTS:-}
       - GRADLE_FLAGS=${ASYNCPROCESS_GRADLE_FLAGS:-}
       # --- OpenTelemetry ---
       - ENABLE_OPEN_TELEMETRY=${OTEL_ASYNCPROCESS_ENABLE:-false}
@@ -95,8 +103,7 @@ services:
       - OTEL_EXPORTER_OTLP_TIMEOUT=${OTEL_ASYNCPROCESS_EXPORTER_OTLP_TIMEOUT:-10000}
     networks:
       - etendo
-    volumes:
-      - async_vol:/root/.gradle
+    # Se eliminaron las referencias a async_vol
     healthcheck:
       test: ["CMD-SHELL", "wget --spider -q http://localhost:8099/actuator/health || exit 1"]
       interval: 10s

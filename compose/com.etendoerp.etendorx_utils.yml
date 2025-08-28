@@ -12,7 +12,7 @@ services:
       resources:
         limits:
           cpus: "0.5"
-          memory: 512M
+          memory: 128M
     restart: on-failure:5
     depends_on:
       - kafka
@@ -32,6 +32,11 @@ services:
       - "/jaeger/config.yaml"
     networks:
       - etendo
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
     volumes:
       - ${VOLUMES_PATH}/jaeger/config.yaml:/jaeger/config.yaml
 

@@ -34,6 +34,10 @@ services:
       interval: 10s
       timeout: 10s
       retries: 60
+    deploy:
+      resources:
+        limits:
+          memory: 256M
 
   worker:
     image: etendo/dynamic-gradle:1.1.0
@@ -70,6 +74,10 @@ services:
       interval: 10s
       timeout: 10s
       retries: 60
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
 volumes:
     obconnsrv:
