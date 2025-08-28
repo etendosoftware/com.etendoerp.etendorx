@@ -159,15 +159,10 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
     OBContext.setOBContext(
         SecureWebServicesUtils.createContext(userId, roleId, orgId, warehouseId, clientId));
     OBContext.setOBContextInSession(request, OBContext.getOBContext());
-    final VariablesSecureApp vars = new VariablesSecureApp(request);
-    if ( OBContext.getOBContext().getLanguage() != null ) {
-      try {
-        LoginUtils.fillSessionArguments(new DalConnectionProvider(false), vars, userId,
-            OBContext.getOBContext().getLanguage().getLanguage(),
-            OBContext.getOBContext().isRTL() ? "Y" : "N", roleId, clientId, orgId, warehouseId);
-      } catch (ServletException e) {
-        throw new OBException(e);
-      }
+    try {
+      SecureWebServicesUtils.fillSessionVariables(request);
+    } catch (ServletException | NullPointerException e) {
+      // skip if no session exists
     }
   }
 
@@ -565,7 +560,8 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
           .setFilterOnReadableOrganization(false)
           .setMaxResults(1).uniqueResult();
       return allowSSOPref != null ? allowSSOPref.getSearchKey() : "N";
-    } catch (OBSecurityException e) {
+    } catch (Exception e) {
+      log4j.error("Exception getting SSO Preference", e);
       return null;
     }
   }
