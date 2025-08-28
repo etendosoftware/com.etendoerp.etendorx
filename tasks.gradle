@@ -58,6 +58,22 @@ def isAsyncProcessDockerized() {
     getTypedProp('docker_com.etendoerp.etendorx_async') ?: false
 }
 
+task "rx.setup.files" {
+    if (isRXDockerized()) {
+        description = 'Finds all Docker Compose YAML files and copies them to build/compose'
+        group = 'Docker'
+        doLast {
+            def destDirCopy = layout.buildDirectory.dir("compose").get().asFile
+            def composeDirs = ['dynamic', 'das']
+            composeDirs.each { dirName ->
+                copy {
+                    from fileTree(dir: sourceDir.map { it.toPath().resolve("compose/${dirName}").toFile() })
+                    into "${destDirCopy}/${dirName}"
+                }
+            }
+        }
+    }
+}
 task "rx.setup" {
     description = 'Finds all Docker Compose YAML files and copies them to build/compose'
     group = 'Docker'
@@ -110,14 +126,7 @@ task "rx.setup" {
                 }
             }
             executeDockerComposeCommand("cp ${destDir} config:/")
-            def destDirCopy = layout.buildDirectory.dir("compose").get().asFile
-            def composeDirs = ['dynamic', 'das']
-            composeDirs.each { dirName ->
-                copy {
-                    from fileTree(dir: sourceDir.map { it.toPath().resolve("compose/${dirName}").toFile() })
-                    into "${destDirCopy}/${dirName}"
-                }
-            }
+
         }
     }
 }
@@ -367,7 +376,11 @@ afterEvaluate {
         tasks.named("generateEnvFile").configure { task ->
             task.finalizedBy("rx.env.file")
         }
+        tasks.named("resources.build").configure { task ->
+            task.dependsOn("rx.setup.files")
+        }
         tasks.named("resources.up").configure { task ->
+            task.dependsOn("rx.setup.files")
             task.finalizedBy("rx.setup")
         }
         tasks.named("update.database").configure { task ->

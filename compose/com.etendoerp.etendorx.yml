@@ -96,8 +96,6 @@ services:
       - OTEL_LOGS_EXPORTER=${OTEL_DAS_LOGS_EXPORTER:-none}
       - OTEL_TRACES_EXPORTER=${OTEL_DAS_TRACES_EXPORTER:-otlp}
       - OTEL_EXPORTER_OTLP_TIMEOUT=${OTEL_DAS_EXPORTER_OTLP_TIMEOUT:-10000}
-    mem_limit: 1.5g
-    cpus: 1.0
     networks:
       - etendo
     healthcheck:

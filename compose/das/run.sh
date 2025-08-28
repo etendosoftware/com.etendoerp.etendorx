@@ -12,8 +12,21 @@ set -e
 : "${DISABLE_DEBUG:=false}"
 : "${JAVA_OPTS:=}"
 
+ENTITY_JAR="/app/modules_gen/com.etendorx.entities/build/libs/com.etendorx.entities-1.0.0-plain.jar"
+
 echo "🚀 [RUNTIME STAGE] Starting application..."
 echo "--------------------------------------------------------"
+
+# Check if entity jar exists
+if [ ! -f "$ENTITY_JAR" ]; then
+  echo "⚠️ Entity jar not found: $ENTITY_JAR"
+  echo "➡️ To generate it, run: ./gradlew resources.build with the database installed."
+  echo "🔄 Starting application without entity jar..."
+  JAVA_LOADER_OPTS="-Dloader.path=/app/libs/"
+else
+  echo "✅ Entity jar found, loading with entities support."
+  JAVA_LOADER_OPTS="-Dloader.path=/app/modules_gen/com.etendorx.entities/build/libs/com.etendorx.entities-1.0.0-plain.jar,/app/libs/"
+fi
 
 # --- Java Options Configuration ---
 JAVA_AGENT_OPTS=""
@@ -21,8 +34,6 @@ if [ "$ENABLE_OPEN_TELEMETRY" = "true" ]; then
   JAVA_AGENT_OPTS="-javaagent:/opt/open-telemetry/opentelemetry-javaagent.jar"
   echo "✔️ OpenTelemetry agent enabled."
 fi
-
-JAVA_LOADER_OPTS="-Dloader.path=/app/modules_gen/com.etendorx.entities/build/libs/com.etendorx.entities-1.0.0-plain.jar,/app/libs/"
 
 JAVA_DEBUG_OPTS=""
 if [ ! "$DISABLE_DEBUG" = "true" ]; then
