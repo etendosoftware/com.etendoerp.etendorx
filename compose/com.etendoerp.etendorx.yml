@@ -51,8 +51,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1'
-          memory: 256M
+          cpus: "${CONFIG_CPU_LIMIT:-${BASE_CONFIG_CPU_LIMIT:-1}}"
+          memory: "${CONFIG_MEMORY_LIMIT:-${BASE_CONFIG_MEMORY_LIMIT:-256M}}"
 
   das:
     env_file: ".env"
@@ -116,8 +116,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1'
-          memory: 512M
+          cpus: "${DAS_CPU_LIMIT:-${BASE_DAS_CPU_LIMIT:-1}}"
+          memory: "${DAS_MEMORY_LIMIT:-${BASE_DAS_MEMORY_LIMIT:-512M}}"
 
   auth:
     env_file: ".env"
@@ -171,9 +171,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1'
-          memory: 256M
-
+          cpus: "${AUTH_CPU_LIMIT:-${BASE_AUTH_CPU_LIMIT:-1}}"
+          memory: "${AUTH_MEMORY_LIMIT:-${BASE_AUTH_MEMORY_LIMIT:-256M}}"
   edge:
     env_file: ".env"
     depends_on:
@@ -226,8 +225,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1'
-          memory: 256M
+          cpus: "${AUTH_CPU_LIMIT:-${BASE_AUTH_CPU_LIMIT:-1}}"
+          memory: "${AUTH_MEMORY_LIMIT:-${BASE_AUTH_MEMORY_LIMIT:-256M}}"
 
 networks:
   etendo:
