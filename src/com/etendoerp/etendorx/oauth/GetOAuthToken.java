@@ -49,7 +49,7 @@ public class GetOAuthToken extends HttpBaseServlet {
    * @return the account identifier of the system, or an empty string if the identifier is blank
    * @throws org.openbravo.base.exception.OBException if an error occurs while retrieving the system identifier
    */
-  private static String getValidToken(ETRXTokenInfo token) {
+  private static ETRXTokenInfo getValidToken(ETRXTokenInfo token) {
     String accountID = "";
     try {
       accountID = SystemInfo.getSystemIdentifier();
@@ -59,7 +59,7 @@ public class GetOAuthToken extends HttpBaseServlet {
     } catch (ServletException e) {
       throw new OBException(e);
     }
-    return GoogleServiceUtil.getValidAccessTokenOrRefresh(token.getToken(), accountID);
+    return GoogleServiceUtil.getValidAccessTokenOrRefresh(token, accountID);
   }
 
   /**
@@ -94,7 +94,7 @@ public class GetOAuthToken extends HttpBaseServlet {
       if (token == null) {
         throw new OBException("Token not found.");
       }
-      tokenInfo.put("accessToken", getValidToken(token));
+      tokenInfo.put("accessToken", getValidToken(token).getToken());
 
       response.setContentType("application/json");
       response.setCharacterEncoding("UTF-8");

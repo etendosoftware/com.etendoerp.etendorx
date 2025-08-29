@@ -1,9 +1,9 @@
 package com.etendoerp.etendorx.utils;
 
+import com.etendoerp.etendorx.data.ETRXTokenInfo;
 import com.google.api.services.sheets.v4.Sheets;
 import com.google.api.services.sheets.v4.model.Sheet;
 import com.google.api.services.sheets.v4.model.SheetProperties;
-
 import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONObject;
 import org.junit.jupiter.api.Test;
@@ -15,6 +15,7 @@ import org.openbravo.dal.core.OBContext;
 import org.openbravo.erpCommon.utility.Utility;
 import org.openbravo.model.ad.system.Language;
 
+import java.util.Date;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -51,48 +52,16 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class GoogleServiceUtilTest {
 
-  private static final String TOKEN = "mockToken";
+  private static final ETRXTokenInfo TOKEN = token("mockAccessToken");
   private static final String ACCOUNT_ID = "etendo123";
   private static final String SHEET_TITLE = "MiHoja";
 
-  /**
-   * Helper class for mocking static localization context and translated messages.
-   * Mocks {@link OBContext} and {@link Utility} to simulate message retrieval
-   * based on language.
-   */
-  private static class LocaleHelper implements AutoCloseable {
-    final MockedStatic<OBContext> obCtx;
-    final MockedStatic<Utility>   util;
-
-    /**
-     * Constructs the LocaleHelper, mocking OBContext and Utility to return
-     * a specific language and a translated message for a given key.
-     *
-     * @param msgKey the message key to simulate
-     * @param message the localized message to return
-     */
-    LocaleHelper(String msgKey, String message) {
-      obCtx = mockStatic(OBContext.class);
-      util  = mockStatic(Utility.class);
-
-      OBContext ctx  = mock(OBContext.class);
-      Language  lang = mock(Language.class);
-      obCtx.when(OBContext::getOBContext).thenReturn(ctx);
-      when(ctx.getLanguage()).thenReturn(lang);
-      when(lang.getLanguage()).thenReturn("en_US");
-
-      if (msgKey != null) {
-        util.when(() -> Utility.messageBD(any(), eq(msgKey), any()))
-            .thenReturn(message);
-      }
-    }
-
-    /** Closes the mocked static contexts. */
-    @Override
-    public void close() {
-      obCtx.close();
-      util.close();
-    }
+  private static ETRXTokenInfo token(String value) {
+    ETRXTokenInfo t = new ETRXTokenInfo();
+    t.setToken(value);
+    // opcional, por si tu código usa la validez
+    t.setValidUntil(new Date(System.currentTimeMillis() + 60 * 60 * 1000));
+    return t;
   }
 
   /**
@@ -126,7 +95,7 @@ class GoogleServiceUtilTest {
   @Test
   void testGetCellValueWithinBoundsReturnsValue() {
     assertEquals("B",
-        GoogleServiceUtil.getCellValue(List.of("A","B","C"), 1)
+        GoogleServiceUtil.getCellValue(List.of("A", "B", "C"), 1)
     );
   }
 
@@ -136,10 +105,9 @@ class GoogleServiceUtilTest {
   @Test
   void testGetCellValueOutOfBoundsReturnsEmptyString() {
     assertEquals("",
-        GoogleServiceUtil.getCellValue(List.of("A","B","C"), 99)
+        GoogleServiceUtil.getCellValue(List.of("A", "B", "C"), 99)
     );
   }
-
 
   /**
    * Mocks and verifies that listAccessibleFiles returns a valid JSONArray of spreadsheet files.
@@ -148,21 +116,20 @@ class GoogleServiceUtilTest {
   void testListAccessibleFilesWithValidTypeReturnsJSONArray() throws Exception {
     JSONArray mockResp = new JSONArray()
         .put(new JSONObject()
-            .put("id","1")
-            .put("name","Sheet 1")
-            .put("mimeType","application/vnd.google-apps-spreadsheet")
+            .put("id", "1")
+            .put("name", "Sheet 1")
+            .put("mimeType", "application/vnd.google-apps-spreadsheet")
         );
+
     try (var gs = mockStatic(GoogleServiceUtil.class)) {
-      gs.when(() -> GoogleServiceUtil
-          .listAccessibleFiles("spreadsheet", TOKEN, ACCOUNT_ID)
-      ).thenReturn(mockResp);
-      JSONArray result = GoogleServiceUtil
-          .listAccessibleFiles("spreadsheet", TOKEN, ACCOUNT_ID);
+      gs.when(() -> GoogleServiceUtil.listAccessibleFiles("spreadsheet", TOKEN, ACCOUNT_ID))
+          .thenReturn(mockResp);
+
+      JSONArray result = GoogleServiceUtil.listAccessibleFiles("spreadsheet", TOKEN, ACCOUNT_ID);
+
       assertSame(mockResp, result);
       assertEquals(1, result.length());
-      assertEquals("Sheet 1",
-          result.getJSONObject(0).getString("name")
-      );
+      assertEquals("Sheet 1", result.getJSONObject(0).getString("name"));
     }
   }
 
@@ -172,24 +139,22 @@ class GoogleServiceUtilTest {
   @Test
   void testGetTabNameValidIndexReturnsTabName() throws Exception {
     String sheetId = "sid", title = "MySheet";
-    try (var gs = mockStatic(GoogleServiceUtil.class, CALLS_REAL_METHODS)) {
-      gs.when(() -> GoogleServiceUtil.getValidAccessTokenOrRefresh(
-          TOKEN, ACCOUNT_ID
-      )).thenReturn(TOKEN);
-      Sheets sheetsSvc = mock(Sheets.class, RETURNS_DEEP_STUBS);
-      when(sheetsSvc.spreadsheets()
-          .get(sheetId)
-          .execute()
-          .getSheets().get(0)
-          .getProperties().getTitle()
-      ).thenReturn(title);
 
-      gs.when(() -> GoogleServiceUtil.getSheetsService(TOKEN))
+    try (var gs = mockStatic(GoogleServiceUtil.class, CALLS_REAL_METHODS)) {
+      gs.when(() -> GoogleServiceUtil.getValidAccessTokenOrRefresh(TOKEN, ACCOUNT_ID))
+          .thenReturn(TOKEN);
+
+      Sheets sheetsSvc = mock(Sheets.class, RETURNS_DEEP_STUBS);
+
+      // Devolvemos una lista real con una Sheet real
+      Sheet s = new Sheet().setProperties(new SheetProperties().setTitle(title));
+      when(sheetsSvc.spreadsheets().get(sheetId).execute().getSheets())
+          .thenReturn(List.of(s));
+
+      gs.when(() -> GoogleServiceUtil.getSheetsService(org.mockito.ArgumentMatchers.anyString()))
           .thenReturn(sheetsSvc);
 
-      assertEquals(title,
-          GoogleServiceUtil.getTabName(0, sheetId, TOKEN, ACCOUNT_ID)
-      );
+      assertEquals(title, GoogleServiceUtil.getTabName(0, sheetId, TOKEN, ACCOUNT_ID));
     }
   }
 
@@ -199,53 +164,39 @@ class GoogleServiceUtilTest {
   @Test
   void testFindSpreadsheetAndTabTabExistsReturnsValues() throws Exception {
     String sheetId = "sid", tab = "T1";
-    List<List<Object>> data = List.of(
-        List.of("A","B"),
-        List.of("C","D")
-    );
+    List<List<Object>> data = List.of(List.of("A", "B"), List.of("C", "D"));
 
     try (var gs = mockStatic(GoogleServiceUtil.class, CALLS_REAL_METHODS)) {
-      gs.when(() -> GoogleServiceUtil.getValidAccessTokenOrRefresh(
-          TOKEN, ACCOUNT_ID
-      )).thenReturn(TOKEN);
+      gs.when(() -> GoogleServiceUtil.getValidAccessTokenOrRefresh(TOKEN, ACCOUNT_ID))
+          .thenReturn(TOKEN);
+
       Sheets sheetsSvc = mock(Sheets.class, RETURNS_DEEP_STUBS);
-      Sheet fakeSheet = new Sheet()
-          .setProperties(new SheetProperties().setTitle(tab));
-      when(sheetsSvc.spreadsheets()
-          .get(sheetId)
-          .execute()
-          .getSheets()
-      ).thenReturn(List.of(fakeSheet));
+      Sheet fakeSheet = new Sheet().setProperties(new SheetProperties().setTitle(tab));
 
-      when(sheetsSvc.spreadsheets()
-          .values()
-          .get(sheetId, tab)
-          .execute()
-          .getValues()
-      ).thenReturn(data);
+      when(sheetsSvc.spreadsheets().get(sheetId).execute().getSheets())
+          .thenReturn(List.of(fakeSheet));
+      when(sheetsSvc.spreadsheets().values().get(sheetId, tab).execute().getValues())
+          .thenReturn(data);
 
-      gs.when(() -> GoogleServiceUtil.getSheetsService(TOKEN))
+      gs.when(() -> GoogleServiceUtil.getSheetsService(org.mockito.ArgumentMatchers.anyString()))
           .thenReturn(sheetsSvc);
 
       assertEquals(data,
-          GoogleServiceUtil.findSpreadsheetAndTab(
-              sheetId, tab, TOKEN, ACCOUNT_ID
-          )
+          GoogleServiceUtil.findSpreadsheetAndTab(sheetId, tab, TOKEN, ACCOUNT_ID)
       );
     }
   }
+
 
   /**
    * Verifies that an OBException is thrown when the specified tab is not found.
    */
   @Test
   void testFindSpreadsheetAndTabTabNotFoundThrowsOBException() throws Exception {
-    try (var lh = new LocaleHelper("ETRX_TabNotFound","no encontrada");
-         var gs = mockStatic(GoogleServiceUtil.class, CALLS_REAL_METHODS))
-    {
-      gs.when(() -> GoogleServiceUtil.getValidAccessTokenOrRefresh(
-          TOKEN, ACCOUNT_ID
-      )).thenReturn(TOKEN);
+    try (var lh = new LocaleHelper("ETRX_TabNotFound", "no encontrada");
+         var gs = mockStatic(GoogleServiceUtil.class, CALLS_REAL_METHODS)) {
+      gs.when(() -> GoogleServiceUtil.getValidAccessTokenOrRefresh(TOKEN, ACCOUNT_ID))
+          .thenReturn(TOKEN);
 
       Sheets sheetsSvc = mock(Sheets.class, RETURNS_DEEP_STUBS);
       when(sheetsSvc.spreadsheets()
@@ -258,7 +209,7 @@ class GoogleServiceUtilTest {
           )
       ));
 
-      gs.when(() -> GoogleServiceUtil.getSheetsService(TOKEN))
+      gs.when(() -> GoogleServiceUtil.getSheetsService(org.mockito.ArgumentMatchers.anyString()))
           .thenReturn(sheetsSvc);
 
       OBException ex = assertThrows(OBException.class, () ->
@@ -276,9 +227,8 @@ class GoogleServiceUtilTest {
   @Test
   void testFindSpreadsheetAndTabEmptyValuesReturnsEmptyList() throws Exception {
     try (var gs = mockStatic(GoogleServiceUtil.class, CALLS_REAL_METHODS)) {
-      gs.when(() -> GoogleServiceUtil.getValidAccessTokenOrRefresh(
-          TOKEN, ACCOUNT_ID
-      )).thenReturn(TOKEN);
+      gs.when(() -> GoogleServiceUtil.getValidAccessTokenOrRefresh(TOKEN, ACCOUNT_ID))
+          .thenReturn(TOKEN);
 
       Sheets sheetsSvc = mock(Sheets.class, RETURNS_DEEP_STUBS);
       when(sheetsSvc.spreadsheets()
@@ -297,11 +247,11 @@ class GoogleServiceUtilTest {
           .getValues()
       ).thenReturn(null);
 
-      gs.when(() -> GoogleServiceUtil.getSheetsService(TOKEN))
+      gs.when(() -> GoogleServiceUtil.getSheetsService(org.mockito.ArgumentMatchers.anyString()))
           .thenReturn(sheetsSvc);
 
       assertTrue(GoogleServiceUtil.findSpreadsheetAndTab(
-          "sid", SHEET_TITLE,TOKEN,ACCOUNT_ID
+          "sid", SHEET_TITLE, TOKEN, ACCOUNT_ID
       ).isEmpty());
     }
   }
@@ -311,12 +261,54 @@ class GoogleServiceUtilTest {
    */
   @Test
   void testListAccessibleFilesInvalidTypeThrowsException() {
-    try (var lh = new LocaleHelper("ETRX_UnsupportedFileType","bad‐type")) {
+    try (var lh = new LocaleHelper("ETRX_UnsupportedFileType", "bad‐type")) {
       IllegalArgumentException ex = assertThrows(
           IllegalArgumentException.class,
           () -> GoogleServiceUtil.listAccessibleFiles("XLS", TOKEN, ACCOUNT_ID)
       );
       assertTrue(ex.getMessage().contains("bad‐type"));
+    }
+  }
+
+  /**
+   * Helper class for mocking static localization context and translated messages.
+   * Mocks {@link OBContext} and {@link Utility} to simulate message retrieval
+   * based on language.
+   */
+  private static class LocaleHelper implements AutoCloseable {
+    final MockedStatic<OBContext> obCtx;
+    final MockedStatic<Utility> util;
+
+    /**
+     * Constructs the LocaleHelper, mocking OBContext and Utility to return
+     * a specific language and a translated message for a given key.
+     *
+     * @param msgKey  the message key to simulate
+     * @param message the localized message to return
+     */
+    LocaleHelper(String msgKey, String message) {
+      obCtx = mockStatic(OBContext.class);
+      util = mockStatic(Utility.class);
+
+      OBContext ctx = mock(OBContext.class);
+      Language lang = mock(Language.class);
+      obCtx.when(OBContext::getOBContext).thenReturn(ctx);
+      when(ctx.getLanguage()).thenReturn(lang);
+      when(lang.getLanguage()).thenReturn("en_US");
+
+      if (msgKey != null) {
+        util.when(() -> Utility.messageBD(any(), eq(msgKey), any()))
+            .thenReturn(message);
+      }
+    }
+
+    /**
+     * Closes the mocked static contexts.
+     */
+    @Override
+    public void close() {
+      obCtx.close();
+      util.close();
     }
   }
 }

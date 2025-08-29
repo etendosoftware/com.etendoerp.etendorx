@@ -93,7 +93,7 @@ class SaveTokenFromMiddlewareTest {
 
     new SaveTokenFromMiddleware().doGet(request, response);
 
-    String expectedErrorUrl = buildUrl("errorContext", "", "", SaveTokenFromMiddleware.ERROR_ICON, SaveTokenFromMiddleware.RED);
+    String expectedErrorUrl = buildUrl("errorContext", "Error", "Error saving token", SaveTokenFromMiddleware.ERROR_ICON, SaveTokenFromMiddleware.RED);
     verify(response).setHeader("Location", expectedErrorUrl);
     verify(response).flushBuffer();
     verify(response, never()).sendRedirect(anyString());
