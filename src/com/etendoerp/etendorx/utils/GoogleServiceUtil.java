@@ -2,17 +2,21 @@ package com.etendoerp.etendorx.utils;
 
 import com.etendoerp.etendorx.data.ETRXTokenInfo;
 import com.etendoerp.etendorx.data.ETRXoAuthProvider;
+import com.google.api.client.http.HttpBackOffUnsuccessfulResponseHandler;
 import com.google.api.client.http.HttpHeaders;
-import com.google.api.client.http.HttpRequest;
 import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.gson.GsonFactory;
+import com.google.api.client.util.ExponentialBackOff;
 import com.google.api.services.drive.Drive;
+import com.google.api.services.drive.model.File;
+import com.google.api.services.drive.model.FileList;
 import com.google.api.services.sheets.v4.Sheets;
 import com.google.api.services.sheets.v4.model.Sheet;
 import com.google.api.services.sheets.v4.model.Spreadsheet;
+import com.google.api.services.sheets.v4.model.UpdateValuesResponse;
 import com.google.api.services.sheets.v4.model.ValueRange;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
@@ -35,7 +39,6 @@ import javax.servlet.ServletException;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
@@ -45,6 +48,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
 
 /**
  * Utility class for interacting with the Google Sheets and Drive APIs using a Bearer token.
@@ -62,10 +66,16 @@ public class GoogleServiceUtil {
   public static final String AUTHORIZATION = "Authorization";
   public static final String APPLICATION_JSON = "application/json";
   public static final String ACCEPT = "Accept";
+  public static final String MIMETYPE_SPREADSHEET = "application/vnd.google-apps.spreadsheet";
+  public static final String MIMETYPE_DOC = "application/vnd.google-apps.document";
+  public static final String MIMETYPE_SLIDES = "application/vnd.google-apps.presentation";
+  public static final String MIMETYPE_PDF = "application/pdf";
   private static final String APPLICATION_NAME = "Google Sheets Java Integration";
+  private static final Pattern SHEET_ID = Pattern.compile(
+      "(?:https?://)?(?:docs\\.google\\.com/(?:spreadsheets|a/[^/]+/spreadsheets)/d/|drive\\.google\\.com/open\\?id=)([A-Za-z0-9_-]+)"
+  );
   private static final JsonFactory JSON_FACTORY = GsonFactory.getDefaultInstance();
   private static final HttpTransport HTTP_TRANSPORT = new NetHttpTransport();
-
   private static final Logger LOG = LogManager.getLogger(GoogleServiceUtil.class);
 
   private GoogleServiceUtil() {
@@ -103,10 +113,18 @@ public class GoogleServiceUtil {
    * @return an initializer that adds the Authorization header to each request.
    */
   private static HttpRequestInitializer bearerTokenInitializer(String accessToken) {
-    return (HttpRequest request) -> {
+    return request -> {
       HttpHeaders headers = new HttpHeaders();
       headers.setAuthorization(BEARER + accessToken);
       request.setHeaders(headers);
+
+      // Timeouts razonables
+      request.setConnectTimeout(20_000);
+      request.setReadTimeout(60_000);
+
+      // Backoff automático para 429/5xx
+      request.setUnsuccessfulResponseHandler(
+          new HttpBackOffUnsuccessfulResponseHandler(new ExponentialBackOff()));
     };
   }
 
@@ -201,25 +219,6 @@ public class GoogleServiceUtil {
     return getValidAccessTokenOrRefresh(actualToken, accountID);
   }
 
-  /**
-   * Extracts the spreadsheet ID from a full Google Sheets URL.
-   *
-   * @param url the full URL of a Google Spreadsheet (e.g. <a href="https://docs.google.com/spreadsheets/d/SheetID/edit">https://docs.google.com/spreadsheets/d/SheetID/edit</a>).
-   * @return the spreadsheet ID as a string.
-   * @throws IllegalArgumentException if the URL format is invalid or the ID cannot be extracted.
-   */
-  public static String extractSheetIdFromUrl(String url) throws IllegalArgumentException {
-    String pattern = "https://docs\\.google\\.com/spreadsheets/d/([a-zA-Z0-9-_]+)";
-    Pattern regex = Pattern.compile(pattern);
-    Matcher matcher = regex.matcher(url);
-    if (matcher.find()) {
-      return matcher.group(1);
-    } else {
-      String errorMessage = Utility.messageBD(new DalConnectionProvider(), "ETRX_WrongSheetURL",
-          OBContext.getOBContext().getLanguage().getLanguage());
-      throw new IllegalArgumentException(errorMessage); // ETRX_WrongSheetURL
-    }
-  }
 
   /**
    * Safely retrieves a cell value from a given row at the specified index.
@@ -229,10 +228,26 @@ public class GoogleServiceUtil {
    * @return the cell value as a string, or an empty string if the cell is missing.
    */
   public static String getCellValue(List<Object> row, int index) {
-    if (index < row.size()) {
+    if (index >= 0 && index < row.size()) {
       return row.get(index).toString();
     }
     return "";
+  }
+
+
+  /**
+   * Extracts the spreadsheet ID from a full Google Sheets URL.
+   *
+   * @param url the full URL of a Google Spreadsheet (e.g. <a href="https://docs.google.com/spreadsheets/d/SheetID/edit">https://docs.google.com/spreadsheets/d/SheetID/edit</a>).
+   * @return the spreadsheet ID as a string.
+   * @throws IllegalArgumentException if the URL format is invalid or the ID cannot be extracted.
+   */
+  public static String extractSheetIdFromUrl(String url) {
+    Matcher m = SHEET_ID.matcher(url);
+    if (m.find()) return m.group(1);
+    String msg = Utility.messageBD(new DalConnectionProvider(), "ETRX_WrongSheetURL",
+        OBContext.getOBContext().getLanguage().getLanguage());
+    throw new OBException(msg);
   }
 
   /**
@@ -342,17 +357,17 @@ public class GoogleServiceUtil {
     String mimeType;
     switch (type.toLowerCase()) {
       case SPREADSHEET:
-        mimeType = "application/vnd.google-apps.spreadsheet";
+        mimeType = MIMETYPE_SPREADSHEET;
         break;
       case DOC:
-        mimeType = "application/vnd.google-apps.document";
+        mimeType = MIMETYPE_DOC;
         break;
       case SLIDES:
-        mimeType = "application/vnd.google-apps.presentation";
+        mimeType = MIMETYPE_SLIDES;
         break;
       case PDF:
       case PDFS:
-        mimeType = "application/pdf";
+        mimeType = MIMETYPE_PDF;
         break;
       default:
         String errorMessage = Utility.messageBD(new DalConnectionProvider(), "ETRX_UnsupportedFileType",
@@ -383,22 +398,31 @@ public class GoogleServiceUtil {
    */
   protected static JSONArray listAccessibleFilesByMimeType(String mimeType, ETRXTokenInfo accessToken, String accountID)
       throws IOException, JSONException {
-    String endpoint = "https://www.googleapis.com/drive/v3/files" +
-        "?q=mimeType='" + mimeType + "'" +
-        "&fields=files(id,name,mimeType)" +
-        "&pageSize=100" +
-        "&supportsAllDrives=true&includeItemsFromAllDrives=true&corpora=allDrives";
 
-    URL url = new URL(endpoint);
-    HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-    conn.setRequestMethod("GET");
-    ETRXTokenInfo validToken = getValidAccessTokenOrRefresh(accessToken, accountID);
-    conn.setRequestProperty(AUTHORIZATION, BEARER + validToken.getToken());
-    conn.setRequestProperty(ACCEPT, APPLICATION_JSON);
-    String errorMessage = Utility.messageBD(new DalConnectionProvider(), "ETRX_ErrorGettingAccessFiles",
-        OBContext.getOBContext().getLanguage().getLanguage());
-    JSONObject json = getResponseJSONObject(conn, errorMessage);
-    return json.getJSONArray("files");
+    ETRXTokenInfo valid = getValidAccessTokenOrRefresh(accessToken, accountID);
+    Drive drive = new Drive.Builder(HTTP_TRANSPORT, JSON_FACTORY, bearerTokenInitializer(valid.getToken()))
+        .setApplicationName(APPLICATION_NAME)
+        .build();
+
+    FileList page = drive.files().list()
+        .setQ("mimeType='" + mimeType + "'")
+        .setFields("nextPageToken, files(id,name,mimeType)")
+        .setPageSize(100)
+        .setSupportsAllDrives(true)
+        .setIncludeItemsFromAllDrives(true)
+        .setCorpora("allDrives")
+        .execute();
+
+    JSONArray out = new JSONArray();
+    if (page.getFiles() != null) {
+      for (File f : page.getFiles()) {
+        out.put(new JSONObject()
+            .put("id", f.getId())
+            .put("name", f.getName())
+            .put("mimeType", f.getMimeType()));
+      }
+    }
+    return out;
   }
 
   /**
@@ -429,45 +453,31 @@ public class GoogleServiceUtil {
    */
   public static JSONObject createDriveFile(String name, String mimeType, ETRXTokenInfo accessToken, String accountID)
       throws IOException, JSONException {
-    URL url = new URL("https://www.googleapis.com/drive/v3/files");
-    HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-    conn.setRequestMethod("POST");
-    ETRXTokenInfo validToken = getValidAccessTokenOrRefresh(accessToken, accountID);
-    conn.setRequestProperty(AUTHORIZATION, BEARER + validToken.getToken());
-    conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
-    conn.setDoOutput(true);
+    ETRXTokenInfo valid = getValidAccessTokenOrRefresh(accessToken, accountID);
+    Drive drive = new Drive.Builder(HTTP_TRANSPORT, JSON_FACTORY, bearerTokenInitializer(valid.getToken()))
+        .setApplicationName(APPLICATION_NAME)
+        .build();
 
-    String body = new JSONObject()
-        .put("name", name)
-        .put("mimeType", mimeType)
-        .toString();
-
-    try (OutputStream os = conn.getOutputStream()) {
-      os.write(body.getBytes(StandardCharsets.UTF_8));
-    }
-
-    int code = conn.getResponseCode();
-    if (code == 401) {
-      String errorMessage = Utility.messageBD(new DalConnectionProvider(), "ETRX_401RefreshToken",
+    if (!mimeType.startsWith("application/vnd.google-apps.")) {
+      String msg = Utility.messageBD(new DalConnectionProvider(), "ETRX_FailedToCreateFile",
           OBContext.getOBContext().getLanguage().getLanguage());
-      throw new OBException(errorMessage);
-    }
-    if (code < 200 || code >= 300) {
-      String errorMessage = Utility.messageBD(new DalConnectionProvider(), "ETRX_FailedToCreateFile",
-          OBContext.getOBContext().getLanguage().getLanguage());
-      throw new OBException(String.format(errorMessage, code));
+      throw new OBException(String.format(msg, 400) + " - Non Google apps mimeType requires media upload");
     }
 
-    BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-    StringBuilder response = new StringBuilder();
-    String line;
-    while ((line = reader.readLine()) != null) {
-      response.append(line);
-    }
-    reader.close();
+    File meta = new File();
+    meta.setName(name);
+    meta.setMimeType(mimeType);
 
-    return new JSONObject(response.toString());
+    File created = drive.files().create(meta)
+        .setFields("id,name,mimeType")
+        .execute();
+
+    return new JSONObject()
+        .put("id", created.getId())
+        .put("name", created.getName())
+        .put("mimeType", created.getMimeType());
   }
+
 
   /**
    * Validates the token and refreshes it automatically if expired.
@@ -477,20 +487,32 @@ public class GoogleServiceUtil {
    * @return A valid access token (either original or refreshed)
    */
   public static ETRXTokenInfo getValidAccessTokenOrRefresh(ETRXTokenInfo accessToken, String accountId) {
+    final long SKEW_MS = 120_000L; // 2 minutos de margen
     try {
-      validateAccessToken(accessToken.getToken());
-      return accessToken;
-    } catch (OBException e) {
-      LOG.warn(Utility.messageBD(new DalConnectionProvider(), "ETRX_RefreshingToken",
-          OBContext.getOBContext().getLanguage().getLanguage()));
+      Date vu = accessToken.getValidUntil();
+      long now = System.currentTimeMillis();
+
+      // Si tenemos validUntil y queda margen, usamos el token tal cual
+      if (vu != null && (vu.getTime() - now) > SKEW_MS) {
+        return accessToken;
+      }
+
+      LOG.warn(() -> Utility.messageBD(
+          new DalConnectionProvider(), "ETRX_RefreshingToken",
+          OBContext.getOBContext().getLanguage().getLanguage()
+      ));
       accessToken.setToken(refreshAccessToken(accountId));
-      Date now = new Date();
-      Calendar calendar = Calendar.getInstance();
-      calendar.setTime(now);
-      calendar.add(Calendar.HOUR_OF_DAY, 1);
-      accessToken.setValidUntil(calendar.getTime());
+
+      // Renovamos 58 min por defecto (ajustá si tu middleware devuelve la expiración real)
+      Calendar cal = Calendar.getInstance();
+      cal.setTime(new Date());
+      cal.add(Calendar.MINUTE, 58);
+      accessToken.setValidUntil(cal.getTime());
+
       OBDal.getInstance().save(accessToken);
       return accessToken;
+    } catch (Exception e) {
+      throw new OBException("Failed to ensure a valid access token", e);
     }
   }
 
@@ -511,7 +533,7 @@ public class GoogleServiceUtil {
       conn.setRequestProperty(ACCEPT, APPLICATION_JSON);
 
       int status = conn.getResponseCode();
-      if (status != 200) {
+      if (status != HttpURLConnection.HTTP_OK) {
         String errorMessage = Utility.messageBD(new DalConnectionProvider(), "ETRX_ExpiredToken",
             OBContext.getOBContext().getLanguage().getLanguage());
         throw new OBException(errorMessage);
@@ -530,21 +552,26 @@ public class GoogleServiceUtil {
    */
   public static String refreshAccessToken(String accountId) throws OBException {
     try {
-      String middlewareUrl = OBPropertiesProvider.getInstance().getOpenbravoProperties().getProperty("sso.middleware.url");
+      String middlewareUrl = OBPropertiesProvider.getInstance().getOpenbravoProperties()
+          .getProperty("sso.middleware.url");
       String refreshUrl = middlewareUrl + "/oauth-integrations/refresh-token?account_id=" + accountId;
 
       HttpURLConnection conn = (HttpURLConnection) new URL(refreshUrl).openConnection();
       conn.setRequestMethod("GET");
       conn.setRequestProperty(ACCEPT, APPLICATION_JSON);
+      conn.setConnectTimeout(20_000);
+      conn.setReadTimeout(60_000);
+
       String errorMessage = Utility.messageBD(new DalConnectionProvider(), "ETRX_ErrorRefreshingAccessToken",
           OBContext.getOBContext().getLanguage().getLanguage());
+
       JSONObject json = getResponseJSONObject(conn, errorMessage);
       return json.getString("access_token");
-
     } catch (Exception e) {
       throw new OBException("Could not refresh access token: " + e.getMessage(), e);
     }
   }
+
 
   /**
    * Reads the response from an HTTP connection and returns it as a {@link JSONObject}.
@@ -566,16 +593,14 @@ public class GoogleServiceUtil {
     if (status != 200) {
       throw new OBException(errorMessage + " - " + status + ": " + conn.getResponseMessage());
     }
-
-    BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-    StringBuilder response = new StringBuilder();
-    String line;
-    while ((line = reader.readLine()) != null) {
-      response.append(line);
+    try (BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) {
+      StringBuilder response = new StringBuilder();
+      String line;
+      while ((line = reader.readLine()) != null) {
+        response.append(line);
+      }
+      return new JSONObject(response.toString());
     }
-    reader.close();
-
-    return new JSONObject(response.toString());
   }
 
 
@@ -600,54 +625,25 @@ public class GoogleServiceUtil {
    */
   public static JSONObject updateSpreadsheetValues(String fileId, ETRXTokenInfo accessToken, String accountID, String range,
                                                    List<List<Object>> values) throws IOException, JSONException {
-    String encodedRange = URLEncoder.encode(range, StandardCharsets.UTF_8);
-    URL url = new URL("https://sheets.googleapis.com/v4/spreadsheets/" +
-        fileId + "/values/" + encodedRange + "?valueInputOption=RAW");
-    HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-    conn.setRequestMethod("PUT");
-    ETRXTokenInfo validToken = getValidAccessTokenOrRefresh(accessToken, accountID);
-    conn.setRequestProperty(AUTHORIZATION, BEARER + validToken.getToken());
-    conn.setRequestProperty("Content-Type", APPLICATION_JSON);
-    conn.setDoOutput(true);
+    ETRXTokenInfo valid = getValidAccessTokenOrRefresh(accessToken, accountID);
+    Sheets service = new Sheets.Builder(HTTP_TRANSPORT, JSON_FACTORY, bearerTokenInitializer(valid.getToken()))
+        .setApplicationName(APPLICATION_NAME)
+        .build();
 
-    JSONArray jsonValues = new JSONArray();
-    for (List<Object> row : values) {
-      JSONArray jsonRow = new JSONArray();
-      for (Object cell : row) {
-        jsonRow.put(cell);
-      }
-      jsonValues.put(jsonRow);
-    }
+    ValueRange body = new ValueRange()
+        .setRange(range)
+        .setMajorDimension("ROWS")
+        .setValues(values);
 
-    JSONObject body = new JSONObject()
-        .put("range", range)
-        .put("majorDimension", "ROWS")
-        .put("values", jsonValues);
+    UpdateValuesResponse resp = service.spreadsheets().values()
+        .update(fileId, range, body)
+        .setValueInputOption("RAW")          // mantenemos comportamiento actual
+        .execute();
 
-
-    try (OutputStream os = conn.getOutputStream()) {
-      os.write(body.toString().getBytes(StandardCharsets.UTF_8));
-    }
-
-    if (conn.getResponseCode() == 401) {
-      String errorMessage = Utility.messageBD(new DalConnectionProvider(), "ETRX_401RefreshToken",
-          OBContext.getOBContext().getLanguage().getLanguage());
-      throw new OBException(errorMessage);
-    }
-    if (conn.getResponseCode() != 200) {
-      String errorMessage = Utility.messageBD(new DalConnectionProvider(), "ETRX_FailedToUpdateSheet",
-          OBContext.getOBContext().getLanguage().getLanguage());
-      throw new OBException(String.format(errorMessage, conn.getResponseCode()));
-    }
-
-    BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-    StringBuilder response = new StringBuilder();
-    String line;
-    while ((line = reader.readLine()) != null) {
-      response.append(line);
-    }
-    reader.close();
-
-    return new JSONObject(response.toString());
+    return new JSONObject()
+        .put("updatedRange", resp.getUpdatedRange())
+        .put("updatedRows", resp.getUpdatedRows())
+        .put("updatedColumns", resp.getUpdatedColumns())
+        .put("updatedCells", resp.getUpdatedCells());
   }
 }
