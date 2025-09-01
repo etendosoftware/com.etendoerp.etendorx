@@ -7,7 +7,7 @@
 */
 
 group          = "com.etendoerp"
-version        = "3.6.0"
+version        = "3.7.1"
 description    = "Integration with Etendo RX"
 ext.artifact   = "etendorx"
 ext.repository = "https://maven.pkg.github.com/etendosoftware/com.etendoerp.platform.extensions"
@@ -64,7 +64,7 @@ dependencies {
     implementation('com.auth0:jwks-rsa:0.21.2')
 
     implementation('com.etendoerp:docker:2.5.0')
-    implementation('com.etendoerp:openapi:2.2.0')
+    implementation('com.etendoerp:openapi:2.3.0')
 
     implementation('com.etendoerp.platform:etendo-core:[25.2.0,25.3.0)')
 }

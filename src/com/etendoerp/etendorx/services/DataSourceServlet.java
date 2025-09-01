@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -19,7 +20,6 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import com.etendoerp.etendorx.utils.SelectorHandlerUtil;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.entity.ContentType;
 import org.apache.logging.log4j.LogManager;
@@ -53,6 +53,7 @@ import com.etendoerp.etendorx.services.wrapper.EtendoRequestWrapper;
 import com.etendoerp.etendorx.services.wrapper.EtendoResponseWrapper;
 import com.etendoerp.etendorx.services.wrapper.RequestField;
 import com.etendoerp.etendorx.utils.DataSourceUtils;
+import com.etendoerp.etendorx.utils.SelectorHandlerUtil;
 import com.etendoerp.openapi.data.OpenAPIRequest;
 import com.smf.securewebservices.rsql.OBRestUtils;
 import com.smf.securewebservices.utils.SecureWebServicesUtils;
@@ -356,6 +357,7 @@ public class DataSourceServlet implements WebService {
 
   /**
    * Processes the POST request.
+   *
    * @param request
    * @param response
    * @param tab
@@ -394,8 +396,8 @@ public class DataSourceServlet implements WebService {
 
   /**
    * Prepares the payloads for the POST request.
+   *
    * @param jsonBody
-   * @return
    * @throws JSONException
    */
   private JSONArray preparePayloads(String jsonBody) throws JSONException {
@@ -411,6 +413,7 @@ public class DataSourceServlet implements WebService {
 
   /**
    * Processes the payload for the POST request.
+   *
    * @param request
    * @param response
    * @param tab
@@ -420,7 +423,6 @@ public class DataSourceServlet implements WebService {
    * @param payload
    * @param jsonData
    * @param status
-   * @return
    * @throws Exception
    * @throws OpenAPINotFoundThrowable
    */
@@ -429,6 +431,9 @@ public class DataSourceServlet implements WebService {
       org.openbravo.service.datasource.DataSourceServlet servlet,
       JSONObject payload, JSONArray jsonData, int status)
       throws Exception, OpenAPINotFoundThrowable {
+    // Clear session variables to prevent cross-record contamination
+    clearSessionVariables(null);
+    
     EtendoRequestWrapper newRequest = getEtendoPostWrapper(request, tab,
         createPayLoad(request, payload), fieldList, newUri);
     HttpServletResponse wrappedResponse = new EtendoResponseWrapper(response);
@@ -456,6 +461,7 @@ public class DataSourceServlet implements WebService {
 
   /**
    * Sends the response back to the client.
+   *
    * @param response
    * @param jsonResponse
    * @param status
@@ -474,6 +480,7 @@ public class DataSourceServlet implements WebService {
 
   /**
    * Processes the PUT request.
+   *
    * @param request
    * @param response
    * @param fieldList
@@ -553,9 +560,13 @@ public class DataSourceServlet implements WebService {
       }
       tab = req.getETRXOpenAPITabList().get(0).getRelatedTabs();
       for (Field field : tab.getADFieldList()) {
+        Column column = field.getColumn();
+        if (column == null) {
+          continue;
+        }
         String name = DataSourceUtils.getHQLColumnName(field)[0];
         fieldList.add(
-            new RequestField(name, field.getColumn(), getSeqNo(req.getETRXOpenAPITabList().get(0), field.getColumn())));
+            new RequestField(name, column, getSeqNo(req.getETRXOpenAPITabList().get(0), column)));
       }
       fieldList.sort(Comparator.comparing(RequestField::getSeqNo));
     } finally {
@@ -569,10 +580,12 @@ public class DataSourceServlet implements WebService {
    * in the given OpenAPITab. If the field column is not found or the sequence number
    * is null, it returns {@link Long#MAX_VALUE}.
    *
-   * @param openAPITab  The OpenAPITab object containing the list of OpenAPIRequestField objects.
-   * @param fieldColumn The Column object representing the field column to search for.
+   * @param openAPITab
+   *     The OpenAPITab object containing the list of OpenAPIRequestField objects.
+   * @param fieldColumn
+   *     The Column object representing the field column to search for.
    * @return The sequence number (seqno) of the matching field, or {@link Long#MAX_VALUE}
-   *         if the field is not found or its sequence number is null.
+   *     if the field is not found or its sequence number is null.
    */
   private static Long getSeqNo(OpenAPITab openAPITab, Column fieldColumn) {
     Optional<OpenAPIRequestField> optField = openAPITab.getEtrxOpenapiFieldList().stream().filter(
@@ -633,6 +646,9 @@ public class DataSourceServlet implements WebService {
     dataFromNewRecord = DataSourceUtils.keyConvertion(dataFromNewRecord, norm2input);
 
 
+    // Clear session variables to avoid conflicts between records
+    clearSessionVariables(null);
+
     //Initialization of new record, saving the data in input format
     var formInit = WeldUtils.getInstanceFromStaticBeanManager(EtendoFormInitComponent.class);
     var formInitResponse = formInit.execute(parameters, content);
@@ -654,11 +670,15 @@ public class DataSourceServlet implements WebService {
       var type = columnTypes.get(changedColumnN);
       dataInpFormat.put(changedColumnInp,
           DataSourceUtils.valueConvertToInputFormat(propsToChange.get(changedColumnN), type));
-      SelectorHandlerUtil.handleColumnSelector(request, tab, dataInpFormat, changedColumnN, changedColumnInp, dbname2input);
+      SelectorHandlerUtil.handleColumnSelector(request, tab, dataInpFormat, changedColumnN, changedColumnInp,
+          dbname2input);
 
       // suppose to change in productID
       Map<String, Object> parameters2 = createParameters(request, tab.getId(), parentId, recordId, changedColumnInp,
           "CHANGE");
+
+      // Clear session variables before CHANGE events (always clear for all field types)
+      clearSessionVariables(dataInpFormat);
 
       String contentForChange = dataInpFormat.toString();
       var formInitChangeResponse = formInit.execute(parameters2, contentForChange);
@@ -753,6 +773,9 @@ public class DataSourceServlet implements WebService {
     Map<String, Object> parameters = createParameters(request,
         DataSourceUtils.getTabByDataSourceName(extractedParts[0]).getId(), null, recordId, null, "EDIT");
 
+    // Clear session variables to avoid conflicts between records
+    clearSessionVariables(null);
+
     String content = "{}";
     var formInitResponse = WeldUtils.getInstanceFromStaticBeanManager(EtendoFormInitComponent.class).execute(parameters,
         content);
@@ -783,12 +806,17 @@ public class DataSourceServlet implements WebService {
       String type = columnTypes.get(changedColumnN);
       String valueInpFormat = DataSourceUtils.valueConvertToInputFormat(newData.get(changedColumnN), type);
       dataInpFormat.put(changedColumnInp, valueInpFormat);
-      SelectorHandlerUtil.handleColumnSelector(request, DataSourceUtils.getTabByDataSourceName(extractedParts[0]), dataInpFormat,
+      SelectorHandlerUtil.handleColumnSelector(request, DataSourceUtils.getTabByDataSourceName(extractedParts[0]),
+          dataInpFormat,
           changedColumnN, changedColumnInp, dbname2input);
       // suppose to change in productID
       Map<String, Object> parameters2 = createParameters(request,
           DataSourceUtils.getTabByDataSourceName(extractedParts[0]).getId(), null, recordId, changedColumnInp,
           "CHANGE");
+      
+      // Clear session variables before CHANGE events (always clear for all field types)
+      clearSessionVariables(dataInpFormat);
+      
       String contentForChange = dataInpFormat.toString();
       var formInitChangeResponse = WeldUtils.getInstanceFromStaticBeanManager(EtendoFormInitComponent.class).execute(
           parameters2, contentForChange);
@@ -894,5 +922,44 @@ public class DataSourceServlet implements WebService {
   public void doPut(String path, HttpServletRequest request, HttpServletResponse response) throws Exception {
     fillSessionVariableInRequest(request);
     upsertEntity(OpenAPIConstants.PUT, path, request, response);
+  }
+
+  /**
+   * Clears session variables to prevent conflicts between records.
+   * This method removes session variables that are used by callouts and form initialization
+   * to ensure that when processing multiple records, each record starts with a clean session state.
+   *
+   * @param dataInpFormat optional JSONObject containing the input format data with "inp" parameters to clear
+   */
+  private void clearSessionVariables(JSONObject dataInpFormat) {
+    RequestContext requestContext = RequestContext.get();
+    
+    // Collect all "inp" parameter names from dataInpFormat if available
+    List<String> inpParametersToClean = new ArrayList<>();
+    if (dataInpFormat != null) {
+      @SuppressWarnings("unchecked")
+      Iterator<String> keys = dataInpFormat.keys();
+      while (keys.hasNext()) {
+        String key = keys.next();
+        if (key.startsWith("inp")) {
+          inpParametersToClean.add(key);
+        }
+      }
+    }
+    
+    // Clear RequestContext session attributes and request parameters
+    for (String param : inpParametersToClean) {
+      // Clear from RequestContext session attributes
+      Object sessionValue = requestContext.getSessionAttribute(param);
+      if (sessionValue != null) {
+        requestContext.setSessionAttribute(param, null);
+      }
+      
+      // Clear from RequestContext request parameters
+      String requestValue = requestContext.getRequestParameter(param);
+      if (requestValue != null) {
+        requestContext.setRequestParameter(param, null);
+      }
+    }
   }
 }

@@ -304,6 +304,20 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
   }
 
   /**
+   * Handles CSRF token validation and session attribute setting.
+   *
+   * @param request the HttpServletRequest object containing the request information
+   */
+  private static void handleCSRFToken(HttpServletRequest request) {
+    if (request.getSession(false) != null) {
+      String csrfToken = request.getHeader("X-CSRF-Token");
+      if (StringUtils.isNotEmpty(csrfToken)) {
+        request.getSession(false).setAttribute("#CSRF_TOKEN", csrfToken);
+      }
+    }
+  }
+
+  /**
    * This method is called to authenticate the user based on the provided request.
    * It checks if the request contains a valid token and retrieves the user information from it.
    *
@@ -332,6 +346,8 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
           log4j.debug("SWS accessed by userId {}", userId);
           setContext(request, userId, roleId, orgId, warehouseId, clientId);
           setSessionInfo(jti, userId);
+
+          handleCSRFToken(request);
 
           try {
             OBContext.setAdminMode();
@@ -488,8 +504,7 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
    * Note: This method only validates the <b>structure</b> of the token, not its cryptographic
    * signature, expiration, or claims.
    *
-   * @param authStr
-   *     the authorization string containing the token (e.g., "Bearer &lt;token&gt;")
+   * @param authStr the authorization string containing the token (e.g., "Bearer &lt;token&gt;")
    * @return {@code true} if the token has a valid Bearer/JWT-like structure, {@code false} otherwise
    */
   public boolean validStructureBearerToken(String authStr) {
