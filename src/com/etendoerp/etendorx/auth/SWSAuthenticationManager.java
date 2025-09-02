@@ -105,6 +105,7 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
           validateToken(userId, roleId, orgId, warehouseId, clientId);
           log4j.debug("SWS accessed by userId {}", userId);
           setContext(request, userId, roleId, orgId, warehouseId, clientId);
+          readBasicProperties(new VariablesSecureApp(request));
           setSessionInfo(jti, userId);
 
           handleCSRFToken(request);
@@ -124,6 +125,50 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
       }
     }
     return super.doWebServiceAuthenticate(request);
+  }
+
+  private static void readBasicProperties(VariablesSecureApp vars) {
+    try {
+      final Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
+
+      safeSetSessionValue(vars, "#AD_JavaDateFormat", properties.getProperty("dateFormat.java"));
+      safeSetSessionValue(vars, "#AD_JavaDateTimeFormat", properties.getProperty("dateTimeFormat.java"));
+      safeSetSessionValue(vars, "#AD_SqlDateTimeFormat", properties.getProperty("dateTimeFormat.sql"));
+      safeSetSessionValue(vars, "#AD_JsDateFormat", properties.getProperty("dateFormat.js"));
+      safeSetSessionValue(vars, "#AD_SqlDateFormat", properties.getProperty("dateFormat.sql"));
+      safeSetSessionValue(vars, "#pentahoServer", properties.getProperty("pentahoServer"));
+      safeSetSessionValue(vars, "#sourcePath", properties.getProperty("source.path"));
+
+      log4j.debug("Basic properties loaded successfully");
+
+    } catch (Exception e) {
+      log4j.error("Error reading basic properties: {}", e.getMessage(), e);
+
+      setDefaultSessionValues(vars);
+    }
+  }
+
+  private static void setDefaultSessionValues(VariablesSecureApp vars) {
+    try {
+      vars.setSessionValue("#AD_JavaDateFormat", "dd-MM-yyyy");
+      vars.setSessionValue("#AD_JavaDateTimeFormat", "dd-MM-yyyy HH:mm:ss");
+      vars.setSessionValue("#AD_SqlDateTimeFormat", "DD-MM-YYYY HH24:MI:SS");
+      vars.setSessionValue("#AD_JsDateFormat", "%d-%m-%Y");
+      vars.setSessionValue("#AD_SqlDateFormat", "DD-MM-YYYY");
+      log4j.debug("Default session values set");
+    } catch (Exception e) {
+      log4j.error("Could not even set default session values: {}", e.getMessage());
+    }
+  }
+
+  private static void safeSetSessionValue(VariablesSecureApp vars, String key, String value) {
+    try {
+      if (value != null) {
+        vars.setSessionValue(key, value);
+      }
+    } catch (Exception e) {
+      log4j.debug("Could not set session value {}: {}", key, e.getMessage());
+    }
   }
 
   /**
