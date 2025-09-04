@@ -28,7 +28,6 @@ services:
       - DEBUG_PORT=${CONFIG_DEBUG_PORT:-5020}
       - DEBUG_MODE=${CONFIG_DEBUG_MODE:-false}
       - DISABLE_DEBUG=${CONFIG_DISABLE_DEBUG:-false}
-      - JAVA_OPTS=-XX:MaxRAMPercentage=75.0 -XX:+UseG1GC
       - GRADLE_FLAGS=${CONFIG_GRADLE_FLAGS:-}
       # --- OpenTelemetry ---
       - ENABLE_OPEN_TELEMETRY=${OTEL_CONFIG_ENABLE:-false}
@@ -51,8 +50,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1'
-          memory: 256M
+          cpus: "${CONFIG_CPU_LIMIT:-${BASE_CONFIG_CPU_LIMIT:-1}}"
+          memory: "${CONFIG_MEMORY_LIMIT:-${BASE_CONFIG_MEMORY_LIMIT:-256M}}"
 
   das:
     env_file: ".env"
@@ -63,12 +62,12 @@ services:
       context: .
       dockerfile: das/Dockerfile
       args:
-        - DEPENDENCIES=${ETENDORX_DEPENDENCIES}
+        - DEPENDENCIES=${ETENDORX_DEPENDENCIES:-}
         - REPO_URL=${ETENDORX_REPOSITORY_URL}
         - REPO_USER=${ETENDORX_REPOSITORY_USER}
         - REPO_PASSWORD=${ETENDORX_REPOSITORY_PASSWORD}
         - SPRING_CLOUD_CONFIG_SERVER_NATIVE_SEARCHLOCATIONS=file:///rxconfig
-        - CONFIG_SERVER_URL=
+        - CONFIG_SERVER_URL=${ETENDORX_CONFIG_SERVER_URL}
         - DB_HOST=${ETENDORX_DB_HOST}
         - DB_PORT=${BBDD_PORT:-5432}
         - DB_SID=${ETENDORX_DB_SID}
@@ -85,18 +84,16 @@ services:
       - DB_HOST=${ETENDORX_DB_HOST}
       - DB_PORT=${ETENDORX_DB_PORT}
       - DB_SID=${ETENDORX_DB_SID}
-      # ---- Configuración de depuración y JVM (mejorado) ----
-      - DEBUG_PORT=${DAS_DEBUG_PORT:-5021}
-      - DEBUG_MODE=${DAS_DEBUG_MODE:-false}
-      - DISABLE_DEBUG=${DAS_DISABLE_DEBUG:-false}
-      # Variables de entorno para optimización de la JVM y del rendimiento de la aplicación
-      - JAVA_OPTS=-XX:MaxRAMPercentage=75.0 -XX:+UseG1GC
       - SPRING_MAIN_LAZY_INITIALIZATION=true
       - SERVER_TOMCAT_THREADS_MAX=200
       - SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE=20
       - SPRING_JPA_OPEN_IN_VIEW=false
+      # ---- Debugging & JVM ----
+      - DEBUG_PORT=${DAS_DEBUG_PORT:-5021}
+      - DEBUG_MODE=${DAS_DEBUG_MODE:-false}
+      - DISABLE_DEBUG=${DAS_DISABLE_DEBUG:-false}
       - GRADLE_FLAGS=${DAS_GRADLE_FLAGS:-}
-      # --- Configuración de OpenTelemetry (sin cambios) ---
+      # --- OpenTelemetry ---
       - ENABLE_OPEN_TELEMETRY=${OTEL_DAS_ENABLE:-false}
       - OTEL_SERVICE_NAME=${OTEL_DAS_NAME:-das}
       - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_DAS_OTLP_ENDPOINT:-http://jaeger:4318}
@@ -116,8 +113,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1'
-          memory: 512M
+          cpus: "${DAS_CPU_LIMIT:-${BASE_DAS_CPU_LIMIT:-1}}"
+          memory: "${DAS_MEMORY_LIMIT:-${BASE_DAS_MEMORY_LIMIT:-512M}}"
 
   auth:
     env_file: ".env"
@@ -149,7 +146,6 @@ services:
       - DEBUG_PORT=${AUTH_DEBUG_PORT:-5022}
       - DEBUG_MODE=${AUTH_DEBUG_MODE:-false}
       - DISABLE_DEBUG=${AUTH_DISABLE_DEBUG:-false}
-      - JAVA_OPTS=-XX:MaxRAMPercentage=75.0 -XX:+UseG1GC
       - GRADLE_FLAGS=${AUTH_GRADLE_FLAGS:-}
       # --- OpenTelemetry ---
       - ENABLE_OPEN_TELEMETRY=${OTEL_AUTH_ENABLE:-false}
@@ -171,9 +167,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1'
-          memory: 256M
-
+          cpus: "${AUTH_CPU_LIMIT:-${BASE_AUTH_CPU_LIMIT:-1}}"
+          memory: "${AUTH_MEMORY_LIMIT:-${BASE_AUTH_MEMORY_LIMIT:-256M}}"
   edge:
     env_file: ".env"
     depends_on:
@@ -204,7 +199,6 @@ services:
       - DEBUG_PORT=${EDGE_DEBUG_PORT:-5023}
       - DEBUG_MODE=${EDGE_DEBUG_MODE:-false}
       - DISABLE_DEBUG=${EDGE_DISABLE_DEBUG:-false}
-      - JAVA_OPTS=-XX:MaxRAMPercentage=75.0 -XX:+UseG1GC
       - GRADLE_FLAGS=${EDGE_GRADLE_FLAGS:-}
       # --- OpenTelemetry ---
       - ENABLE_OPEN_TELEMETRY=${OTEL_EDGE_ENABLE:-false}
@@ -226,8 +220,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1'
-          memory: 256M
+          cpus: "${AUTH_CPU_LIMIT:-${BASE_AUTH_CPU_LIMIT:-1}}"
+          memory: "${AUTH_MEMORY_LIMIT:-${BASE_AUTH_MEMORY_LIMIT:-256M}}"
 
 networks:
   etendo:
