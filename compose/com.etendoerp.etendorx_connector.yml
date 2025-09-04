@@ -37,7 +37,8 @@ services:
     deploy:
       resources:
         limits:
-          memory: 256M
+          cpus: "${OBCONNSRV_CPU_LIMIT:-${BASE_OBCONNSRV_CPU_LIMIT:-1}}"
+          memory: "${OBCONNSRV_MEMORY_LIMIT:-${BASE_OBCONNSRV_MEMORY_LIMIT:-256M}}"
 
   worker:
     image: etendo/dynamic-gradle:1.1.0
@@ -77,7 +78,8 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512M
+          cpus: "${WORKER_CPU_LIMIT:-${BASE_WORKER_CPU_LIMIT:-1}}"
+          memory: "${WORKER_MEMORY_LIMIT:-${BASE_WORKER_MEMORY_LIMIT:-512M}}"
 
 volumes:
     obconnsrv:

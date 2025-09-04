@@ -33,8 +33,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "1"
-          memory: 1G
+          cpus: "${KAFKA_CPU_LIMIT:-${BASE_KAFKA_CPU_LIMIT:-1}}"
+          memory: "${KAFKA_MEMORY_LIMIT:-${BASE_KAFKA_MEMORY_LIMIT:-1G}}"
     volumes:
       - ${VOLUMES_PATH}/kafka_data:/bitnami
 
@@ -56,8 +56,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "1"
-          memory: 1G
+          cpus: "${CONNECT_CPU_LIMIT:-${BASE_CONNECT_CPU_LIMIT:-1}}"
+          memory: "${CONNECT_MEMORY_LIMIT:-${BASE_CONNECT_MEMORY_LIMIT:-1G}}"
 
   asyncprocess:
     env_file: ".env"
@@ -112,7 +112,8 @@ services:
     deploy:
       resources:
         limits:
-          memory: 256M
+          cpus: "${ASYNCPROCESS_CPU_LIMIT:-${BASE_ASYNCPROCESS_CPU_LIMIT:-0.25}}"
+          memory: "${ASYNCPROCESS_MEMORY_LIMIT:-${BASE_ASYNCPROCESS_MEMORY_LIMIT:-256M}}"
 
 volumes:
   async_vol:
