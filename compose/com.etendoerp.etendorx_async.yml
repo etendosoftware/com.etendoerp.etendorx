@@ -25,14 +25,16 @@ services:
       ENV KAFKA_METADATA_LOG_MAX_RECORD_BYTES_BETWEEN_SNAPSHOTS: 2800
       # --- JMX opcional ---
       JMX_PORT: "9997"
-      KAFKA_JMX_OPTS: -Dcom.sun.management.jmxremote=true -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Djava.net.preferIPv4Stack=true -Dcom.sun.management.jmxremote.local.only=false -Dcom.sun.management.jmxremote.rmi.port=9997
+      KAFKA_JMX_OPTS: "-Dcom.sun.management.jmxremote=true -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Djava.net.preferIPv4Stack=true -Dcom.sun.management.jmxremote.local.only=false -Dcom.sun.management.jmxremote.rmi.port=9997"
+      # Optimizaciones de la JVM para Kafka
+      KAFKA_HEAP_OPTS: "-Xms512M -Xmx512M"
     networks:
       - etendo
     deploy:
       resources:
         limits:
-          cpus: "1"
-          memory: 1G
+          cpus: "${KAFKA_CPU_LIMIT:-${BASE_KAFKA_CPU_LIMIT:-1}}"
+          memory: "${KAFKA_MEMORY_LIMIT:-${BASE_KAFKA_MEMORY_LIMIT:-1G}}"
     volumes:
       - ${VOLUMES_PATH}/kafka_data:/bitnami
 
@@ -46,17 +48,34 @@ services:
       CONFIG_STORAGE_TOPIC: my_connect_configs
       OFFSET_STORAGE_TOPIC: my_connect_offsets
       STATUS_STORAGE_TOPIC: my_connect_statuses
+      KAFKA_HEAP_OPTS: "-Xms512M -Xmx512M"
     depends_on:
       - kafka
     networks:
       - etendo
+    deploy:
+      resources:
+        limits:
+          cpus: "${CONNECT_CPU_LIMIT:-${BASE_CONNECT_CPU_LIMIT:-1}}"
+          memory: "${CONNECT_MEMORY_LIMIT:-${BASE_CONNECT_MEMORY_LIMIT:-1G}}"
 
   asyncprocess:
     env_file: ".env"
+    build:
+      context: .
+      dockerfile: dynamic/Dockerfile
+      args:
+        - DEPENDENCIES=com.etendorx:asyncprocess:${ETENDORX_VERSION}
+        - REPO_URL=${ETENDORX_REPOSITORY_URL}
+        - REPO_USER=${ETENDORX_REPOSITORY_USER}
+        - REPO_PASSWORD=${ETENDORX_REPOSITORY_PASSWORD}
+        - SPRING_PROFILES_ACTIVE=native
+        - SPRING_CLOUD_CONFIG_SERVER_NATIVE_SEARCHLOCATIONS=file:///rxconfig
+        - CONFIG_SERVER_URL=
+        - DEBUG_MODE=true
     depends_on:
       config:
         condition: service_healthy
-    image: etendo/dynamic-gradle:1.1.0
     ports:
       - "8099:8099"
       - "${ASYNCPROCESS_DEBUG_PORT:-5024}:8000"
@@ -71,7 +90,7 @@ services:
       - DEBUG_PORT=${ASYNCPROCESS_DEBUG_PORT:-5024}
       - DEBUG_MODE=${ASYNCPROCESS_DEBUG_MODE:-false}
       - DISABLE_DEBUG=${ASYNCPROCESS_DISABLE_DEBUG:-false}
-      - JAVA_OPTS=${ASYNCPROCESS_JAVA_OPTS:-}
+      - JAVA_OPTS=-XX:MaxRAMPercentage=75.0 -XX:+UseG1GC ${ASYNCPROCESS_JAVA_OPTS:-}
       - GRADLE_FLAGS=${ASYNCPROCESS_GRADLE_FLAGS:-}
       # --- OpenTelemetry ---
       - ENABLE_OPEN_TELEMETRY=${OTEL_ASYNCPROCESS_ENABLE:-false}
@@ -84,13 +103,17 @@ services:
       - OTEL_EXPORTER_OTLP_TIMEOUT=${OTEL_ASYNCPROCESS_EXPORTER_OTLP_TIMEOUT:-10000}
     networks:
       - etendo
-    volumes:
-      - async_vol:/root/.gradle
+    # Se eliminaron las referencias a async_vol
     healthcheck:
       test: ["CMD-SHELL", "wget --spider -q http://localhost:8099/actuator/health || exit 1"]
       interval: 10s
       timeout: 10s
       retries: 60
+    deploy:
+      resources:
+        limits:
+          cpus: "${ASYNCPROCESS_CPU_LIMIT:-${BASE_ASYNCPROCESS_CPU_LIMIT:-0.25}}"
+          memory: "${ASYNCPROCESS_MEMORY_LIMIT:-${BASE_ASYNCPROCESS_MEMORY_LIMIT:-256M}}"
 
 volumes:
   async_vol:

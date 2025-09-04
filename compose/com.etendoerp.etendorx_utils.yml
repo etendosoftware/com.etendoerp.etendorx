@@ -11,8 +11,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "0.5"
-          memory: 512M
+          cpus: "${KAFKA_UI_CPU_LIMIT:-${BASE_KAFKA_UI_CPU_LIMIT:-0.5}}"
+          memory: "${KAFKA_UI_MEMORY_LIMIT:-${BASE_KAFKA_UI_MEMORY_LIMIT:-128M}}"
     restart: on-failure:5
     depends_on:
       - kafka
@@ -32,6 +32,11 @@ services:
       - "/jaeger/config.yaml"
     networks:
       - etendo
+    deploy:
+      resources:
+        limits:
+          cpus: "${JAEGER_CPU_LIMIT:-${BASE_JAEGER_CPU_LIMIT:-0.5}}"
+          memory: "${JAEGER_MEMORY_LIMIT:-${BASE_JAEGER_MEMORY_LIMIT:-256M}}"
     volumes:
       - ${VOLUMES_PATH}/jaeger/config.yaml:/jaeger/config.yaml
 
@@ -48,3 +53,8 @@ services:
       timeout: 5s
       retries: 5
       start_period: 15s
+    deploy:
+      resources:
+        limits:
+          cpus: "${JAEGER_HEALTH_CPU_LIMIT:-${BASE_JAEGER_HEALTH_CPU_LIMIT:-0.5}}"
+          memory: "${JAEGER_HEALTH_MEMORY_LIMIT:-${BASE_JAEGER_HEALTH_MEMORY_LIMIT:-64M}}"

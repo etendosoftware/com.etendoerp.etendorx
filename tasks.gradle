@@ -58,6 +58,22 @@ def isAsyncProcessDockerized() {
     getTypedProp('docker_com.etendoerp.etendorx_async') ?: false
 }
 
+task "rx.setup.files" {
+    if (isRXDockerized()) {
+        description = 'Finds all Docker Compose YAML files and copies them to build/compose'
+        group = 'Docker'
+        doLast {
+            def destDirCopy = layout.buildDirectory.dir("compose").get().asFile
+            def composeDirs = ['dynamic', 'das']
+            composeDirs.each { dirName ->
+                copy {
+                    from fileTree(dir: sourceDir.map { it.toPath().resolve("compose/${dirName}").toFile() })
+                    into "${destDirCopy}/${dirName}"
+                }
+            }
+        }
+    }
+}
 task "rx.setup" {
     description = 'Finds all Docker Compose YAML files and copies them to build/compose'
     group = 'Docker'
@@ -110,6 +126,7 @@ task "rx.setup" {
                 }
             }
             executeDockerComposeCommand("cp ${destDir} config:/")
+
         }
     }
 }
@@ -151,6 +168,73 @@ task "rx.env.file" {
         }
         def configServerUrl = "http://${tomcatHost}:${tomcatPort}/${contextName}/buildConfig"
         upsertEnvProperty("ETENDORX_CONFIG_SERVER_URL", configServerUrl)
+
+        // EtendoRX Resource Limits
+        def RX_BASE_MEM_MB = getTypedProp("rx.base.memory.mb") ?: 256
+        def RX_BASE_CPU = getTypedProp("rx.base.cpu") ?: 1.0
+
+        def rxServiceFactors = [
+            CONFIG: [mem: 1.0, cpu: 1.0], // Default 256Mb - 1 Cpu
+            DAS   : [mem: 2.0, cpu: 1.0], // Default 512Mb - 1 Cpu
+            AUTH  : [mem: 1.0, cpu: 1.0], // Default 256Mb - 1 Cpu
+            EDGE  : [mem: 1.0, cpu: 1.0]  // Default 256Mb - 1 Cpu
+        ]
+        rxServiceFactors.each { service, factors ->
+            def memMB = (RX_BASE_MEM_MB * factors.mem).toInteger()
+            def cpu = ((RX_BASE_CPU * factors.cpu) as BigDecimal).setScale(3, BigDecimal.ROUND_HALF_UP).toString()
+
+            upsertEnvProperty("BASE_${service}_MEMORY_LIMIT", "${memMB}M")
+            upsertEnvProperty("BASE_${service}_CPU_LIMIT", "${cpu}")
+        }
+
+        // Connector Resource Limits
+        def CONNECTOR_BASE_MEM_MB = getTypedProp("connector.base.memory.mb") ?: 256
+        def CONNECTOR_BASE_CPU = getTypedProp("connector.base.cpu") ?: 1.0
+
+        def connectorServiceFactors = [
+            OBCONNSRV: [mem: 1.0, cpu: 1.0],  // Default 256Mb - 1 Cpu
+            WORKER   : [mem: 2.0, cpu: 1.0]   // Default 512Mb - 3 Cpu3
+        ]
+        connectorServiceFactors.each { service, factors ->
+            def memMB = (CONNECTOR_BASE_MEM_MB * factors.mem).toInteger()
+            def cpu = ((CONNECTOR_BASE_CPU * factors.cpu) as BigDecimal).setScale(3, BigDecimal.ROUND_HALF_UP).toString()
+
+            upsertEnvProperty("BASE_${service}_MEMORY_LIMIT", "${memMB}M")
+            upsertEnvProperty("BASE_${service}_CPU_LIMIT", "${cpu}")
+        }
+
+        // Async Process Resource Limits
+        def ASYNC_BASE_MEM_MB = getTypedProp("async.base.memory.mb") ?: 256
+        def ASYNC_BASE_CPU    = getTypedProp("async.base.cpu") ?: 1.0
+        def asyncServiceFactors = [
+            KAFKA        : [mem: 4.0, cpu: 2.0],  // Default 1024Mb - 1 Cpu
+            CONNECT      : [mem: 4.0, cpu: 1.0],  // Default 1024Mb - 1 Cpu
+            ASYNCPROCESS : [mem: 1.0, cpu: 1.0]   // Default 256Mb - 1 Cpu
+        ]
+        asyncServiceFactors.each { service, factors ->
+            def memMB = (ASYNC_BASE_MEM_MB * factors.mem).toInteger()
+            def cpu = ((ASYNC_BASE_CPU * factors.cpu) as BigDecimal).setScale(3, BigDecimal.ROUND_HALF_UP).toString()
+
+            upsertEnvProperty("BASE_${service}_MEMORY_LIMIT", "${memMB}M")
+            upsertEnvProperty("BASE_${service}_CPU_LIMIT", "${cpu}")
+        }
+
+        // Utils Resource Limits
+        def UTILS_BASE_MEM_MB = getTypedProp("utils.base.memory.mb") ?: 256
+        def UTILS_BASE_CPU    = getTypedProp("utils.base.cpu") ?: 1.0
+
+        def utilsServiceFactors = [
+            KAFKA_UI      : [mem: 0.5,  cpu: 0.5],  // Default 128Mb - 0.5 Cpu
+            JAEGER        : [mem: 1.0,  cpu: 0.5],  // Default 256Mb - 0.5 Cpu
+            JAEGER_HEALTH : [mem: 0.25, cpu: 0.5]   // Default 64Mb - 0.5 Cpu
+        ]
+        utilsServiceFactors.each { service, factors ->
+            def memMB = (UTILS_BASE_MEM_MB * factors.mem).toInteger()
+            def cpu = ((UTILS_BASE_CPU * factors.cpu) as BigDecimal).setScale(3, BigDecimal.ROUND_HALF_UP).toString()
+
+            upsertEnvProperty("BASE_${service}_MEMORY_LIMIT", "${memMB}M")
+            upsertEnvProperty("BASE_${service}_CPU_LIMIT", "${cpu}")
+        }
     }
 }
 
@@ -359,14 +443,15 @@ afterEvaluate {
         tasks.named("generateEnvFile").configure { task ->
             task.finalizedBy("rx.env.file")
         }
+        tasks.named("resources.build").configure { task ->
+            task.dependsOn("rx.setup.files")
+        }
         tasks.named("resources.up").configure { task ->
+            task.dependsOn("rx.setup.files")
             task.finalizedBy("rx.setup")
         }
         tasks.named("update.database").configure { task ->
             task.dependsOn("rx.das.stop")
-        }
-        tasks.named("smartbuild").configure { task ->
-            task.finalizedBy("rx.das.restart")
         }
         if (isJaegerDockerized()) {
             tasks.named("smartbuild").configure { task ->

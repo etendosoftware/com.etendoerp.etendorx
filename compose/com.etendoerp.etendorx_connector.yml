@@ -34,6 +34,11 @@ services:
       interval: 10s
       timeout: 10s
       retries: 60
+    deploy:
+      resources:
+        limits:
+          cpus: "${OBCONNSRV_CPU_LIMIT:-${BASE_OBCONNSRV_CPU_LIMIT:-1}}"
+          memory: "${OBCONNSRV_MEMORY_LIMIT:-${BASE_OBCONNSRV_MEMORY_LIMIT:-256M}}"
 
   worker:
     image: etendo/dynamic-gradle:1.1.0
@@ -70,6 +75,11 @@ services:
       interval: 10s
       timeout: 10s
       retries: 60
+    deploy:
+      resources:
+        limits:
+          cpus: "${WORKER_CPU_LIMIT:-${BASE_WORKER_CPU_LIMIT:-1}}"
+          memory: "${WORKER_MEMORY_LIMIT:-${BASE_WORKER_MEMORY_LIMIT:-512M}}"
 
 volumes:
     obconnsrv:

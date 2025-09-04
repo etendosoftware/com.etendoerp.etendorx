@@ -1,7 +1,17 @@
 services:
   config:
     env_file: ".env"
-    image: etendo/dynamic-gradle:1.1.0
+    build:
+      context: .
+      dockerfile: dynamic/Dockerfile
+      args:
+        - DEPENDENCIES=com.etendorx:configserver:${ETENDORX_VERSION}
+        - REPO_URL=${ETENDORX_REPOSITORY_URL}
+        - REPO_USER=${ETENDORX_REPOSITORY_USER}
+        - REPO_PASSWORD=${ETENDORX_REPOSITORY_PASSWORD}
+        - SPRING_PROFILES_ACTIVE=native
+        - SPRING_CLOUD_CONFIG_SERVER_NATIVE_SEARCHLOCATIONS=file:///rxconfig
+        - CONFIG_SERVER_URL=
     ports:
       - "8888:8888"
       - "${CONFIG_DEBUG_PORT:-5020}:8000"
@@ -18,7 +28,6 @@ services:
       - DEBUG_PORT=${CONFIG_DEBUG_PORT:-5020}
       - DEBUG_MODE=${CONFIG_DEBUG_MODE:-false}
       - DISABLE_DEBUG=${CONFIG_DISABLE_DEBUG:-false}
-      - JAVA_OPTS=${CONFIG_JAVA_OPTS:-}
       - GRADLE_FLAGS=${CONFIG_GRADLE_FLAGS:-}
       # --- OpenTelemetry ---
       - ENABLE_OPEN_TELEMETRY=${OTEL_CONFIG_ENABLE:-false}
@@ -38,13 +47,30 @@ services:
       interval: 10s
       timeout: 10s
       retries: 60
+    deploy:
+      resources:
+        limits:
+          cpus: "${CONFIG_CPU_LIMIT:-${BASE_CONFIG_CPU_LIMIT:-1}}"
+          memory: "${CONFIG_MEMORY_LIMIT:-${BASE_CONFIG_MEMORY_LIMIT:-256M}}"
 
   das:
     env_file: ".env"
     depends_on:
       config:
         condition: service_healthy
-    image: etendo/dynamic-das:1.1.0
+    build:
+      context: .
+      dockerfile: das/Dockerfile
+      args:
+        - DEPENDENCIES=${ETENDORX_DEPENDENCIES:-}
+        - REPO_URL=${ETENDORX_REPOSITORY_URL}
+        - REPO_USER=${ETENDORX_REPOSITORY_USER}
+        - REPO_PASSWORD=${ETENDORX_REPOSITORY_PASSWORD}
+        - SPRING_CLOUD_CONFIG_SERVER_NATIVE_SEARCHLOCATIONS=file:///rxconfig
+        - CONFIG_SERVER_URL=${ETENDORX_CONFIG_SERVER_URL}
+        - DB_HOST=${ETENDORX_DB_HOST}
+        - DB_PORT=${BBDD_PORT:-5432}
+        - DB_SID=${ETENDORX_DB_SID}
     ports:
       - "8092:8092"
       - "${DAS_DEBUG_PORT:-5021}:5021"
@@ -58,11 +84,14 @@ services:
       - DB_HOST=${ETENDORX_DB_HOST}
       - DB_PORT=${ETENDORX_DB_PORT}
       - DB_SID=${ETENDORX_DB_SID}
+      - SPRING_MAIN_LAZY_INITIALIZATION=true
+      - SERVER_TOMCAT_THREADS_MAX=200
+      - SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE=20
+      - SPRING_JPA_OPEN_IN_VIEW=false
       # ---- Debugging & JVM ----
       - DEBUG_PORT=${DAS_DEBUG_PORT:-5021}
       - DEBUG_MODE=${DAS_DEBUG_MODE:-false}
       - DISABLE_DEBUG=${DAS_DISABLE_DEBUG:-false}
-      - JAVA_OPTS=${DAS_JAVA_OPTS:-}
       - GRADLE_FLAGS=${DAS_GRADLE_FLAGS:-}
       # --- OpenTelemetry ---
       - ENABLE_OPEN_TELEMETRY=${OTEL_DAS_ENABLE:-false}
@@ -75,21 +104,34 @@ services:
       - OTEL_EXPORTER_OTLP_TIMEOUT=${OTEL_DAS_EXPORTER_OTLP_TIMEOUT:-10000}
     networks:
       - etendo
-    volumes:
-      - das_cache_vol:/root/.gradle
-      - das_app_vol:/app/
     healthcheck:
       test: ["CMD-SHELL", "wget --spider -q http://localhost:8092/actuator/health || exit 1"]
       interval: 10s
       timeout: 10s
       retries: 60
+    # Límites de recursos para la JVM y el contenedor
+    deploy:
+      resources:
+        limits:
+          cpus: "${DAS_CPU_LIMIT:-${BASE_DAS_CPU_LIMIT:-1}}"
+          memory: "${DAS_MEMORY_LIMIT:-${BASE_DAS_MEMORY_LIMIT:-512M}}"
 
   auth:
     env_file: ".env"
     depends_on:
       config:
         condition: service_healthy
-    image: etendo/dynamic-gradle:1.1.0
+    build:
+      context: .
+      dockerfile: dynamic/Dockerfile
+      args:
+        - DEPENDENCIES=com.etendorx:auth:${ETENDORX_VERSION}
+        - REPO_URL=${ETENDORX_REPOSITORY_URL}
+        - REPO_USER=${ETENDORX_REPOSITORY_USER}
+        - REPO_PASSWORD=${ETENDORX_REPOSITORY_PASSWORD}
+        - SPRING_PROFILES_ACTIVE=native
+        - SPRING_CLOUD_CONFIG_SERVER_NATIVE_SEARCHLOCATIONS=file:///rxconfig
+        - CONFIG_SERVER_URL=
     ports:
       - "8094:8094"
       - "${AUTH_DEBUG_PORT:-5022}:8000"
@@ -104,7 +146,6 @@ services:
       - DEBUG_PORT=${AUTH_DEBUG_PORT:-5022}
       - DEBUG_MODE=${AUTH_DEBUG_MODE:-false}
       - DISABLE_DEBUG=${AUTH_DISABLE_DEBUG:-false}
-      - JAVA_OPTS=${AUTH_JAVA_OPTS:-}
       - GRADLE_FLAGS=${AUTH_GRADLE_FLAGS:-}
       # --- OpenTelemetry ---
       - ENABLE_OPEN_TELEMETRY=${OTEL_AUTH_ENABLE:-false}
@@ -117,20 +158,33 @@ services:
       - OTEL_EXPORTER_OTLP_TIMEOUT=${OTEL_AUTH_EXPORTER_OTLP_TIMEOUT:-10000}
     networks:
       - etendo
-    volumes:
-      - auth_vol:/root/.gradle
+    # Se ha eliminado la referencia a `auth_vol`
     healthcheck:
       test: ["CMD-SHELL", "wget --spider -q http://localhost:8094/actuator/health || exit 1"]
       interval: 10s
       timeout: 10s
       retries: 60
-
+    deploy:
+      resources:
+        limits:
+          cpus: "${AUTH_CPU_LIMIT:-${BASE_AUTH_CPU_LIMIT:-1}}"
+          memory: "${AUTH_MEMORY_LIMIT:-${BASE_AUTH_MEMORY_LIMIT:-256M}}"
   edge:
     env_file: ".env"
     depends_on:
       config:
         condition: service_healthy
-    image: etendo/dynamic-gradle:1.1.0
+    build:
+      context: .
+      dockerfile: dynamic/Dockerfile
+      args:
+        - DEPENDENCIES=com.etendorx:edge:${ETENDORX_VERSION}
+        - REPO_URL=${ETENDORX_REPOSITORY_URL}
+        - REPO_USER=${ETENDORX_REPOSITORY_USER}
+        - REPO_PASSWORD=${ETENDORX_REPOSITORY_PASSWORD}
+        - SPRING_PROFILES_ACTIVE=native
+        - SPRING_CLOUD_CONFIG_SERVER_NATIVE_SEARCHLOCATIONS=file:///rxconfig
+        - CONFIG_SERVER_URL=
     ports:
       - "8096:8096"
       - "${EDGE_DEBUG_PORT:-5023}:8000"
@@ -145,7 +199,6 @@ services:
       - DEBUG_PORT=${EDGE_DEBUG_PORT:-5023}
       - DEBUG_MODE=${EDGE_DEBUG_MODE:-false}
       - DISABLE_DEBUG=${EDGE_DISABLE_DEBUG:-false}
-      - JAVA_OPTS=${EDGE_JAVA_OPTS:-}
       - GRADLE_FLAGS=${EDGE_GRADLE_FLAGS:-}
       # --- OpenTelemetry ---
       - ENABLE_OPEN_TELEMETRY=${OTEL_EDGE_ENABLE:-false}
@@ -158,19 +211,17 @@ services:
       - OTEL_EXPORTER_OTLP_TIMEOUT=${OTEL_EDGE_EXPORTER_OTLP_TIMEOUT:-10000}
     networks:
       - etendo
-    volumes:
-      - edge_vol:/root/.gradle
+    # Se ha eliminado la referencia a `edge_vol`
     healthcheck:
       test: ["CMD-SHELL", "wget --spider -q http://localhost:8096/actuator/health || exit 1"]
       interval: 10s
       timeout: 10s
       retries: 60
+    deploy:
+      resources:
+        limits:
+          cpus: "${AUTH_CPU_LIMIT:-${BASE_AUTH_CPU_LIMIT:-1}}"
+          memory: "${AUTH_MEMORY_LIMIT:-${BASE_AUTH_MEMORY_LIMIT:-256M}}"
 
 networks:
   etendo:
-
-volumes:
-  das_cache_vol:
-  das_app_vol:
-  auth_vol:
-  edge_vol:
