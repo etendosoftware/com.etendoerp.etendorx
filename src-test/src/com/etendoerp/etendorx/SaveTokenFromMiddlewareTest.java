@@ -1,34 +1,40 @@
 package com.etendoerp.etendorx;
 
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
-import static org.junit.jupiter.api.Assertions.*;
-
-import java.io.IOException;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
-import java.util.Properties;
-
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-
+import com.etendoerp.etendorx.data.ETRXTokenInfo;
+import com.etendoerp.etendorx.data.ETRXoAuthProvider;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.MockedStatic;
-import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.base.provider.OBProvider;
 import org.openbravo.base.session.OBPropertiesProvider;
 import org.openbravo.dal.core.OBContext;
+import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.Utility;
 import org.openbravo.model.ad.system.Language;
 import org.openbravo.service.db.DalConnectionProvider;
 
-import com.etendoerp.etendorx.data.ETRXTokenInfo;
-import com.etendoerp.etendorx.data.ETRXoAuthProvider;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.Collections;
+import java.util.Properties;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 /**
  * Unit tests for SaveTokenFromMiddleware.
@@ -87,7 +93,7 @@ class SaveTokenFromMiddlewareTest {
 
     new SaveTokenFromMiddleware().doGet(request, response);
 
-    String expectedErrorUrl = buildUrl("errorContext", "", "", SaveTokenFromMiddleware.ERROR_ICON, SaveTokenFromMiddleware.RED);
+    String expectedErrorUrl = buildUrl("errorContext", "Error", "Error saving token", SaveTokenFromMiddleware.ERROR_ICON, SaveTokenFromMiddleware.RED);
     verify(response).setHeader("Location", expectedErrorUrl);
     verify(response).flushBuffer();
     verify(response, never()).sendRedirect(anyString());
@@ -144,6 +150,11 @@ class SaveTokenFromMiddlewareTest {
   private OBDal mockOBDalSaveSuccess() {
     var dalMock = mock(OBDal.class);
     doNothing().when(dalMock).save(any(ETRXTokenInfo.class));
+    // mock createCriteria to avoid NullPointerException in removeOldTokens
+    var criteriaMock = mock(OBCriteria.class);
+    when(criteriaMock.add(any())).thenReturn(criteriaMock);
+    when(criteriaMock.list()).thenReturn(Collections.emptyList());
+    when(dalMock.createCriteria(ETRXTokenInfo.class)).thenReturn(criteriaMock);
     obDalStatic = mockStatic(OBDal.class);
     obDalStatic.when(OBDal::getInstance).thenReturn(dalMock);
     return dalMock;
@@ -152,6 +163,11 @@ class SaveTokenFromMiddlewareTest {
   private OBDal mockOBDalSaveThrows() {
     var dalMock = mock(OBDal.class);
     doThrow(new OBException("db error")).when(dalMock).save(any(ETRXTokenInfo.class));
+    // mock createCriteria to avoid NullPointerException in removeOldTokens
+    var criteriaMock = mock(OBCriteria.class);
+    when(criteriaMock.add(any())).thenReturn(criteriaMock);
+    when(criteriaMock.list()).thenReturn(Collections.emptyList());
+    when(dalMock.createCriteria(ETRXTokenInfo.class)).thenReturn(criteriaMock);
     obDalStatic = mockStatic(OBDal.class);
     obDalStatic.when(OBDal::getInstance).thenReturn(dalMock);
     return dalMock;
@@ -159,8 +175,14 @@ class SaveTokenFromMiddlewareTest {
 
   private void mockGetETRXoAuthProvider() {
     var providerEntity = mock(ETRXoAuthProvider.class);
-    middlewareStatic = mockStatic(SaveTokenFromMiddleware.class, Mockito.CALLS_REAL_METHODS);
-    middlewareStatic.when(SaveTokenFromMiddleware::getETRXoAuthProvider).thenReturn(providerEntity);
+    // Configure the existing OBDal mock (created by mockOBDalSaveSuccess/mockOBDalSaveThrows)
+    // to return a criteria that yields the provider entity when queried.
+    OBDal dal = OBDal.getInstance();
+    var criteriaForProvider = mock(OBCriteria.class);
+    when(criteriaForProvider.add(any())).thenReturn(criteriaForProvider);
+    when(criteriaForProvider.setMaxResults(anyInt())).thenReturn(criteriaForProvider);
+    when(criteriaForProvider.uniqueResult()).thenReturn(providerEntity);
+    when(dal.createCriteria(ETRXoAuthProvider.class)).thenReturn(criteriaForProvider);
   }
 
   private String buildUrl(String contextName, String rawTitle, String rawMessage, String icon, String iconColor) {

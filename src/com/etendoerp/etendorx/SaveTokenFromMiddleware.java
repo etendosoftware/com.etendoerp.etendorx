@@ -11,6 +11,8 @@ import org.openbravo.base.session.OBPropertiesProvider;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.Utility;
+import org.openbravo.model.ad.access.User;
+import org.openbravo.model.common.enterprise.Organization;
 import org.openbravo.service.db.DalConnectionProvider;
 
 import javax.servlet.http.HttpServletRequest;
@@ -20,6 +22,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -33,49 +36,32 @@ public class SaveTokenFromMiddleware extends HttpBaseServlet {
   public static final String ERROR_ICON = "❌";
   public static final String SUCCESS_ICON = "✔";
 
-  @Override
-  public void doGet(HttpServletRequest request, HttpServletResponse response) {
-    try {
-      OBContext.setAdminMode();
-
-      String error = request.getParameter("error");
-      String errorDescription = request.getParameter("error_description");
-
-      if (StringUtils.isNotBlank(error)) {
-        String formattedError = formatOAuthError(error);
-        String description = (StringUtils.isNotBlank(errorDescription) && !StringUtils.equals("undefined", errorDescription))
-            ? errorDescription : "";
-        String responseURL = getResponseBody(true, formattedError, description);
-        response.sendRedirect(responseURL);
-        response.flushBuffer();
-        return;
-      }
-      ETRXTokenInfo newToken = OBProvider.getInstance().get(ETRXTokenInfo.class);
-      newToken.setToken(request.getParameter("access_token"));
-      String providerScope = request.getParameter("provider") + " - " + request.getParameter("scope");
-      newToken.setMiddlewareProvider(providerScope);
-      newToken.setEtrxOauthProvider(getETRXoAuthProvider());
-      newToken.setUser(OBContext.getOBContext().getUser());
-      Date now = new Date();
-      Calendar calendar = Calendar.getInstance();
-      calendar.setTime(now);
-      calendar.add(Calendar.HOUR_OF_DAY, 1);
-      newToken.setValidUntil(calendar.getTime());
-      OBDal.getInstance().save(newToken);
-
-      String responseURL = getResponseBody(false);
-      response.sendRedirect(responseURL);
-      response.flushBuffer();
-    } catch (OBException | IOException e) {
-      log4j.error("Error saving the token from the middleware", e);
-      String responseURL = getResponseBody(true);
-      response.setHeader("Location", responseURL);
-      try {
-        response.flushBuffer();
-      } catch (IOException ex) {
-        log4j.error(ex);
-        throw new OBException(ex);
-      }
+  /**
+   * Removes all old SSO tokens associated with the given user and organization.
+   * <p>
+   * This method queries the database for {@link ETRXTokenInfo} records matching
+   * the specified {@link User} and {@link Organization}. All matching tokens are
+   * considered obsolete and are deleted from the persistence context using
+   * {@link OBDal#remove(Object)}.
+   * </p>
+   *
+   * <p>
+   * This is typically used to ensure that only the latest token is kept for a
+   * user in a given organization, preventing multiple active tokens for the same
+   * context.
+   * </p>
+   *
+   * @param currentUser the user whose old tokens should be removed
+   * @param currentOrg  the organization in which the tokens are scoped
+   */
+  private static void removeOldTokens(User currentUser, Organization currentOrg) {
+    List<ETRXTokenInfo> oldTokenList = OBDal.getInstance().createCriteria(ETRXTokenInfo.class)
+        .add(Restrictions.eq(ETRXTokenInfo.PROPERTY_USER, currentUser))
+        .add(Restrictions.eq(ETRXTokenInfo.PROPERTY_ORGANIZATION, currentOrg))
+        .add(Restrictions.eq(ETRXTokenInfo.PROPERTY_ETRXOAUTHPROVIDER, getETRXoAuthProvider()))
+        .list();
+    for (ETRXTokenInfo oldToken : oldTokenList) {
+      OBDal.getInstance().remove(oldToken);
     }
   }
 
@@ -106,7 +92,6 @@ public class SaveTokenFromMiddleware extends HttpBaseServlet {
     return formatted.toString().trim();
   }
 
-
   /**
    * Generates the response URL to be sent back to the middleware after saving the token.
    * The URL contains a message indicating whether the token was saved successfully or if there was an error.
@@ -120,8 +105,8 @@ public class SaveTokenFromMiddleware extends HttpBaseServlet {
         OBContext.getOBContext().getLanguage().getLanguage());
     String description = Utility.messageBD(new DalConnectionProvider(), "ETRX_TokenCreatedDescription",
         OBContext.getOBContext().getLanguage().getLanguage());
-    String rawTitle = error ? "" : tokenCreated;
-    String rawMessage = error ? "" : description;
+    String rawTitle = error ? "Error" : tokenCreated;
+    String rawMessage = error ? "Error saving token" : description;
     String icon = error ? ERROR_ICON : SUCCESS_ICON;
     String iconColor = error ? RED : GREEN;
 
@@ -176,4 +161,56 @@ public class SaveTokenFromMiddleware extends HttpBaseServlet {
     );
   }
 
+  @Override
+  public void doGet(HttpServletRequest request, HttpServletResponse response) {
+    try {
+      OBContext.setAdminMode();
+
+      String error = request.getParameter("error");
+      String errorDescription = request.getParameter("error_description");
+
+      if (StringUtils.isNotBlank(error)) {
+        String formattedError = formatOAuthError(error);
+        String description = (StringUtils.isNotBlank(errorDescription) && !StringUtils.equals("undefined", errorDescription))
+            ? errorDescription : "";
+        String responseURL = getResponseBody(true, formattedError, description);
+        response.sendRedirect(responseURL);
+        response.flushBuffer();
+        return;
+      }
+      ETRXoAuthProvider middlewareProvider = getETRXoAuthProvider();
+      User currentUser = OBContext.getOBContext().getUser();
+      Organization currentOrg = OBContext.getOBContext().getCurrentOrganization();
+      removeOldTokens(currentUser, currentOrg);
+      ETRXTokenInfo newToken = OBProvider.getInstance().get(ETRXTokenInfo.class);
+      newToken.setToken(request.getParameter("access_token"));
+      String providerScope = request.getParameter("provider") + " - " + request.getParameter("scope");
+      newToken.setMiddlewareProvider(providerScope);
+      newToken.setEtrxOauthProvider(middlewareProvider);
+      newToken.setUser(currentUser);
+      newToken.setOrganization(currentOrg);
+      Date now = new Date();
+      Calendar calendar = Calendar.getInstance();
+      calendar.setTime(now);
+      calendar.add(Calendar.HOUR_OF_DAY, 1);
+      newToken.setValidUntil(calendar.getTime());
+      OBDal.getInstance().save(newToken);
+
+      String responseURL = getResponseBody(false);
+      response.sendRedirect(responseURL);
+      response.flushBuffer();
+    } catch (OBException | IOException e) {
+      log4j.error("Error saving the token from the middleware", e);
+      String responseURL = getResponseBody(true);
+      response.setHeader("Location", responseURL);
+      try {
+        response.flushBuffer();
+      } catch (IOException ex) {
+        log4j.error(ex);
+        throw new OBException(ex);
+      }
+    } finally {
+      OBContext.restorePreviousMode();
+    }
+  }
 }
