@@ -1,6 +1,9 @@
 package com.etendoerp.etendorx.actionhandler;
 
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -43,6 +46,31 @@ public class InitializeRXServices extends BaseActionHandler {
   private static final String DOCKER_TOMCAT_URL = "http://tomcat:8080";
 
   /**
+   * Returns the Tomcat port from properties, or the default if not set.
+   */
+  private static String getTomcatPort() {
+    String port = OBPropertiesProvider.getInstance().getOpenbravoProperties().getProperty(PROPERTY_TOMCAT_PORT);
+    return !StringUtils.isBlank(port) ? port : "8080";
+  }
+
+  /**
+   * Builds the Host Docker Internal Tomcat URL using the current Tomcat port.
+   */
+  private static String getHostDockerInternalTomcatUrl() {
+    return "http://host.docker.internal:" + getTomcatPort();
+  }
+
+  private static Set<String> parseExcludedServices(String excludedServicesCsv) {
+    if (excludedServicesCsv == null || excludedServicesCsv.isBlank()) {
+      return Collections.emptySet();
+    }
+    return Arrays.stream(excludedServicesCsv.split(","))
+        .map(String::trim)
+        .filter(s -> !s.isEmpty())
+        .collect(Collectors.toSet());
+  }
+
+  /**
    * Executes the action to initialize RX services.
    *
    * @param parameters
@@ -55,20 +83,19 @@ public class InitializeRXServices extends BaseActionHandler {
   protected JSONObject execute(Map<String, Object> parameters, String content) {
     JSONObject actionResult = new JSONObject();
     try {
-      OBPropertiesProvider obPropertiesProvider = OBPropertiesProvider.getInstance();
-      boolean rxEnable = Boolean.parseBoolean(obPropertiesProvider.getOpenbravoProperties().getProperty(PROPERTY_RX));
-      boolean tomcatEnable = Boolean.parseBoolean(
-          obPropertiesProvider.getOpenbravoProperties().getProperty(PROPERTY_TOMCAT));
-      boolean asyncEnable = Boolean.parseBoolean(
-          obPropertiesProvider.getOpenbravoProperties().getProperty(PROPERTY_ASYNC));
-      boolean connectorEnable = Boolean.parseBoolean(
-          obPropertiesProvider.getOpenbravoProperties().getProperty(PROPERTY_CONNECTOR));
+      Properties obPropertiesProvider = OBPropertiesProvider.getInstance().getOpenbravoProperties();
+      boolean rxEnable = Boolean.parseBoolean(obPropertiesProvider.getProperty(PROPERTY_RX));
+      boolean tomcatEnable = Boolean.parseBoolean(obPropertiesProvider.getProperty(PROPERTY_TOMCAT));
+      boolean asyncEnable = Boolean.parseBoolean(obPropertiesProvider.getProperty(PROPERTY_ASYNC));
+      boolean connectorEnable = Boolean.parseBoolean(obPropertiesProvider.getProperty(PROPERTY_CONNECTOR));
+      String excludedServicesStr = obPropertiesProvider.getProperty("docker.exclude");
+      Set<String> excludedServices = parseExcludedServices(excludedServicesStr);
 
       Set<String> existingServiceNames = OBDal.getInstance().createCriteria(ETRXConfig.class).list().stream()
           .map(ETRXConfig::getServiceName)
           .collect(Collectors.toSet());
 
-      initializeServices(rxEnable, tomcatEnable, asyncEnable, connectorEnable, existingServiceNames);
+      initializeServices(rxEnable, tomcatEnable, asyncEnable, connectorEnable, existingServiceNames, excludedServices);
       OBDal.getInstance().flush();
 
       actionResult.put(MESSAGE_SEVERITY, MESSAGE_SUCCESS);
@@ -94,15 +121,26 @@ public class InitializeRXServices extends BaseActionHandler {
    *     flag indicating if connector services are enabled
    * @param existingServiceNames
    *     the set of existing service names
+   * @param excludedServices
+   *     set of service names to skip
    */
   private void initializeServices(boolean rxEnable, boolean tomcatEnable, boolean asyncEnable,
-      boolean connectorEnable, Set<String> existingServiceNames) {
-    manageServices(RXConfigUtils.SERVICE_PORTS, existingServiceNames, rxEnable, tomcatEnable, asyncEnable,
-        connectorEnable);
-    manageServices(Map.of(ASYNCPROCESS, ASYNCSERVICE_PORT), existingServiceNames, rxEnable, tomcatEnable, asyncEnable,
-        connectorEnable);
-    manageServices(RXConfigUtils.CONNECTOR_SERVICES, existingServiceNames, rxEnable, tomcatEnable, asyncEnable,
-        connectorEnable);
+      boolean connectorEnable, Set<String> existingServiceNames, Set<String> excludedServices) {
+    if (rxEnable) {
+      manageServices(RXConfigUtils.SERVICE_PORTS, existingServiceNames, excludedServices, rxEnable, tomcatEnable,
+          asyncEnable,
+          connectorEnable);
+    }
+    if (asyncEnable) {
+      manageServices(Map.of(ASYNCPROCESS, ASYNCSERVICE_PORT), existingServiceNames, excludedServices, rxEnable,
+          tomcatEnable, asyncEnable,
+          connectorEnable);
+    }
+    if (connectorEnable) {
+      manageServices(RXConfigUtils.CONNECTOR_SERVICES, existingServiceNames, excludedServices, rxEnable, tomcatEnable,
+          asyncEnable,
+          connectorEnable);
+    }
   }
 
   /**
@@ -112,6 +150,8 @@ public class InitializeRXServices extends BaseActionHandler {
    *     the map of service names to their ports
    * @param existingServiceNames
    *     the set of existing service names
+   * @param excludedServices
+   *     set of service names to skip
    * @param rxEnable
    *     flag indicating if RX is enabled
    * @param tomcatEnable
@@ -122,16 +162,19 @@ public class InitializeRXServices extends BaseActionHandler {
    *     flag indicating if connector services are enabled
    */
   private void manageServices(Map<String, Integer> services, Set<String> existingServiceNames,
-      boolean rxEnable, boolean tomcatEnable, boolean asyncEnable, boolean connectorEnable) {
+      Set<String> excludedServices, boolean rxEnable, boolean tomcatEnable, boolean asyncEnable,
+      boolean connectorEnable) {
     services.forEach((name, port) -> {
-      if (!existingServiceNames.contains(name)) {
-        String serviceUrl = RXConfigUtils.buildServiceUrl(name, port, rxEnable, tomcatEnable, asyncEnable,
-            connectorEnable);
+      boolean isExcluded = excludedServices.contains(name);
+      if (!isExcluded && !existingServiceNames.contains(name)) {
+        String serviceUrl = RXConfigUtils.buildServiceUrl(
+            name, port, rxEnable, tomcatEnable, asyncEnable, connectorEnable);
         ETRXConfig newRXConfig = saveServiceConfig(name, serviceUrl, port);
         addStaticServiceParamConfig(newRXConfig, "das.url", DAS_URL);
         addStaticServiceParamConfig(newRXConfig, "classic.url",
             tomcatEnable ? DOCKER_TOMCAT_URL : getHostDockerInternalTomcatUrl());
       }
+      log.debug("Skipping excluded service: {}", name);
     });
   }
 
@@ -194,21 +237,6 @@ public class InitializeRXServices extends BaseActionHandler {
       log.error("Error while creating error message JSON", jsonException);
     }
     return actionResult;
-  }
-
-  /**
-   * Returns the Tomcat port from properties, or the default if not set.
-   */
-  private static String getTomcatPort() {
-    String port = OBPropertiesProvider.getInstance().getOpenbravoProperties().getProperty(PROPERTY_TOMCAT_PORT);
-    return !StringUtils.isBlank(port) ? port : "8080";
-  }
-
-  /**
-   * Builds the Host Docker Internal Tomcat URL using the current Tomcat port.
-   */
-  private static String getHostDockerInternalTomcatUrl() {
-    return "http://host.docker.internal:" + getTomcatPort();
   }
 
 }
