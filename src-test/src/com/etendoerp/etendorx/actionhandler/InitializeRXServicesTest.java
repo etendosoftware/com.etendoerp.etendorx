@@ -32,24 +32,33 @@ import org.openbravo.dal.service.OBDal;
 import org.openbravo.test.base.TestConstants;
 
 import com.etendoerp.etendorx.data.ETRXConfig;
-import com.etendoerp.etendorx.utils.ServiceURLConfig;
 
 @RunWith(Parameterized.class)
 public class InitializeRXServicesTest extends WeldBaseTest {
-
-  @InjectMocks
-  private InitializeRXServices initializeRXServices;
-
-  @Mock
-  private OBPropertiesProvider obPropertiesProvider;
 
   private final boolean rxEnable;
   private final boolean tomcatEnable;
   private final boolean asyncEnable;
   private final boolean connectorEnable;
+  @InjectMocks
+  private InitializeRXServices initializeRXServices;
+  @Mock
+  private OBPropertiesProvider obPropertiesProvider;
 
-  // Constructor to receive parameters
-  public InitializeRXServicesTest(boolean rxEnable, boolean tomcatEnable, boolean asyncEnable, boolean connectorEnable) {
+  /**
+   * Creates a new test instance for initializing RX services with the given configuration flags.
+   *
+   * @param rxEnable
+   *     whether the RX services should be enabled
+   * @param tomcatEnable
+   *     whether Tomcat is running in a dockerized environment
+   * @param asyncEnable
+   *     whether the async process service should be enabled
+   * @param connectorEnable
+   *     whether the connector service should be enabled
+   */
+  public InitializeRXServicesTest(boolean rxEnable, boolean tomcatEnable, boolean asyncEnable,
+      boolean connectorEnable) {
     this.rxEnable = rxEnable;
     this.tomcatEnable = tomcatEnable;
     this.asyncEnable = asyncEnable;
@@ -59,14 +68,14 @@ public class InitializeRXServicesTest extends WeldBaseTest {
   @Parameters
   public static Collection<Object[]> propertyCombinations() {
     return Arrays.asList(new Object[][]{
-        {true, true, true, true},
-        {true, true, true, false},
-        {true, true, false, true},
-        {true, true, false, false},
-        {true, false, true, true},
-        {false, true, true, true},
-        {false, false, true, false},
-        {false, false, false, false}
+        { true, true, true, true },
+        { true, true, true, false },
+        { true, true, false, true },
+        { true, true, false, false },
+        { true, false, true, true },
+        { false, true, true, true },
+        { false, false, true, false },
+        { false, false, false, false }
     });
   }
 
@@ -82,6 +91,10 @@ public class InitializeRXServicesTest extends WeldBaseTest {
         OBContext.getOBContext().getCurrentOrganization().getId()
     );
     RequestContext.get().setVariableSecureApp(vars);
+
+    List<ETRXConfig> pre = OBDal.getInstance().createCriteria(ETRXConfig.class).list();
+    pre.forEach(OBDal.getInstance()::remove);
+    OBDal.getInstance().flush();
   }
 
   @Test
@@ -91,14 +104,7 @@ public class InitializeRXServicesTest extends WeldBaseTest {
     mockProperties.setProperty("docker_com.etendoerp.tomcat", String.valueOf(tomcatEnable));
     mockProperties.setProperty("docker_com.etendoerp.etendorx_async", String.valueOf(asyncEnable));
     mockProperties.setProperty("docker_com.etendoerp.etendorx_connector", String.valueOf(connectorEnable));
-
-    String propertyKey = String.format(
-        "rxEnable:%b,tomcatEnable:%b,asyncEnable:%b,connectorEnable:%b",
-        rxEnable, tomcatEnable, asyncEnable, connectorEnable
-    );
-
-    List<String> expectedUrls = ServiceURLConfig.SERVICE_URLS.get(propertyKey);
-    assertNotNull("No expected configurations found for the key: " + propertyKey, expectedUrls);
+    mockProperties.setProperty("docker.exclude", "");
 
     try (MockedStatic<OBPropertiesProvider> mockedStatic = mockStatic(OBPropertiesProvider.class)) {
       mockedStatic.when(OBPropertiesProvider::getInstance).thenReturn(obPropertiesProvider);
@@ -109,13 +115,25 @@ public class InitializeRXServicesTest extends WeldBaseTest {
       assertEquals("success", result.getString("severity"));
 
       List<ETRXConfig> configs = OBDal.getInstance().createCriteria(ETRXConfig.class).list();
-
-      Map<String, String> createdServiceUrls = configs.stream()
+      Map<String, String> createdByName = configs.stream()
           .collect(Collectors.toMap(ETRXConfig::getServiceName, ETRXConfig::getServiceURL));
+      Map<String, Integer> expectedServices = new java.util.LinkedHashMap<>();
+      if (rxEnable) {
+        expectedServices.putAll(com.etendoerp.etendorx.utils.RXConfigUtils.SERVICE_PORTS);
+      }
+      if (asyncEnable) {
+        expectedServices.put("asyncprocess", 9092);
+      }
+      if (connectorEnable) {
+        expectedServices.putAll(com.etendoerp.etendorx.utils.RXConfigUtils.CONNECTOR_SERVICES);
+      }
 
-      for (String expectedUrl : expectedUrls) {
-        boolean found = createdServiceUrls.values().contains(expectedUrl);
-        assertTrue("The expected URL was not found: " + expectedUrl, found);
+      for (Map.Entry<String, Integer> e : expectedServices.entrySet()) {
+        String expectedUrl = com.etendoerp.etendorx.utils.RXConfigUtils.buildServiceUrl(
+            e.getKey(), e.getValue(), rxEnable, tomcatEnable, asyncEnable, connectorEnable);
+
+        assertTrue("Falta servicio: " + e.getKey(), createdByName.containsKey(e.getKey()));
+        assertEquals("URL distinta para " + e.getKey(), expectedUrl, createdByName.get(e.getKey()));
       }
     }
     List<ETRXConfig> rxConfigsForTest = OBDal.getInstance().createCriteria(ETRXConfig.class).list();
