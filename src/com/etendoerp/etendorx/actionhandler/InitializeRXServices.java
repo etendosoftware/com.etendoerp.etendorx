@@ -1,12 +1,8 @@
 package com.etendoerp.etendorx.actionhandler;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Map;
-import java.util.Properties;
-import java.util.Set;
-import java.util.stream.Collectors;
-
+import com.etendoerp.etendorx.data.ConfigServiceParam;
+import com.etendoerp.etendorx.data.ETRXConfig;
+import com.etendoerp.etendorx.utils.RXConfigUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -18,9 +14,12 @@ import org.openbravo.client.kernel.BaseActionHandler;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
 
-import com.etendoerp.etendorx.data.ConfigServiceParam;
-import com.etendoerp.etendorx.data.ETRXConfig;
-import com.etendoerp.etendorx.utils.RXConfigUtils;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Map;
+import java.util.Properties;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Action handler for initializing RX services.
@@ -73,10 +72,8 @@ public class InitializeRXServices extends BaseActionHandler {
   /**
    * Executes the action to initialize RX services.
    *
-   * @param parameters
-   *     the parameters for the action
-   * @param content
-   *     the content for the action
+   * @param parameters the parameters for the action
+   * @param content    the content for the action
    * @return the result of the action as a JSONObject
    */
   @Override
@@ -111,64 +108,57 @@ public class InitializeRXServices extends BaseActionHandler {
   /**
    * Initializes the RX services based on the provided parameters.
    *
-   * @param rxEnable
-   *     flag indicating if RX is enabled
-   * @param tomcatEnable
-   *     flag indicating if Tomcat is enabled
-   * @param asyncEnable
-   *     flag indicating if async processing is enabled
-   * @param connectorEnable
-   *     flag indicating if connector services are enabled
-   * @param existingServiceNames
-   *     the set of existing service names
-   * @param excludedServices
-   *     set of service names to skip
+   * @param rxEnable             flag indicating if RX is enabled
+   * @param tomcatEnable         flag indicating if Tomcat is enabled
+   * @param asyncEnable          flag indicating if async processing is enabled
+   * @param connectorEnable      flag indicating if connector services are enabled
+   * @param existingServiceNames the set of existing service names
+   * @param excludedServices     set of service names to skip
    */
   private void initializeServices(boolean rxEnable, boolean tomcatEnable, boolean asyncEnable,
-      boolean connectorEnable, Set<String> existingServiceNames, Set<String> excludedServices) {
+                                  boolean connectorEnable, Set<String> existingServiceNames, Set<String> excludedServices) {
+
     if (rxEnable) {
-      manageServices(RXConfigUtils.SERVICE_PORTS, existingServiceNames, excludedServices, rxEnable, tomcatEnable,
-          asyncEnable,
-          connectorEnable);
+      // Get core RX services dynamically from YAML configuration
+      Map<String, Integer> rxServices = RXConfigUtils.getServicesByType(RXConfigUtils.ServiceConfigType.ETENDORX);
+      manageServices(rxServices, existingServiceNames, excludedServices, rxEnable, tomcatEnable,
+          asyncEnable, connectorEnable);
     }
+
     if (asyncEnable) {
-      manageServices(Map.of(ASYNCPROCESS, ASYNCSERVICE_PORT), existingServiceNames, excludedServices, rxEnable,
-          tomcatEnable, asyncEnable,
-          connectorEnable);
+      // Get async services dynamically from YAML configuration
+      Map<String, Integer> asyncServices = RXConfigUtils.getServicesByType(RXConfigUtils.ServiceConfigType.ASYNC);
+      manageServices(asyncServices, existingServiceNames, excludedServices, rxEnable,
+          tomcatEnable, asyncEnable, connectorEnable);
     }
+
     if (connectorEnable) {
-      manageServices(RXConfigUtils.CONNECTOR_SERVICES, existingServiceNames, excludedServices, rxEnable, tomcatEnable,
-          asyncEnable,
-          connectorEnable);
+      // Get connector services dynamically from YAML configuration
+      Map<String, Integer> connectorServices = RXConfigUtils.getServicesByType(RXConfigUtils.ServiceConfigType.CONNECTOR);
+      manageServices(connectorServices, existingServiceNames, excludedServices, rxEnable, tomcatEnable,
+          asyncEnable, connectorEnable);
     }
   }
 
   /**
    * Manages the services by saving their configurations if they do not already exist.
    *
-   * @param services
-   *     the map of service names to their ports
-   * @param existingServiceNames
-   *     the set of existing service names
-   * @param excludedServices
-   *     set of service names to skip
-   * @param rxEnable
-   *     flag indicating if RX is enabled
-   * @param tomcatEnable
-   *     flag indicating if Tomcat is enabled
-   * @param asyncEnable
-   *     flag indicating if async processing is enabled
-   * @param connectorEnable
-   *     flag indicating if connector services are enabled
+   * @param services             the map of service names to their ports
+   * @param existingServiceNames the set of existing service names
+   * @param excludedServices     set of service names to skip
+   * @param rxEnable             flag indicating if RX is enabled
+   * @param tomcatEnable         flag indicating if Tomcat is enabled
+   * @param asyncEnable          flag indicating if async processing is enabled
+   * @param connectorEnable      flag indicating if connector services are enabled
    */
   private void manageServices(Map<String, Integer> services, Set<String> existingServiceNames,
-      Set<String> excludedServices, boolean rxEnable, boolean tomcatEnable, boolean asyncEnable,
-      boolean connectorEnable) {
+                              Set<String> excludedServices, boolean rxEnable, boolean tomcatEnable, boolean asyncEnable,
+                              boolean connectorEnable) {
     services.forEach((name, port) -> {
       boolean isExcluded = excludedServices.contains(name);
       if (!isExcluded && !existingServiceNames.contains(name)) {
         String serviceUrl = RXConfigUtils.buildServiceUrl(
-            name, port, rxEnable, tomcatEnable, asyncEnable, connectorEnable);
+            name, rxEnable, tomcatEnable, asyncEnable, connectorEnable);
         ETRXConfig newRXConfig = saveServiceConfig(name, serviceUrl, port);
         addStaticServiceParamConfig(newRXConfig, "das.url", DAS_URL);
         addStaticServiceParamConfig(newRXConfig, "classic.url",
@@ -181,12 +171,9 @@ public class InitializeRXServices extends BaseActionHandler {
   /**
    * Adds a static service parameter configuration to the RX configuration.
    *
-   * @param rxConfig
-   *     the RX configuration
-   * @param keyProperty
-   *     the key property for the parameter
-   * @param valueProperty
-   *     the value property for the parameter
+   * @param rxConfig      the RX configuration
+   * @param keyProperty   the key property for the parameter
+   * @param valueProperty the value property for the parameter
    */
   private void addStaticServiceParamConfig(ETRXConfig rxConfig, String keyProperty, String valueProperty) {
     ConfigServiceParam newParam = OBProvider.getInstance().get(ConfigServiceParam.class);
@@ -199,12 +186,9 @@ public class InitializeRXServices extends BaseActionHandler {
   /**
    * Saves the configuration for a service.
    *
-   * @param name
-   *     the name of the service
-   * @param serviceUrl
-   *     the URL of the service
-   * @param port
-   *     the port number of the service
+   * @param name       the name of the service
+   * @param serviceUrl the URL of the service
+   * @param port       the port number of the service
    */
   protected ETRXConfig saveServiceConfig(String name, String serviceUrl, int port) {
     ETRXConfig newServiceConfig = OBProvider.getInstance().get(ETRXConfig.class);
@@ -219,14 +203,13 @@ public class InitializeRXServices extends BaseActionHandler {
   /**
    * Handles exceptions that occur during the execution of the action.
    *
-   * @param e
-   *     the exception that occurred
-   * @param actionResult
-   *     the result of the action as a JSONObject
+   * @param e            the exception that occurred
+   * @param actionResult the result of the action as a JSONObject
    * @return the updated action result with error information
    */
   private JSONObject handleException(Exception e, JSONObject actionResult) {
     log.error("Error during RX Service Initialization", e);
+    log.error("RXConfigUtils Debug Info:\n{}", RXConfigUtils.getDebugInfo());
     try {
       JSONObject errorMessage = new JSONObject();
       errorMessage.put(MESSAGE_SEVERITY, MESSAGE_ERROR);
