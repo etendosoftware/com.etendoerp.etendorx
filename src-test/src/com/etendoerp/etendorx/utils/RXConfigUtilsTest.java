@@ -5,6 +5,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.MockedStatic;
+import org.openbravo.base.exception.OBException;
 import org.openbravo.base.session.OBPropertiesProvider;
 
 import java.io.File;
@@ -29,6 +30,14 @@ import static org.mockito.Mockito.when;
  */
 class RXConfigUtilsTest {
 
+  public static final String OBCONNSRV = "obconnsrv";
+  public static final String WORKER = "worker";
+  public static final String ETENDORX_YML = "com.etendoerp.etendorx.yml";
+  public static final String ASYNCPROCESS = "asyncprocess";
+  public static final String SHOULD_CONTAIN_OBCONNSRV_SERVICE = "Should contain obconnsrv service";
+  public static final String SHOULD_CONTAIN_CONFIG_SERVICE = "Should contain config service";
+  public static final String CONFIG = "config";
+  public static final String URL_SHOULD_NOT_BE_NULL = "URL should not be null";
   @TempDir
   Path tempDir;
 
@@ -69,109 +78,109 @@ class RXConfigUtilsTest {
 
   // Test basic functionality
   @Test
-  void testGetServicePort_ExistingService_ReturnsCorrectPort() {
-    int port = RXConfigUtils.getServicePort("config");
+  void testGetServicePortExistingServiceReturnsCorrectPort() {
+    int port = RXConfigUtils.getServicePort(CONFIG);
     assertEquals(8888, port, "Should return correct port for config service");
   }
 
   @Test
-  void testGetServicePort_NonExistingService_ReturnsZero() {
+  void testGetServicePortNonExistingServiceReturnsZero() {
     int port = RXConfigUtils.getServicePort("nonexistent");
     assertEquals(0, port, "Should return 0 for non-existing service");
   }
 
   @Test
-  void testGetServicePort_EmptyServiceName_ReturnsZero() {
+  void testGetServicePortEmptyServiceNameReturnsZero() {
     int port = RXConfigUtils.getServicePort("");
     assertEquals(0, port, "Should return 0 for empty service name");
   }
 
   @Test
-  void testGetServicePort_NullServiceName_ReturnsZero() {
+  void testGetServicePortNullServiceNameReturnsZero() {
     int port = RXConfigUtils.getServicePort(null);
     assertEquals(0, port, "Should return 0 for null service name");
   }
 
   // Test ServiceConfigType functionality
   @Test
-  void testGetServicesByType_ETENDORX_ReturnsMainServices() {
+  void testGetServicesByTypeETENDORXReturnsMainServices() {
     Map<String, Integer> services = RXConfigUtils.getServicesByType(RXConfigUtils.ServiceConfigType.ETENDORX);
     assertNotNull(services, "ETENDORX services should not be null");
-    assertTrue(services.containsKey("config"), "Should contain config service");
+    assertTrue(services.containsKey(CONFIG), SHOULD_CONTAIN_CONFIG_SERVICE);
     assertTrue(services.containsKey("das"), "Should contain das service");
-    assertEquals(8888, services.get("config"), "Config service should have correct port");
+    assertEquals(8888, services.get(CONFIG), "Config service should have correct port");
   }
 
   @Test
-  void testGetServicesByType_CONNECTOR_ReturnsConnectorServices() {
+  void testGetServicesByTypeCONNECTORReturnsConnectorServices() {
     Map<String, Integer> services = RXConfigUtils.getServicesByType(RXConfigUtils.ServiceConfigType.CONNECTOR);
     assertNotNull(services, "Connector services should not be null");
-    assertTrue(services.containsKey("obconnsrv"), "Should contain obconnsrv service");
-    assertTrue(services.containsKey("worker"), "Should contain worker service");
+    assertTrue(services.containsKey(OBCONNSRV), SHOULD_CONTAIN_OBCONNSRV_SERVICE);
+    assertTrue(services.containsKey(WORKER), "Should contain worker service");
   }
 
   @Test
-  void testGetServicesByType_ASYNC_ReturnsAsyncServices() {
+  void testGetServicesByTypeASYNCReturnsAsyncServices() {
     Map<String, Integer> services = RXConfigUtils.getServicesByType(RXConfigUtils.ServiceConfigType.ASYNC);
     assertNotNull(services, "Async services should not be null");
-    assertTrue(services.containsKey("asyncprocess"), "Should contain asyncprocess service");
-    assertEquals(8099, services.get("asyncprocess"), "Asyncprocess should have correct port");
+    assertTrue(services.containsKey(ASYNCPROCESS), "Should contain asyncprocess service");
+    assertEquals(8099, services.get(ASYNCPROCESS), "Asyncprocess should have correct port");
   }
 
   @Test
-  void testGetServicesByType_ALL_ReturnsAllServices() {
+  void testGetServicesByTypeALLReturnsAllServices() {
     Map<String, Integer> services = RXConfigUtils.getServicesByType(RXConfigUtils.ServiceConfigType.ALL);
     assertNotNull(services, "All services should not be null");
-    assertTrue(services.containsKey("config"), "Should contain config service");
-    assertTrue(services.containsKey("obconnsrv"), "Should contain obconnsrv service");
-    assertTrue(services.containsKey("asyncprocess"), "Should contain asyncprocess service");
+    assertTrue(services.containsKey(CONFIG), SHOULD_CONTAIN_CONFIG_SERVICE);
+    assertTrue(services.containsKey(OBCONNSRV), SHOULD_CONTAIN_OBCONNSRV_SERVICE);
+    assertTrue(services.containsKey(ASYNCPROCESS), "Should contain asyncprocess service");
   }
 
   // Test legacy methods
   @Test
-  void testGetConnectorServices_ReturnsValidMap() {
+  void testGetConnectorServicesReturnsValidMap() {
     Map<String, Integer> connectorServices = RXConfigUtils.getConnectorServices();
     assertNotNull(connectorServices, "Connector services map should not be null");
-    assertTrue(connectorServices.containsKey("obconnsrv"), "Should contain obconnsrv service");
-    assertTrue(connectorServices.containsKey("worker"), "Should contain worker service");
+    assertTrue(connectorServices.containsKey(OBCONNSRV), SHOULD_CONTAIN_OBCONNSRV_SERVICE);
+    assertTrue(connectorServices.containsKey(WORKER), "Should contain worker service");
   }
 
   @Test
-  void testGetServicePorts_ReturnsValidMap() {
+  void testGetServicePortsReturnsValidMap() {
     Map<String, Integer> servicePorts = RXConfigUtils.getServicePorts();
     assertNotNull(servicePorts, "Service ports map should not be null");
     assertFalse(servicePorts.isEmpty(), "Service ports map should not be empty");
-    assertTrue(servicePorts.containsKey("config"), "Should contain config service");
+    assertTrue(servicePorts.containsKey(CONFIG), SHOULD_CONTAIN_CONFIG_SERVICE);
   }
 
   // Test URL building
   @Test
-  void testBuildServiceUrl_WithTomcatEnabled_ReturnsCorrectFormat() {
-    String url = RXConfigUtils.buildServiceUrl("config", true, true, false, false);
-    assertNotNull(url, "URL should not be null");
+  void testBuildServiceUrlWithTomcatEnabledReturnsCorrectFormat() {
+    String url = RXConfigUtils.buildServiceUrl(CONFIG, true, true, false, false);
+    assertNotNull(url, URL_SHOULD_NOT_BE_NULL);
     assertTrue(url.startsWith("http://"), "URL should start with http://");
     assertTrue(url.contains("config:8888"), "URL should contain service name and port");
   }
 
   @Test
-  void testBuildServiceUrl_WithTomcatDisabled_ReturnsLocalhostFormat() {
-    String url = RXConfigUtils.buildServiceUrl("config", true, false, false, false);
-    assertNotNull(url, "URL should not be null");
+  void testBuildServiceUrlWithTomcatDisabledReturnsLocalhostFormat() {
+    String url = RXConfigUtils.buildServiceUrl(CONFIG, true, false, false, false);
+    assertNotNull(url, URL_SHOULD_NOT_BE_NULL);
     assertTrue(url.startsWith("http://localhost:"), "URL should be localhost format");
     assertTrue(url.contains("8888"), "URL should contain the port");
   }
 
   @Test
-  void testBuildServiceUrl_AsyncServiceEnabled_ReturnsServiceNameFormat() {
-    String url = RXConfigUtils.buildServiceUrl("asyncprocess", true, true, true, false);
-    assertNotNull(url, "URL should not be null");
-    assertTrue(url.contains("asyncprocess") || url.contains("8099"), "URL should contain service name or port");
+  void testBuildServiceUrlAsyncServiceEnabledReturnsServiceNameFormat() {
+    String url = RXConfigUtils.buildServiceUrl(ASYNCPROCESS, true, true, true, false);
+    assertNotNull(url, URL_SHOULD_NOT_BE_NULL);
+    assertTrue(url.contains(ASYNCPROCESS) || url.contains("8099"), "URL should contain service name or port");
   }
 
   @Test
-  void testBuildServiceUrl_WithHTTPS_ReturnsHTTPSFormat() {
-    String url = RXConfigUtils.buildServiceUrl("config", true, true, false, true);
-    assertNotNull(url, "URL should not be null");
+  void testBuildServiceUrlWithHTTPSReturnsHTTPSFormat() {
+    String url = RXConfigUtils.buildServiceUrl(CONFIG, true, true, false, true);
+    assertNotNull(url, URL_SHOULD_NOT_BE_NULL);
     // Note: The current implementation doesn't actually support HTTPS flag
     // This test documents the current behavior - it always returns HTTP
     assertTrue(url.startsWith("http://"), "Current implementation returns HTTP regardless of HTTPS flag");
@@ -180,7 +189,7 @@ class RXConfigUtilsTest {
 
   // Test caching mechanism
   @Test
-  void testCaching_MultipleCallsSameResult() {
+  void testCachingMultipleCallsSameResult() {
     Map<String, Integer> services1 = RXConfigUtils.getServicesByType(RXConfigUtils.ServiceConfigType.ETENDORX);
     Map<String, Integer> services2 = RXConfigUtils.getServicesByType(RXConfigUtils.ServiceConfigType.ETENDORX);
 
@@ -188,7 +197,7 @@ class RXConfigUtilsTest {
   }
 
   @Test
-  void testResetCache_ClearsCachedData() {
+  void testResetCacheClearsCachedData() {
     // Get services to populate cache
     Map<String, Integer> services1 = RXConfigUtils.getServicesByType(RXConfigUtils.ServiceConfigType.ETENDORX);
     assertFalse(services1.isEmpty(), "Should have services");
@@ -200,7 +209,7 @@ class RXConfigUtilsTest {
     try {
       createDifferentMainYaml();
     } catch (IOException e) {
-      throw new RuntimeException(e);
+      throw new OBException(e);
     }
 
     Map<String, Integer> services2 = RXConfigUtils.getServicesByType(RXConfigUtils.ServiceConfigType.ETENDORX);
@@ -210,29 +219,29 @@ class RXConfigUtilsTest {
 
   // Test error handling
   @Test
-  void testInvalidYamlFile_HandlesGracefully() {
+  void testInvalidYamlFileHandlesGracefully() {
     // This will be tested with the invalid YAML file we created
     Map<String, Integer> services = RXConfigUtils.getServicesByType(RXConfigUtils.ServiceConfigType.ETENDORX);
     assertNotNull(services, "Should handle invalid YAML gracefully and return valid services");
   }
 
   @Test
-  void testParseYamlFile_WithComplexStructure_ParsesCorrectly() {
+  void testParseYamlFileWithComplexStructureParsesCorrectly() {
     // Test that the refactored parseYamlFile method handles complex YAML structures
     Map<String, Integer> services = RXConfigUtils.getServicesByType(RXConfigUtils.ServiceConfigType.ALL);
 
     // Verify all expected services are parsed
-    assertEquals(8888, services.get("config"), "Config service should be parsed correctly");
+    assertEquals(8888, services.get(CONFIG), "Config service should be parsed correctly");
     assertEquals(8092, services.get("das"), "DAS service should be parsed correctly");
     assertEquals(8094, services.get("auth"), "Auth service should be parsed correctly");
     assertEquals(8096, services.get("edge"), "Edge service should be parsed correctly");
-    assertEquals(8099, services.get("asyncprocess"), "Async service should be parsed correctly");
-    assertEquals(8101, services.get("obconnsrv"), "Connector service should be parsed correctly");
-    assertEquals(8102, services.get("worker"), "Worker service should be parsed correctly");
+    assertEquals(8099, services.get(ASYNCPROCESS), "Async service should be parsed correctly");
+    assertEquals(8101, services.get(OBCONNSRV), "Connector service should be parsed correctly");
+    assertEquals(8102, services.get(WORKER), "Worker service should be parsed correctly");
   }
 
   @Test
-  void testParseYamlFile_RefactoredMethods_MaintainFunctionality() {
+  void testParseYamlFileRefactoredMethodsMaintainFunctionality() {
     // Test that the refactored parseYamlFile with extracted methods maintains the same functionality
     Map<String, Integer> etendorxServices = RXConfigUtils.getServicesByType(RXConfigUtils.ServiceConfigType.ETENDORX);
     Map<String, Integer> connectorServices = RXConfigUtils.getServicesByType(RXConfigUtils.ServiceConfigType.CONNECTOR);
@@ -249,10 +258,10 @@ class RXConfigUtilsTest {
   }
 
   @Test
-  void testMissingYamlFile_ThrowsException() {
+  void testMissingYamlFileThrowsException() {
     // Delete YAML files
     try {
-      Files.deleteIfExists(composeDir.resolve("com.etendoerp.etendorx.yml"));
+      Files.deleteIfExists(composeDir.resolve(ETENDORX_YML));
       Files.deleteIfExists(composeDir.resolve("com.etendoerp.etendorx_connector.yml"));
       Files.deleteIfExists(composeDir.resolve("com.etendoerp.etendorx_async.yml"));
     } catch (IOException e) {
@@ -303,7 +312,7 @@ class RXConfigUtilsTest {
             "      - \"8096:8096\"\n" +
             "      - \"5023:8000\"\n";
 
-    writeYamlFile("com.etendoerp.etendorx.yml", yamlContent);
+    writeYamlFile(ETENDORX_YML, yamlContent);
   }
 
   private void createSampleConnectorYaml() throws IOException {
@@ -351,7 +360,7 @@ class RXConfigUtilsTest {
             "    environment:\n" +
             "      - TEST=modified\n";
 
-    writeYamlFile("com.etendoerp.etendorx.yml", yamlContent);
+    writeYamlFile(ETENDORX_YML, yamlContent);
   }
 
   private void writeYamlFile(String filename, String content) throws IOException {

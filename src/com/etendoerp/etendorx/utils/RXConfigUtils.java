@@ -104,7 +104,25 @@ public class RXConfigUtils {
     return services;
   }
 
-  // Utility method to reset cache for testing/debugging
+  /**
+   * Clears the cached mapping of service ports.
+   * <p>
+   * This method removes all entries from the {@code servicePortsCache},
+   * which stores the association between {@link ServiceConfigType} and
+   * their resolved service ports.
+   * </p>
+   * <p>
+   * It should be called when the service configurations or their port
+   * definitions may have changed, ensuring that future lookups are
+   * re-parsed from the source YAML files instead of relying on outdated data.
+   * </p>
+   *
+   * <p><b>Side effects:</b></p>
+   * <ul>
+   *   <li>The entire cache is cleared (no partial reset is possible).</li>
+   *   <li>A log entry at INFO level is generated indicating the cache reset.</li>
+   * </ul>
+   */
   public static void resetCache() {
     servicePortsCache.clear();
     log.info("Service ports cache cleared");
@@ -442,15 +460,31 @@ public class RXConfigUtils {
     private final String yamlFile;
     private final String[] expectedServices;
 
+    /**
+     * Creates a new service configuration type.
+     *
+     * @param yamlFile         the name of the YAML file associated with this configuration type
+     * @param expectedServices the list of expected service names defined in the YAML file
+     */
     ServiceConfigType(String yamlFile, String[] expectedServices) {
       this.yamlFile = yamlFile;
       this.expectedServices = expectedServices;
     }
 
+    /**
+     * Gets the YAML file name associated with this configuration type.
+     *
+     * @return the YAML file name
+     */
     public String getYamlFile() {
       return yamlFile;
     }
 
+    /**
+     * Gets the expected service names associated with this configuration type.
+     *
+     * @return an array of expected service names
+     */
     public String[] getExpectedServices() {
       return expectedServices;
     }
@@ -466,6 +500,11 @@ public class RXConfigUtils {
     private boolean inPortsSection;
     private int servicesFoundInFile;
 
+    /**
+     * Creates a new parsing context for a given YAML file.
+     *
+     * @param fileName the name of the YAML file being parsed
+     */
     public YamlParsingContext(String fileName) {
       this.fileName = fileName;
       this.inServicesSection = false;
@@ -473,52 +512,97 @@ public class RXConfigUtils {
       this.servicesFoundInFile = 0;
     }
 
+    /**
+     * Marks the beginning of the "services" section in the YAML file.
+     */
     public void enterServicesSection() {
       this.inServicesSection = true;
       log.debug("Entering services section in file: {}", fileName);
     }
 
+    /**
+     * Marks the beginning of the "ports" section for the current service.
+     */
     public void enterPortsSection() {
       this.inPortsSection = true;
       log.debug("Entering ports section for service: {}", currentService);
     }
 
+    /**
+     * Marks the end of the "ports" section for the current service.
+     */
     public void exitPortsSection() {
       this.inPortsSection = false;
     }
 
+    /**
+     * Completes the parsing of the current service definition.
+     * Resets the current service and exits the ports section.
+     */
     public void completeCurrentService() {
       this.inPortsSection = false;
       this.currentService = null;
     }
 
+    /**
+     * Increments the counter of services found in the YAML file.
+     */
     public void incrementServicesFound() {
       this.servicesFoundInFile++;
     }
 
-    // Getters
+    /**
+     * Gets the name of the YAML file being parsed.
+     *
+     * @return the file name
+     */
     public String getFileName() {
       return fileName;
     }
 
+    /**
+     * Gets the name of the current service being parsed.
+     *
+     * @return the current service name, or {@code null} if none is set
+     */
     public String getCurrentService() {
       return currentService;
     }
 
+    /**
+     * Sets the current service being parsed.
+     *
+     * @param serviceName the name of the service
+     */
     public void setCurrentService(String serviceName) {
       this.currentService = serviceName;
       this.inPortsSection = false;
       log.debug("Found service definition: {}", serviceName);
     }
 
+    /**
+     * Checks if the parser is currently inside the "services" section.
+     *
+     * @return {@code true} if inside the services section, {@code false} otherwise
+     */
     public boolean isInServicesSection() {
       return inServicesSection;
     }
 
+    /**
+     * Checks if the parser is currently inside the "ports" section.
+     *
+     * @return {@code true} if inside the ports section, {@code false} otherwise
+     */
     public boolean isInPortsSection() {
       return inPortsSection;
     }
 
+    /**
+     * Gets the number of services found in the YAML file so far.
+     *
+     * @return the count of services found
+     */
     public int getServicesFoundInFile() {
       return servicesFoundInFile;
     }
