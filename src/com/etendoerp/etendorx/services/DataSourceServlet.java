@@ -3,6 +3,7 @@ package com.etendoerp.etendorx.services;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.sql.BatchUpdateException;
 import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -342,16 +343,59 @@ public class DataSourceServlet implements WebService {
       } else {
         throw new UnsupportedOperationException("Method not supported: " + method);
       }
+    } catch (CalloutExectionException e) {
+      sendJsonError(response, HttpServletResponse.SC_BAD_REQUEST, "Callout Error",
+          e.getMessage() != null ? e.getMessage() : "An unexpected error occurred.");
+    } catch (FormInitializationException e) {
+      sendJsonError(response, HttpServletResponse.SC_BAD_REQUEST, "Form Initialization Error",
+          e.getMessage() != null ? e.getMessage() : "An unexpected error occurred during form initialization.");
+    } catch (PayloadPostException e) {
+      // PayloadPostException writes its message directly (preserve behavior)
+      try {
+        response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+        response.setContentType(ContentType.APPLICATION_JSON.getMimeType());
+        response.setCharacterEncoding("UTF-8");
+        response.getWriter().write(e.getMessage());
+        response.getWriter().flush();
+      } catch (IOException ex) {
+        throw new OBException(ex);
+      }
+    } catch (BatchUpdateException e) {
+      String message = OBMessageUtils.messageBD("ETRX_BatchUpdateException");
+      if (e.getMessage() != null) {
+        message += ": " + e.getMessage();
+      }
+      sendJsonError(response, HttpServletResponse.SC_BAD_REQUEST, "Database Error", message);
     } catch (Exception e) {
+      // preserve logging + internal error handling
       e.printStackTrace();
       log.error(DataSourceConstants.ERROR_IN_DATA_SOURCE_SERVLET, e);
       handleInternalServerError(response, e);
     } catch (OpenAPINotFoundThrowable e) {
+      // preserve original handling (kept last to mirror original control flow)
       try {
         handleNotFoundException(response);
       } catch (IOException ex) {
         throw new OBException(ex);
       }
+    }
+  }
+
+  /* Helper to reduce duplication while preserving behavior */
+  private void sendJsonError(HttpServletResponse response, int httpStatus, String errorTitle, String message) {
+    try {
+      response.setStatus(httpStatus);
+      response.setContentType(ContentType.APPLICATION_JSON.getMimeType());
+      response.setCharacterEncoding("UTF-8");
+      JSONObject jsonErrorResponse = new JSONObject();
+      jsonErrorResponse.put(DataSourceConstants.ERROR, errorTitle);
+      jsonErrorResponse.put(DataSourceConstants.MESSAGE, message);
+      // existing code used numeric 400 in JSON for bad requests; keep same numeric value for consistency
+      jsonErrorResponse.put("status", 400);
+      response.getWriter().write(jsonErrorResponse.toString());
+      response.getWriter().flush();
+    } catch (IOException | JSONException ex) {
+      throw new OBException(ex);
     }
   }
 
@@ -438,9 +482,20 @@ public class DataSourceServlet implements WebService {
         createPayLoad(request, payload), fieldList, newUri);
     HttpServletResponse wrappedResponse = new EtendoResponseWrapper(response);
 
-    servlet.doPost(newRequest, wrappedResponse);
+    try {
+      servlet.doPost(newRequest, wrappedResponse);
+    } catch (Exception e) {
+      log.error("Error processing POST request", e);
+      throw e;
+    }
     String content = ((EtendoResponseWrapper) wrappedResponse).getCapturedContent().toString();
     JSONObject jsonContent = new JSONObject(content);
+    if (jsonContent.has("response") && jsonContent.getJSONObject("response").has("status")) {
+      status = jsonContent.getJSONObject("response").getInt("status");
+    }
+    if (status == -1 && jsonContent.has("response") && jsonContent.getJSONObject("response").has("error")) {
+      throw new PayloadPostException( jsonContent.getJSONObject("response").getJSONObject("error").toString());
+    }
 
     if (jsonContent.has(DataSourceConstants.RESPONSE)) {
       JSONObject responseContent = jsonContent.getJSONObject(DataSourceConstants.RESPONSE);
@@ -512,13 +567,26 @@ public class DataSourceServlet implements WebService {
       response.setCharacterEncoding("UTF-8");
       response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
 
-      JSONObject jsonErrorResponse = new JSONObject();
-      jsonErrorResponse.put(DataSourceConstants.ERROR, "Internal Server Error");
-      jsonErrorResponse.put(DataSourceConstants.MESSAGE,
-          e.getMessage() != null ? e.getMessage() : "An unexpected error occurred.");
-      jsonErrorResponse.put("status", 500);
-      response.getWriter().write(jsonErrorResponse.toString());
-      response.getWriter().flush();
+      String message = e.getMessage();
+      boolean catchedException = false;
+      try {
+        JSONObject jsonMessage = new JSONObject(message);
+        jsonMessage.put("status", 400);
+        response.getWriter().write(jsonMessage.toString());
+        response.getWriter().flush();
+        catchedException = true;
+      } catch (JSONException jsonException) {
+        // Not a JSON message, proceed to create a standard error response
+      }
+      if (!catchedException) {
+        JSONObject jsonErrorResponse = new JSONObject();
+        jsonErrorResponse.put(DataSourceConstants.ERROR, "Internal Server Error");
+        jsonErrorResponse.put(DataSourceConstants.MESSAGE,
+            e.getMessage() != null ? e.getMessage() : "An unexpected error occurred.");
+        jsonErrorResponse.put("status", 400);
+        response.getWriter().write(jsonErrorResponse.toString());
+        response.getWriter().flush();
+      }
     } catch (Exception ex) {
       throw new OBException(ex);
     }
@@ -651,7 +719,13 @@ public class DataSourceServlet implements WebService {
 
     //Initialization of new record, saving the data in input format
     var formInit = WeldUtils.getInstanceFromStaticBeanManager(EtendoFormInitComponent.class);
-    var formInitResponse = formInit.execute(parameters, content);
+    JSONObject formInitResponse;
+    try {
+      formInitResponse = formInit.execute(parameters, content);
+    } catch (Exception e) {
+      log.error("Error during form initialization", e);
+      throw new FormInitializationException(e);
+    }
     DataSourceUtils.applyColumnValues(formInitResponse, dbname2input, dataFromNewRecord);
 
     //to proceed with Change events, we need convert the keys to normalized format to input format
@@ -681,7 +755,18 @@ public class DataSourceServlet implements WebService {
       clearSessionVariables(dataInpFormat);
 
       String contentForChange = dataInpFormat.toString();
-      var formInitChangeResponse = formInit.execute(parameters2, contentForChange);
+      JSONObject formInitChangeResponse;
+      try {
+        formInitChangeResponse = formInit.execute(parameters2, contentForChange);
+      } catch (Exception e) {
+        log.error("Error during form initialization for change event", e);
+        throw new OBException(e);
+      }
+      if (formInitChangeResponse.has(RESPONSE) && formInitChangeResponse.getJSONObject(RESPONSE).has(
+          "error")) {
+        throw new CalloutExectionException(formInitChangeResponse.getJSONObject(RESPONSE).getJSONObject("error").getString(
+            "message"));
+      }
       DataSourceUtils.applyColumnValues(formInitChangeResponse, dbname2input, dataInpFormat);
     }
 
