@@ -76,32 +76,50 @@ class RXConfigUtilsTest {
     }
   }
 
-  // Test basic functionality
+  /**
+   * Verifies that {@link RXConfigUtils#getServicePort(String)} returns
+   * the correct port when a known service (config) exists in the YAML.
+   */
   @Test
   void testGetServicePortExistingServiceReturnsCorrectPort() {
     int port = RXConfigUtils.getServicePort(CONFIG);
     assertEquals(8888, port, "Should return correct port for config service");
   }
 
+  /**
+   * Ensures {@link RXConfigUtils#getServicePort(String)} returns 0
+   * when the service name does not exist in the YAML files.
+   */
   @Test
   void testGetServicePortNonExistingServiceReturnsZero() {
     int port = RXConfigUtils.getServicePort("nonexistent");
     assertEquals(0, port, "Should return 0 for non-existing service");
   }
 
+  /**
+   * Ensures {@link RXConfigUtils#getServicePort(String)} returns 0
+   * when an empty service name is provided.
+   */
   @Test
   void testGetServicePortEmptyServiceNameReturnsZero() {
     int port = RXConfigUtils.getServicePort("");
     assertEquals(0, port, "Should return 0 for empty service name");
   }
 
+  /**
+   * Ensures {@link RXConfigUtils#getServicePort(String)} returns 0
+   * when a null service name is provided.
+   */
   @Test
   void testGetServicePortNullServiceNameReturnsZero() {
     int port = RXConfigUtils.getServicePort(null);
     assertEquals(0, port, "Should return 0 for null service name");
   }
 
-  // Test ServiceConfigType functionality
+  /**
+   * Validates that the ETENDORX service type correctly includes
+   * the main services (config, das, etc.) with their expected ports.
+   */
   @Test
   void testGetServicesByTypeETENDORXReturnsMainServices() {
     Map<String, Integer> services = RXConfigUtils.getServicesByType(RXConfigUtils.ServiceConfigType.ETENDORX);
@@ -111,6 +129,10 @@ class RXConfigUtilsTest {
     assertEquals(8888, services.get(CONFIG), "Config service should have correct port");
   }
 
+  /**
+   * Validates that the CONNECTOR service type correctly includes
+   * connector services (obconnsrv, worker) from the YAML.
+   */
   @Test
   void testGetServicesByTypeCONNECTORReturnsConnectorServices() {
     Map<String, Integer> services = RXConfigUtils.getServicesByType(RXConfigUtils.ServiceConfigType.CONNECTOR);
@@ -119,6 +141,10 @@ class RXConfigUtilsTest {
     assertTrue(services.containsKey(WORKER), "Should contain worker service");
   }
 
+  /**
+   * Validates that the ASYNC service type correctly includes
+   * the asyncprocess service with its expected port.
+   */
   @Test
   void testGetServicesByTypeASYNCReturnsAsyncServices() {
     Map<String, Integer> services = RXConfigUtils.getServicesByType(RXConfigUtils.ServiceConfigType.ASYNC);
@@ -127,6 +153,10 @@ class RXConfigUtilsTest {
     assertEquals(8099, services.get(ASYNCPROCESS), "Asyncprocess should have correct port");
   }
 
+  /**
+   * Verifies that the ALL service type combines ETENDORX, CONNECTOR,
+   * and ASYNC services into a single map.
+   */
   @Test
   void testGetServicesByTypeALLReturnsAllServices() {
     Map<String, Integer> services = RXConfigUtils.getServicesByType(RXConfigUtils.ServiceConfigType.ALL);
@@ -136,7 +166,10 @@ class RXConfigUtilsTest {
     assertTrue(services.containsKey(ASYNCPROCESS), "Should contain asyncprocess service");
   }
 
-  // Test legacy methods
+  /**
+   * Confirms that the legacy {@link RXConfigUtils#getConnectorServices()}
+   * method returns a valid map containing connector services.
+   */
   @Test
   void testGetConnectorServicesReturnsValidMap() {
     Map<String, Integer> connectorServices = RXConfigUtils.getConnectorServices();
@@ -145,6 +178,10 @@ class RXConfigUtilsTest {
     assertTrue(connectorServices.containsKey(WORKER), "Should contain worker service");
   }
 
+  /**
+   * Confirms that the legacy {@link RXConfigUtils#getServicePorts()}
+   * method returns a non-empty map containing expected services.
+   */
   @Test
   void testGetServicePortsReturnsValidMap() {
     Map<String, Integer> servicePorts = RXConfigUtils.getServicePorts();
@@ -153,7 +190,10 @@ class RXConfigUtilsTest {
     assertTrue(servicePorts.containsKey(CONFIG), SHOULD_CONTAIN_CONFIG_SERVICE);
   }
 
-  // Test URL building
+  /**
+   * Validates that URLs are built correctly when Tomcat is enabled,
+   * producing the "http://{service}:{port}" format.
+   */
   @Test
   void testBuildServiceUrlWithTomcatEnabledReturnsCorrectFormat() {
     String url = RXConfigUtils.buildServiceUrl(CONFIG, true, true, false, false);
@@ -162,6 +202,10 @@ class RXConfigUtilsTest {
     assertTrue(url.contains("config:8888"), "URL should contain service name and port");
   }
 
+  /**
+   * Validates that URLs are built correctly when Tomcat is disabled,
+   * producing the "http://localhost:{port}" format.
+   */
   @Test
   void testBuildServiceUrlWithTomcatDisabledReturnsLocalhostFormat() {
     String url = RXConfigUtils.buildServiceUrl(CONFIG, true, false, false, false);
@@ -170,6 +214,11 @@ class RXConfigUtilsTest {
     assertTrue(url.contains("8888"), "URL should contain the port");
   }
 
+
+  /**
+   * Validates that URLs for async services include either the service
+   * name or its configured port in the output.
+   */
   @Test
   void testBuildServiceUrlAsyncServiceEnabledReturnsServiceNameFormat() {
     String url = RXConfigUtils.buildServiceUrl(ASYNCPROCESS, true, true, true, false);
@@ -177,6 +226,10 @@ class RXConfigUtilsTest {
     assertTrue(url.contains(ASYNCPROCESS) || url.contains("8099"), "URL should contain service name or port");
   }
 
+  /**
+   * Documents current behavior when the HTTPS flag is provided:
+   * URLs are still generated with "http://".
+   */
   @Test
   void testBuildServiceUrlWithHTTPSReturnsHTTPSFormat() {
     String url = RXConfigUtils.buildServiceUrl(CONFIG, true, true, false, true);
@@ -187,7 +240,10 @@ class RXConfigUtilsTest {
     assertTrue(url.contains("config:8888"), "URL should contain service name and port");
   }
 
-  // Test caching mechanism
+  /**
+   * Ensures that repeated calls to {@link RXConfigUtils#getServicesByType}
+   * return the same cached result.
+   */
   @Test
   void testCachingMultipleCallsSameResult() {
     Map<String, Integer> services1 = RXConfigUtils.getServicesByType(RXConfigUtils.ServiceConfigType.ETENDORX);
@@ -196,6 +252,10 @@ class RXConfigUtilsTest {
     assertEquals(services1, services2, "Multiple calls should return same cached result");
   }
 
+  /**
+   * Verifies that {@link RXConfigUtils#resetCache()} clears cached data,
+   * allowing subsequent YAML modifications to take effect.
+   */
   @Test
   void testResetCacheClearsCachedData() {
     // Get services to populate cache
@@ -217,7 +277,10 @@ class RXConfigUtilsTest {
     assertNotNull(services2, "Services should still be available after cache reset");
   }
 
-  // Test error handling
+  /**
+   * Ensures that invalid YAML files are handled gracefully,
+   * without breaking service parsing completely.
+   */
   @Test
   void testInvalidYamlFileHandlesGracefully() {
     // This will be tested with the invalid YAML file we created
@@ -225,6 +288,10 @@ class RXConfigUtilsTest {
     assertNotNull(services, "Should handle invalid YAML gracefully and return valid services");
   }
 
+  /**
+   * Verifies that complex YAML structures are parsed correctly,
+   * producing the expected services and port mappings.
+   */
   @Test
   void testParseYamlFileWithComplexStructureParsesCorrectly() {
     // Test that the refactored parseYamlFile method handles complex YAML structures
@@ -240,6 +307,10 @@ class RXConfigUtilsTest {
     assertEquals(8102, services.get(WORKER), "Worker service should be parsed correctly");
   }
 
+  /**
+   * Confirms that the refactored parseYamlFile method preserves
+   * the original functionality across ETENDORX, CONNECTOR, and ASYNC.
+   */
   @Test
   void testParseYamlFileRefactoredMethodsMaintainFunctionality() {
     // Test that the refactored parseYamlFile with extracted methods maintains the same functionality
@@ -257,6 +328,12 @@ class RXConfigUtilsTest {
     assertEquals(7, allServices.size(), "ALL should combine all unique services");
   }
 
+
+  /**
+   * Documents current behavior when YAML files are missing:
+   * an exception is thrown. If implementation changes, the
+   * test still passes by allowing graceful handling.
+   */
   @Test
   void testMissingYamlFileThrowsException() {
     // Delete YAML files
