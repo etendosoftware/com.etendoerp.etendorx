@@ -20,13 +20,12 @@ services:
       KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
       KAFKA_CFG_INTER_BROKER_LISTENER_NAME: "INTERNAL"
       KAFKA_CFG_OFFSETS_TOPIC_REPLICATION_FACTOR: "1"
-      ENV KAFKA_METADATA_LOG_SEGMENT_MS: 15000
-      ENV KAFKA_METADATA_MAX_RETENTION_MS: 60000
-      ENV KAFKA_METADATA_LOG_MAX_RECORD_BYTES_BETWEEN_SNAPSHOTS: 2800
+      KAFKA_METADATA_LOG_SEGMENT_MS: 15000
+      KAFKA_METADATA_MAX_RETENTION_MS: 60000
+      KAFKA_METADATA_LOG_MAX_RECORD_BYTES_BETWEEN_SNAPSHOTS: 2800
       # --- JMX opcional ---
       JMX_PORT: "9997"
       KAFKA_JMX_OPTS: "-Dcom.sun.management.jmxremote=true -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Djava.net.preferIPv4Stack=true -Dcom.sun.management.jmxremote.local.only=false -Dcom.sun.management.jmxremote.rmi.port=9997"
-      # Optimizaciones de la JVM para Kafka
       KAFKA_HEAP_OPTS: "-Xms512M -Xmx512M"
     networks:
       - etendo
@@ -34,7 +33,7 @@ services:
       resources:
         limits:
           cpus: "${KAFKA_CPU_LIMIT:-${BASE_KAFKA_CPU_LIMIT:-1}}"
-          memory: "${KAFKA_MEMORY_LIMIT:-${BASE_KAFKA_MEMORY_LIMIT:-1G}}"
+          memory: "${KAFKA_MEMORY_LIMIT:-${BASE_KAFKA_MEMORY_LIMIT:-1024M}}"
     volumes:
       - ${VOLUMES_PATH}/kafka_data:/bitnami
 
@@ -57,7 +56,7 @@ services:
       resources:
         limits:
           cpus: "${CONNECT_CPU_LIMIT:-${BASE_CONNECT_CPU_LIMIT:-1}}"
-          memory: "${CONNECT_MEMORY_LIMIT:-${BASE_CONNECT_MEMORY_LIMIT:-1G}}"
+          memory: "${CONNECT_MEMORY_LIMIT:-${BASE_CONNECT_MEMORY_LIMIT:-512M}}"
 
   asyncprocess:
     env_file: ".env"
@@ -112,7 +111,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "${ASYNCPROCESS_CPU_LIMIT:-${BASE_ASYNCPROCESS_CPU_LIMIT:-0.25}}"
+          cpus: "${ASYNCPROCESS_CPU_LIMIT:-${BASE_ASYNCPROCESS_CPU_LIMIT:-1}}"
           memory: "${ASYNCPROCESS_MEMORY_LIMIT:-${BASE_ASYNCPROCESS_MEMORY_LIMIT:-256M}}"
 
 volumes:
