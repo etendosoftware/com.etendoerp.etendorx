@@ -114,14 +114,14 @@ task "rx.setup" {
                         }
                     }
                     def content = destFile.text
-                    content = content.replace('{TOMCAT_URL}', isTomcatEnabled ? 'tomcat' : hostURL())
+                    content = content.replace('{TOMCAT_URL}', isTomcatEnabled ? 'tomcat' : 'host.docker.internal')
                     content = content.replace('{TOMCAT_PORT}', isTomcatEnabled ? '8080' : tomcatPort.toString())
-                    content = content.replace('{BBDD_URL}', isBBDDEnabled ? 'db' : hostURL())
+                    content = content.replace('{BBDD_URL}', isBBDDEnabled ? 'db' : 'host.docker.internal')
                     content = content.replace('{BBDD_PORT}', isBBDDEnabled ? '5432' : project.property("bbdd.port").toString())
                     content = content.replace('{BBDD_SID}', project.property("bbdd.sid").toString())
                     content = content.replace('{CONTEXT_NAME}', project.property("context.name").toString())
                     content = content.replace('{ETENDORX_BASEPACKAGE}', project.hasProperty("etendorx.basepackage") ? project.property("etendorx.basepackage").toString() : "")
-                    content = content.replace('{OBCON_URL}', isTomcatEnabled ? 'obconnsrv' : hostURL())
+                    content = content.replace('{OBCON_URL}', isTomcatEnabled ? 'obconnsrv' : 'host.docker.internal')
                     destFile.text = content
                 }
             }
@@ -154,7 +154,7 @@ task "rx.env.file" {
         upsertEnvProperty('ETENDORX_REPOSITORY_USER', etendorx_repository_user)
         upsertEnvProperty('ETENDORX_REPOSITORY_PASSWORD', etendorx_repository_password)
 
-        def destUrl = isBBDDEnabled ? "db" : hostURL()
+        def destUrl = isBBDDEnabled ? "db" : "host.docker.internal"
         def port = isBBDDEnabled ? "5432" : getTypedProp("bbdd.port")
         def sid = getTypedProp("bbdd.sid") ?: "etendo"
         def contextName = getTypedProp("context.name") ?: "etendo"
@@ -164,7 +164,7 @@ task "rx.env.file" {
 
         def tomcatHost = "tomcat"
         if (!isTomcatEnabled) {
-            tomcatHost = hostURL()
+            tomcatHost = "host.docker.internal"
         }
         def configServerUrl = "http://${tomcatHost}:${tomcatPort}/${contextName}/buildConfig"
         upsertEnvProperty("ETENDORX_CONFIG_SERVER_URL", configServerUrl)
@@ -192,8 +192,8 @@ task "rx.env.file" {
         def CONNECTOR_BASE_CPU = getTypedProp("connector.base.cpu") ?: 1.0
 
         def connectorServiceFactors = [
-            OBCONNSRV: [mem: 1.0, cpu: 1.0],  // Default 256Mb - 1 Cpu
-            WORKER   : [mem: 2.0, cpu: 1.0]   // Default 512Mb - 3 Cpu3
+                OBCONNSRV: [mem: 1.0, cpu: 1.0],  // Default 256Mb - 1 Cpu
+                WORKER   : [mem: 2.0, cpu: 1.0]   // Default 512Mb - 3 Cpu3
         ]
         connectorServiceFactors.each { service, factors ->
             def memMB = (CONNECTOR_BASE_MEM_MB * factors.mem).toInteger()
@@ -205,11 +205,11 @@ task "rx.env.file" {
 
         // Async Process Resource Limits
         def ASYNC_BASE_MEM_MB = getTypedProp("async.base.memory.mb") ?: 256
-        def ASYNC_BASE_CPU    = getTypedProp("async.base.cpu") ?: 1.0
+        def ASYNC_BASE_CPU = getTypedProp("async.base.cpu") ?: 1.0
         def asyncServiceFactors = [
-            KAFKA        : [mem: 4.0, cpu: 2.0],  // Default 1024Mb - 1 Cpu
-            CONNECT      : [mem: 4.0, cpu: 1.0],  // Default 1024Mb - 1 Cpu
-            ASYNCPROCESS : [mem: 1.0, cpu: 1.0]   // Default 256Mb - 1 Cpu
+                KAFKA       : [mem: 4.0, cpu: 2.0],  // Default 1024Mb - 1 Cpu
+                CONNECT     : [mem: 4.0, cpu: 1.0],  // Default 1024Mb - 1 Cpu
+                ASYNCPROCESS: [mem: 1.0, cpu: 1.0]   // Default 256Mb - 1 Cpu
         ]
         asyncServiceFactors.each { service, factors ->
             def memMB = (ASYNC_BASE_MEM_MB * factors.mem).toInteger()
@@ -221,12 +221,12 @@ task "rx.env.file" {
 
         // Utils Resource Limits
         def UTILS_BASE_MEM_MB = getTypedProp("utils.base.memory.mb") ?: 256
-        def UTILS_BASE_CPU    = getTypedProp("utils.base.cpu") ?: 1.0
+        def UTILS_BASE_CPU = getTypedProp("utils.base.cpu") ?: 1.0
 
         def utilsServiceFactors = [
-            KAFKA_UI      : [mem: 0.5,  cpu: 0.5],  // Default 128Mb - 0.5 Cpu
-            JAEGER        : [mem: 1.0,  cpu: 0.5],  // Default 256Mb - 0.5 Cpu
-            JAEGER_HEALTH : [mem: 0.25, cpu: 0.5]   // Default 64Mb - 0.5 Cpu
+                KAFKA_UI     : [mem: 0.5, cpu: 0.5],  // Default 128Mb - 0.5 Cpu
+                JAEGER       : [mem: 1.0, cpu: 0.5],  // Default 256Mb - 0.5 Cpu
+                JAEGER_HEALTH: [mem: 0.25, cpu: 0.5]   // Default 64Mb - 0.5 Cpu
         ]
         utilsServiceFactors.each { service, factors ->
             def memMB = (UTILS_BASE_MEM_MB * factors.mem).toInteger()
