@@ -11,7 +11,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "${KAFKA_UI_CPU_LIMIT:-${BASE_KAFKA_UI_CPU_LIMIT:-0.5}}"
+          cpus: "${KAFKA_UI_CPU_LIMIT:-${BASE_KAFKA_UI_CPU_LIMIT:-1}}"
           memory: "${KAFKA_UI_MEMORY_LIMIT:-${BASE_KAFKA_UI_MEMORY_LIMIT:-128M}}"
     restart: on-failure:5
     depends_on:
@@ -35,7 +35,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "${JAEGER_CPU_LIMIT:-${BASE_JAEGER_CPU_LIMIT:-0.5}}"
+          cpus: "${JAEGER_CPU_LIMIT:-${BASE_JAEGER_CPU_LIMIT:-1}}"
           memory: "${JAEGER_MEMORY_LIMIT:-${BASE_JAEGER_MEMORY_LIMIT:-256M}}"
     volumes:
       - ${VOLUMES_PATH}/jaeger/config.yaml:/jaeger/config.yaml
@@ -56,5 +56,5 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "${JAEGER_HEALTH_CPU_LIMIT:-${BASE_JAEGER_HEALTH_CPU_LIMIT:-0.5}}"
+          cpus: "${JAEGER_HEALTH_CPU_LIMIT:-${BASE_JAEGER_HEALTH_CPU_LIMIT:-1}}"
           memory: "${JAEGER_HEALTH_MEMORY_LIMIT:-${BASE_JAEGER_HEALTH_MEMORY_LIMIT:-64M}}"
