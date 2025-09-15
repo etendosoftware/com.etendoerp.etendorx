@@ -113,12 +113,11 @@ services:
       interval: 10s
       timeout: 10s
       retries: 60
-    # Límites de recursos para la JVM y el contenedor
     deploy:
       resources:
         limits:
           cpus: "${DAS_CPU_LIMIT:-${BASE_DAS_CPU_LIMIT:-1}}"
-          memory: "${DAS_MEMORY_LIMIT:-${BASE_DAS_MEMORY_LIMIT:-512M}}"
+          memory: "${DAS_MEMORY_LIMIT:-${BASE_DAS_MEMORY_LIMIT:-2048M}}"
 
   auth:
     env_file: ".env"
@@ -164,7 +163,6 @@ services:
       - etendo
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    # Se ha eliminado la referencia a `auth_vol`
     healthcheck:
       test: [ "CMD-SHELL", "wget --spider -q http://localhost:8094/actuator/health || exit 1" ]
       interval: 10s
@@ -219,7 +217,6 @@ services:
       - etendo
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    # Se ha eliminado la referencia a `edge_vol`
     healthcheck:
       test: [ "CMD-SHELL", "wget --spider -q http://localhost:8096/actuator/health || exit 1" ]
       interval: 10s
@@ -228,8 +225,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "${AUTH_CPU_LIMIT:-${BASE_AUTH_CPU_LIMIT:-1}}"
-          memory: "${AUTH_MEMORY_LIMIT:-${BASE_AUTH_MEMORY_LIMIT:-256M}}"
+          cpus: "${EDGE_CPU_LIMIT:-${BASE_EDGE_CPU_LIMIT:-1}}"
+          memory: "${EDGE_MEMORY_LIMIT:-${BASE_EDGE_MEMORY_LIMIT:-256M}}"
 
 networks:
   etendo:

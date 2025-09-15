@@ -1,24 +1,12 @@
 package com.etendoerp.etendorx.actionhandler;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.*;
-
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-
-import java.util.stream.Collectors;
-
+import com.etendoerp.etendorx.data.ETRXConfig;
 import org.codehaus.jettison.json.JSONObject;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameters;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
@@ -31,7 +19,18 @@ import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.test.base.TestConstants;
 
-import com.etendoerp.etendorx.data.ETRXConfig;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+import java.util.stream.Collectors;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.when;
 
 @RunWith(Parameterized.class)
 public class InitializeRXServicesTest extends WeldBaseTest {
@@ -48,17 +47,13 @@ public class InitializeRXServicesTest extends WeldBaseTest {
   /**
    * Creates a new test instance for initializing RX services with the given configuration flags.
    *
-   * @param rxEnable
-   *     whether the RX services should be enabled
-   * @param tomcatEnable
-   *     whether Tomcat is running in a dockerized environment
-   * @param asyncEnable
-   *     whether the async process service should be enabled
-   * @param connectorEnable
-   *     whether the connector service should be enabled
+   * @param rxEnable        whether the RX services should be enabled
+   * @param tomcatEnable    whether Tomcat is running in a dockerized environment
+   * @param asyncEnable     whether the async process service should be enabled
+   * @param connectorEnable whether the connector service should be enabled
    */
   public InitializeRXServicesTest(boolean rxEnable, boolean tomcatEnable, boolean asyncEnable,
-      boolean connectorEnable) {
+                                  boolean connectorEnable) {
     this.rxEnable = rxEnable;
     this.tomcatEnable = tomcatEnable;
     this.asyncEnable = asyncEnable;
@@ -68,14 +63,14 @@ public class InitializeRXServicesTest extends WeldBaseTest {
   @Parameters
   public static Collection<Object[]> propertyCombinations() {
     return Arrays.asList(new Object[][]{
-        { true, true, true, true },
-        { true, true, true, false },
-        { true, true, false, true },
-        { true, true, false, false },
-        { true, false, true, true },
-        { false, true, true, true },
-        { false, false, true, false },
-        { false, false, false, false }
+        {true, true, true, true},
+        {true, true, true, false},
+        {true, true, false, true},
+        {true, true, false, false},
+        {true, false, true, true},
+        {false, true, true, true},
+        {false, false, true, false},
+        {false, false, false, false}
     });
   }
 
@@ -105,6 +100,8 @@ public class InitializeRXServicesTest extends WeldBaseTest {
     mockProperties.setProperty("docker_com.etendoerp.etendorx_async", String.valueOf(asyncEnable));
     mockProperties.setProperty("docker_com.etendoerp.etendorx_connector", String.valueOf(connectorEnable));
     mockProperties.setProperty("docker.exclude", "");
+    // Add source.path property for RXConfigUtils to find compose directory
+    mockProperties.setProperty("source.path", System.getProperty("user.dir"));
 
     try (MockedStatic<OBPropertiesProvider> mockedStatic = mockStatic(OBPropertiesProvider.class)) {
       mockedStatic.when(OBPropertiesProvider::getInstance).thenReturn(obPropertiesProvider);
@@ -119,18 +116,33 @@ public class InitializeRXServicesTest extends WeldBaseTest {
           .collect(Collectors.toMap(ETRXConfig::getServiceName, ETRXConfig::getServiceURL));
       Map<String, Integer> expectedServices = new java.util.LinkedHashMap<>();
       if (rxEnable) {
-        expectedServices.putAll(com.etendoerp.etendorx.utils.RXConfigUtils.SERVICE_PORTS);
+        // Get core RX services (excluding async and connector services)
+        Map<String, Integer> allServices = com.etendoerp.etendorx.utils.RXConfigUtils.getServicePorts();
+        Map<String, Integer> connectorServices = com.etendoerp.etendorx.utils.RXConfigUtils.getConnectorServices();
+
+        allServices.entrySet().stream()
+            .filter(entry -> !connectorServices.containsKey(entry.getKey()))
+            .filter(entry -> !entry.getKey().equals("asyncprocess") &&
+                !entry.getKey().equals("kafka") &&
+                !entry.getKey().equals("connect"))
+            .forEach(entry -> expectedServices.put(entry.getKey(), entry.getValue()));
       }
       if (asyncEnable) {
-        expectedServices.put("asyncprocess", 9092);
+        // Get async services
+        Map<String, Integer> allServices = com.etendoerp.etendorx.utils.RXConfigUtils.getServicePorts();
+        allServices.entrySet().stream()
+            .filter(entry -> entry.getKey().equals("asyncprocess") ||
+                entry.getKey().equals("kafka") ||
+                entry.getKey().equals("connect"))
+            .forEach(entry -> expectedServices.put(entry.getKey(), entry.getValue()));
       }
       if (connectorEnable) {
-        expectedServices.putAll(com.etendoerp.etendorx.utils.RXConfigUtils.CONNECTOR_SERVICES);
+        expectedServices.putAll(com.etendoerp.etendorx.utils.RXConfigUtils.getConnectorServices());
       }
 
       for (Map.Entry<String, Integer> e : expectedServices.entrySet()) {
         String expectedUrl = com.etendoerp.etendorx.utils.RXConfigUtils.buildServiceUrl(
-            e.getKey(), e.getValue(), rxEnable, tomcatEnable, asyncEnable, connectorEnable);
+            e.getKey(), rxEnable, tomcatEnable, asyncEnable, connectorEnable);
 
         assertTrue("Falta servicio: " + e.getKey(), createdByName.containsKey(e.getKey()));
         assertEquals("URL distinta para " + e.getKey(), expectedUrl, createdByName.get(e.getKey()));
