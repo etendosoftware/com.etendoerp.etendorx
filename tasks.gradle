@@ -482,4 +482,9 @@ afterEvaluate {
             }
         }
     }
+    if (isRXDockerized() && tasks.named("install")) {
+        tasks.named("install").configure { task ->
+            task.finalizedBy("resources.build")
+        }
+    }
 }
