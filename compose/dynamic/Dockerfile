@@ -40,7 +40,7 @@ RUN wget https://github.com/open-telemetry/opentelemetry-java-instrumentation/re
 
 # Stage 3: Runtime - The final, lightweight and optimized image
 # This is the final image that will run. It is based on Alpine Linux, which is very lightweight.
-FROM alpine:3.20
+FROM alpine:3.20 AS dynamic-gradle
 ARG DEBUG_PORT=8000
 ARG SPRING_PROFILES_ACTIVE
 ARG SPRING_CLOUD_CONFIG_SERVER_NATIVE_SEARCHLOCATIONS

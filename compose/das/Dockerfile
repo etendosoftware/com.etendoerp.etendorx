@@ -89,7 +89,7 @@ RUN wget https://github.com/open-telemetry/opentelemetry-java-instrumentation/re
 # STAGE 4: RUNTIME
 # Final lightweight image, using the customized JRE from the 'jlinker' stage.
 # =========================================================================================
-FROM alpine:3.20
+FROM alpine:3.20 AS dynamic-das
 
 # Runtime arguments
 ARG DEBUG_PORT=5021

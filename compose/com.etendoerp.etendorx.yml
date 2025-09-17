@@ -1,6 +1,7 @@
 services:
   config:
     env_file: ".env"
+    image: ${CONTEXT_NAME:-etendo}/config:${ETENDORX_VERSION:-latest}
     build:
       context: .
       dockerfile: dynamic/Dockerfile
@@ -58,6 +59,7 @@ services:
     depends_on:
       config:
         condition: service_healthy
+    image: ${CONTEXT_NAME:-etendo}/das:${ETENDORX_VERSION:-latest}
     build:
       context: .
       dockerfile: das/Dockerfile
@@ -120,6 +122,7 @@ services:
     depends_on:
       config:
         condition: service_healthy
+    image: ${CONTEXT_NAME:-etendo}/auth:${ETENDORX_VERSION:-latest}
     build:
       context: .
       dockerfile: dynamic/Dockerfile
@@ -172,6 +175,7 @@ services:
     depends_on:
       config:
         condition: service_healthy
+    image: ${CONTEXT_NAME:-etendo}/edge:${ETENDORX_VERSION:-latest}
     build:
       context: .
       dockerfile: dynamic/Dockerfile
