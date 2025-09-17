@@ -33,9 +33,9 @@ config {
         required = false
         group = "Rx Docker Configuration"
     }
-    
+
     javaopts {
-        description = "Additional JVM options - Default: null" 
+        description = "Additional JVM options - Default: null"
         value = ""
         name = "config.java.opts"  // Maps to config.java.opts in gradle.properties
         sensitive = false
@@ -44,7 +44,7 @@ config {
     }
 
     gradleflags {
-        description = "Gradle command flags - Default: -no-daemon --info --refresh-dependencies" 
+        description = "Gradle command flags - Default: -no-daemon --info --refresh-dependencies"
         value = "-no-daemon --info --refresh-dependencies"
         name = "config.gradle.flags"  // Maps to config.gradle.flags in gradle.properties
         sensitive = false
@@ -163,7 +163,7 @@ das {
     }
 
     javaopts {
-        description = "Additional JVM options - Default: null" 
+        description = "Additional JVM options - Default: null"
         value = ""
         name = "das.java.opts"  // Maps to das.java.opts in gradle.properties
         sensitive = false
@@ -172,7 +172,7 @@ das {
     }
 
     gradleflags {
-        description = "Gradle command flags - Default: -no-daemon --info --refresh-dependencies" 
+        description = "Gradle command flags - Default: -no-daemon --info --refresh-dependencies"
         value = "-no-daemon --info --refresh-dependencies"
         name = "das.gradle.flags"  // Maps to das.gradle.flags in gradle.properties
         sensitive = false
@@ -280,9 +280,9 @@ auth {
         required = false
         group = "Rx Docker Configuration"
     }
-    
+
     javaopts {
-        description = "Additional JVM options - Default: null" 
+        description = "Additional JVM options - Default: null"
         value = ""
         name = "auth.java.opts"  // Maps to auth.java.opts in gradle.properties
         sensitive = false
@@ -291,7 +291,7 @@ auth {
     }
 
     gradleflags {
-        description = "Gradle command flags - Default: -no-daemon --info --refresh-dependencies" 
+        description = "Gradle command flags - Default: -no-daemon --info --refresh-dependencies"
         value = "-no-daemon --info --refresh-dependencies"
         name = "auth.gradle.flags"  // Maps to auth.gradle.flags in gradle.properties
         sensitive = false
@@ -399,9 +399,9 @@ edge {
         required = false
         group = "Rx Docker Configuration"
     }
-    
+
     javaopts {
-        description = "Additional JVM options - Default: null" 
+        description = "Additional JVM options - Default: null"
         value = ""
         name = "edge.java.opts"  // Maps to edge.java.opts in gradle.properties
         sensitive = false
@@ -410,7 +410,7 @@ edge {
     }
 
     gradleflags {
-        description = "Gradle command flags - Default: -no-daemon --info --refresh-dependencies" 
+        description = "Gradle command flags - Default: -no-daemon --info --refresh-dependencies"
         value = "-no-daemon --info --refresh-dependencies"
         name = "edge.gradle.flags"  // Maps to edge.gradle.flags in gradle.properties
         sensitive = false
@@ -488,5 +488,78 @@ edge {
         sensitive = false
         required = false
         group = "OpenTelemetry Configuration"
+    }
+}
+kafkaConnect {
+    kafkaConnectSetup {
+        description = "Setup Kafka Connect configuraction with an automated configuration task"
+        help = "Executes the kafka.connect.setup task to automatically configure Kafka Connect settings based on your environment"
+        sensitive = false
+        required = false
+        group = "Kafka Connect configuration"
+        process = true
+        order = 10
+        name = "kafkaConnectSetup"
+    }
+    dockerEtendorxAsync {
+        description = "Enable EtendoRX Async Docker service. This must be enabled to start Kafka and Kafka Connect " +
+                "with Etendo Docker setup."
+        help = "Activates the Docker service for EtendoRX Async integration."
+        value = "false"
+        sensitive = false
+        required = true
+        group = "Kafka Connect configuration"
+        order = 10
+        name = "docker_com.etendoerp.etendorx_async"
+    }
+    dockerEtendorxUtils {
+        description = "Enable EtendoRX Utils Docker service"
+        help = "Activates the Docker service for EtendoRX Utilities integration. This utilities includes Redpanda (Kafka UI) and Jaeger for tracing."
+        value = "false"
+        sensitive = false
+        required = true
+        group = "Kafka Connect configuration"
+        order = 20
+        name = "docker_com.etendoerp.etendorx_utils"
+    }
+    kafkaEnable {
+        description = "Enable Kafka bridge"
+        help = "Turns on integration with Kafka within this environment. If not enabled, Etendo Classic will not connect to Kafka."
+        value = "false"
+        sensitive = false
+        required = true
+        group = "Kafka Connect configuration"
+        order = 30
+        name = "kafka.enable"
+    }
+    kafkaConnectBbddHost {
+        description = "Kafka Connect database host"
+        help = "Hostname or IP of the database to connect via Kafka Connect. This depends of the database and Kafka Connect configuration."
+        value = "db"
+        sensitive = false
+        required = true
+        group = "Kafka Connect configuration"
+        order = 40
+        name = "kafka.connect.bbdd.host"
+    }
+    kafkaConnectTables {
+        description = "Comma-separated list of tables for Kafka Connect"
+        help = "Enter the tables (e.g., 'public.etask_task,public.c_order') for which changes will be captured and sent to Kafka."
+        value = "public.etask_task"
+        sensitive = false
+        required = true
+        group = "Kafka Connect configuration"
+        order = 50
+        name = "kafka.connect.tables"
+    }
+    kafkaTopicPartitions {
+        description = "Number of partitions for Kafka topics"
+        help = "Defines the number of partitions to use when creating Kafka topics for data export."
+        value = "5"
+        sensitive = false
+        required = true
+        group = "Kafka Connect configuration"
+        order = 60
+        name = "kafka.topic.partitions"
     }
 }

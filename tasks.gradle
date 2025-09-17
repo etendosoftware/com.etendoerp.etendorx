@@ -4,6 +4,61 @@ project.ext {
     ETENDORX_VERSION = "2.3.3"
 }
 
+// InteractiveSetupManager will be resolved at flush time (if available)
+
+// Map to accumulate interactive setup properties to write later
+ext.collectedInteractiveSetupProps = [:]
+
+private void saveInteractiveProp(String key, String value) {
+    if (key != null && value != null) {
+        ext.collectedInteractiveSetupProps[key] = value
+    }
+}
+
+private boolean flushInteractiveSetup(Project proj) {
+    try {
+        def ismClass = Class.forName('com.etendoerp.legacy.interactive.InteractiveSetupManager')
+        def writeMethod = ismClass.getMethod('writeResultsForInteractiveSetup', Project.class, Map.class)
+        writeMethod.invoke(null, proj, ext.collectedInteractiveSetupProps)
+        return true
+    } catch (ClassNotFoundException e) {
+        proj.logger.debug("InteractiveSetupManager not available: ${e.message}")
+        return false
+    } catch (Exception e) {
+        proj.logger.warn("Failed to write interactive setup results: ${e.message}")
+        return false
+    }
+}
+
+// Console helpers to avoid duplication when prompting the user
+private BufferedReader getConsoleReader() {
+    return new BufferedReader(new InputStreamReader(System.in))
+}
+
+/**
+ * Ask a yes/no question. Returns true for yes, false for no.
+ * Accepts defaultYes=true to consider empty input as yes.
+ */
+private boolean askYesNo(BufferedReader reader, String prompt, boolean defaultYes) {
+    println prompt
+    System.out.flush()
+    def answer = reader.readLine()?.trim()
+    if (answer == null || answer == '') {
+        return defaultYes
+    }
+    return (answer.equalsIgnoreCase('y') || answer.equalsIgnoreCase('yes'))
+}
+
+/**
+ * Ask for arbitrary input and return trimmed string (or null if empty).
+ */
+private String askInput(BufferedReader reader, String prompt) {
+    println prompt
+    System.out.flush()
+    def answer = reader.readLine()?.trim()
+    return (answer && answer.length() > 0) ? answer : null
+}
+
 def volumesDir = project.providers
     .provider {
         def volumenPath = project.findProperty('VOLUMES_PATH')
@@ -273,26 +328,174 @@ task "rx.das.stop" {
 }
 
 task "kafkaConnectSetup" {
-
     doLast {
         def connectorName = "default"
         def dbUser = getTypedProp('bbdd.systemUser') ?: 'postgres'
         def dbName = getTypedProp('bbdd.sid') ?: 'etendo'
         def dbPass = getTypedProp('bbdd.systemPassword') ?: 'syspass'
-        def dbPort = isBBDDEnabled ? '5432' : getTypedProp("bbdd.port") ?: '5432'
+        def dbPort = isBBDDEnabled ? '5432' : getTypedProp("bbdd.port") ?: '5432'  
 
-        if (!project.hasProperty('kafka.connect.tables')) {
-            throw new GradleException("You must specify the 'kafka.connect.tables' property.")
+        //TEST CONNECTION
+        
+        try {
+            // Try to load DatabaseConnection reflectively. If the class is not available, skip the DB tests.
+            def dbConnClass = null
+            try {
+                dbConnClass = Class.forName('com.etendoerp.connections.DatabaseConnection')
+            } catch (ClassNotFoundException cnfe) {
+                project.logger.debug("DatabaseConnection class not available, skipping DB connectivity test: ${cnfe.message}")
+            }
+
+            if (dbConnClass != null) {
+                def dbConn = dbConnClass.getConstructor(Project.class).newInstance(project)
+                if (!dbConn.loadDatabaseConnection()) {
+                    throw new IllegalStateException('Could not load database connection using project config (Openbravo.properties).')
+                }
+
+                java.sql.Connection connection = null
+                try {
+                    connection = dbConn.getConnection()
+                    if (connection == null || connection.isClosed()) {
+                        throw new IllegalStateException('Database connection is null or closed.')
+                    }
+                    println "✅ Database connection test successful."
+                    // do a simple query to ensure the connection is valid
+                    def stmt = connection.createStatement()
+                    // check wall level and do
+                    /*
+                    ALTER SYSTEM SET wal_level = logical;
+ALTER TABLE etask_task REPLICA IDENTITY FULL; if needed*/
+                    def setWallLevel = false
+                    def rs = stmt.executeQuery("SELECT setting FROM pg_settings WHERE name = 'wal_level'")
+                    if (rs.next()) {
+                        def walLevel = rs.getString("setting")
+                        if (walLevel != 'logical') {
+                            setWallLevel = true
+                        } else {
+                            println "✅ Database wal_level is set to 'logical'."
+                        }
+                    } else {
+                        throw new IllegalStateException("Could not retrieve wal_level from pg_settings.")
+                    }
+                    //check if table public.etask_task has REPLICA IDENTITY FULL
+                    def needSetReplicaLevelTask = false
+                    rs = stmt.executeQuery("SELECT relreplident FROM pg_class WHERE relname = 'etask_task' AND relnamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'public')")
+                    if (rs.next()) {
+                        def replIdent = rs.getString("relreplident")
+                        if (replIdent != 'f') {
+                            needSetReplicaLevelTask = true
+                        }
+                    } else {
+                        throw new IllegalStateException("Could not retrieve relreplident for public.etask_task.")
+                    }
+                    if (setWallLevel || needSetReplicaLevelTask) {
+                        println "⚠️ Database configuration changes are required for Kafka Connect to function properly."
+                    } else {
+                        println "✅ Database configuration is suitable for Kafka Connect."
+                    }
+                    if (setWallLevel  || needSetReplicaLevelTask) {
+                    //ask to user if want to continue
+                        def reader = getConsoleReader()
+                        def continueSetup = askYesNo(reader, "\nDo you want to the setup script apply the required configuration changes automatically? (Y/n): ", true)
+                    if (!continueSetup) {
+                        throw new GradleException(
+                                "Database configuration is not suitable for Kafka Connect. Please apply the required changes manually and re-run this task:\n" +
+                                "1. Set wal_level to 'logical':\n" +
+                                "   ALTER SYSTEM SET wal_level = 'logical';\n" +
+                                "2. Set REPLICA IDENTITY FULL on public.etask_task table:\n" +
+                                "   ALTER TABLE public.etask_task REPLICA IDENTITY FULL;\n" +
+                                "After applying the changes, please restart the database server if necessary and re-run this task to ensure all settings are correct."
+                        )
+                    }
+
+                    if (setWallLevel ){
+                        def configSt=connection.prepareStatement("ALTER SYSTEM SET wal_level = 'logical'")
+                        configSt.execute()
+                    }
+                    if (needSetReplicaLevelTask) {
+                       def configSt2=connection.prepareStatement("ALTER TABLE public.etask_task REPLICA IDENTITY FULL")
+                        configSt2.execute()
+                    }
+                    if (setWallLevel || needSetReplicaLevelTask) {
+                        println "⚠️ Database requirded configuration changes applied. A database restart may be required for changes to take effect."
+                        if (setWallLevel) {
+                            println "→ wal_level set to 'logical'."
+                        }
+                        if (needSetReplicaLevelTask) {
+                            println "→ public.etask_task set to REPLICA IDENTITY FULL."
+                        }
+                        println "Please restart the database server if necessary and re-run this task to ensure all settings are correct."
+                    }
+
+                    } //end if no changes needed
+
+
+                } finally {
+                    if (connection != null && !connection.isClosed()) {
+                        connection.close()
+                    }
+                }
+            } else {
+                project.logger.debug('Skipping database connectivity test because DatabaseConnection class is not on the classpath.')
+            }
+
+        } catch (Exception e) {
+            throw new GradleException("❌ Database connection test failed: ${e.message}\nPlease check your database connection settings (bbdd.systemUser, bbdd.systemPassword, bbdd.sid, bbdd.port) and ensure the database is reachable.")
         }
-        def tableIncludeList = getTypedProp('kafka.connect.tables')
-        def dbHost
-        if (project.hasProperty('kafka.connect.bbdd.host')) {
-            dbHost = getTypedProp('kafka.connect.bbdd.host')
-        } else if (project.hasProperty('docker_com.etendoerp.docker_db') && project.getProperty('docker_com.etendoerp.docker_db').toBoolean()) {
-            dbHost = "db"
-        } else {
-            throw new GradleException("You must specify the 'kafka.connect.bbdd.host' property.")
+
+        
+        // check for variable kafka.enable. If not set, set it to true, but if already set in false, ask
+        def kafkaEnabledSetted = project.hasProperty('kafka.enable')
+        if (!kafkaEnabledSetted) {
+            def reader = getConsoleReader()
+            def kafkaEnabled = askYesNo(reader, "\nDo you want to enable Kafka Connect for database change data capture? (Y/n): ", true)
+            saveInteractiveProp('kafka.enable', kafkaEnabled.toString())
+            if (!kafkaEnabled) {
+                println "Kafka Connect setup skipped as per user choice."
+                return
+            }
+        } else if (project.getProperty('kafka.enable').toString().toBoolean() == false) {
+            println "Kafka Connect setup will be skipped as 'kafka.enable' is set to false."
+            //ask if the user wants to set it to true
+            def reader = getConsoleReader()
+            def kafkaEnabled = askYesNo(reader, "\nDo you want to enable Kafka Connect for database change data capture? (Y/n): ", true)
+            saveInteractiveProp('kafka.enable', kafkaEnabled.toString())
+            if (!kafkaEnabled) {
+                println "Kafka Connect setup skipped as per user choice."
+                return
+            }
+
         }
+
+
+        //ask if the user wants to use etendorx_async docker container
+        def dockerizedAsyncEnabled = project.hasProperty('docker_com.etendoerp.etendorx_async') && project.getProperty('docker_com.etendoerp.etendorx_async').toBoolean()
+        if (!dockerizedAsyncEnabled) {
+            def reader = getConsoleReader()
+            dockerizedAsyncEnabled = askYesNo(reader, "\nDo you want to use Kafka connect as a Etendo Docker service? (Y/n): ", true)
+            saveInteractiveProp('docker_com.etendoerp.etendorx_async', dockerizedAsyncEnabled.toString())
+        }
+        if (dockerizedAsyncEnabled && !project.hasProperty('docker_com.etendoerp.etendorx_utils')) {
+            //Ask if want to enable the utilities, like Kafka UI and Jaeger
+            def dockerizedUtilsEnabled = project.hasProperty('docker_com.etendoerp.etendorx_utils') && project.getProperty('docker_com.etendoerp.etendorx_utils').toBoolean()
+            if (!dockerizedUtilsEnabled) {
+                def reader = getConsoleReader()
+                dockerizedUtilsEnabled = askYesNo(reader, "\nDo you want to use Kafka connect utilities (Kafka UI, Jaeger) as a Etendo Docker service? (Y/n): ", true)
+            }
+        }
+
+        def kafkaConnectHost = getKafkaConnectHost(project, dockerizedAsyncEnabled)
+        saveInteractiveProp('kafka.connect.host', kafkaConnectHost)
+
+        def tableIncludeList = getKafkaConnectTables(project)
+        saveInteractiveProp('kafka.connect.tables', tableIncludeList)
+        def dockerizedDBEnabled = project.hasProperty('docker_com.etendoerp.docker_db') && project.getProperty('docker_com.etendoerp.docker_db').toBoolean()
+
+        def dbHost = getkafkaConnectDBHost(project, dockerizedDBEnabled)
+        saveInteractiveProp('kafka.connect.bbdd.host', dbHost)
+
+        flushInteractiveSetup(project)
+        
 
         println "📡 Checking Kafka Connect for connector '$connectorName'..."
 
@@ -322,14 +525,7 @@ task "kafkaConnectSetup" {
             "config": ${configBody}
         }
         """
-        def kafkaConnectHost
-        if (project.hasProperty('kafka.connect.host')) {
-            kafkaConnectHost = project.getProperty('kafka.connect.host')
-        } else if (project.hasProperty('docker_com.etendoerp.etendorx_async') && project.getProperty('docker_com.etendoerp.etendorx_async').toBoolean()) {
-            kafkaConnectHost = "localhost"
-        } else {
-            throw new GradleException("You must specify the 'kafka.connect.host' property.")
-        }
+        
 
         def checkProcess = ['curl', '-s', '-o', '/dev/null', '-w', '%{http_code}', "http://${kafkaConnectHost}:8083/connectors/${connectorName}"].execute()
         def statusCode = checkProcess.text.trim()
@@ -361,10 +557,134 @@ task "kafkaConnectSetup" {
             throw new GradleException("❌ Error configuring Kafka Connect.\nCommand executed:\n${command.join(' ')}\nExit code: ${exitCode}\nSTDOUT:\n${output}\nSTDERR:\n${error}\n")
         } else {
             println "✅ Kafka Connect $method completed.\n"
+            // Attempt to flush collected interactive setup properties (if InteractiveSetupManager available)
+            try {
+                flushInteractiveSetup(project)
+            } catch (Exception e) {
+                project.logger.warn("Failed to flush interactive setup properties: ${e.message}")
+            }
         }
     }
 }
 
+// Helper to obtain Kafka Connect host, with interactive fallback
+private String getKafkaConnectHost(Project proj, boolean dockerizedAsyncEnabled) {
+    if (proj.hasProperty('kafka.connect.host')) {
+        return proj.getProperty('kafka.connect.host')
+    }
+
+    if (dockerizedAsyncEnabled) {
+        return 'localhost'
+    }
+
+    def reader = getConsoleReader()
+    def yellow = "\u001B[33;1m"
+    def reset = "\u001B[0m"
+
+    try {
+        def isLocal = askYesNo(reader, "\n${yellow}Is Kafka Connect running on this machine and reachable at 'localhost'? (y/N): ${reset}", false)
+        if (isLocal) {
+            saveInteractiveProp('kafka.connect.host', 'localhost')
+            return 'localhost'
+        }
+
+        def userHost = askInput(reader, "\n${yellow}Please enter the Kafka Connect host reachable from this machine (example: 192.168.1.2 or connect.example.com): ${reset}")
+        if (userHost) {
+            saveInteractiveProp('kafka.connect.host', userHost)
+            return userHost
+        }
+    } catch (Exception e) {
+        proj.logger.warn("Failed to read user input for Kafka Connect host: ${e.message}")
+    }
+
+    throw new GradleException("You must specify the 'kafka.connect.host' property or provide a valid host when prompted.")
+}
+
+// Helper to include required 'public.etask_task' table if missing
+private String includeEtaskIfMissing(String tablesStr, Project proj, BufferedReader reader) {
+    def yellow = "\u001B[33;1m"
+    def reset = "\u001B[0m"
+
+    def parts = []
+    if (tablesStr) {
+        parts = tablesStr.split(',').collect { it?.trim() }.findAll { it }
+    }
+
+    if (!parts.contains('public.etask_task')) {
+        def include = askYesNo(reader, "\n${yellow}The 'public.etask_task' table is required for the async task processing to work.\n${yellow}Do you want to include it automatically in the tables list? (Y/n): ${reset}", true)
+        if (include) {
+            parts << 'public.etask_task'
+        }
+    }
+
+    return parts.join(',')
+}
+
+// Helper to obtain kafka.connect.tables, with interactive prompt if missing
+private String getKafkaConnectTables(Project proj) {
+    def reader = getConsoleReader()
+    try {
+        if (proj.hasProperty('kafka.connect.tables')) {
+            def tablesStr = getTypedProp('kafka.connect.tables')?.toString()?.trim()
+            def result = includeEtaskIfMissing(tablesStr, proj, reader)
+            if (result && result.trim()) {
+                saveInteractiveProp('kafka.connect.tables', result)
+                return result
+            }
+        } else {
+            def yellow = "\u001B[33;1m"
+            def reset = "\u001B[0m"
+            def prompt = "\n${yellow}Please enter the comma-separated list of tables for Kafka Connect (example: public.table1,public.table2): ${reset}"
+            def tablesStr = askInput(reader, prompt)
+            def result = includeEtaskIfMissing(tablesStr, proj, reader)
+            if (result && result.trim()) {
+                saveInteractiveProp('kafka.connect.tables', result)
+                return result
+            }
+        }
+    } catch (Exception e) {
+        proj.logger.warn("Failed to read user input for kafka.connect.tables: ${e.message}")
+    }
+
+    throw new GradleException("You must specify the 'kafka.connect.tables' property.")
+}
+
+
+private String getkafkaConnectDBHost(Project proj, boolean dockerizedDBEnabled) {
+    if (proj.hasProperty('kafka.connect.bbdd.host')) {
+        def val = getTypedProp('kafka.connect.bbdd.host')?.toString()
+        saveInteractiveProp('kafka.connect.bbdd.host', val)
+        return val
+    }
+
+    if (dockerizedDBEnabled) {
+        saveInteractiveProp('kafka.connect.bbdd.host', 'db')
+        return 'db'
+    }
+
+    def reader = getConsoleReader()
+    def yellow = "\u001B[33;1m"
+    def reset = "\u001B[0m"
+
+    try {
+        def isLocalDb = askYesNo(reader, "\n${yellow}Is the database running on this machine and reachable from the Kafka Connect container? (y/N): ${reset}", false)
+        if (isLocalDb) {
+            saveInteractiveProp('kafka.connect.bbdd.host', 'host.docker.internal')
+            return 'host.docker.internal'
+        }
+
+        def userHost = askInput(reader, "\n${yellow}Please enter the database host reachable from the Kafka Connect container (example: 192.168.1.2 or db.example.com): ${reset}")
+        if (userHost) {
+            saveInteractiveProp('kafka.connect.bbdd.host', userHost)
+            return userHost
+        }
+    } catch (Exception e) {
+        project.logger.warn("Failed to read user input for DB host: ${e.message}")
+    }
+
+    throw new GradleException("You must specify the 'kafka.connect.bbdd.host' property or provide a valid DB host when prompted.")
+}
+  
 task "jaeger.build" {
     description = 'Executing Jaeger and Opentelemetry Configurations'
     group = 'Docker'
