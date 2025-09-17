@@ -88,7 +88,7 @@ public class GetOAuthToken extends HttpBaseServlet {
     JSONObject tokenInfo = new JSONObject();
     try {
       ETRXTokenInfo token = (ETRXTokenInfo) OBDal.getInstance().createCriteria(ETRXTokenInfo.class)
-          .add(Restrictions.like(ETRXTokenInfo.PROPERTY_MIDDLEWAREPROVIDER, "google%drive.file"))
+          .add(Restrictions.like(ETRXTokenInfo.PROPERTY_MIDDLEWAREPROVIDER, "google%drive.%"))
           .add(Restrictions.eq(ETRXTokenInfo.PROPERTY_USER, OBContext.getOBContext().getUser()))
           .setMaxResults(1).uniqueResult();
       if (token == null) {
