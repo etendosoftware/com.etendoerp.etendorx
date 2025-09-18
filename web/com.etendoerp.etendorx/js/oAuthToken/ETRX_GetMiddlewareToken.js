@@ -74,12 +74,12 @@ OB.ETRX.middlewareToken = {
           scopeButtonsContainer.className = 'middleware-scope-container';
 
           provider.scopes.forEach(scopeData => {
-            const { scope: rawScope, iconUrl = '', description = '' } = scopeData || {};
+            const {name: scopeName, scope: rawScope, iconUrl = '', description = '' } = scopeData || {};
             const scope = typeof rawScope === 'string' ? rawScope : String(rawScope || '');
 
             const labelMap = { drive: 'Drive Files', calendar: 'Calendar', gmail: 'Gmail' };
             const matchedKey = Object.keys(labelMap).find(key => scope.includes(key));
-            const label = matchedKey ? labelMap[matchedKey] : scope || 'Scope';
+            const label = scopeName;
 
             const scopeItem = document.createElement('div');
             scopeItem.className = 'middleware-scope-item';
