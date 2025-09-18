@@ -41,10 +41,12 @@ services:
       - OTEL_EXPORTER_OTLP_TIMEOUT=${OTEL_CONFIG_EXPORTER_OTLP_TIMEOUT:-10000}
     networks:
       - etendo
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ${VOLUMES_PATH}/rxconfig:/rxconfig
     healthcheck:
-      test: ["CMD-SHELL", "wget --spider -q http://localhost:8888/actuator/health || exit 1"]
+      test: [ "CMD-SHELL", "wget --spider -q http://localhost:8888/actuator/health || exit 1" ]
       interval: 10s
       timeout: 10s
       retries: 60
@@ -106,8 +108,10 @@ services:
       - OTEL_EXPORTER_OTLP_TIMEOUT=${OTEL_DAS_EXPORTER_OTLP_TIMEOUT:-10000}
     networks:
       - etendo
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     healthcheck:
-      test: ["CMD-SHELL", "wget --spider -q http://localhost:8092/actuator/health || exit 1"]
+      test: [ "CMD-SHELL", "wget --spider -q http://localhost:8092/actuator/health || exit 1" ]
       interval: 10s
       timeout: 10s
       retries: 60
@@ -160,8 +164,10 @@ services:
       - OTEL_EXPORTER_OTLP_TIMEOUT=${OTEL_AUTH_EXPORTER_OTLP_TIMEOUT:-10000}
     networks:
       - etendo
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     healthcheck:
-      test: ["CMD-SHELL", "wget --spider -q http://localhost:8094/actuator/health || exit 1"]
+      test: [ "CMD-SHELL", "wget --spider -q http://localhost:8094/actuator/health || exit 1" ]
       interval: 10s
       timeout: 10s
       retries: 60
@@ -213,8 +219,10 @@ services:
       - OTEL_EXPORTER_OTLP_TIMEOUT=${OTEL_EDGE_EXPORTER_OTLP_TIMEOUT:-10000}
     networks:
       - etendo
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     healthcheck:
-      test: ["CMD-SHELL", "wget --spider -q http://localhost:8096/actuator/health || exit 1"]
+      test: [ "CMD-SHELL", "wget --spider -q http://localhost:8096/actuator/health || exit 1" ]
       interval: 10s
       timeout: 10s
       retries: 60
