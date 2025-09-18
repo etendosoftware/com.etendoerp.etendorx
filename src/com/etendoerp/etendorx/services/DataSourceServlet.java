@@ -494,7 +494,7 @@ public class DataSourceServlet implements WebService {
       status = jsonContent.getJSONObject("response").getInt("status");
     }
     if (status == -1 && jsonContent.has("response") && jsonContent.getJSONObject("response").has("error")) {
-      throw new PayloadPostException( jsonContent.getJSONObject("response").getJSONObject("error").toString());
+      throw new PayloadPostException(jsonContent.getJSONObject("response").getJSONObject("error").toString());
     }
 
     if (jsonContent.has(DataSourceConstants.RESPONSE)) {
@@ -508,6 +508,10 @@ public class DataSourceServlet implements WebService {
       if (responseContent.has(DataSourceConstants.ERROR)) {
         status = -1;
         jsonData.put(responseContent.getJSONObject(DataSourceConstants.ERROR));
+      }
+      if (responseContent.has(DataSourceConstants.ERRORS)) {
+        status = -1;
+        jsonData.put(responseContent.getJSONObject(DataSourceConstants.ERRORS));
       }
     }
 
@@ -619,8 +623,12 @@ public class DataSourceServlet implements WebService {
           defaults.warehouse);
 
       OBCriteria<OpenAPIRequest> crit = OBDal.getInstance().createCriteria(OpenAPIRequest.class);
-      crit.add(Restrictions.eq("name", dataSource[0]));
+      String reqName = dataSource[0].trim();
+      crit.add(Restrictions.eq(OpenAPIRequest.PROPERTY_NAME, reqName));
       OpenAPIRequest req = (OpenAPIRequest) crit.setMaxResults(1).uniqueResult();
+      if (req == null) {
+          throw new OBException(String.format(OBMessageUtils.messageBD("ETRX_HeadlessEndpNF"), reqName));
+      }
       OBDal.getInstance().refresh(req);
       if (req == null || req.getETRXOpenAPITabList().isEmpty()) {
         handleNotFoundException(response);
