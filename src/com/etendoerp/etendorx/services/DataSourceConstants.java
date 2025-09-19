@@ -12,6 +12,7 @@ public class DataSourceConstants {
   public static final String RESPONSE = "response";
   public static final String DATA = "data";
   public static final String ERROR = "error";
+  public static final String ERRORS = "errors";
   public static final String MESSAGE = "message";
 
   /**
