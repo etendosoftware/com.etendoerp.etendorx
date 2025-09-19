@@ -52,6 +52,8 @@ services:
       - kafka
     networks:
       - etendo
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     deploy:
       resources:
         limits:
