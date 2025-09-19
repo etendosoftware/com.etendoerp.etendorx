@@ -14,7 +14,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
+import java.time.Duration;
 
 import javax.script.ScriptException;
 import javax.servlet.ServletException;
@@ -47,6 +49,8 @@ import org.openbravo.model.ad.ui.Tab;
 import org.openbravo.service.db.DalConnectionProvider;
 import org.openbravo.service.web.WebService;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import com.etendoerp.etendorx.data.OpenAPIRequestField;
 import com.etendoerp.etendorx.data.OpenAPITab;
 import com.etendoerp.etendorx.openapi.OpenAPIConstants;
@@ -69,6 +73,11 @@ public class DataSourceServlet implements WebService {
   public static final String _START_ROW = "_startRow";
   public static final String _END_ROW = "_endRow";
   public static final String RESPONSE = "response";
+
+  private final Cache<String, Object> locks = Caffeine.newBuilder()
+      .expireAfterAccess(Duration.ofMinutes(30))  // Expire locks after 30 minutes of inactivity
+      .maximumSize(10_000)                        // Maximum 10,000 locks in cache
+      .build();
 
   /**
    * Gets the DataSourceServlet instance.
@@ -477,17 +486,34 @@ public class DataSourceServlet implements WebService {
       throws Exception, OpenAPINotFoundThrowable {
     // Clear session variables to prevent cross-record contamination
     clearSessionVariables(null);
-    
+
     EtendoRequestWrapper newRequest = getEtendoPostWrapper(request, tab,
         createPayLoad(request, payload), fieldList, newUri);
     HttpServletResponse wrappedResponse = new EtendoResponseWrapper(response);
 
-    try {
-      servlet.doPost(newRequest, wrappedResponse);
-    } catch (Exception e) {
-      log.error("Error processing POST request", e);
-      throw e;
+    String idToLock = newRequest.lockId;
+
+    if (idToLock != null) {
+      Object lock = getLock(idToLock);
+      synchronized (lock) {
+        try {
+          System.out.println("Processing payload with lock for session ID: " + idToLock);
+          servlet.doPost(newRequest, wrappedResponse);
+        } catch (Exception e) {
+          log.error("Error processing POST request", e);
+          throw e;
+        }
+      }
+    } else {
+      try {
+        System.out.println("Processing payload without lock (lockId is null)");
+        servlet.doPost(newRequest, wrappedResponse);
+      } catch (Exception e) {
+        log.error("Error processing POST request", e);
+        throw e;
+      }
     }
+
     String content = ((EtendoResponseWrapper) wrappedResponse).getCapturedContent().toString();
     JSONObject jsonContent = new JSONObject(content);
     if (jsonContent.has("response") && jsonContent.getJSONObject("response").has("status")) {
@@ -556,7 +582,29 @@ public class DataSourceServlet implements WebService {
     JSONObject jsonBody = new JSONObject(getBodyFromRequest(request));
     EtendoRequestWrapper newRequest = getEtendoPutWrapper(request, response,
         createPayLoad(request, jsonBody), fieldList, newUri, path);
-    servlet.doPut(newRequest, response);
+
+    String idToLock = newRequest.lockId;
+
+    if (idToLock != null) {
+      Object lock = getLock(idToLock);
+      synchronized (lock) {
+        try {
+          log.debug("Processing PUT request with lock for session ID: " + idToLock);
+          servlet.doPut(newRequest, response);
+        } catch (Exception e) {
+          log.error("Error processing PUT request", e);
+          throw e;
+        }
+      }
+    } else {
+      try {
+        log.debug("Processing PUT request without lock (lockId is null)");
+        servlet.doPut(newRequest, response);
+      } catch (Exception e) {
+        log.error("Error processing PUT request", e);
+        throw e;
+      }
+    }
   }
 
   /**
@@ -627,7 +675,7 @@ public class DataSourceServlet implements WebService {
       crit.add(Restrictions.eq(OpenAPIRequest.PROPERTY_NAME, reqName));
       OpenAPIRequest req = (OpenAPIRequest) crit.setMaxResults(1).uniqueResult();
       if (req == null) {
-          throw new OBException(String.format(OBMessageUtils.messageBD("ETRX_HeadlessEndpNF"), reqName));
+        throw new OBException(String.format(OBMessageUtils.messageBD("ETRX_HeadlessEndpNF"), reqName));
       }
       OBDal.getInstance().refresh(req);
       if (req == null || req.getETRXOpenAPITabList().isEmpty()) {
@@ -772,8 +820,9 @@ public class DataSourceServlet implements WebService {
       }
       if (formInitChangeResponse.has(RESPONSE) && formInitChangeResponse.getJSONObject(RESPONSE).has(
           "error")) {
-        throw new CalloutExectionException(formInitChangeResponse.getJSONObject(RESPONSE).getJSONObject("error").getString(
-            "message"));
+        throw new CalloutExectionException(
+            formInitChangeResponse.getJSONObject(RESPONSE).getJSONObject("error").getString(
+                "message"));
       }
       DataSourceUtils.applyColumnValues(formInitChangeResponse, dbname2input, dataInpFormat);
     }
@@ -784,7 +833,7 @@ public class DataSourceServlet implements WebService {
     jsonBodyToSave = DataSourceUtils.valuesConvertion(jsonBodyToSave, columnTypes);
     newJsonBody.put(DataSourceConstants.DATA, jsonBodyToSave);
 
-    return new EtendoRequestWrapper(request, newUri, newJsonBody.toString(), request.getParameterMap());
+    return new EtendoRequestWrapper(request, newUri, newJsonBody.toString(), request.getParameterMap(), parentId);
   }
 
   /**
@@ -853,6 +902,10 @@ public class DataSourceServlet implements WebService {
     JSONObject preexistentData = capturedResponse.getJSONObject(DataSourceConstants.RESPONSE).getJSONArray(
         DataSourceConstants.DATA).getJSONObject(0);
 
+    // Get parentId from the existing data
+    String parentId = DataSourceUtils.getParentId(DataSourceUtils.getTabByDataSourceName(extractedParts[0]),
+        preexistentData);
+
     //define the maps
     LinkedHashMap<String, String> norm2input = new LinkedHashMap<>();
     Map<String, String> input2norm = new HashMap<>();
@@ -906,10 +959,10 @@ public class DataSourceServlet implements WebService {
       Map<String, Object> parameters2 = createParameters(request,
           DataSourceUtils.getTabByDataSourceName(extractedParts[0]).getId(), null, recordId, changedColumnInp,
           "CHANGE");
-      
+
       // Clear session variables before CHANGE events (always clear for all field types)
       clearSessionVariables(dataInpFormat);
-      
+
       String contentForChange = dataInpFormat.toString();
       var formInitChangeResponse = WeldUtils.getInstanceFromStaticBeanManager(EtendoFormInitComponent.class).execute(
           parameters2, contentForChange);
@@ -922,7 +975,7 @@ public class DataSourceServlet implements WebService {
     //finally, we need to apply the changes to the original data
     JSONObject jsonBodyToSave = DataSourceUtils.applyChanges(preexistentData, jsonBodyToApply);
     fullDataBody.put(DataSourceConstants.DATA, jsonBodyToSave);
-    return new EtendoRequestWrapper(request, newUri, fullDataBody.toString(), request.getParameterMap());
+    return new EtendoRequestWrapper(request, newUri, fullDataBody.toString(), request.getParameterMap(), parentId);
   }
 
   /**
@@ -1022,11 +1075,12 @@ public class DataSourceServlet implements WebService {
    * This method removes session variables that are used by callouts and form initialization
    * to ensure that when processing multiple records, each record starts with a clean session state.
    *
-   * @param dataInpFormat optional JSONObject containing the input format data with "inp" parameters to clear
+   * @param dataInpFormat
+   *     optional JSONObject containing the input format data with "inp" parameters to clear
    */
   private void clearSessionVariables(JSONObject dataInpFormat) {
     RequestContext requestContext = RequestContext.get();
-    
+
     // Collect all "inp" parameter names from dataInpFormat if available
     List<String> inpParametersToClean = new ArrayList<>();
     if (dataInpFormat != null) {
@@ -1039,7 +1093,7 @@ public class DataSourceServlet implements WebService {
         }
       }
     }
-    
+
     // Clear RequestContext session attributes and request parameters
     for (String param : inpParametersToClean) {
       // Clear from RequestContext session attributes
@@ -1047,12 +1101,25 @@ public class DataSourceServlet implements WebService {
       if (sessionValue != null) {
         requestContext.setSessionAttribute(param, null);
       }
-      
+
       // Clear from RequestContext request parameters
       String requestValue = requestContext.getRequestParameter(param);
       if (requestValue != null) {
         requestContext.setRequestParameter(param, null);
       }
     }
+  }
+
+  /**
+   * Gets or creates a lock object for the specified lock ID.
+   * <p>
+   * This method uses Caffeine cache to manage locks with automatic expiration and size limits.
+   * Locks expire after 30 minutes of inactivity and are automatically cleaned up to prevent memory leaks.
+   *
+   * @param lockId the unique identifier for the lock (typically a parent ID)
+   * @return the lock object to be used for synchronization
+   */
+  private Object getLock(String lockId) {
+    return locks.get(lockId, k -> new Object());
   }
 }
