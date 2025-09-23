@@ -100,24 +100,28 @@ public final class LockManager {
     if (lockId == null || lock == null) {
       return;
     }
-    boolean unlocked = false;
-    try {
-      // always unlock first so waiting threads can proceed
-      lock.unlock();
-      unlocked = true;
-    } catch (IllegalMonitorStateException e) {
-      // If unlock fails, do not change reference counts or remove the wrapper.
-      // This indicates a programming error (unlock called by non-owner); log and return.
-      log.error("Attempted to unlock a lock not held by current thread for id={}", lockId, e);
+    // Sonar rule S2235: do not catch IllegalMonitorStateException. The
+    // LockManager always supplies ReentrantLock instances from the internal
+    // LockWrapper; therefore prefer checking ownership via
+    // ReentrantLock.isHeldByCurrentThread() before unlocking. If an external
+    ///non-ReentrantLock is passed, log and return (do not attempt to catch
+    // IllegalMonitorStateException).
+    if (!(lock instanceof ReentrantLock)) {
+      log.error("Unsupported Lock implementation for id={}: {}", lockId, lock.getClass().getName());
       return;
     }
 
-    if (unlocked) {
-      LockWrapper wrapper = locks.get(lockId);
-      if (wrapper != null && wrapper.decrementAndGet() == 0) {
-        locks.remove(lockId, wrapper);
-        log.trace("Removed LockWrapper for id={}", lockId);
-      }
+    ReentrantLock rl = (ReentrantLock) lock;
+    if (!rl.isHeldByCurrentThread()) {
+      log.error("Attempted to unlock a ReentrantLock not held by current thread for id={}", lockId);
+      return;
+    }
+
+    rl.unlock();
+    LockWrapper wrapper = locks.get(lockId);
+    if (wrapper != null && wrapper.decrementAndGet() == 0) {
+      locks.remove(lockId, wrapper);
+      log.trace("Removed LockWrapper for id={}", lockId);
     }
   }
 
