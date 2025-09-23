@@ -489,8 +489,7 @@ public class DataSourceServlet implements WebService {
     String idToLock = DataSourceUtils.getParentId(tab, dataFromOriginalRequest);
 
     if (idToLock != null) {
-      Object lock = LockManager.getLock(idToLock);
-      synchronized (lock) {
+      try (LockManager.LockLease lease = LockManager.lock(idToLock)) {
         log.debug(
             MessageFormat.format("Acquired lock for session ID: {0}. at {1}", idToLock, System.currentTimeMillis()));
         try {
@@ -499,12 +498,12 @@ public class DataSourceServlet implements WebService {
           wrappedResponse = new EtendoResponseWrapper(response);
           log.debug(MessageFormat.format("Processing payload with lock for session ID: {0}", idToLock));
           servlet.doPost(newRequest, wrappedResponse);
+          log.debug(
+              MessageFormat.format("Released lock for session ID: {0}. at {1}", idToLock, System.currentTimeMillis()));
         } catch (Exception e) {
           log.error("Error processing POST request", e);
           throw e;
         }
-        log.debug(
-            MessageFormat.format("Released lock for session ID: {0}. at {1}", idToLock, System.currentTimeMillis()));
       }
     } else {
       try {
@@ -621,8 +620,7 @@ public class DataSourceServlet implements WebService {
     String idToLock = getIdToLockForPut(path, payLoad);
 
     if (idToLock != null) {
-      Object lock = LockManager.getLock(idToLock);
-      synchronized (lock) {
+      try (LockManager.LockLease lease = LockManager.lock(idToLock)) {
         try {
           log.debug(
               MessageFormat.format("Acquired lock for session ID: {0}. at {1}", idToLock, System.currentTimeMillis()));
