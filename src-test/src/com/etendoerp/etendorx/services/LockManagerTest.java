@@ -17,6 +17,11 @@ import org.junit.Test;
  */
 public class LockManagerTest {
 
+  /**
+   * Verifies that acquiring a lease for a single id increases the active
+   * lock wrapper count while held and that releasing the lease returns the
+   * registry to the previous count.
+   */
   @Test
   public void testAcquireAndReleaseSingleThread() {
     int before = LockManager.getActiveLockCount();
@@ -28,6 +33,12 @@ public class LockManagerTest {
     assertEquals(before, LockManager.getActiveLockCount());
   }
 
+  /**
+   * Ensures exclusive access when multiple threads attempt to lock the same
+   * id concurrently. This test verifies no two threads enter the critical
+   * section at the same time and that all tasks complete and the registry is
+   * cleaned up afterwards.
+   */
   @Test
   public void testConcurrentExclusiveAccess() throws InterruptedException {
     final String lockId = "concurrent-id";
@@ -67,6 +78,11 @@ public class LockManagerTest {
     assertEquals(0, LockManager.getActiveLockCount());
   }
 
+  /**
+   * Acquires and releases locks for many distinct ids concurrently and
+   * verifies that the internal lock registry is cleaned up (no active
+   * wrappers remain) after all leases are released.
+   */
   @Test
   public void testMultipleIdsCleanup() throws InterruptedException {
     final int ids = 200;
