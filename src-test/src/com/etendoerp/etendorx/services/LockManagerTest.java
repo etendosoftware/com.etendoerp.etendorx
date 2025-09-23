@@ -38,6 +38,10 @@ public class LockManagerTest {
    * id concurrently. This test verifies no two threads enter the critical
    * section at the same time and that all tasks complete and the registry is
    * cleaned up afterwards.
+   *
+   * @throws InterruptedException
+   *     if the executor is interrupted while
+   *     awaiting termination
    */
   @Test
   public void testConcurrentExclusiveAccess() throws InterruptedException {
@@ -82,6 +86,10 @@ public class LockManagerTest {
    * Acquires and releases locks for many distinct ids concurrently and
    * verifies that the internal lock registry is cleaned up (no active
    * wrappers remain) after all leases are released.
+   *
+   * @throws InterruptedException
+   *     if the executor is interrupted while
+   *     awaiting termination
    */
   @Test
   public void testMultipleIdsCleanup() throws InterruptedException {
