@@ -174,7 +174,19 @@ OB.ETRX.openGooglePickerPopup = async function (processEndpointName, ssoBaseFrom
     let url = `${ssoBase}/picker?session=${encodeURIComponent(sessionToken)}&returnOrigin=${encodeURIComponent(returnOrigin)}&titleText=${titleText}&buttonText=${buttonText}&successMessage=${successMessage}`;
     if (processEndpointName) url += `&processEndpoint=${encodeURIComponent(processEndpointName)}`;
 
-    const ssoOrigin = new URL(ssoBase, window.location.href).origin;
+    const NativeURL = typeof window !== 'undefined' && typeof window.URL === 'function'
+      ? window.URL
+      : null;
+
+    const ssoOrigin = NativeURL
+      ? new NativeURL(ssoBase, window.location.href).origin
+      : (function () {
+          const a = document.createElement('a');
+          a.href = ssoBase.startsWith('/')
+            ? window.location.origin + ssoBase
+            : ssoBase;
+          return a.origin || (a.protocol + '//' + a.host);
+        })();
 
     window.addEventListener('message', (evt) => {
       if (evt.origin !== ssoOrigin) return;

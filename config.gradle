@@ -562,3 +562,32 @@ kafkaConnect {
         name = "kafka.topic.partitions"
     }
 }
+
+sso {
+    authType {
+        description = "Authentication type for SSO (e.g., Middleware)"
+        value = "Middleware"
+        sensitive = false
+        required = false
+        group = "SSO Configuration"
+        name = "sso.auth.type"
+    }
+
+    middlewareUrl {
+        description = "URL of the SSO Middleware service"
+        value = "https://sso.etendo.cloud"
+        sensitive = false
+        required = false
+        group = "SSO Configuration"
+        name = "sso.middleware.url"
+    }
+
+    redirectUri {
+        description = "Redirect URI for SSO login handler"
+        value = "https://your-domain.com/oauth/secureApp/LoginHandler.html"
+        sensitive = false
+        required = false
+        group = "SSO Configuration"
+        name = "sso.middleware.redirectUri"
+    }
+}
