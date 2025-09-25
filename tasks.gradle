@@ -348,7 +348,7 @@ task "kafkaConnectSetup" {
 
             if (dbConnClass != null) {
                 def dbConn = dbConnClass.getConstructor(Project.class).newInstance(project)
-                if (!dbConn.loadDatabaseConnection()) {
+                if (!dbConn.loadSystemDatabaseConnection()) {
                     throw new IllegalStateException('Could not load database connection using project config (Openbravo.properties).')
                 }
 
