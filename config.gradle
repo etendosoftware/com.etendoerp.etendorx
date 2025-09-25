@@ -545,7 +545,6 @@ kafkaConnect {
     kafkaConnectTables {
         description = "Comma-separated list of tables for Kafka Connect"
         help = "Enter the tables (e.g., 'public.etask_task,public.c_order') for which changes will be captured and sent to Kafka."
-        value = "public.etask_task"
         sensitive = false
         required = true
         group = "Kafka Connect configuration"
