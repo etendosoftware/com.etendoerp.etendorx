@@ -79,7 +79,7 @@ pipeline {
               def changedFilesRaw = sh(script: cmd, returnStdout: true).trim()
               def changedFiles = changedFilesRaw ? changedFilesRaw.split('\n') : []
               echo "Changed files: ${changedFiles}"
-              def relevantChange = changedFiles.any { it.startsWith("compose/") || it.startsWith("pipelines/utils/sql/") }
+              def relevantChange = changedFiles.any { it.startsWith("compose/") || it.startsWith("pipelines/utils/sql/" || it.startsWith("pipelines/JenkinsfileOpentelemetry")) }
               if (!relevantChange) {
                 currentBuild.result = ABORTED
                 sh "./pipelines/utils/build-update.sh ${MODULE_PACKAGE} ${COMMIT_SUCCESS_STATUS} \"Skipped\" $ACCESS_TOKEN ${GIT_COMMIT} ${BUILD_URL} \"${CONTEXT_BUILD}\""
@@ -267,6 +267,7 @@ pipeline {
                     allow.root=true
                     docker_com.etendoerp.docker_db=true
                     db.base.memory.mb=10240
+                    etendorx.basepackage=com.etendorx.integration.petclinic
                     org.gradle.jvmargs=-Dfile.encoding=UTF-8
                     org.gradle.daemon=false" > gradle.properties
                     """
@@ -384,10 +385,11 @@ pipeline {
                 async.base.memory.mb=10240
                 kafka.enable=false
                 docker.exclude=kafka,connect,asyncprocess,kafka-ui
+                etendorx.basepackage=com.etendorx.integration.petclinic
                 org.gradle.jvmargs=-Dfile.encoding=UTF-8
                 org.gradle.daemon=false" > gradle.properties
                 """
-                echo "---------------- https://youtu.be/dv5EIUsfel8?t=969 ----------------"
+                echo "---------------- Add dependencies ----------------"
                 def buildGradleContent = """
                 dependencies {
                     implementation(\"com.etendoerp.platform:etendo-core:[25.1.0,${NEXT_CLASSIC_VERSION})\")
