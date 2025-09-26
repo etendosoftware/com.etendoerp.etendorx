@@ -1,7 +1,5 @@
 package com.etendoerp.etendorx.services.wrapper;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletRequestWrapper;
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -14,6 +12,9 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletRequestWrapper;
+
 /**
  * A wrapper class for HttpServletRequest that allows modification of the request body and URI.
  * This class is used to modify the request body and URI before passing it to the servlet.
@@ -23,13 +24,20 @@ public class EtendoRequestWrapper extends HttpServletRequestWrapper {
   private final String requestURI;
   private final Map<String, String[]> modifiedParameters;
 
+
   /**
    * Constructor for EtendoRequestWrapper.
-   * @param originalRequest The original request.
-   * @param requestURI The modified request URI.
-   * @param newBody The modified request body.
-   * @param newParameters The modified request parameters.
-   * @throws IOException If an I/O error occurs.
+   *
+   * @param originalRequest
+   *     The original request.
+   * @param requestURI
+   *     The modified request URI.
+   * @param newBody
+   *     The modified request body.
+   * @param newParameters
+   *     The modified request parameters.
+   * @throws IOException
+   *     If an I/O error occurs.
    */
   public EtendoRequestWrapper(HttpServletRequest originalRequest, String requestURI, String newBody,
       Map<String, String[]> newParameters) throws IOException {
@@ -42,7 +50,6 @@ public class EtendoRequestWrapper extends HttpServletRequestWrapper {
   /**
    * Get the modified request body.
    *
-   * @return
    * @throws IOException
    */
   @Override
@@ -54,7 +61,6 @@ public class EtendoRequestWrapper extends HttpServletRequestWrapper {
   /**
    * Get the modified request body as InputStream.
    *
-   * @return
    * @throws IOException
    */
   @Override
@@ -89,8 +95,6 @@ public class EtendoRequestWrapper extends HttpServletRequestWrapper {
 
   /**
    * Get the modified request URI.
-   *
-   * @return
    */
   @Override
   public String getRequestURI() {
@@ -101,7 +105,6 @@ public class EtendoRequestWrapper extends HttpServletRequestWrapper {
    * Get the modified request URL.
    *
    * @param name
-   * @return
    */
   @Override
   public String getParameter(String name) {
@@ -116,7 +119,6 @@ public class EtendoRequestWrapper extends HttpServletRequestWrapper {
    * Get the modified request parameters.
    *
    * @param name
-   * @return
    */
   @Override
   public String[] getParameterValues(String name) {
@@ -128,8 +130,6 @@ public class EtendoRequestWrapper extends HttpServletRequestWrapper {
 
   /**
    * Get the modified request parameters.
-   *
-   * @return
    */
   @Override
   public Map<String, String[]> getParameterMap() {
@@ -141,8 +141,6 @@ public class EtendoRequestWrapper extends HttpServletRequestWrapper {
 
   /**
    * Get the modified request parameter names.
-   *
-   * @return
    */
   @Override
   public Enumeration<String> getParameterNames() {

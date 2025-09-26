@@ -3,6 +3,8 @@ package com.etendoerp.etendorx.services;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.sql.BatchUpdateException;
+import java.text.MessageFormat;
 import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -60,7 +62,25 @@ import com.smf.securewebservices.utils.SecureWebServicesUtils;
 
 
 /**
- * Servlet that handles data source requests.
+ * Servlet facade for handling headless DataSource requests inside Etendorx.
+ *
+ * <p>This class adapts higher-level OpenAPI-style requests into internal
+ * Openbravo DataSource servlet calls. It is responsible for:
+ *
+ * <ul>
+ *   <li>Parsing and validating incoming HTTP requests (GET/POST/PUT).</li>
+ *   <li>Preparing payloads and wrappers accepted by the internal
+ *       {@code org.openbravo.service.datasource.DataSourceServlet}.</li>
+ *   <li>Executing form initialization and change event logic when needed
+ *       to compute derived or default values before persisting records.</li>
+ *   <li>Merging and normalizing responses from internal datasource operations
+ *       into a single JSON response for the external client.</li>
+ * </ul>
+ *
+ * <p>Most methods in this class assume they are executed with Openbravo's
+ * {@link org.openbravo.dal.core.OBContext} admin mode active; callers must
+ * ensure context is appropriately set or the class methods will set/restore
+ * admin mode where needed.
  */
 public class DataSourceServlet implements WebService {
 
@@ -68,6 +88,12 @@ public class DataSourceServlet implements WebService {
   public static final String _START_ROW = "_startRow";
   public static final String _END_ROW = "_endRow";
   public static final String RESPONSE = "response";
+  public static final String ERROR = "error";
+  public static final String STATUS = "status";
+  /**
+   * Charset name used for request/response character encoding.
+   */
+  public static final String CHARSET_UTF8 = "UTF-8";
 
   /**
    * Gets the DataSourceServlet instance.
@@ -153,7 +179,7 @@ public class DataSourceServlet implements WebService {
         throw new OBException(message);
       }
       response.setContentType(ContentType.APPLICATION_JSON.getMimeType());
-      response.setCharacterEncoding("UTF-8");
+      response.setCharacterEncoding(CHARSET_UTF8);
       response.getWriter().write(capturedResponse.toString());
     } catch (OpenAPINotFoundThrowable e) {
       handleNotFoundException(response);
@@ -326,32 +352,129 @@ public class DataSourceServlet implements WebService {
    */
   private void upsertEntity(String method, String path, HttpServletRequest request, HttpServletResponse response) {
     try {
-      List<RequestField> fieldList = new ArrayList<>();
-      Tab tab = getTab(path, request, response, fieldList);
-      if (tab == null) {
-        handleNotFoundException(response);
-        return;
+      executeUpsert(method, path, request, response);
+    } catch (CalloutExecutionException e) {
+      sendJsonError(response, HttpServletResponse.SC_BAD_REQUEST, "Callout Error",
+          e.getMessage() != null ? e.getMessage() : "An unexpected error occurred.");
+    } catch (FormInitializationException e) {
+      sendJsonError(response, HttpServletResponse.SC_BAD_REQUEST, "Form Initialization Error",
+          e.getMessage() != null ? e.getMessage() : "An unexpected error occurred during form initialization.");
+    } catch (PayloadPostException e) {
+      handlePayloadPostException(response, e);
+    } catch (BatchUpdateException e) {
+      String message = OBMessageUtils.messageBD("ETRX_BatchUpdateException");
+      if (e.getMessage() != null) {
+        message += ": " + e.getMessage();
       }
-      String newUri = convertURI(DataSourceUtils.extractDataSourceAndID(path));
-      var servlet = getDataSourceServlet();
-
-      if (StringUtils.equals(OpenAPIConstants.POST, method)) {
-        processPostRequest(request, response, tab, fieldList, newUri, servlet);
-      } else if (StringUtils.equals(OpenAPIConstants.PUT, method)) {
-        processPutRequest(request, response, fieldList, newUri, path, servlet);
-      } else {
-        throw new UnsupportedOperationException("Method not supported: " + method);
-      }
+      sendJsonError(response, HttpServletResponse.SC_BAD_REQUEST, "Database Error", message);
     } catch (Exception e) {
+      // preserve logging + internal error handling
       e.printStackTrace();
       log.error(DataSourceConstants.ERROR_IN_DATA_SOURCE_SERVLET, e);
       handleInternalServerError(response, e);
     } catch (OpenAPINotFoundThrowable e) {
-      try {
-        handleNotFoundException(response);
-      } catch (IOException ex) {
-        throw new OBException(ex);
-      }
+      handleOpenApiNotFound(response);
+    }
+  }
+
+  /**
+   * Writes the message from a {@link PayloadPostException} directly to the
+   * response using a 400 (Bad Request) HTTP status. This preserves the
+   * original behavior where the exception's payload is sent back to the client
+   * as-is.
+   *
+   * @param response
+   *     the HttpServletResponse used to write the payload
+   * @param e
+   *     the PayloadPostException containing the payload to return
+   * @throws OBException
+   *     when writing the response fails (wrapped IOException)
+   */
+  private void handlePayloadPostException(HttpServletResponse response, PayloadPostException e) {
+    try {
+      response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+      response.setContentType(ContentType.APPLICATION_JSON.getMimeType());
+      response.setCharacterEncoding(CHARSET_UTF8);
+      response.getWriter().write(e.getMessage());
+      response.getWriter().flush();
+    } catch (IOException ex) {
+      throw new OBException(ex);
+    }
+  }
+
+  /**
+   * Handles a case where the OpenAPI resource is not found by delegating to
+   * {@link #handleNotFoundException(HttpServletResponse)} and wrapping IO
+   * errors in an {@link OBException}.
+   *
+   * @param response
+   *     the HttpServletResponse used to write the 404 payload
+   * @throws OBException
+   *     if writing the response fails
+   */
+  private void handleOpenApiNotFound(HttpServletResponse response) {
+    try {
+      handleNotFoundException(response);
+    } catch (IOException ex) {
+      throw new OBException(ex);
+    }
+  }
+
+  /**
+   * Extracted core logic for upserting entities. This method contains the
+   * original workflow for resolving the tab, building the request wrapper and
+   * delegating to the internal DataSource servlet. Exceptions are propagated
+   * to the caller so they can be handled in a single place without changing
+   * the original behavior.
+   *
+   * @param method
+   *     the HTTP method being handled (e.g. {@code "POST"} or {@code "PUT"})
+   * @param path
+   *     the request path (HttpServletRequest.getPathInfo())
+   * @param request
+   *     the original HttpServletRequest
+   * @param response
+   *     the original HttpServletResponse
+   * @throws Exception
+   *     propagated exceptions thrown by downstream processing
+   * @throws OpenAPINotFoundThrowable
+   *     when the requested OpenAPI resource cannot be found
+   */
+  private void executeUpsert(String method, String path, HttpServletRequest request, HttpServletResponse response)
+      throws Exception, OpenAPINotFoundThrowable {
+    List<RequestField> fieldList = new ArrayList<>();
+    Tab tab = getTab(path, request, response, fieldList);
+    if (tab == null) {
+      handleNotFoundException(response);
+      return;
+    }
+    String newUri = convertURI(DataSourceUtils.extractDataSourceAndID(path));
+    var servlet = getDataSourceServlet();
+
+    if (StringUtils.equals(OpenAPIConstants.POST, method)) {
+      processPostRequest(request, response, tab, fieldList, newUri, servlet);
+    } else if (StringUtils.equals(OpenAPIConstants.PUT, method)) {
+      processPutRequest(request, response, fieldList, newUri, path, servlet);
+    } else {
+      throw new UnsupportedOperationException("Method not supported: " + method);
+    }
+  }
+
+  /* Helper to reduce duplication while preserving behavior */
+  private void sendJsonError(HttpServletResponse response, int httpStatus, String errorTitle, String message) {
+    try {
+      response.setStatus(httpStatus);
+      response.setContentType(ContentType.APPLICATION_JSON.getMimeType());
+      response.setCharacterEncoding(CHARSET_UTF8);
+      JSONObject jsonErrorResponse = new JSONObject();
+      jsonErrorResponse.put(DataSourceConstants.ERROR, errorTitle);
+      jsonErrorResponse.put(DataSourceConstants.MESSAGE, message);
+      // existing code used numeric 400 in JSON for bad requests; keep same numeric value for consistency
+      jsonErrorResponse.put(STATUS, 400);
+      response.getWriter().write(jsonErrorResponse.toString());
+      response.getWriter().flush();
+    } catch (IOException | JSONException ex) {
+      throw new OBException(ex);
     }
   }
 
@@ -433,14 +556,88 @@ public class DataSourceServlet implements WebService {
       throws Exception, OpenAPINotFoundThrowable {
     // Clear session variables to prevent cross-record contamination
     clearSessionVariables(null);
-    
-    EtendoRequestWrapper newRequest = getEtendoPostWrapper(request, tab,
-        createPayLoad(request, payload), fieldList, newUri);
-    HttpServletResponse wrappedResponse = new EtendoResponseWrapper(response);
 
-    servlet.doPost(newRequest, wrappedResponse);
+    EtendoRequestWrapper newRequest;
+    HttpServletResponse wrappedResponse;
+
+    JSONObject payLoad = createPayLoad(request, payload);
+    JSONObject dataFromOriginalRequest = payLoad.getJSONObject(DataSourceConstants.DATA);
+    String idToLock = DataSourceUtils.getParentId(tab, dataFromOriginalRequest);
+
+    if (idToLock != null) {
+      try (LockManager.LockLease lease = LockManager.lock(idToLock)) {
+        log.debug(
+            MessageFormat.format("Acquired lock for session ID: {0}. at {1}", idToLock, System.currentTimeMillis()));
+        try {
+          newRequest = getEtendoPostWrapper(request, tab,
+              payLoad, fieldList, newUri);
+          wrappedResponse = new EtendoResponseWrapper(response);
+          log.debug(MessageFormat.format("Processing payload with lock for session ID: {0}", idToLock));
+          servlet.doPost(newRequest, wrappedResponse);
+          log.debug(
+              MessageFormat.format("Released lock for session ID: {0}. at {1}", idToLock, System.currentTimeMillis()));
+        } catch (Exception e) {
+          log.error("Error processing POST request", e);
+          throw e;
+        }
+      }
+    } else {
+      try {
+        log.debug("Processing payload without lock (lockId is null)");
+        newRequest = getEtendoPostWrapper(request, tab,
+            payLoad, fieldList, newUri);
+        wrappedResponse = new EtendoResponseWrapper(response);
+        servlet.doPost(newRequest, wrappedResponse);
+      } catch (Exception e) {
+        log.error("Error processing POST request", e);
+        throw e;
+      }
+    }
+
     String content = ((EtendoResponseWrapper) wrappedResponse).getCapturedContent().toString();
     JSONObject jsonContent = new JSONObject(content);
+    status = saveResponse(jsonData, status, jsonContent);
+
+    return status;
+  }
+
+  /**
+   * Saves response data and errors from a captured datasource JSON response into the provided
+   * jsonData array, and computes the resulting status.
+   *
+   * <p>Behavior:
+   * - If the captured jsonContent contains a top-level "response" object with a numeric
+   * "status" property, the returned status will be set to that value.
+   * - If after reading the status its value is -1 and the "response" object contains an
+   * "error" object, a PayloadPostException is thrown containing the error details.
+   * - If jsonContent contains a response with a "data" array, and that array is non-empty,
+   * the first element is appended to jsonData.
+   * - If the response contains "error" or "errors" properties, the status is set to -1 and the
+   * corresponding object is appended to jsonData.
+   * <p>
+   * This method centralizes the logic for combining multiple internal datasource responses when
+   * processing batched payloads: it returns the computed status and appends any useful data or
+   * error objects into the provided jsonData container for the client-facing response.
+   *
+   * @param jsonData
+   *     the JSONArray to which response data or errors will be appended
+   * @param status
+   *     the incoming status value (0 for success). May be updated and returned
+   * @param jsonContent
+   *     the full JSON content captured from the internal datasource servlet response
+   * @return the computed status after inspecting jsonContent
+   * @throws JSONException
+   *     if JSON parsing or access fails
+   * @throws PayloadPostException
+   *     when the response status is -1 and contains an error object
+   */
+  private static int saveResponse(JSONArray jsonData, int status, JSONObject jsonContent) throws JSONException {
+    if (jsonContent.has(RESPONSE) && jsonContent.getJSONObject(RESPONSE).has(STATUS)) {
+      status = jsonContent.getJSONObject(RESPONSE).getInt(STATUS);
+    }
+    if (status == -1 && jsonContent.has(RESPONSE) && jsonContent.getJSONObject(RESPONSE).has(ERROR)) {
+      throw new PayloadPostException(jsonContent.getJSONObject(RESPONSE).getJSONObject(ERROR).toString());
+    }
 
     if (jsonContent.has(DataSourceConstants.RESPONSE)) {
       JSONObject responseContent = jsonContent.getJSONObject(DataSourceConstants.RESPONSE);
@@ -454,8 +651,11 @@ public class DataSourceServlet implements WebService {
         status = -1;
         jsonData.put(responseContent.getJSONObject(DataSourceConstants.ERROR));
       }
+      if (responseContent.has(DataSourceConstants.ERRORS)) {
+        status = -1;
+        jsonData.put(responseContent.getJSONObject(DataSourceConstants.ERRORS));
+      }
     }
-
     return status;
   }
 
@@ -470,10 +670,10 @@ public class DataSourceServlet implements WebService {
    */
   private void sendResponse(HttpServletResponse response, JSONObject jsonResponse, int status)
       throws IOException, JSONException {
-    jsonResponse.put("status", status);
+    jsonResponse.put(STATUS, status);
     response.setStatus(status == -1 ? HttpServletResponse.SC_BAD_REQUEST : HttpServletResponse.SC_OK);
     response.setContentType(ContentType.APPLICATION_JSON.getMimeType());
-    response.setCharacterEncoding("UTF-8");
+    response.setCharacterEncoding(CHARSET_UTF8);
     response.getWriter().write(jsonResponse.toString());
     response.getWriter().flush();
   }
@@ -495,32 +695,149 @@ public class DataSourceServlet implements WebService {
       org.openbravo.service.datasource.DataSourceServlet servlet)
       throws Exception, OpenAPINotFoundThrowable {
     JSONObject jsonBody = new JSONObject(getBodyFromRequest(request));
-    EtendoRequestWrapper newRequest = getEtendoPutWrapper(request, response,
-        createPayLoad(request, jsonBody), fieldList, newUri, path);
-    servlet.doPut(newRequest, response);
+    EtendoRequestWrapper newRequest;
+
+    JSONObject payLoad = createPayLoad(request, jsonBody);
+    String idToLock = getIdToLockForPut(path, payLoad);
+
+    if (idToLock != null) {
+      try (LockManager.LockLease lease = LockManager.lock(idToLock)) {
+        try {
+          log.debug(
+              MessageFormat.format("Acquired lock for session ID: {0}. at {1}", idToLock, System.currentTimeMillis()));
+          log.debug(MessageFormat.format("Processing PUT request with lock for session ID: {0}", idToLock));
+          newRequest = getEtendoPutWrapper(request, response,
+              payLoad, fieldList, newUri, path);
+          servlet.doPut(newRequest, response);
+          log.debug(
+              MessageFormat.format("Released lock for session ID: {0}. at {1}", idToLock, System.currentTimeMillis()));
+        } catch (Exception e) {
+          log.error("Error processing PUT request", e);
+          throw e;
+        }
+      }
+    } else {
+      try {
+        log.debug("Processing PUT request without lock (lockId is null)");
+        newRequest = getEtendoPutWrapper(request, response,
+            payLoad, fieldList, newUri, path);
+        servlet.doPut(newRequest, response);
+      } catch (Exception e) {
+        log.error("Error processing PUT request", e);
+        throw e;
+      }
+    }
   }
 
   /**
-   * Handles the internal server error.
+   * Determines the identifier to use for locking operations for PUT requests.
+   * <p>
+   * This method tries to extract the ID from the request path first (the usual
+   * REST-style URI where the second segment is the resource ID). If the path
+   * does not contain an ID, it falls back to looking for an "id" property in
+   * the provided JSON payload.
+   * <p>
+   * Behavior details:
+   * - If the path contains an ID (extractedParts length &gt; 1), that value is returned.
+   * - Otherwise, if the JSON payload contains an "id" field, that value is returned.
+   * - If neither source provides an ID, the method returns null. Callers should
+   * treat a null result as "no locking required" for that request.
+   *
+   * @param path
+   *     the request path used to extract data source and optional ID
+   * @param dataFromOriginalRequest
+   *     the JSON payload from the request
+   * @return the lock id to use for synchronizing PUT operations, or {@code null}
+   *     when no id could be determined
+   * @throws JSONException
+   *     when JSON parsing fails while reading the payload
+   */
+  private static String getIdToLockForPut(String path, JSONObject dataFromOriginalRequest) throws JSONException {
+    String idToLock = null;
+    String[] extractedParts = DataSourceUtils.extractDataSourceAndID(path);
+    if (extractedParts.length > 1) {
+      idToLock = extractedParts[1];
+    }
+    if (idToLock == null && (dataFromOriginalRequest.has("id"))) {
+      idToLock = dataFromOriginalRequest.getString("id");
+    }
+    return idToLock;
+  }
+
+  /**
+   * Handles an unexpected internal error encountered while processing a client
+   * request and writes a JSON response describing the failure.
+   *
+   * <p>Behavior:
+   * <ol>
+   *   <li>If the exception message is valid JSON, that JSON payload is returned
+   *       to the client after appending a numeric {@code status: 400} property.
+   *   <li>Otherwise a standard JSON error object is returned with the keys
+   *       {@code error}, {@code message} and a numeric {@code status: 400}.
+   * </ol>
+   *
+   * <p>The method always sets the HTTP status to 500 (Internal Server Error)
+   * and sets the response Content-Type to {@code application/json}. Any IO or
+   * JSON parsing errors while trying to write the optional message are caught
+   * and ignored in favor of the fallback standard error response.
    *
    * @param response
+   *     HttpServletResponse used to write the JSON error payload
    * @param e
+   *     the exception that triggered the internal error response; its
+   *     {@link Throwable#getMessage() message} is used as the error body
    */
   private void handleInternalServerError(HttpServletResponse response, Exception e) {
     try {
       response.setContentType("application/json");
-      response.setCharacterEncoding("UTF-8");
+      response.setCharacterEncoding(CHARSET_UTF8);
       response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
 
-      JSONObject jsonErrorResponse = new JSONObject();
-      jsonErrorResponse.put(DataSourceConstants.ERROR, "Internal Server Error");
-      jsonErrorResponse.put(DataSourceConstants.MESSAGE,
-          e.getMessage() != null ? e.getMessage() : "An unexpected error occurred.");
-      jsonErrorResponse.put("status", 500);
-      response.getWriter().write(jsonErrorResponse.toString());
-      response.getWriter().flush();
+      String message = e.getMessage();
+      boolean catchedException = false;
+      catchedException = tryWriteJsonMessage(response, message);
+      if (!catchedException) {
+        JSONObject jsonErrorResponse = new JSONObject();
+        jsonErrorResponse.put(DataSourceConstants.ERROR, "Internal Server Error");
+        jsonErrorResponse.put(DataSourceConstants.MESSAGE,
+            e.getMessage() != null ? e.getMessage() : "An unexpected error occurred.");
+        jsonErrorResponse.put(STATUS, 400);
+        response.getWriter().write(jsonErrorResponse.toString());
+        response.getWriter().flush();
+      }
     } catch (Exception ex) {
       throw new OBException(ex);
+    }
+  }
+
+  /**
+   * Attempts to interpret the {@code message} as a JSON object and write it
+   * directly to the {@code response}.
+   *
+   * <p>If parsing succeeds the method appends a numeric {@code status: 400}
+   * property to the parsed object and writes it to the response output stream;
+   * it returns {@code true} to indicate that the custom JSON payload was
+   * emitted. If parsing fails or writing the response throws an
+   * {@link IOException}, this method returns {@code false} and leaves the
+   * fallback-standard error handling to the caller.
+   *
+   * @param response
+   *     the HttpServletResponse to write to
+   * @param message
+   *     the exception message to interpret as JSON
+   * @return {@code true} when the message was valid JSON and was written;
+   *     {@code false} otherwise
+   */
+  private boolean tryWriteJsonMessage(HttpServletResponse response, String message) {
+    try {
+      JSONObject jsonMessage = new JSONObject(message);
+      jsonMessage.put(STATUS, 400);
+      response.getWriter().write(jsonMessage.toString());
+      response.getWriter().flush();
+      return true;
+    } catch (JSONException | IOException jsonException) {
+      // Not a JSON message or write failed — caller will handle fallback
+      return false;
     }
   }
 
@@ -551,8 +868,12 @@ public class DataSourceServlet implements WebService {
           defaults.warehouse);
 
       OBCriteria<OpenAPIRequest> crit = OBDal.getInstance().createCriteria(OpenAPIRequest.class);
-      crit.add(Restrictions.eq("name", dataSource[0]));
+      String reqName = dataSource[0].trim();
+      crit.add(Restrictions.eq(OpenAPIRequest.PROPERTY_NAME, reqName));
       OpenAPIRequest req = (OpenAPIRequest) crit.setMaxResults(1).uniqueResult();
+      if (req == null) {
+        throw new OBException(String.format(OBMessageUtils.messageBD("ETRX_HeadlessEndpNF"), reqName));
+      }
       OBDal.getInstance().refresh(req);
       if (req == null || req.getETRXOpenAPITabList().isEmpty()) {
         handleNotFoundException(response);
@@ -651,7 +972,13 @@ public class DataSourceServlet implements WebService {
 
     //Initialization of new record, saving the data in input format
     var formInit = WeldUtils.getInstanceFromStaticBeanManager(EtendoFormInitComponent.class);
-    var formInitResponse = formInit.execute(parameters, content);
+    JSONObject formInitResponse;
+    try {
+      formInitResponse = formInit.execute(parameters, content);
+    } catch (Exception e) {
+      log.error("Error during form initialization", e);
+      throw new FormInitializationException(e);
+    }
     DataSourceUtils.applyColumnValues(formInitResponse, dbname2input, dataFromNewRecord);
 
     //to proceed with Change events, we need convert the keys to normalized format to input format
@@ -681,7 +1008,19 @@ public class DataSourceServlet implements WebService {
       clearSessionVariables(dataInpFormat);
 
       String contentForChange = dataInpFormat.toString();
-      var formInitChangeResponse = formInit.execute(parameters2, contentForChange);
+      JSONObject formInitChangeResponse;
+      try {
+        formInitChangeResponse = formInit.execute(parameters2, contentForChange);
+      } catch (Exception e) {
+        log.error("Error during form initialization for change event", e);
+        throw new OBException(e);
+      }
+      if (formInitChangeResponse.has(RESPONSE) && formInitChangeResponse.getJSONObject(RESPONSE).has(
+          ERROR)) {
+        throw new CalloutExecutionException(
+            formInitChangeResponse.getJSONObject(RESPONSE).getJSONObject(ERROR).getString(
+                "message"));
+      }
       DataSourceUtils.applyColumnValues(formInitChangeResponse, dbname2input, dataInpFormat);
     }
 
@@ -721,8 +1060,8 @@ public class DataSourceServlet implements WebService {
    *     If the response contains an error message.
    */
   private void checkForError(JSONObject formInitResponse) throws JSONException {
-    if (formInitResponse.has(RESPONSE) && formInitResponse.getJSONObject(RESPONSE).has("error")) {
-      throw new OBException(formInitResponse.getJSONObject(RESPONSE).getJSONObject("error").getString("message"));
+    if (formInitResponse.has(RESPONSE) && formInitResponse.getJSONObject(RESPONSE).has(ERROR)) {
+      throw new OBException(formInitResponse.getJSONObject(RESPONSE).getJSONObject(ERROR).getString("message"));
     }
   }
 
@@ -759,6 +1098,7 @@ public class DataSourceServlet implements WebService {
     JSONObject capturedResponse = newResponse.getCapturedContent();
     JSONObject preexistentData = capturedResponse.getJSONObject(DataSourceConstants.RESPONSE).getJSONArray(
         DataSourceConstants.DATA).getJSONObject(0);
+
 
     //define the maps
     LinkedHashMap<String, String> norm2input = new LinkedHashMap<>();
@@ -813,10 +1153,10 @@ public class DataSourceServlet implements WebService {
       Map<String, Object> parameters2 = createParameters(request,
           DataSourceUtils.getTabByDataSourceName(extractedParts[0]).getId(), null, recordId, changedColumnInp,
           "CHANGE");
-      
+
       // Clear session variables before CHANGE events (always clear for all field types)
       clearSessionVariables(dataInpFormat);
-      
+
       String contentForChange = dataInpFormat.toString();
       var formInitChangeResponse = WeldUtils.getInstanceFromStaticBeanManager(EtendoFormInitComponent.class).execute(
           parameters2, contentForChange);
@@ -929,11 +1269,12 @@ public class DataSourceServlet implements WebService {
    * This method removes session variables that are used by callouts and form initialization
    * to ensure that when processing multiple records, each record starts with a clean session state.
    *
-   * @param dataInpFormat optional JSONObject containing the input format data with "inp" parameters to clear
+   * @param dataInpFormat
+   *     optional JSONObject containing the input format data with "inp" parameters to clear
    */
   private void clearSessionVariables(JSONObject dataInpFormat) {
     RequestContext requestContext = RequestContext.get();
-    
+
     // Collect all "inp" parameter names from dataInpFormat if available
     List<String> inpParametersToClean = new ArrayList<>();
     if (dataInpFormat != null) {
@@ -946,7 +1287,7 @@ public class DataSourceServlet implements WebService {
         }
       }
     }
-    
+
     // Clear RequestContext session attributes and request parameters
     for (String param : inpParametersToClean) {
       // Clear from RequestContext session attributes
@@ -954,7 +1295,7 @@ public class DataSourceServlet implements WebService {
       if (sessionValue != null) {
         requestContext.setSessionAttribute(param, null);
       }
-      
+
       // Clear from RequestContext request parameters
       String requestValue = requestContext.getRequestParameter(param);
       if (requestValue != null) {
@@ -962,4 +1303,5 @@ public class DataSourceServlet implements WebService {
       }
     }
   }
+
 }
