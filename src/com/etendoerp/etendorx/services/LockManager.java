@@ -194,9 +194,18 @@ public final class LockManager {
    * @param lockId the identifier for the resource to lock
    * @return a {@link LockLease} that holds the lock and will release it when closed
    */
+  @SuppressWarnings({"squid:S2095", "squid:S2222"})
   public static LockLease lock(String lockId) {
+    // The lock is intentionally not unlocked in this method. Ownership of the
+    // lock (and responsibility to release it) is transferred to the returned
+    // LockLease. Callers are expected to use try-with-resources or otherwise
+    // ensure LockLease.close() is invoked to release the lock. The
+    // @SuppressWarnings annotation documents this design to static analysis
+    // tools (Sonar) to avoid false-positive resource/lock warnings (for
+    // example squid:S2095 and squid:S2222) because unlocking happens in
+    // LockLease.close() rather than in this method.
     Lock l = acquireLock(lockId);
-    l.lock();
+    l.lock(); // NOSONAR - lock ownership is intentionally returned to caller via LockLease
     return new LockLease(lockId, l);
   }
 }

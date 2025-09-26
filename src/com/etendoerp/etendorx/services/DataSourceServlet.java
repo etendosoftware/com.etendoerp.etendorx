@@ -62,7 +62,25 @@ import com.smf.securewebservices.utils.SecureWebServicesUtils;
 
 
 /**
- * Servlet that handles data source requests.
+ * Servlet facade for handling headless DataSource requests inside Etendorx.
+ *
+ * <p>This class adapts higher-level OpenAPI-style requests into internal
+ * Openbravo DataSource servlet calls. It is responsible for:
+ *
+ * <ul>
+ *   <li>Parsing and validating incoming HTTP requests (GET/POST/PUT).</li>
+ *   <li>Preparing payloads and wrappers accepted by the internal
+ *       {@code org.openbravo.service.datasource.DataSourceServlet}.</li>
+ *   <li>Executing form initialization and change event logic when needed
+ *       to compute derived or default values before persisting records.</li>
+ *   <li>Merging and normalizing responses from internal datasource operations
+ *       into a single JSON response for the external client.</li>
+ * </ul>
+ *
+ * <p>Most methods in this class assume they are executed with Openbravo's
+ * {@link org.openbravo.dal.core.OBContext} admin mode active; callers must
+ * ensure context is appropriately set or the class methods will set/restore
+ * admin mode where needed.
  */
 public class DataSourceServlet implements WebService {
 
@@ -72,6 +90,10 @@ public class DataSourceServlet implements WebService {
   public static final String RESPONSE = "response";
   public static final String ERROR = "error";
   public static final String STATUS = "status";
+  /**
+   * Charset name used for request/response character encoding.
+   */
+  public static final String CHARSET_UTF8 = "UTF-8";
 
   /**
    * Gets the DataSourceServlet instance.
@@ -157,7 +179,7 @@ public class DataSourceServlet implements WebService {
         throw new OBException(message);
       }
       response.setContentType(ContentType.APPLICATION_JSON.getMimeType());
-      response.setCharacterEncoding("UTF-8");
+      response.setCharacterEncoding(CHARSET_UTF8);
       response.getWriter().write(capturedResponse.toString());
     } catch (OpenAPINotFoundThrowable e) {
       handleNotFoundException(response);
@@ -330,22 +352,7 @@ public class DataSourceServlet implements WebService {
    */
   private void upsertEntity(String method, String path, HttpServletRequest request, HttpServletResponse response) {
     try {
-      List<RequestField> fieldList = new ArrayList<>();
-      Tab tab = getTab(path, request, response, fieldList);
-      if (tab == null) {
-        handleNotFoundException(response);
-        return;
-      }
-      String newUri = convertURI(DataSourceUtils.extractDataSourceAndID(path));
-      var servlet = getDataSourceServlet();
-
-      if (StringUtils.equals(OpenAPIConstants.POST, method)) {
-        processPostRequest(request, response, tab, fieldList, newUri, servlet);
-      } else if (StringUtils.equals(OpenAPIConstants.PUT, method)) {
-        processPutRequest(request, response, fieldList, newUri, path, servlet);
-      } else {
-        throw new UnsupportedOperationException("Method not supported: " + method);
-      }
+      executeUpsert(method, path, request, response);
     } catch (CalloutExectionException e) {
       sendJsonError(response, HttpServletResponse.SC_BAD_REQUEST, "Callout Error",
           e.getMessage() != null ? e.getMessage() : "An unexpected error occurred.");
@@ -353,16 +360,7 @@ public class DataSourceServlet implements WebService {
       sendJsonError(response, HttpServletResponse.SC_BAD_REQUEST, "Form Initialization Error",
           e.getMessage() != null ? e.getMessage() : "An unexpected error occurred during form initialization.");
     } catch (PayloadPostException e) {
-      // PayloadPostException writes its message directly (preserve behavior)
-      try {
-        response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-        response.setContentType(ContentType.APPLICATION_JSON.getMimeType());
-        response.setCharacterEncoding("UTF-8");
-        response.getWriter().write(e.getMessage());
-        response.getWriter().flush();
-      } catch (IOException ex) {
-        throw new OBException(ex);
-      }
+      handlePayloadPostException(response, e);
     } catch (BatchUpdateException e) {
       String message = OBMessageUtils.messageBD("ETRX_BatchUpdateException");
       if (e.getMessage() != null) {
@@ -375,12 +373,90 @@ public class DataSourceServlet implements WebService {
       log.error(DataSourceConstants.ERROR_IN_DATA_SOURCE_SERVLET, e);
       handleInternalServerError(response, e);
     } catch (OpenAPINotFoundThrowable e) {
-      // preserve original handling (kept last to mirror original control flow)
-      try {
-        handleNotFoundException(response);
-      } catch (IOException ex) {
-        throw new OBException(ex);
-      }
+      handleOpenApiNotFound(response);
+    }
+  }
+
+  /**
+   * Writes the message from a {@link PayloadPostException} directly to the
+   * response using a 400 (Bad Request) HTTP status. This preserves the
+   * original behavior where the exception's payload is sent back to the client
+   * as-is.
+   *
+   * @param response
+   *     the HttpServletResponse used to write the payload
+   * @param e
+   *     the PayloadPostException containing the payload to return
+   * @throws OBException
+   *     when writing the response fails (wrapped IOException)
+   */
+  private void handlePayloadPostException(HttpServletResponse response, PayloadPostException e) {
+    try {
+      response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+      response.setContentType(ContentType.APPLICATION_JSON.getMimeType());
+      response.setCharacterEncoding(CHARSET_UTF8);
+      response.getWriter().write(e.getMessage());
+      response.getWriter().flush();
+    } catch (IOException ex) {
+      throw new OBException(ex);
+    }
+  }
+
+  /**
+   * Handles a case where the OpenAPI resource is not found by delegating to
+   * {@link #handleNotFoundException(HttpServletResponse)} and wrapping IO
+   * errors in an {@link OBException}.
+   *
+   * @param response
+   *     the HttpServletResponse used to write the 404 payload
+   * @throws OBException
+   *     if writing the response fails
+   */
+  private void handleOpenApiNotFound(HttpServletResponse response) {
+    try {
+      handleNotFoundException(response);
+    } catch (IOException ex) {
+      throw new OBException(ex);
+    }
+  }
+
+  /**
+   * Extracted core logic for upserting entities. This method contains the
+   * original workflow for resolving the tab, building the request wrapper and
+   * delegating to the internal DataSource servlet. Exceptions are propagated
+   * to the caller so they can be handled in a single place without changing
+   * the original behavior.
+   *
+   * @param method
+   *     the HTTP method being handled (e.g. {@code "POST"} or {@code "PUT"})
+   * @param path
+   *     the request path (HttpServletRequest.getPathInfo())
+   * @param request
+   *     the original HttpServletRequest
+   * @param response
+   *     the original HttpServletResponse
+   * @throws Exception
+   *     propagated exceptions thrown by downstream processing
+   * @throws OpenAPINotFoundThrowable
+   *     when the requested OpenAPI resource cannot be found
+   */
+  private void executeUpsert(String method, String path, HttpServletRequest request, HttpServletResponse response)
+      throws Exception, OpenAPINotFoundThrowable {
+    List<RequestField> fieldList = new ArrayList<>();
+    Tab tab = getTab(path, request, response, fieldList);
+    if (tab == null) {
+      handleNotFoundException(response);
+      return;
+    }
+    String newUri = convertURI(DataSourceUtils.extractDataSourceAndID(path));
+    var servlet = getDataSourceServlet();
+
+    if (StringUtils.equals(OpenAPIConstants.POST, method)) {
+      processPostRequest(request, response, tab, fieldList, newUri, servlet);
+    } else if (StringUtils.equals(OpenAPIConstants.PUT, method)) {
+      processPutRequest(request, response, fieldList, newUri, path, servlet);
+    } else {
+      throw new UnsupportedOperationException("Method not supported: " + method);
     }
   }
 
@@ -389,7 +465,7 @@ public class DataSourceServlet implements WebService {
     try {
       response.setStatus(httpStatus);
       response.setContentType(ContentType.APPLICATION_JSON.getMimeType());
-      response.setCharacterEncoding("UTF-8");
+      response.setCharacterEncoding(CHARSET_UTF8);
       JSONObject jsonErrorResponse = new JSONObject();
       jsonErrorResponse.put(DataSourceConstants.ERROR, errorTitle);
       jsonErrorResponse.put(DataSourceConstants.MESSAGE, message);
@@ -531,24 +607,29 @@ public class DataSourceServlet implements WebService {
    *
    * <p>Behavior:
    * - If the captured jsonContent contains a top-level "response" object with a numeric
-   *   "status" property, the returned status will be set to that value.
+   * "status" property, the returned status will be set to that value.
    * - If after reading the status its value is -1 and the "response" object contains an
-   *   "error" object, a PayloadPostException is thrown containing the error details.
+   * "error" object, a PayloadPostException is thrown containing the error details.
    * - If jsonContent contains a response with a "data" array, and that array is non-empty,
-   *   the first element is appended to jsonData.
+   * the first element is appended to jsonData.
    * - If the response contains "error" or "errors" properties, the status is set to -1 and the
-   *   corresponding object is appended to jsonData.
-   *
+   * corresponding object is appended to jsonData.
+   * <p>
    * This method centralizes the logic for combining multiple internal datasource responses when
    * processing batched payloads: it returns the computed status and appends any useful data or
    * error objects into the provided jsonData container for the client-facing response.
    *
-   * @param jsonData the JSONArray to which response data or errors will be appended
-   * @param status the incoming status value (0 for success). May be updated and returned
-   * @param jsonContent the full JSON content captured from the internal datasource servlet response
+   * @param jsonData
+   *     the JSONArray to which response data or errors will be appended
+   * @param status
+   *     the incoming status value (0 for success). May be updated and returned
+   * @param jsonContent
+   *     the full JSON content captured from the internal datasource servlet response
    * @return the computed status after inspecting jsonContent
-   * @throws JSONException if JSON parsing or access fails
-   * @throws PayloadPostException when the response status is -1 and contains an error object
+   * @throws JSONException
+   *     if JSON parsing or access fails
+   * @throws PayloadPostException
+   *     when the response status is -1 and contains an error object
    */
   private static int saveResponse(JSONArray jsonData, int status, JSONObject jsonContent) throws JSONException {
     if (jsonContent.has(RESPONSE) && jsonContent.getJSONObject(RESPONSE).has(STATUS)) {
@@ -592,7 +673,7 @@ public class DataSourceServlet implements WebService {
     jsonResponse.put(STATUS, status);
     response.setStatus(status == -1 ? HttpServletResponse.SC_BAD_REQUEST : HttpServletResponse.SC_OK);
     response.setContentType(ContentType.APPLICATION_JSON.getMimeType());
-    response.setCharacterEncoding("UTF-8");
+    response.setCharacterEncoding(CHARSET_UTF8);
     response.getWriter().write(jsonResponse.toString());
     response.getWriter().flush();
   }
@@ -684,28 +765,37 @@ public class DataSourceServlet implements WebService {
   }
 
   /**
-   * Handles the internal server error.
+   * Handles an unexpected internal error encountered while processing a client
+   * request and writes a JSON response describing the failure.
+   *
+   * <p>Behavior:
+   * <ol>
+   *   <li>If the exception message is valid JSON, that JSON payload is returned
+   *       to the client after appending a numeric {@code status: 400} property.
+   *   <li>Otherwise a standard JSON error object is returned with the keys
+   *       {@code error}, {@code message} and a numeric {@code status: 400}.
+   * </ol>
+   *
+   * <p>The method always sets the HTTP status to 500 (Internal Server Error)
+   * and sets the response Content-Type to {@code application/json}. Any IO or
+   * JSON parsing errors while trying to write the optional message are caught
+   * and ignored in favor of the fallback standard error response.
    *
    * @param response
+   *     HttpServletResponse used to write the JSON error payload
    * @param e
+   *     the exception that triggered the internal error response; its
+   *     {@link Throwable#getMessage() message} is used as the error body
    */
   private void handleInternalServerError(HttpServletResponse response, Exception e) {
     try {
       response.setContentType("application/json");
-      response.setCharacterEncoding("UTF-8");
+      response.setCharacterEncoding(CHARSET_UTF8);
       response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
 
       String message = e.getMessage();
       boolean catchedException = false;
-      try {
-        JSONObject jsonMessage = new JSONObject(message);
-        jsonMessage.put(STATUS, 400);
-        response.getWriter().write(jsonMessage.toString());
-        response.getWriter().flush();
-        catchedException = true;
-      } catch (JSONException jsonException) {
-        // Not a JSON message, proceed to create a standard error response
-      }
+      catchedException = tryWriteJsonMessage(response, message);
       if (!catchedException) {
         JSONObject jsonErrorResponse = new JSONObject();
         jsonErrorResponse.put(DataSourceConstants.ERROR, "Internal Server Error");
@@ -717,6 +807,37 @@ public class DataSourceServlet implements WebService {
       }
     } catch (Exception ex) {
       throw new OBException(ex);
+    }
+  }
+
+  /**
+   * Attempts to interpret the {@code message} as a JSON object and write it
+   * directly to the {@code response}.
+   *
+   * <p>If parsing succeeds the method appends a numeric {@code status: 400}
+   * property to the parsed object and writes it to the response output stream;
+   * it returns {@code true} to indicate that the custom JSON payload was
+   * emitted. If parsing fails or writing the response throws an
+   * {@link IOException}, this method returns {@code false} and leaves the
+   * fallback-standard error handling to the caller.
+   *
+   * @param response
+   *     the HttpServletResponse to write to
+   * @param message
+   *     the exception message to interpret as JSON
+   * @return {@code true} when the message was valid JSON and was written;
+   *     {@code false} otherwise
+   */
+  private boolean tryWriteJsonMessage(HttpServletResponse response, String message) {
+    try {
+      JSONObject jsonMessage = new JSONObject(message);
+      jsonMessage.put(STATUS, 400);
+      response.getWriter().write(jsonMessage.toString());
+      response.getWriter().flush();
+      return true;
+    } catch (JSONException | IOException jsonException) {
+      // Not a JSON message or write failed — caller will handle fallback
+      return false;
     }
   }
 
