@@ -9,14 +9,14 @@ import org.openbravo.base.exception.OBException;
  * validation or integration callouts) so they can be handled consistently by the calling code
  * and by Openbravo's exception framework.
  */
-public class CalloutExectionException extends OBException {
+public class CalloutExecutionException extends OBException {
 
   /**
    * Creates a new CalloutExectionException with the given detail message.
    *
    * @param message a descriptive message explaining why the callout execution failed
    */
-  public CalloutExectionException(String message) {
+  public CalloutExecutionException(String message) {
     super(message);
   }
 }

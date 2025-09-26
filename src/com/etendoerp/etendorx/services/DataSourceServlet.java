@@ -353,7 +353,7 @@ public class DataSourceServlet implements WebService {
   private void upsertEntity(String method, String path, HttpServletRequest request, HttpServletResponse response) {
     try {
       executeUpsert(method, path, request, response);
-    } catch (CalloutExectionException e) {
+    } catch (CalloutExecutionException e) {
       sendJsonError(response, HttpServletResponse.SC_BAD_REQUEST, "Callout Error",
           e.getMessage() != null ? e.getMessage() : "An unexpected error occurred.");
     } catch (FormInitializationException e) {
@@ -1017,7 +1017,7 @@ public class DataSourceServlet implements WebService {
       }
       if (formInitChangeResponse.has(RESPONSE) && formInitChangeResponse.getJSONObject(RESPONSE).has(
           ERROR)) {
-        throw new CalloutExectionException(
+        throw new CalloutExecutionException(
             formInitChangeResponse.getJSONObject(RESPONSE).getJSONObject(ERROR).getString(
                 "message"));
       }
