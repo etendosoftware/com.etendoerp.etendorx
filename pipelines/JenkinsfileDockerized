@@ -78,7 +78,7 @@ pipeline {
               def changedFilesRaw = sh(script: cmd, returnStdout: true).trim()
               def changedFiles = changedFilesRaw ? changedFilesRaw.split('\n') : []
               echo "Changed files: ${changedFiles}"
-              def relevantChange = changedFiles.any { it.startsWith("compose/") || it.startsWith("pipelines/utils/sql/") }
+              def relevantChange = changedFiles.any { it.startsWith("compose/") || it.startsWith("pipelines/utils/sql/") || it.startsWith("pipelines/JenkinsfileDockerized")}
               if (!relevantChange) {
                 currentBuild.result = ABORTED
                 sh "./pipelines/utils/build-update.sh ${MODULE_PACKAGE} ${COMMIT_SUCCESS_STATUS} \"Skipped\" ${ACCESS_TOKEN} ${GIT_COMMIT} ${BUILD_URL} \"${CONTEXT_BUILD}\""
