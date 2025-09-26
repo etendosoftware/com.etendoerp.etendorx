@@ -60,34 +60,34 @@ private String askInput(BufferedReader reader, String prompt) {
 }
 
 def volumesDir = project.providers
-    .provider {
-        def volumenPath = project.findProperty('VOLUMES_PATH')
-        if (volumenPath) {
-            return file(volumenPath)
-        } else {
-            return project.layout.buildDirectory.dir("../volumes").get().getAsFile()
+        .provider {
+            def volumenPath = project.findProperty('VOLUMES_PATH')
+            if (volumenPath) {
+                return file(volumenPath)
+            } else {
+                return project.layout.buildDirectory.dir("../volumes").get().getAsFile()
+            }
         }
-    }
 
 def sourceDir = project.providers
-    .provider {
-        def red = "\u001B[31;1m"
-        def reset = "\u001B[0m"
+        .provider {
+            def red = "\u001B[31;1m"
+            def reset = "\u001B[0m"
 
-        Project moduleProject = project.findProject(":modules")
-        Project rxProject = null
-        if (moduleProject != null) {
-            rxProject = moduleProject.findProject("com.etendoerp.etendorx")
+            Project moduleProject = project.findProject(":modules")
+            Project rxProject = null
+            if (moduleProject != null) {
+                rxProject = moduleProject.findProject("com.etendoerp.etendorx")
+            }
+            File jarModulesLocation = new File(project.buildDir, "etendo" + File.separator + "modules")
+            File rxJarModule = new File(jarModulesLocation, "com.etendoerp.etendorx")
+            if (rxProject != null || rxJarModule.exists()) {
+                return rxProject != null ? rxProject.projectDir.path : rxJarModule.path
+            } else {
+                throw new GradleException("${red}❌ RX module not found.${reset}")
+            }
         }
-        File jarModulesLocation = new File(project.buildDir, "etendo"+File.separator+"modules")
-        File rxJarModule = new File(jarModulesLocation, "com.etendoerp.etendorx")
-        if (rxProject != null || rxJarModule.exists()) {
-            return rxProject != null ? rxProject.projectDir.path : rxJarModule.path
-        } else {
-            throw new GradleException("${red}❌ RX module not found.${reset}")
-        }
-    }
-    .map { file(it) }
+        .map { file(it) }
 
 def isRXDockerized() {
     getTypedProp('docker_com.etendoerp.etendorx') ?: false
@@ -226,10 +226,10 @@ task "rx.env.file" {
 
         // Etendo RX Resource Limits
         def rxServiceFactors = [
-            CONFIG: [mem: 1.0, cpu: 1.0], // Default 256Mb - 1.0 Cpu
-            DAS   : [mem: 8.0, cpu: 1.0], // Default 2048Mb - 1.0 Cpu
-            AUTH  : [mem: 1.0, cpu: 1.0], // Default 256Mb - 1.0 Cpu
-            EDGE  : [mem: 1.0, cpu: 1.0]  // Default 256Mb - 1.0 Cpu
+                CONFIG: [mem: 1.0, cpu: 1.0], // Default 256Mb - 1.0 Cpu
+                DAS   : [mem: 8.0, cpu: 1.0], // Default 2048Mb - 1.0 Cpu
+                AUTH  : [mem: 1.0, cpu: 1.0], // Default 256Mb - 1.0 Cpu
+                EDGE  : [mem: 1.0, cpu: 1.0]  // Default 256Mb - 1.0 Cpu
         ]
         def RX_BASE_MEM_MB = getTypedProp("rx.base.memory.mb")
         if (RX_BASE_MEM_MB != null) {
@@ -245,11 +245,11 @@ task "rx.env.file" {
                 upsertEnvProperty("BASE_${service}_CPU_LIMIT", "${cpu}")
             }
         }
- 
+
         // Connector Resource Limits
         def connectorServiceFactors = [
-            OBCONNSRV: [mem: 1.0, cpu: 1.0],  // Default 256Mb - 1.0 Cpu
-            WORKER   : [mem: 2.0, cpu: 1.0]   // Default 512Mb - 1.0 Cpu
+                OBCONNSRV: [mem: 1.0, cpu: 1.0],  // Default 256Mb - 1.0 Cpu
+                WORKER   : [mem: 2.0, cpu: 1.0]   // Default 512Mb - 1.0 Cpu
         ]
         def CONNECTOR_BASE_MEM_MB = getTypedProp("connector.base.memory.mb")
         if (CONNECTOR_BASE_MEM_MB != null) {
@@ -268,9 +268,9 @@ task "rx.env.file" {
 
         // Async Process Resource Limits
         def asyncServiceFactors = [
-            KAFKA        : [mem: 4.0, cpu: 1.0],  // Default 1024Mb - 1.0 Cpu
-            CONNECT      : [mem: 2.0, cpu: 1.0],  // Default 512Mb  - 1.0 Cpu
-            ASYNCPROCESS : [mem: 1.0, cpu: 1.0]   // Default 256Mb  - 1.0 Cpu
+                KAFKA       : [mem: 4.0, cpu: 1.0],  // Default 1024Mb - 1.0 Cpu
+                CONNECT     : [mem: 2.0, cpu: 1.0],  // Default 512Mb  - 1.0 Cpu
+                ASYNCPROCESS: [mem: 1.0, cpu: 1.0]   // Default 256Mb  - 1.0 Cpu
         ]
         def ASYNC_BASE_MEM_MB = getTypedProp("async.base.memory.mb")
         if (ASYNC_BASE_MEM_MB != null) {
@@ -289,9 +289,9 @@ task "rx.env.file" {
 
         // Utils Resource Limits
         def utilsServiceFactors = [
-            KAFKA_UI      : [mem: 0.5,  cpu: 1.0],  // Default 128Mb - 1.0 Cpu
-            JAEGER        : [mem: 1.0,  cpu: 1.0],  // Default 256Mb - 1.0 Cpu
-            JAEGER_HEALTH : [mem: 0.25, cpu: 1.0]   // Default 64Mb  - 1.0 Cpu
+                KAFKA_UI     : [mem: 0.5, cpu: 1.0],  // Default 128Mb - 1.0 Cpu
+                JAEGER       : [mem: 1.0, cpu: 1.0],  // Default 256Mb - 1.0 Cpu
+                JAEGER_HEALTH: [mem: 0.25, cpu: 1.0]   // Default 64Mb  - 1.0 Cpu
         ]
         def UTILS_BASE_MEM_MB = getTypedProp("utils.base.memory.mb")
         if (UTILS_BASE_MEM_MB != null) {
@@ -333,10 +333,10 @@ task "kafkaConnectSetup" {
         def dbUser = getTypedProp('bbdd.systemUser') ?: 'postgres'
         def dbName = getTypedProp('bbdd.sid') ?: 'etendo'
         def dbPass = getTypedProp('bbdd.systemPassword') ?: 'syspass'
-        def dbPort = isBBDDEnabled ? '5432' : getTypedProp("bbdd.port") ?: '5432'  
+        def dbPort = isBBDDEnabled ? '5432' : getTypedProp("bbdd.port") ?: '5432'
 
         //TEST CONNECTION
-        
+
         try {
             // Try to load DatabaseConnection reflectively. If the class is not available, skip the DB tests.
             def dbConnClass = null
@@ -352,88 +352,86 @@ task "kafkaConnectSetup" {
                     throw new IllegalStateException('Could not load database connection using project config (Openbravo.properties).')
                 }
 
-                java.sql.Connection connection = null
-                try {
-                    connection = dbConn.getConnection()
+                // Use try-with-resources so Connection, Statements, ResultSets and PreparedStatements are closed automatically
+                try (java.sql.Connection connection = dbConn.getConnection()) {
                     if (connection == null || connection.isClosed()) {
                         throw new IllegalStateException('Database connection is null or closed.')
                     }
                     println "✅ Database connection test successful."
-                    // do a simple query to ensure the connection is valid
-                    def stmt = connection.createStatement()
-                    // check wall level and do
-                    /*
-                    ALTER SYSTEM SET wal_level = logical;
-ALTER TABLE etask_task REPLICA IDENTITY FULL; if needed*/
+
+                    // check wal_level
                     def setWallLevel = false
-                    def rs = stmt.executeQuery("SELECT setting FROM pg_settings WHERE name = 'wal_level'")
-                    if (rs.next()) {
-                        def walLevel = rs.getString("setting")
-                        if (walLevel != 'logical') {
-                            setWallLevel = true
+                    try (def stmt = connection.createStatement();
+                         def rs = stmt.executeQuery("SELECT setting FROM pg_settings WHERE name = 'wal_level'")) {
+                        if (rs.next()) {
+                            def walLevel = rs.getString("setting")
+                            if (walLevel != 'logical') {
+                                setWallLevel = true
+                            } else {
+                                println "✅ Database wal_level is set to 'logical'."
+                            }
                         } else {
-                            println "✅ Database wal_level is set to 'logical'."
+                            throw new IllegalStateException("Could not retrieve wal_level from pg_settings.")
                         }
-                    } else {
-                        throw new IllegalStateException("Could not retrieve wal_level from pg_settings.")
                     }
-                    //check if table public.etask_task has REPLICA IDENTITY FULL
+
+                    // check if table public.etask_task has REPLICA IDENTITY FULL
                     def needSetReplicaLevelTask = false
-                    rs = stmt.executeQuery("SELECT relreplident FROM pg_class WHERE relname = 'etask_task' AND relnamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'public')")
-                    if (rs.next()) {
-                        def replIdent = rs.getString("relreplident")
-                        if (replIdent != 'f') {
-                            needSetReplicaLevelTask = true
+                    try (def stmt2 = connection.createStatement();
+                         def rs2 = stmt2.executeQuery("SELECT relreplident FROM pg_class WHERE relname = 'etask_task' AND relnamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'public')")) {
+                        if (rs2.next()) {
+                            def replIdent = rs2.getString("relreplident")
+                            if (replIdent != 'f') {
+                                needSetReplicaLevelTask = true
+                            }
+                        } else {
+                            throw new IllegalStateException("Could not retrieve relreplident for public.etask_task.")
                         }
-                    } else {
-                        throw new IllegalStateException("Could not retrieve relreplident for public.etask_task.")
                     }
+
                     if (setWallLevel || needSetReplicaLevelTask) {
                         println "⚠️ Database configuration changes are required for Kafka Connect to function properly."
                     } else {
                         println "✅ Database configuration is suitable for Kafka Connect."
                     }
-                    if (setWallLevel  || needSetReplicaLevelTask) {
-                    //ask to user if want to continue
+
+                    if (setWallLevel || needSetReplicaLevelTask) {
+                        // ask to user if want to continue
                         def reader = getConsoleReader()
                         def continueSetup = askYesNo(reader, "\nDo you want to the setup script apply the required configuration changes automatically? (Y/n): ", true)
-                    if (!continueSetup) {
-                        throw new GradleException(
-                                "Database configuration is not suitable for Kafka Connect. Please apply the required changes manually and re-run this task:\n" +
-                                "1. Set wal_level to 'logical':\n" +
-                                "   ALTER SYSTEM SET wal_level = 'logical';\n" +
-                                "2. Set REPLICA IDENTITY FULL on public.etask_task table:\n" +
-                                "   ALTER TABLE public.etask_task REPLICA IDENTITY FULL;\n" +
-                                "After applying the changes, please restart the database server if necessary and re-run this task to ensure all settings are correct."
-                        )
-                    }
+                        if (!continueSetup) {
+                            throw new GradleException(
+                                    "Database configuration is not suitable for Kafka Connect. Please apply the required changes manually and re-run this task:\n" +
+                                            "1. Set wal_level to 'logical':\n" +
+                                            "   ALTER SYSTEM SET wal_level = 'logical';\n" +
+                                            "2. Set REPLICA IDENTITY FULL on public.etask_task table:\n" +
+                                            "   ALTER TABLE public.etask_task REPLICA IDENTITY FULL;\n" +
+                                            "After applying the changes, please restart the database server if necessary and re-run this task to ensure all settings are correct."
+                            )
+                        }
 
-                    if (setWallLevel ){
-                        def configSt=connection.prepareStatement("ALTER SYSTEM SET wal_level = 'logical'")
-                        configSt.execute()
-                    }
-                    if (needSetReplicaLevelTask) {
-                       def configSt2=connection.prepareStatement("ALTER TABLE public.etask_task REPLICA IDENTITY FULL")
-                        configSt2.execute()
-                    }
-                    if (setWallLevel || needSetReplicaLevelTask) {
-                        println "⚠️ Database requirded configuration changes applied. A database restart may be required for changes to take effect."
                         if (setWallLevel) {
-                            println "→ wal_level set to 'logical'."
+                            try (def configSt = connection.prepareStatement("ALTER SYSTEM SET wal_level = 'logical'")) {
+                                configSt.execute()
+                            }
                         }
                         if (needSetReplicaLevelTask) {
-                            println "→ public.etask_task set to REPLICA IDENTITY FULL."
+                            try (def configSt2 = connection.prepareStatement("ALTER TABLE public.etask_task REPLICA IDENTITY FULL")) {
+                                configSt2.execute()
+                            }
                         }
-                        println "Please restart the database server if necessary and re-run this task to ensure all settings are correct."
-                    }
 
-                    } //end if no changes needed
-
-
-                } finally {
-                    if (connection != null && !connection.isClosed()) {
-                        connection.close()
-                    }
+                        if (setWallLevel || needSetReplicaLevelTask) {
+                            println "⚠️ Database requirded configuration changes applied. A database restart may be required for changes to take effect."
+                            if (setWallLevel) {
+                                println "→ wal_level set to 'logical'."
+                            }
+                            if (needSetReplicaLevelTask) {
+                                println "→ public.etask_task set to REPLICA IDENTITY FULL."
+                            }
+                            println "Please restart the database server if necessary and re-run this task to ensure all settings are correct."
+                        }
+                    } // end if changes needed
                 }
             } else {
                 project.logger.debug('Skipping database connectivity test because DatabaseConnection class is not on the classpath.')
@@ -443,7 +441,7 @@ ALTER TABLE etask_task REPLICA IDENTITY FULL; if needed*/
             throw new GradleException("❌ Database connection test failed: ${e.message}\nPlease check your database connection settings (bbdd.systemUser, bbdd.systemPassword, bbdd.sid, bbdd.port) and ensure the database is reachable.")
         }
 
-        
+
         // check for variable kafka.enable. If not set, set it to true, but if already set in false, ask
         def kafkaEnabledSetted = project.hasProperty('kafka.enable')
         if (!kafkaEnabledSetted) {
@@ -495,7 +493,7 @@ ALTER TABLE etask_task REPLICA IDENTITY FULL; if needed*/
         saveInteractiveProp('kafka.connect.bbdd.host', dbHost)
 
         flushInteractiveSetup(project)
-        
+
 
         println "📡 Checking Kafka Connect for connector '$connectorName'..."
 
@@ -525,7 +523,7 @@ ALTER TABLE etask_task REPLICA IDENTITY FULL; if needed*/
             "config": ${configBody}
         }
         """
-        
+
 
         def checkProcess = ['curl', '-s', '-o', '/dev/null', '-w', '%{http_code}', "http://${kafkaConnectHost}:8083/connectors/${connectorName}"].execute()
         def statusCode = checkProcess.text.trim()
@@ -684,7 +682,7 @@ private String getkafkaConnectDBHost(Project proj, boolean dockerizedDBEnabled) 
 
     throw new GradleException("You must specify the 'kafka.connect.bbdd.host' property or provide a valid DB host when prompted.")
 }
-  
+
 task "jaeger.build" {
     description = 'Executing Jaeger and Opentelemetry Configurations'
     group = 'Docker'
