@@ -267,8 +267,9 @@ pipeline {
                     allow.root=true
                     docker_com.etendoerp.docker_db=true
                     db.base.memory.mb=10240
-                    etendorx.basepackage=com.etendorx.integration.petclinic
                     org.gradle.jvmargs=-Dfile.encoding=UTF-8
+                    etendorx.basepackage=com.etendorx.integration.petclinic
+                    etendorx.dependencies=com.etendorx:integration.petclinic:1.0.0
                     org.gradle.daemon=false" > gradle.properties
                     """
                     echo "---------------- Add dependencies ----------------"
@@ -386,6 +387,7 @@ pipeline {
                 kafka.enable=false
                 docker.exclude=kafka,connect,asyncprocess,kafka-ui
                 etendorx.basepackage=com.etendorx.integration.petclinic
+                etendorx.dependencies=com.etendorx:integration.petclinic:1.0.0
                 org.gradle.jvmargs=-Dfile.encoding=UTF-8
                 org.gradle.daemon=false" > gradle.properties
                 """
