@@ -1,6 +1,7 @@
 apiVersion: v1
 kind: Pod
 metadata:
+  name: jenkins-node-0
   labels:
     app.kubernetes.io/name: jenkins-node-rx
 spec:
@@ -15,7 +16,7 @@ spec:
         name: rsa-keys
         defaultMode: 384          # 0600
     - name: dind-storage
-      emptyDir: {}                # cache local de imágenes para dind
+      emptyDir: { }                # cache local de imágenes para dind
 
   containers:
     - name: compiler
@@ -52,10 +53,11 @@ spec:
               - -lc
               - |
                 set -e
-                apt-get update -y
-                command -v docker >/dev/null || apt-get install -y docker.io
-                apt-get install -y curl openssl
-
+                (apt-get update -y || true)
+                if ! command -v docker >/dev/null 2>&1; then
+                  (apt-get install -y docker.io || echo "⚠️ Couldn't install docker")
+                fi
+                (apt-get install -y curl openssl || echo "⚠️ Couldn't install curl/openssl")
     - name: dind
       image: docker:25-dind
       securityContext:

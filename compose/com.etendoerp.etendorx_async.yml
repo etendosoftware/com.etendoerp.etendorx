@@ -1,6 +1,6 @@
 services:
   kafka:
-    image: bitnami/kafka:4.0.0
+    image: public.ecr.aws/bitnami/kafka:4.0.0
     ports:
       - "9092:9092"
       - "9093:9093"
@@ -104,7 +104,7 @@ services:
       - etendo
     # Se eliminaron las referencias a async_vol
     healthcheck:
-      test: ["CMD-SHELL", "wget --spider -q http://localhost:8099/actuator/health || exit 1"]
+      test: [ "CMD-SHELL", "wget --spider -q http://localhost:8099/actuator/health || exit 1" ]
       interval: 10s
       timeout: 10s
       retries: 60
