@@ -46,6 +46,8 @@ INSERT INTO public.etrx_service_param(etrx_service_param_id, ad_client_id, ad_or
 	VALUES ('8071B168A0874026977706521A680251','0','0','Y','2025-08-14 17:17:42.504','100','2025-08-14 17:17:42.504','100','http://tomcat:8080','classic.url','4CBB9069F64F443B97FC1DAAC480B0F8');
 INSERT INTO public.etrx_service_param(etrx_service_param_id, ad_client_id, ad_org_id, isactive, created, createdby, updated, updatedby, param_value, param_key, etrx_config_id)
 	VALUES ('289A63C1A8F54F96AE235EE1BB49BA2C','0','0','Y','2025-08-14 17:18:14.816','100','2025-08-14 17:20:29.186','100','936C4AB8B8C94EBA8A6170B0402A2A06','connector.instance','84D17527B48A48E7981001FE8A70296B');
+INSERT INTO public.etrx_service_param(etrx_service_param_id, ad_client_id, ad_org_id, isactive, created, createdby, updated, updatedby, param_value, param_key, etrx_config_id)
+  VALUES ('4A6C9623F52B4BB4A8B404DA999216BE','0','0','Y','2025-08-12 20:49:11.755','100','2025-08-12 20:49:11.755','100','com.etendorx.integration.petclinic','scan.basePackage','F14B8721BBC44E72847D7CC28209318A');
 
 INSERT INTO public.etrx_connector(etrx_connector_id, ad_client_id, ad_org_id, isactive, created, createdby, updated, updatedby, name, ad_module_id)
 	VALUES ('5FC3FF78117B4C0F8564AFA17F505B05','23C59575B9CF467C9620760EB255B389','0','Y','2025-08-14 16:21:30.294','100','2025-08-14 16:21:30.294','100','PetClinic',null);

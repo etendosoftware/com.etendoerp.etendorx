@@ -26,3 +26,5 @@ INSERT INTO public.etrx_service_param(etrx_service_param_id, ad_client_id, ad_or
 	VALUES ('BB9BF660917842B986B59748A7C70E77','0','0','Y','2025-08-12 20:49:11.756','100','2025-08-12 20:49:11.756','100','http://das:8092','das.url','79A4AF3BEE9D40CC8FD6A4F56AE9A22A');
 INSERT INTO public.etrx_service_param(etrx_service_param_id, ad_client_id, ad_org_id, isactive, created, createdby, updated, updatedby, param_value, param_key, etrx_config_id)
 	VALUES ('CF4F2E63AAC14BEAA793924B90E9B0D3','0','0','Y','2025-08-12 20:49:11.755','100','2025-08-12 20:49:11.755','100','http://tomcat:8080','classic.url','F14B8721BBC44E72847D7CC28209318A');
+INSERT INTO public.etrx_service_param(etrx_service_param_id, ad_client_id, ad_org_id, isactive, created, createdby, updated, updatedby, param_value, param_key, etrx_config_id)
+  VALUES ('4A6C9623F52B4BB4A8B404DA999216BE','0','0','Y','2025-08-12 20:49:11.755','100','2025-08-12 20:49:11.755','100','com.etendorx.integration.petclinic','scan.basePackage','F14B8721BBC44E72847D7CC28209318A');
