@@ -106,7 +106,7 @@ services:
       - etendo
     # Se eliminaron las referencias a async_vol
     healthcheck:
-      test: ["CMD-SHELL", "wget --spider -q http://localhost:8099/actuator/health || exit 1"]
+      test: [ "CMD-SHELL", "wget --spider -q http://localhost:8099/actuator/health || exit 1" ]
       interval: 10s
       timeout: 10s
       retries: 60
@@ -118,4 +118,3 @@ services:
 
 volumes:
   async_vol:
-
