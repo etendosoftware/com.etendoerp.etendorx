@@ -583,11 +583,21 @@ sso {
     }
 
     redirectUri {
-        description = "Redirect URI for SSO login handler"
-        value = "https://your-domain.com/oauth/secureApp/LoginHandler.html"
+        description = "Your URL, followed by /secureApp/LoginHandler.html (Redirect URI for SSO login handler) as the example shows: \n" +
+                "       Default local instance example: http://localhost:8080/etendo/secureApp/LoginHandler.html"
+        value = "https://<your-domain.com>/<context.name>/secureApp/LoginHandler.html"
         sensitive = false
         required = false
         group = "SSO Configuration"
         name = "sso.middleware.redirectUri"
+    }
+
+    authenticationClass {
+        description = "Authentication class that handles the login."
+        value = "com.etendoerp.etendorx.auth.SWSAuthenticationManager"
+        sensitive = false
+        required = false
+        group = "SSO Configuration"
+        name = "authentication.class"
     }
 }
