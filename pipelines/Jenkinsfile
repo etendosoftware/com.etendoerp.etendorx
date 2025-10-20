@@ -265,18 +265,6 @@ pipeline {
                                     }
 
                                     dir(CLASSIC_DIR) {
-
-                                        echo "--------------- Getting Sonar projectKey of ${REPOSITORY_NAME} ---------------"
-                                        def propertiesContent = readFile "./sonar-project.properties"
-                                        def lines = propertiesContent.split('\n')
-                                        def projectKey = ""
-                                        lines.each { line ->
-                                            if (line.startsWith('sonar.projectKey=')) {
-                                            projectKey = line.split('=')[1]
-                                            }
-                                        }
-                                        env.PROJECT_KEY = "${projectKey}"
-
                                         echo "---------------------- Setup Classic Repo ----------------------"
                                         sh """
                                         echo "\n
@@ -511,10 +499,12 @@ pipeline {
                                 error("SonarQube properties file not found in ${sonarPropertiesFile}")
                             }
                             def sonarProjectKey = sh(script: "grep 'sonar.projectKey' ${sonarPropertiesFile} | cut -d '=' -f2", returnStdout: true).trim()
-                            echo "SonarQube Project Key: ${sonarProjectKey}"
+                            env.PROJECT_KEY = sonarProjectKey
+                            echo "SonarQube Project Key: ${env.PROJECT_KEY}"
 
                             echo '-------------------------- Checking if module contains Java source files --------------------------'
                             def parsedRepositoryName = REPOSITORY_NAME.replace('.', '/')
+                            def sonarSources = '.'
                             if (fileExists("${CLASSIC_DIR}/modules/${REPOSITORY_NAME}/src/${parsedRepositoryName}")) {
                                 echo '----> Java source files found in module'
                                 sonarSources = "src/${parsedRepositoryName}"
@@ -535,6 +525,7 @@ pipeline {
                                     -Dsonar.login=${SONAR_TOKEN} \
                                     -Dsonar.branch.name=${GIT_BRANCH} \
                                     -Dsonar.projectVersion=${GIT_COMMIT} \
+                                    -Dsonar.scm.revision=${GIT_COMMIT} \
                                     ${jacocoReportPathAttribute}
                             """
                             echo "---------------------- Getting SonarQube Report URL ----------------------"
