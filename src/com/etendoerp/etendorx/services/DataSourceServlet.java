@@ -59,7 +59,7 @@ import com.etendoerp.etendorx.utils.SelectorHandlerUtil;
 import com.etendoerp.openapi.data.OpenAPIRequest;
 import com.smf.securewebservices.rsql.OBRestUtils;
 import com.smf.securewebservices.utils.SecureWebServicesUtils;
-
+import org.openbravo.service.web.WebServiceUtil;
 
 /**
  * Servlet facade for handling headless DataSource requests inside Etendorx.
@@ -101,7 +101,9 @@ public class DataSourceServlet implements WebService {
    * @return the DataSourceServlet instance
    */
   static org.openbravo.service.datasource.DataSourceServlet getDataSourceServlet() {
-    return WeldUtils.getInstanceFromStaticBeanManager(org.openbravo.service.datasource.DataSourceServlet.class);
+    var dataSource = WeldUtils.getInstanceFromStaticBeanManager(org.openbravo.service.datasource.DataSourceServlet.class);
+    dataSource.init(SecureWebServicesUtils.getServletConfig());
+    return dataSource;
   }
 
   /**
