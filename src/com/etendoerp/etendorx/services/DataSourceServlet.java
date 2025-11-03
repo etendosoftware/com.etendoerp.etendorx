@@ -59,7 +59,6 @@ import com.etendoerp.etendorx.utils.SelectorHandlerUtil;
 import com.etendoerp.openapi.data.OpenAPIRequest;
 import com.smf.securewebservices.rsql.OBRestUtils;
 import com.smf.securewebservices.utils.SecureWebServicesUtils;
-import org.openbravo.service.web.WebServiceUtil;
 
 /**
  * Servlet facade for handling headless DataSource requests inside Etendorx.
@@ -101,9 +100,7 @@ public class DataSourceServlet implements WebService {
    * @return the DataSourceServlet instance
    */
   static org.openbravo.service.datasource.DataSourceServlet getDataSourceServlet() {
-    var dataSource = WeldUtils.getInstanceFromStaticBeanManager(org.openbravo.service.datasource.DataSourceServlet.class);
-    dataSource.init(SecureWebServicesUtils.getServletConfig());
-    return dataSource;
+    return WeldUtils.getInstanceFromStaticBeanManager(org.openbravo.service.datasource.DataSourceServlet.class);
   }
 
   /**
@@ -216,8 +213,15 @@ public class DataSourceServlet implements WebService {
   /**
    * Fills session variables in the request if needed.
    * <p>
-   * This method checks if the session variables are already loaded. If not, it loads the session variables
-   * using the `SecureWebServicesUtils.fillSessionVariables` method.
+   * This method ensures all session variables are properly initialized for both regular
+   * and headless requests. It calls {@code LoginUtils.fillSessionArguments} to initialize
+   * standard session variables and then ensures format-related variables (decimal separators,
+   * grouping separators, number formats, etc.) are also initialized by calling
+   * {@code LoginUtils.readNumberFormat}.
+   * <p>
+   * For headless requests where {@code KernelServlet} is not initialized, this method
+   * retrieves {@code ConfigParameters} directly from the servlet context to ensure all
+   * formatting configuration is available.
    *
    * @param request
    *     The HttpServletRequest object.
@@ -228,13 +232,49 @@ public class DataSourceServlet implements WebService {
     try {
       OBContext.setAdminMode();
       VariablesSecureApp variables = RequestContext.get().getVariablesSecureApp();
-      if (variables.getJavaDateFormat() == null || StringUtils.isEmpty(
-          variables.getSessionValue("#DecimalSeparator|generalQtyEdition"))) {
-        SecureWebServicesUtils.fillSessionVariables(request);
-        log.debug("Session variables loaded in DataSourceServlet.");
+
+      // Check if session variables need to be initialized
+      boolean needsInitialization = variables.getJavaDateFormat() == null
+              || StringUtils.isEmpty(variables.getSessionValue("#DecimalSeparator|generalQtyEdition"));
+
+      if (needsInitialization) {
+        // Initialize core session variables (user, role, client, org, etc.)
+        DalConnectionProvider conn = new DalConnectionProvider(false);
+        OBContext context = OBContext.getOBContext();
+        org.openbravo.model.common.enterprise.Warehouse warehouse = context.getWarehouse();
+
+        LoginUtils.fillSessionArguments(
+                conn,
+                variables,
+                context.getUser().getId(),
+                context.getLanguage().getLanguage(),
+                context.isRTL() ? "Y" : "N",
+                context.getRole().getId(),
+                context.getCurrentClient().getId(),
+                context.getCurrentOrganization().getId(),
+                warehouse != null ? warehouse.getId() : null
+        );
+
+        // Ensure number format is always initialized, even in headless requests
+        // First try to get ConfigParameters from KernelServlet (normal requests)
+        org.openbravo.base.ConfigParameters configParams =
+                org.openbravo.client.kernel.KernelServlet.getGlobalParameters();
+
+        // If KernelServlet is not initialized (headless request), get from servlet context
+        if (configParams == null) {
+          configParams = org.openbravo.base.ConfigParameters.retrieveFrom(request.getServletContext());
+        }
+
+        // Read all format configurations (numbers, dates, etc.)
+        if (configParams != null) {
+          LoginUtils.readNumberFormat(variables, configParams.getFormatPath());
+          log.debug("Session variables and number formats initialized for request.");
+        } else {
+          log.warn("ConfigParameters not available - some formatting may not work correctly.");
+        }
 
       } else {
-        log.debug("Session variables already loaded previously.");
+        log.debug("Session variables already initialized.");
       }
     } catch (ServletException e) {
       throw new OBException(e);
