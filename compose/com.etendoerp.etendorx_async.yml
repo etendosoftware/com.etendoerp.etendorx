@@ -1,6 +1,6 @@
 services:
   kafka:
-    image: public.ecr.aws/bitnami/kafka:4.0.0
+    image: etendo/kafka:4.0.0
     hostname: kafka
     ports:
       - "9092:9092"
