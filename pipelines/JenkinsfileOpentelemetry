@@ -43,13 +43,11 @@ pipeline {
     UNSTABLE                  = 'UNSTABLE'
     ABORTED                   = 'ABORTED'
 
-    NEXT_CLASSIC_VERSION      = '25.3.0'
-    BASE_BRANCH_BACKPORT      = 'release/24.4'
+    NEXT_CLASSIC_VERSION      = '25.4.0'
     MAIN_BRANCH               = 'main'
     DEVELOP_BRANCH            = 'develop'
 
     SWS_PRIVATE_KEY           = credentials('sws-rx-private-key')
-    JIRA_BASE_URL             = credentials('jira-url')
      // Jenkins credential stored as base64-encoded string for another Atlassian user, not etendobot
     JIRA_ACCESS_TOKEN         = credentials('jira-access-token')
     AUTHORIZATION_TOKEN       = credentials('sws-rx-token')
@@ -146,13 +144,15 @@ pipeline {
                 def sshCmd = "ssh -i ${keyfile} -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no"
                 try {
                   echo "---------------- Choice of etendo_base branch ----------------"
-                  env.BASE_BRANCH = env.MAIN_BRANCH
-                  if (env.GIT_BRANCH.contains("-Y") || env.GIT_BRANCH.startsWith("release")) {
-                    env.BASE_BRANCH = env.BASE_BRANCH_BACKPORT
-                  }
+                  env.FROM_BACKPORT = FALSE
+                  env.FROM_PRERELEASE = FALSE
+                  def branchSelector = load 'pipelines/utils/branchSelector.groovy'
+                  def coreBranch = branchSelector.determineBranch(false)
+                  env.BASE_BRANCH = coreBranch
+                  echo "BASE_BRANCH → ${env.BASE_BRANCH}"
 
                   echo '--------------- Building Etendo Base environment ----------------'
-                  sh "git clone ${ETENDO_BASE_URL}"
+                  sh "git clone --branch ${env.BASE_BRANCH} ${ETENDO_BASE_URL}"
 
                   echo "---------------------- Clonning RX Module Repository ----------------------"
                   sh """
@@ -184,7 +184,7 @@ pipeline {
                     if (isFeatureBranch) {
                       echo "-------------------------- Feature Branch Detected --------------------------"
                       def taskName = env.GIT_BRANCH.replaceAll("feature/", "").replaceAll("-Y\\d+", "")
-                      epicKey = sh(script: "bash ${env.WORKDIR_MODULE}/pipelines/utils/jira/jira-utils.sh ${taskName} ${JIRA_BASE_URL} $JIRA_ACCESS_TOKEN", returnStdout: true).trim()
+                      epicKey = sh(script: "bash ${env.WORKDIR_MODULE}/pipelines/utils/jira/jira-utils.sh ${taskName} ${JIRA_BASE_URL} ${JIRA_ACCESS_TOKEN}", returnStdout: true).trim()
                       if (epicKey) {
                         echo "Epic Key: ${epicKey}"
                         if (env.GIT_BRANCH.contains("-Y")) {
@@ -217,7 +217,7 @@ pipeline {
                           git checkout ${env.DEVELOP_BRANCH}
                           """
                         }
-                      } else if (env.GIT_BRANCH.contains("-Y") || env.GIT_BRANCH.startsWith("release")) {
+                      } else if (env.FROM_BACKPORT == TRUE) {
                         if (isFeatureBranch && epicKey) {
                           sh """
                           cd ${ETENDO_BASE}/modules/${module_package}
@@ -229,6 +229,18 @@ pipeline {
                           git checkout ${env.BACKPORT_BRANCH}
                           """
                         } 
+                      } else if (env.FROM_PRERELEASE == TRUE) {
+                        if (isFeatureBranch && epicKey) {
+                          sh """
+                          cd ${ETENDO_BASE}/modules/${module_package}
+                          git checkout ${env.EPIC_BRANCH} || git checkout ${env.PRERELEASE_BRANCH}
+                          """
+                        } else {
+                          sh """
+                          cd ${ETENDO_BASE}/modules/${module_package}
+                          git checkout ${env.PRERELEASE_BRANCH}
+                          """
+                        }
                       }
 
                       sh """
@@ -681,39 +693,6 @@ pipeline {
   }
 
   post { // MARK: - Post Actions
-    fixed {
-      mail to: EMAIL_ADDRESS,
-      subject: "✅ FIXED - ${currentBuild.fullDisplayName}",
-      mimeType: "text/html",
-      body: """
-      <html>
-          <head>
-              <style>
-                  body { font-family: 'Arial', sans-serif; }
-                  .header { font-size: 16px; font-weight: bold; color: #333; }
-              </style>
-          </head>
-          <body>
-              <p><em>${new Date()}</em></p>
-              <p>__________________________________________________________</p>
-
-              <h2 class="header">✅ ERRORS FIXED ✅</h2>
-
-              <p>
-                  <strong>Commit:</strong> <a href="${URL_REPO}/commits/${env.GIT_COMMIT}">${URL_REPO}/commits/${env.GIT_COMMIT}</a><br />
-                  <strong>Author:</strong> ${COMMIT_AUTHOR_NAME} (${COMMIT_AUTHOR_EMAIL})
-              </p>
-              <p>
-                  The build has been fixed.<br />
-                  💡 This build was on an Full Etendo (CORE and RX) build environment based on RX module commit.<br />
-                  For more information about the run, visit:<br />
-                  <a href="${env.BUILD_URL}">${env.BUILD_URL}</a>
-              </p>
-              <p>__________________________________________________________</p>
-          </body>
-      </html>
-      """
-    }
     failure {
       script {
         sh "./pipelines/utils/build-update.sh ${MODULE_PACKAGE} ${COMMIT_FAILED_STATUS} \"Build Failed\" ${ACCESS_TOKEN} ${GIT_COMMIT} ${BUILD_URL} \"${CONTEXT_BUILD}\""
