@@ -335,8 +335,6 @@ task "kafkaConnectSetup" {
         def dbPass = getTypedProp('bbdd.systemPassword') ?: 'syspass'
         def dbPort = isBBDDEnabled ? '5432' : getTypedProp("bbdd.port") ?: '5432'
 
-        //TEST CONNECTION
-
         try {
             // Try to load DatabaseConnection reflectively. If the class is not available, skip the DB tests.
             def dbConnClass = null
@@ -375,7 +373,7 @@ task "kafkaConnectSetup" {
                         }
                     }
 
-                    // check if table public.etask_task has REPLICA IDENTITY FULL
+                    // Check if table public.etask_task has REPLICA IDENTITY FULL
                     def needSetReplicaLevelTask = false
                     try (def stmt2 = connection.createStatement();
                          def rs2 = stmt2.executeQuery("SELECT relreplident FROM pg_class WHERE relname = 'etask_task' AND relnamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'public')")) {
@@ -396,7 +394,7 @@ task "kafkaConnectSetup" {
                     }
 
                     if (setWallLevel || needSetReplicaLevelTask) {
-                        // ask to user if want to continue
+                        // Ask to user if want to continue
                         def reader = getConsoleReader()
                         def continueSetup = askYesNo(reader, "\nDo you want to the setup script apply the required configuration changes automatically? (Y/n): ", true)
                         if (!continueSetup) {
@@ -431,7 +429,7 @@ task "kafkaConnectSetup" {
                             }
                             println "Please restart the database server if necessary and re-run this task to ensure all settings are correct."
                         }
-                    } // end if changes needed
+                    }
                 }
             } else {
                 project.logger.debug('Skipping database connectivity test because DatabaseConnection class is not on the classpath.')
@@ -441,8 +439,7 @@ task "kafkaConnectSetup" {
             throw new GradleException("❌ Database connection test failed: ${e.message}\nPlease check your database connection settings (bbdd.systemUser, bbdd.systemPassword, bbdd.sid, bbdd.port) and ensure the database is reachable.")
         }
 
-
-        // check for variable kafka.enable. If not set, set it to true, but if already set in false, ask
+        // Check for variable kafka.enable. If not set, set it to true, but if already set in false, ask
         def kafkaEnabledSetted = project.hasProperty('kafka.enable')
         if (!kafkaEnabledSetted) {
             def reader = getConsoleReader()
@@ -465,8 +462,7 @@ task "kafkaConnectSetup" {
 
         }
 
-
-        //ask if the user wants to use etendorx_async docker container
+        // Ask if the user wants to use etendorx_async docker container
         def dockerizedAsyncEnabled = project.hasProperty('docker_com.etendoerp.etendorx_async') && project.getProperty('docker_com.etendoerp.etendorx_async').toBoolean()
         if (!dockerizedAsyncEnabled) {
             def reader = getConsoleReader()
@@ -523,7 +519,6 @@ task "kafkaConnectSetup" {
             "config": ${configBody}
         }
         """
-
 
         def checkProcess = ['curl', '-s', '-o', '/dev/null', '-w', '%{http_code}', "http://${kafkaConnectHost}:8083/connectors/${connectorName}"].execute()
         def statusCode = checkProcess.text.trim()

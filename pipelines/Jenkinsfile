@@ -92,8 +92,8 @@ pipeline {
                             env.RX_STATUS = SUCCESS // Initialize RX build status
                             env.CODE_SCHEMA_VERIFICATION = SUCCESS // Initialize code and schema verification status
                             env.VERIFICATIONS_MESSAGE = '' // Initialize verifications message
-                            env.CORE_BRANCH = env.MAIN_BRANCH // Default to main branch
                             env.FROM_BACKPORT = FALSE // Initialize backport flag
+                            env.FROM_PRERELEASE = FALSE // Initialize prerelease flag
                             env.FAILED_SUITES = "" // List to collect failed test suites
 
                             echo '---------------------- Clone and Setup RX Repo Successful ----------------------'
@@ -125,31 +125,10 @@ pipeline {
                                     def sshCmd = "ssh -i ${keyfile} -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no"                                    
 
                                     echo '-------------------------- Selecting the Classic Correct Branch for Repository Cloning --------------------------'
-                                    def yearBackportBranch = (env.BACKPORT_BRANCH =~ /release\/(\d{2})\./)?.find() ? (env.BACKPORT_BRANCH =~ /release\/(\d{2})\./)[0][1] : null
-                                    def yearPrereleaseBranch = (env.PRERELEASE_BRANCH =~ /prerelease\/(\d{2})\./)?.find() ? (env.PRERELEASE_BRANCH =~ /prerelease\/(\d{2})\./)[0][1] : null
-                                    if (env.GIT_BRANCH.startsWith(env.DEVELOP_BRANCH) || ((env.GIT_BRANCH.startsWith("feature") || env.GIT_BRANCH.startsWith("epic")) && !(env.GIT_BRANCH.contains("-Y")))) {
-                                        env.CORE_BRANCH = env.DEVELOP_BRANCH
-                                    } else if (env.GIT_BRANCH.contains("-Y")) {
-                                        def yearCommitBranch = (GIT_BRANCH =~ /-Y(\d{2})/)?.find() ? (GIT_BRANCH =~ /-Y(\d{2})/)[0][1] : null
-                                        if (yearCommitBranch && yearBackportBranch && yearPrereleaseBranch) {
-                                            env.FROM_BACKPORT = (yearCommitBranch == yearBackportBranch) ? TRUE : FALSE
-                                            if (env.FROM_BACKPORT == TRUE) {
-                                                env.CORE_BRANCH = env.BACKPORT_BRANCH
-                                            } else {
-                                                env.CORE_BRANCH = env.PRERELEASE_BRANCH
-                                            }
-                                        } else {
-                                            error("Year mismatch between module branch (${yearCommitBranch}), backport branch (${yearBackportBranch}) and prerelease branch (${yearPrereleaseBranch}). Cannot determine correct CORE branch.")
-                                        }
-                                    }  else if (env.GIT_BRANCH.startsWith("release")) {
-                                        echo '-------------------------- Release Branch Detected --------------------------'
-                                        env.CORE_BRANCH = env.BACKPORT_BRANCH
-                                        echo "Backport Branch: ${env.CORE_BRANCH}"
-                                    } else if (env.GIT_BRANCH.startsWith("prerelease")) {
-                                        echo '-------------------------- Prerelease Branch Detected --------------------------'
-                                        env.CORE_BRANCH = env.PRERELEASE_BRANCH
-                                        echo "Prerelease Branch: ${env.CORE_BRANCH}"
-                                    }
+                                    def branchSelector = load 'pipelines/utils/branchSelector.groovy'
+                                    def coreBranch = branchSelector.determineBranch(true)
+                                    env.CORE_BRANCH = coreBranch
+                                    echo "CORE_BRANCH → ${env.CORE_BRANCH}"
 
                                     echo '---------------------- Clonning Classic Repo ----------------------'
                                     sh "git clone --branch ${CORE_BRANCH} ${CORE_URL_REPO}"
@@ -220,7 +199,7 @@ pipeline {
                                                     git checkout ${env.DEVELOP_BRANCH}
                                                     """
                                                 }
-                                            } else if (env.FROM_BACKPORT == TRUE || env.GIT_BRANCH.startsWith("release")) {
+                                            } else if (env.FROM_BACKPORT == TRUE) {
                                                 if (isFeatureBranch && epicKey) {
                                                     sh """
                                                     cd ${CLASSIC_DIR}/modules/${module_package}
@@ -232,7 +211,7 @@ pipeline {
                                                     git checkout ${env.BACKPORT_BRANCH}
                                                     """
                                                 }
-                                            } else if (env.FROM_BACKPORT == FALSE || env.GIT_BRANCH.startsWith("prerelease")) {
+                                            } else if (env.FROM_PRERELEASE == TRUE) {
                                                 if (isFeatureBranch && epicKey) {
                                                     sh """
                                                     cd ${CLASSIC_DIR}/modules/${module_package}
