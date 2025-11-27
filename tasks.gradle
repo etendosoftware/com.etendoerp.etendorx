@@ -17,13 +17,13 @@ private void saveInteractiveProp(String key, String value) {
 
 private boolean flushInteractiveSetup(Project proj) {
     try {
-        def ismClass = Class.forName('com.etendoerp.legacy.interactive.InteractiveSetupManager')
-        def writeMethod = ismClass.getMethod('writeResultsForInteractiveSetup', Project.class, Map.class)
-        writeMethod.invoke(null, proj, ext.collectedInteractiveSetupProps)
-        return true
-    } catch (ClassNotFoundException e) {
-        proj.logger.debug("InteractiveSetupManager not available: ${e.message}")
-        return false
+        if (proj.hasProperty('writeResultsForInteractiveSetup')) {
+            proj.writeResultsForInteractiveSetup(ext.collectedInteractiveSetupProps)
+            return true
+        } else {
+            proj.logger.debug("Interactive setup writer not available on project")
+            return false
+        }
     } catch (Exception e) {
         proj.logger.warn("Failed to write interactive setup results: ${e.message}")
         return false
@@ -336,19 +336,23 @@ task "kafkaConnectSetup" {
         def dbPort = isBBDDEnabled ? '5432' : getTypedProp("bbdd.port") ?: '5432'
 
         try {
-            // Try to load DatabaseConnection reflectively. If the class is not available, skip the DB tests.
-            def dbConnClass = null
-            try {
-                dbConnClass = Class.forName('com.etendoerp.connections.DatabaseConnection')
-            } catch (ClassNotFoundException cnfe) {
-                project.logger.debug("DatabaseConnection class not available, skipping DB connectivity test: ${cnfe.message}")
+            // Try to obtain DatabaseConnection via project-level helper closure (registered by buildSrc2). If not available, skip DB tests.
+            def dbConn = null
+            if (project.hasProperty('createDatabaseConnection')) {
+                try {
+                    dbConn = project.createDatabaseConnection(true)
+                    if (dbConn == null) {
+                        project.logger.debug('createDatabaseConnection returned null; skipping DB connectivity test')
+                    }
+                } catch (Exception e) {
+                    project.logger.debug("Failed to create DatabaseConnection via project ext: ${e.message}")
+                    dbConn = null
+                }
+            } else {
+                project.logger.debug('createDatabaseConnection helper not registered on project; skipping DB connectivity test')
             }
 
-            if (dbConnClass != null) {
-                def dbConn = dbConnClass.getConstructor(Project.class).newInstance(project)
-                if (!dbConn.loadSystemDatabaseConnection()) {
-                    throw new IllegalStateException('Could not load database connection using project config (Openbravo.properties).')
-                }
+            if (dbConn != null) {
 
                 // Use try-with-resources so Connection, Statements, ResultSets and PreparedStatements are closed automatically
                 try (java.sql.Connection connection = dbConn.getConnection()) {
