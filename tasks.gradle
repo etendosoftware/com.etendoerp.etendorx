@@ -17,13 +17,13 @@ private void saveInteractiveProp(String key, String value) {
 
 private boolean flushInteractiveSetup(Project proj) {
     try {
-        def ismClass = Class.forName('com.etendoerp.legacy.interactive.InteractiveSetupManager')
-        def writeMethod = ismClass.getMethod('writeResultsForInteractiveSetup', Project.class, Map.class)
-        writeMethod.invoke(null, proj, ext.collectedInteractiveSetupProps)
-        return true
-    } catch (ClassNotFoundException e) {
-        proj.logger.debug("InteractiveSetupManager not available: ${e.message}")
-        return false
+        if (proj.hasProperty('writeResultsForInteractiveSetup')) {
+            proj.writeResultsForInteractiveSetup(ext.collectedInteractiveSetupProps)
+            return true
+        } else {
+            proj.logger.debug("Interactive setup writer not available on project")
+            return false
+        }
     } catch (Exception e) {
         proj.logger.warn("Failed to write interactive setup results: ${e.message}")
         return false
