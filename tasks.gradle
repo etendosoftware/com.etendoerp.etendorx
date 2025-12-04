@@ -335,43 +335,24 @@ task "kafkaVariablesSetup" {
         def reader = getConsoleReader()
 
         // kafka.enable
-        def kafkaEnabledSet = project.hasProperty('kafka.enable')
-        if (!kafkaEnabledSet) {
-            def kafkaEnabled = askYesNo(reader, "\nDo you want to enable Kafka Connect for database change data capture? (Y/n): ", true)
-            saveInteractiveProp('kafka.enable', kafkaEnabled.toString())
-            if (!kafkaEnabled) {
-                println "Kafka Connect setup skipped as per user choice."
-                flushInteractiveSetup(project)
-                return
-            }
-        } else if (project.getProperty('kafka.enable').toString().toBoolean() == false) {
-            println "Kafka Connect setup will be skipped as 'kafka.enable' is set to false."
-            def kafkaEnabled = askYesNo(reader, "\nDo you want to enable Kafka Connect for database change data capture? (Y/n): ", true)
-            saveInteractiveProp('kafka.enable', kafkaEnabled.toString())
-            if (!kafkaEnabled) {
-                println "Kafka Connect setup skipped as per user choice."
-                flushInteractiveSetup(project)
-                return
-            }
+        def kafkaEnabled = askYesNo(reader, "\nDo you want to enable Kafka Connect for database change data capture? (Y/n): ", true)
+        saveInteractiveProp('kafka.enable', kafkaEnabled.toString())
+        if (!kafkaEnabled) {
+            println "Kafka Connect setup skipped as per user choice."
+            flushInteractiveSetup(project)
+            return
         }
+
 
         // docker_com.etendoerp.etendorx_async
-        def dockerizedAsyncEnabled = project.hasProperty('docker_com.etendoerp.etendorx_async') && project.getProperty('docker_com.etendoerp.etendorx_async').toBoolean()
-        def dockerizedRxEnabled = project.hasProperty('docker_com.etendoerp.etendorx') && project.getProperty('docker_com.etendoerp.etendorx').toBoolean()
-        if (!dockerizedAsyncEnabled) {
-            dockerizedAsyncEnabled = askYesNo(reader, "\nDo you want to use Kafka connect as a Etendo Docker service? (Y/n): ", true)
-            saveInteractiveProp('docker_com.etendoerp.etendorx_async', dockerizedAsyncEnabled.toString())
-            if (dockerizedAsyncEnabled && !dockerizedRxEnabled) {
-                println "\n⚠️  Warning: It is recommended to enable EtendoRX Docker service when using EtendoRX Async Docker service for better compatibility."
-                saveInteractiveProp('docker_com.etendoerp.etendorx', 'true')
-            }
-        }
+        def dockerizedAsyncEnabled = askYesNo(reader, "\nDo you want to use Kafka connect as a Etendo Docker service? (Y/n): ", true)
+        saveInteractiveProp('docker_com.etendoerp.etendorx_async', dockerizedAsyncEnabled.toString())
+
 
         // docker_com.etendoerp.etendorx_utils (only ask if async docker is enabled and utils not set)
-        if (dockerizedAsyncEnabled && !project.hasProperty('docker_com.etendoerp.etendorx_utils')) {
-            def dockerizedUtilsEnabled = askYesNo(reader, "\nDo you want to use Kafka connect utilities (Kafka UI, Jaeger) as a Etendo Docker service? (Y/n): ", true)
-            saveInteractiveProp('docker_com.etendoerp.etendorx_utils', dockerizedUtilsEnabled.toString())
-        }
+        def dockerizedUtilsEnabled = askYesNo(reader, "\nDo you want to use Kafka connect utilities (Kafka UI, Jaeger) as a Etendo Docker service? (Y/n): ", true)
+        saveInteractiveProp('docker_com.etendoerp.etendorx_utils', dockerizedUtilsEnabled.toString())
+
 
         // kafka.connect.host
         def kafkaHost = null
