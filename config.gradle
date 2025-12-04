@@ -491,15 +491,15 @@ edge {
     }
 }
 kafkaConnect {
-    kafkaConnectSetup {
-        description = "Setup Kafka Connect configuraction with an automated configuration task"
-        help = "Executes the kafka.connect.setup task to automatically configure Kafka Connect settings based on your environment"
+    kafkaVariablesSetup {
+        description = "Setup Kafka/Kafka Connect configuration variables with an automated configuration task"
+        help = "Executes the task to automatically configure Kafka Connect settings based on your environment in gradle.properties."
         sensitive = false
-        required = false
+        required = false        
         group = "Kafka Connect configuration"
         process = true
         order = 10
-        name = "kafkaConnectSetup"
+        name = "kafkaVariablesSetup"
     }
     dockerEtendorxAsync {
         description = "Enable EtendoRX Async Docker service. This must be enabled to start Kafka and Kafka Connect " +

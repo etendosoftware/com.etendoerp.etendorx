@@ -327,6 +327,84 @@ task "rx.das.stop" {
     }
 }
 
+// Interactive task to collect and persist Kafka-related variables
+task "kafkaVariablesSetup" {
+    description = 'Interactively collect Kafka Connect variables and persist them'
+    group = 'Kafka'
+    doLast {
+        def reader = getConsoleReader()
+
+        // kafka.enable
+        def kafkaEnabledSet = project.hasProperty('kafka.enable')
+        if (!kafkaEnabledSet) {
+            def kafkaEnabled = askYesNo(reader, "\nDo you want to enable Kafka Connect for database change data capture? (Y/n): ", true)
+            saveInteractiveProp('kafka.enable', kafkaEnabled.toString())
+            if (!kafkaEnabled) {
+                println "Kafka Connect setup skipped as per user choice."
+                flushInteractiveSetup(project)
+                return
+            }
+        } else if (project.getProperty('kafka.enable').toString().toBoolean() == false) {
+            println "Kafka Connect setup will be skipped as 'kafka.enable' is set to false."
+            def kafkaEnabled = askYesNo(reader, "\nDo you want to enable Kafka Connect for database change data capture? (Y/n): ", true)
+            saveInteractiveProp('kafka.enable', kafkaEnabled.toString())
+            if (!kafkaEnabled) {
+                println "Kafka Connect setup skipped as per user choice."
+                flushInteractiveSetup(project)
+                return
+            }
+        }
+
+        // docker_com.etendoerp.etendorx_async
+        def dockerizedAsyncEnabled = project.hasProperty('docker_com.etendoerp.etendorx_async') && project.getProperty('docker_com.etendoerp.etendorx_async').toBoolean()
+        def dockerizedRxEnabled = project.hasProperty('docker_com.etendoerp.etendorx') && project.getProperty('docker_com.etendoerp.etendorx').toBoolean()
+        if (!dockerizedAsyncEnabled) {
+            dockerizedAsyncEnabled = askYesNo(reader, "\nDo you want to use Kafka connect as a Etendo Docker service? (Y/n): ", true)
+            saveInteractiveProp('docker_com.etendoerp.etendorx_async', dockerizedAsyncEnabled.toString())
+            if (dockerizedAsyncEnabled && !dockerizedRxEnabled) {
+                println "\n⚠️  Warning: It is recommended to enable EtendoRX Docker service when using EtendoRX Async Docker service for better compatibility."
+                saveInteractiveProp('docker_com.etendoerp.etendorx', 'true')
+            }
+        }
+
+        // docker_com.etendoerp.etendorx_utils (only ask if async docker is enabled and utils not set)
+        if (dockerizedAsyncEnabled && !project.hasProperty('docker_com.etendoerp.etendorx_utils')) {
+            def dockerizedUtilsEnabled = askYesNo(reader, "\nDo you want to use Kafka connect utilities (Kafka UI, Jaeger) as a Etendo Docker service? (Y/n): ", true)
+            saveInteractiveProp('docker_com.etendoerp.etendorx_utils', dockerizedUtilsEnabled.toString())
+        }
+
+        // kafka.connect.host
+        def kafkaHost = null
+        try {
+            kafkaHost = getKafkaConnectHost(project, dockerizedAsyncEnabled)
+            saveInteractiveProp('kafka.connect.host', kafkaHost)
+        } catch (Exception e) {
+            throw new GradleException("Error obtaining Kafka Connect host: ${e.message}")
+        }
+
+        // kafka.connect.tables
+        try {
+            def tableIncludeList = getKafkaConnectTables(project)
+            saveInteractiveProp('kafka.connect.tables', tableIncludeList)
+        } catch (Exception e) {
+            throw new GradleException("Error obtaining Kafka Connect tables: ${e.message}")
+        }
+
+        // kafka.connect.bbdd.host
+        def dockerizedDBEnabled = project.hasProperty('docker_com.etendoerp.docker_db') && project.getProperty('docker_com.etendoerp.docker_db').toBoolean()
+        try {
+            def dbHost = getkafkaConnectDBHost(project, dockerizedDBEnabled)
+            saveInteractiveProp('kafka.connect.bbdd.host', dbHost)
+        } catch (Exception e) {
+            throw new GradleException("Error obtaining Kafka Connect DB host: ${e.message}")
+        }
+
+        // Persist collected interactive properties if possible
+        flushInteractiveSetup(project)
+        println "✅ Kafka variables collected. You can now run 'kafkaConnectSetup' to configure the connector."
+    }
+}
+
 task "kafkaConnectSetup" {
     doLast {
         def connectorName = "default"
@@ -443,57 +521,32 @@ task "kafkaConnectSetup" {
             throw new GradleException("❌ Database connection test failed: ${e.message}\nPlease check your database connection settings (bbdd.systemUser, bbdd.systemPassword, bbdd.sid, bbdd.port) and ensure the database is reachable.")
         }
 
-        // Check for variable kafka.enable. If not set, set it to true, but if already set in false, ask
-        def kafkaEnabledSetted = project.hasProperty('kafka.enable')
-        if (!kafkaEnabledSetted) {
-            def reader = getConsoleReader()
-            def kafkaEnabled = askYesNo(reader, "\nDo you want to enable Kafka Connect for database change data capture? (Y/n): ", true)
-            saveInteractiveProp('kafka.enable', kafkaEnabled.toString())
-            if (!kafkaEnabled) {
-                println "Kafka Connect setup skipped as per user choice."
-                return
-            }
-        } else if (project.getProperty('kafka.enable').toString().toBoolean() == false) {
+        // Kafka variables must be set beforehand by running the 'kafkaVariablesSetup' task.
+        def kafkaEnabledProp = getTypedProp('kafka.enable')
+        if (kafkaEnabledProp == null) {
+            throw new GradleException("Kafka variables not configured. Please run the 'kafkaVariablesSetup' task before running 'kafkaConnectSetup'.")
+        }
+        if (kafkaEnabledProp.toString().toBoolean() == false) {
             println "Kafka Connect setup will be skipped as 'kafka.enable' is set to false."
-            //ask if the user wants to set it to true
-            def reader = getConsoleReader()
-            def kafkaEnabled = askYesNo(reader, "\nDo you want to enable Kafka Connect for database change data capture? (Y/n): ", true)
-            saveInteractiveProp('kafka.enable', kafkaEnabled.toString())
-            if (!kafkaEnabled) {
-                println "Kafka Connect setup skipped as per user choice."
-                return
-            }
-
+            return
         }
 
-        // Ask if the user wants to use etendorx_async docker container
-        def dockerizedAsyncEnabled = project.hasProperty('docker_com.etendoerp.etendorx_async') && project.getProperty('docker_com.etendoerp.etendorx_async').toBoolean()
-        if (!dockerizedAsyncEnabled) {
-            def reader = getConsoleReader()
-            dockerizedAsyncEnabled = askYesNo(reader, "\nDo you want to use Kafka connect as a Etendo Docker service? (Y/n): ", true)
-            saveInteractiveProp('docker_com.etendoerp.etendorx_async', dockerizedAsyncEnabled.toString())
-        }
-        if (dockerizedAsyncEnabled && !project.hasProperty('docker_com.etendoerp.etendorx_utils')) {
-            //Ask if want to enable the utilities, like Kafka UI and Jaeger
-            def dockerizedUtilsEnabled = project.hasProperty('docker_com.etendoerp.etendorx_utils') && project.getProperty('docker_com.etendoerp.etendorx_utils').toBoolean()
-            if (!dockerizedUtilsEnabled) {
-                def reader = getConsoleReader()
-                dockerizedUtilsEnabled = askYesNo(reader, "\nDo you want to use Kafka connect utilities (Kafka UI, Jaeger) as a Etendo Docker service? (Y/n): ", true)
-            }
+        def dockerizedAsyncEnabled = getTypedProp('docker_com.etendoerp.etendorx_async') ?: false
+        def kafkaConnectHost = getTypedProp('kafka.connect.host')
+        if (kafkaConnectHost == null) {
+            throw new GradleException("Missing property 'kafka.connect.host'. Please run 'kafkaVariablesSetup' to set it.")
         }
 
-        def kafkaConnectHost = getKafkaConnectHost(project, dockerizedAsyncEnabled)
-        saveInteractiveProp('kafka.connect.host', kafkaConnectHost)
+        def tableIncludeList = getTypedProp('kafka.connect.tables')
+        if (tableIncludeList == null) {
+            throw new GradleException("Missing property 'kafka.connect.tables'. Please run 'kafkaVariablesSetup' to set it.")
+        }
 
-        def tableIncludeList = getKafkaConnectTables(project)
-        saveInteractiveProp('kafka.connect.tables', tableIncludeList)
-        def dockerizedDBEnabled = project.hasProperty('docker_com.etendoerp.docker_db') && project.getProperty('docker_com.etendoerp.docker_db').toBoolean()
-
-        def dbHost = getkafkaConnectDBHost(project, dockerizedDBEnabled)
-        saveInteractiveProp('kafka.connect.bbdd.host', dbHost)
-
-        flushInteractiveSetup(project)
-
+        def dockerizedDBEnabled = getTypedProp('docker_com.etendoerp.docker_db') ?: false
+        def dbHost = getTypedProp('kafka.connect.bbdd.host')
+        if (dbHost == null) {
+            throw new GradleException("Missing property 'kafka.connect.bbdd.host'. Please run 'kafkaVariablesSetup' to set it.")
+        }
 
         println "📡 Checking Kafka Connect for connector '$connectorName'..."
 
