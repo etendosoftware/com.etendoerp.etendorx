@@ -452,8 +452,8 @@ public class RXConfigUtils {
    * Enum representing different types of service configurations.
    */
   public enum ServiceConfigType {
-    ETENDORX("com.etendoerp.etendorx.yml", new String[]{"config", "auth", "das", "edge"}),
-    ASYNC("com.etendoerp.etendorx_async.yml", new String[]{ASYNCPROCESS, "kafka", "connect"}),
+    ETENDORX("com.etendoerp.etendorx.yml", new String[]{"config", "auth", "das", "edge", ASYNCPROCESS}),
+    ASYNC("com.etendoerp.etendorx_async.yml", new String[]{"kafka", "connect"}),
     CONNECTOR("com.etendoerp.etendorx_connector.yml", new String[]{OBCONNSRV, WORKER}),
     ALL("", new String[]{}); // Special type to get all services
 
