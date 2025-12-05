@@ -116,25 +116,22 @@ public class InitializeRXServicesTest extends WeldBaseTest {
           .collect(Collectors.toMap(ETRXConfig::getServiceName, ETRXConfig::getServiceURL));
       Map<String, Integer> expectedServices = new java.util.LinkedHashMap<>();
       if (rxEnable) {
-        // Get core RX services (excluding async and connector services)
+        // Get core RX services (including asyncprocess, but excluding kafka/connect and connector services)
         Map<String, Integer> allServices = com.etendoerp.etendorx.utils.RXConfigUtils.getServicePorts();
         Map<String, Integer> connectorServices = com.etendoerp.etendorx.utils.RXConfigUtils.getConnectorServices();
 
         allServices.entrySet().stream()
             .filter(entry -> !connectorServices.containsKey(entry.getKey()))
-            .filter(entry -> !entry.getKey().equals("asyncprocess") &&
-                !entry.getKey().equals("kafka") &&
+            .filter(entry -> !entry.getKey().equals("kafka") &&
                 !entry.getKey().equals("connect"))
             .forEach(entry -> expectedServices.put(entry.getKey(), entry.getValue()));
       }
       if (asyncEnable) {
-        // Get async services
-        Map<String, Integer> allServices = com.etendoerp.etendorx.utils.RXConfigUtils.getServicePorts();
-        allServices.entrySet().stream()
-            .filter(entry -> entry.getKey().equals("asyncprocess") ||
-                entry.getKey().equals("kafka") ||
-                entry.getKey().equals("connect"))
-            .forEach(entry -> expectedServices.put(entry.getKey(), entry.getValue()));
+        // Get async services (kafka and connect only)
+        // Note: asyncprocess is now in ETENDORX file, so it's ONLY included when rxEnable=true
+        Map<String, Integer> asyncServices = com.etendoerp.etendorx.utils.RXConfigUtils.getServicesByType(
+            com.etendoerp.etendorx.utils.RXConfigUtils.ServiceConfigType.ASYNC);
+        expectedServices.putAll(asyncServices);
       }
       if (connectorEnable) {
         expectedServices.putAll(com.etendoerp.etendorx.utils.RXConfigUtils.getConnectorServices());
