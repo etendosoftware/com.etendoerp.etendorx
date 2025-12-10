@@ -654,24 +654,36 @@ private String includeEtaskIfMissing(String tablesStr, Project proj, BufferedRea
 // Helper to obtain kafka.connect.tables, with interactive prompt if missing
 private String getKafkaConnectTables(Project proj) {
     def reader = getConsoleReader()
+    def yellow = "\u001B[33;1m"
+    def green = "\u001B[32;1m"
+    def reset = "\u001B[0m"
+    
     try {
+        def tablesStr = null
+        
         if (proj.hasProperty('kafka.connect.tables')) {
-            def tablesStr = getTypedProp('kafka.connect.tables')?.toString()?.trim()
-            def result = includeEtaskIfMissing(tablesStr, proj, reader)
-            if (result && result.trim()) {
-                saveInteractiveProp('kafka.connect.tables', result)
-                return result
+            tablesStr = getTypedProp('kafka.connect.tables')?.toString()?.trim()
+            
+            // Show current configuration
+            println "\n${green}Current configured tables for Kafka Connect:${reset}"
+            println "${yellow}${tablesStr}${reset}"
+            
+            // Ask if user wants to modify
+            def modify = askYesNo(reader, "\n${yellow}Do you want to modify the table list? (y/N): ${reset}", false)
+            
+            if (modify) {
+                def prompt = "\n${yellow}Please enter the new comma-separated list of tables for Kafka Connect (example: public.table1,public.table2): ${reset}"
+                tablesStr = askInput(reader, prompt)
             }
         } else {
-            def yellow = "\u001B[33;1m"
-            def reset = "\u001B[0m"
             def prompt = "\n${yellow}Please enter the comma-separated list of tables for Kafka Connect (example: public.table1,public.table2): ${reset}"
-            def tablesStr = askInput(reader, prompt)
-            def result = includeEtaskIfMissing(tablesStr, proj, reader)
-            if (result && result.trim()) {
-                saveInteractiveProp('kafka.connect.tables', result)
-                return result
-            }
+            tablesStr = askInput(reader, prompt)
+        }
+        
+        def result = includeEtaskIfMissing(tablesStr, proj, reader)
+        if (result && result.trim()) {
+            saveInteractiveProp('kafka.connect.tables', result)
+            return result
         }
     } catch (Exception e) {
         proj.logger.warn("Failed to read user input for kafka.connect.tables: ${e.message}")
