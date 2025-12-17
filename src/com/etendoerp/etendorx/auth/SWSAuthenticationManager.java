@@ -449,7 +449,7 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
   protected String doAuthenticate(HttpServletRequest request, HttpServletResponse response)
       throws AuthenticationException, ServletException, IOException {
     try {
-      final String allowSSO = getAllowSSOPref();
+      final String allowSSO = "N"; //getAllowSSOPref();
       final String ssoType = OBPropertiesProvider.getInstance()
           .getOpenbravoProperties().getProperty(SSO_AUTH_TYPE);
       final String accessToken = request.getParameter(ACCESS_TOKEN);
