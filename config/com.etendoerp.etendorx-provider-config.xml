@@ -10,4 +10,9 @@
         <class>com.etendoerp.etendorx.services.ImageUploadServlet</class>
         <singleton>true</singleton>
     </bean>
+    <bean>
+        <name>call</name>
+        <class>com.etendoerp.etendorx.services.CallAsyncProcessServlet</class>
+        <singleton>true</singleton>
+    </bean>
 </provider>
