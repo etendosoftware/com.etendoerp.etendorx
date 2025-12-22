@@ -39,7 +39,7 @@ import net.sf.jasperreports.engine.JasperExportManager;
  */
 public class DocumentReportingUtilsTest {
 
-  public static final String RECORD_ID = "recordId";
+  private static final String RECORD_ID = "recordId";
   private MockedStatic<OBContext> obContextMockedStatic;
   private MockedStatic<OBDal> obDalMockedStatic;
   private MockedStatic<ReportingUtils> reportingUtilsMockedStatic;

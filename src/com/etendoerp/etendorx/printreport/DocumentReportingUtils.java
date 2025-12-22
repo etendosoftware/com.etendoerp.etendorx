@@ -178,12 +178,10 @@ public class DocumentReportingUtils {
       if (requestContext == null) {
         throw new OBException("RequestContext does not have an associated HttpServletRequest. Cannot initialize VariablesSecureApp.");
       }
-
       if (requestContext.getVariablesSecureApp() == null) {
         // Initialize VariablesSecureApp if not already set
         InitialConfigUtil.initialize();
       }
-
       VariablesSecureApp vars = requestContext.getVariablesSecureApp();
       ConnectionProvider cp = new DalConnectionProvider(false);
 
