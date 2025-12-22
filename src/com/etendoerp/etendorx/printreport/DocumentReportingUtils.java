@@ -4,8 +4,11 @@ import java.io.ByteArrayOutputStream;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.etendoerp.etendorx.config.InitialConfigUtil;
+import com.smf.securewebservices.utils.SecureWebServicesUtils;
 import org.openbravo.base.ConfigParameters;
 import org.openbravo.base.exception.OBException;
+import org.openbravo.base.secureApp.LoginUtils;
 import org.openbravo.base.structure.BaseOBObject;
 import org.openbravo.client.kernel.KernelServlet;
 import org.openbravo.dal.core.OBContext;
@@ -204,9 +207,15 @@ public class DocumentReportingUtils {
   private static byte[] generateStandardReport(DocumentType docType, String recordId) {
     try {
       ConnectionProvider cp = new DalConnectionProvider(false);
-      VariablesSecureApp vars = RequestContext.get().getVariablesSecureApp();
-
-      final ConfigParameters servletConfiguration = KernelServlet.getGlobalParameters();
+      ConfigParameters servletConfiguration = KernelServlet.getGlobalParameters();
+      VariablesSecureApp vars;
+      if (servletConfiguration == null) {
+        // If servletConfiguration is null, initialize the context and variables
+        servletConfiguration = ConfigParameters.retrieveFrom(RequestContext.getServletContext());
+        vars = InitialConfigUtil.initialize();
+      } else {
+        vars = RequestContext.get().getVariablesSecureApp();
+      }
       final ReportManager reportManager = new ReportManager(servletConfiguration.strFTPDirectory,
           null, servletConfiguration.strBaseDesignPath, servletConfiguration.strDefaultDesignPath,
           servletConfiguration.prefix, false);

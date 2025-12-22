@@ -8,9 +8,7 @@ import javax.servlet.http.HttpServletResponse;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 import org.openbravo.base.exception.OBException;
-import org.openbravo.client.kernel.KernelServlet;
 import org.openbravo.client.kernel.RequestContext;
-import org.openbravo.erpCommon.utility.reporting.DocumentType;
 import org.openbravo.service.web.WebService;
 
 import com.etendoerp.etendorx.printreport.DocumentReportingUtils;
@@ -39,9 +37,8 @@ public class DocumentPrintServlet implements WebService {
       throws Exception {
     String tabId = request.getParameter("tabId");
     String recordId = request.getParameter("recordId");
-    DocumentType docType = parseDocumentType(request.getParameter("docType"));
 
-    if (isInvalidRequest(tabId, recordId, docType)) {
+    if (isInvalidRequest(tabId, recordId)) {
       sendBadRequest(response);
       return;
     }
@@ -57,36 +54,16 @@ public class DocumentPrintServlet implements WebService {
   }
 
   /**
-   * Parses the document type from a string parameter.
-   *
-   * @param docTypeParam
-   *     The document type string.
-   * @return The corresponding DocumentType enum, or DocumentType.UNKNOWN if parsing fails.
-   */
-  private DocumentType parseDocumentType(String docTypeParam) {
-    if (docTypeParam == null) {
-      return DocumentType.UNKNOWN;
-    }
-    try {
-      return DocumentType.valueOf(docTypeParam.toUpperCase());
-    } catch (IllegalArgumentException e) {
-      return DocumentType.UNKNOWN;
-    }
-  }
-
-  /**
    * Validates if the request parameters are valid.
    *
    * @param tabId
    *     The tab ID.
    * @param recordId
    *     The record ID.
-   * @param docType
-   *     The document type.
    * @return true if any required parameter is missing or invalid.
    */
-  private boolean isInvalidRequest(String tabId, String recordId, DocumentType docType) {
-    return tabId == null || recordId == null || docType == DocumentType.UNKNOWN;
+  private boolean isInvalidRequest(String tabId, String recordId) {
+    return tabId == null || recordId == null;
   }
 
   /**
