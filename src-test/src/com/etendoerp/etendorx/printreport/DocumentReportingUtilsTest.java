@@ -39,6 +39,7 @@ import net.sf.jasperreports.engine.JasperExportManager;
  */
 public class DocumentReportingUtilsTest {
 
+  public static final String RECORD_ID = "recordId";
   private MockedStatic<OBContext> obContextMockedStatic;
   private MockedStatic<OBDal> obDalMockedStatic;
   private MockedStatic<ReportingUtils> reportingUtilsMockedStatic;
@@ -49,12 +50,13 @@ public class DocumentReportingUtilsTest {
   private MockedStatic<WeldUtils> weldUtilsMockedStatic;
 
   private OBDal obDal;
-  private RequestContext requestContext;
   private Tab tab;
   private Table table;
   private Process process;
-  private VariablesSecureApp vars;
 
+  /**
+   * Sets up the test environment before each test.
+   */
   @Before
   public void setUp() {
     dalContextListenerMockedStatic = mockStatic(DalContextListener.class);
@@ -78,17 +80,20 @@ public class DocumentReportingUtilsTest {
     kernelServletMockedStatic = mockStatic(KernelServlet.class);
     jasperExportManagerMockedStatic = mockStatic(JasperExportManager.class);
 
-    requestContext = mock(RequestContext.class);
+    RequestContext requestContext = mock(RequestContext.class);
     tab = mock(Tab.class);
     table = mock(Table.class);
     process = mock(Process.class);
-    vars = mock(VariablesSecureApp.class);
+    VariablesSecureApp vars = mock(VariablesSecureApp.class);
 
     requestContextMockedStatic.when(RequestContext::get).thenReturn(requestContext);
     when(requestContext.getVariablesSecureApp()).thenReturn(vars);
     when(tab.getTable()).thenReturn(table);
   }
 
+  /**
+   * Cleans up the test environment after each test.
+   */
   @After
   public void tearDown() {
     if (obContextMockedStatic != null) obContextMockedStatic.close();
@@ -107,7 +112,7 @@ public class DocumentReportingUtilsTest {
   @Test(expected = OBException.class)
   public void testGeneratePDFTabNotFound() {
     when(obDal.get(Tab.class, "invalidTabId")).thenReturn(null);
-    DocumentReportingUtils.generatePDF("invalidTabId", "recordId");
+    DocumentReportingUtils.generatePDF("invalidTabId", RECORD_ID);
   }
 
   /**
@@ -116,7 +121,7 @@ public class DocumentReportingUtilsTest {
   @Test
   public void testGeneratePDFCustomJasperProcess() {
     String tabId = "tabId";
-    String recordId = "recordId";
+    String recordId = RECORD_ID;
     byte[] expectedPdf = new byte[]{1, 2, 3};
 
     when(obDal.get(Tab.class, tabId)).thenReturn(tab);
@@ -144,7 +149,7 @@ public class DocumentReportingUtilsTest {
   @Test(expected = OBException.class)
   public void testGeneratePDFNoPrintMethodFound() {
     String tabId = "tabId";
-    String recordId = "recordId";
+    String recordId = RECORD_ID;
 
     when(obDal.get(Tab.class, tabId)).thenReturn(tab);
     when(tab.getProcess()).thenReturn(null);

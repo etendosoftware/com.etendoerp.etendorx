@@ -37,10 +37,10 @@ public class InitialConfigUtilTest {
 
   private RequestContext requestContext;
   private HttpServletRequest request;
-  private ServletContext servletContext;
-  private ConfigParameters configParameters;
-  private HttpSession session;
 
+  /**
+   * Sets up the test environment before each test.
+   */
   @Before
   public void setUp() {
     requestContextMockedStatic = mockStatic(RequestContext.class);
@@ -50,19 +50,23 @@ public class InitialConfigUtilTest {
 
     requestContext = mock(RequestContext.class);
     request = mock(HttpServletRequest.class);
-    servletContext = mock(ServletContext.class);
-    configParameters = mock(ConfigParameters.class);
-    session = mock(HttpSession.class);
+    ServletContext servletContext = mock(ServletContext.class);
+    ConfigParameters configParameters = mock(ConfigParameters.class);
+    HttpSession session = mock(HttpSession.class);
 
     requestContextMockedStatic.when(RequestContext::get).thenReturn(requestContext);
     requestContextMockedStatic.when(RequestContext::getServletContext).thenReturn(servletContext);
-    configParametersMockedStatic.when(() -> ConfigParameters.retrieveFrom(any())).thenReturn(configParameters);
+    configParametersMockedStatic.when(() -> ConfigParameters.retrieveFrom(any())).thenReturn(
+        configParameters);
 
     when(request.getSession(any(Boolean.class))).thenReturn(session);
     when(request.getSession()).thenReturn(session);
     when(configParameters.getFormatPath()).thenReturn("some/path");
   }
 
+  /**
+   * Cleans up the test environment after each test.
+   */
   @After
   public void tearDown() {
     requestContextMockedStatic.close();
@@ -99,10 +103,11 @@ public class InitialConfigUtilTest {
   }
 
   /**
-   * Tests the {@link InitialConfigUtil#initialize(HttpServletRequest)} method when a ServletException occurs.
+   * Tests that the {@link InitialConfigUtil#initialize(HttpServletRequest)} method throws an
+   * OBException when a ServletException occurs.
    */
   @Test(expected = OBException.class)
-  public void testInitializeWithRequestThrowsException() throws ServletException {
+  public void testInitializeWithRequestThrowsException() {
     secureWebServicesUtilsMockedStatic.when(() -> SecureWebServicesUtils.fillSessionVariables(request))
         .thenThrow(new ServletException("Test exception"));
 

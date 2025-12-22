@@ -71,8 +71,6 @@ public class DocumentPrintServlet implements WebService {
    *
    * @param response
    *     The HTTP servlet response.
-   * @throws Exception
-   *     If an error occurs while writing the response.
    */
   private void sendBadRequest(HttpServletResponse response) {
     response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
@@ -102,7 +100,7 @@ public class DocumentPrintServlet implements WebService {
    *     The HTTP servlet response.
    * @param pdfBytes
    *     The byte array containing the PDF data.
-   * @throws Exception
+   * @throws OBException
    *     If an error occurs while writing to the output stream.
    */
   private void sendPdfResponse(HttpServletResponse response, byte[] pdfBytes) {
@@ -124,14 +122,12 @@ public class DocumentPrintServlet implements WebService {
    *     The HTTP servlet response.
    * @param e
    *     The exception that occurred.
-   * @throws Exception
-   *     If an error occurs while writing the error response.
    */
   private void handleError(HttpServletResponse response, Exception e) {
     try {
       log4j.error("Error generating PDF document", e);
       response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-      e.printStackTrace(response.getWriter());
+      response.getWriter().write("An error occurred while generating the PDF document.");
     } catch (Exception ex) {
       log4j.error("Error sending error response", ex);
     }

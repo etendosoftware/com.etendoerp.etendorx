@@ -47,7 +47,7 @@ public class DocumentReportingUtils {
    * @param recordId
    *     The ID of the record to generate the PDF for.
    * @return A byte array containing the PDF data.
-   * @throws Exception
+   * @throws OBException
    *     If an error occurs during PDF generation.
    */
   public static byte[] generatePDF(String tabId, String recordId) {
@@ -165,11 +165,26 @@ public class DocumentReportingUtils {
    *     If an error occurs during process execution.
    */
   private static byte[] executeCustomJavaProcess(String className, String recordId) throws Exception {
-    Class<?> clazz = Class.forName(className);
+    Class<?> clazz ;
+    try {
+      clazz = Class.forName(className);
+    } catch (ClassNotFoundException e) {
+      throw new OBException("Custom process class not found: " + className, e);
+    }
     if (org.openbravo.scheduling.Process.class.isAssignableFrom(clazz)) {
       org.openbravo.scheduling.Process process = (org.openbravo.scheduling.Process) clazz.getDeclaredConstructor().newInstance();
 
-      VariablesSecureApp vars = RequestContext.get().getVariablesSecureApp();
+      RequestContext requestContext = RequestContext.get();
+      if (requestContext == null) {
+        throw new OBException("RequestContext does not have an associated HttpServletRequest. Cannot initialize VariablesSecureApp.");
+      }
+
+      if (requestContext.getVariablesSecureApp() == null) {
+        // Initialize VariablesSecureApp if not already set
+        InitialConfigUtil.initialize();
+      }
+
+      VariablesSecureApp vars = requestContext.getVariablesSecureApp();
       ConnectionProvider cp = new DalConnectionProvider(false);
 
       // Create and initialize the bundle
