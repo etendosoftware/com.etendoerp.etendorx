@@ -1,14 +1,16 @@
 package com.etendoerp.etendorx.printreport;
 
 import java.io.ByteArrayOutputStream;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import com.etendoerp.etendorx.config.InitialConfigUtil;
-import com.smf.securewebservices.utils.SecureWebServicesUtils;
+import net.sf.jasperreports.engine.JasperPrint;
 import org.openbravo.base.ConfigParameters;
 import org.openbravo.base.exception.OBException;
-import org.openbravo.base.secureApp.LoginUtils;
 import org.openbravo.base.structure.BaseOBObject;
 import org.openbravo.client.kernel.KernelServlet;
 import org.openbravo.dal.core.OBContext;
@@ -16,15 +18,17 @@ import org.openbravo.dal.service.OBDal;
 import org.openbravo.model.ad.ui.Tab;
 import org.openbravo.model.ad.ui.Process;
 import org.openbravo.client.application.report.ReportingUtils;
-import org.openbravo.client.application.report.ReportingUtils.ExportType;
 import org.openbravo.erpCommon.utility.reporting.ReportManager;
 import org.openbravo.erpCommon.utility.reporting.Report;
 import org.openbravo.erpCommon.utility.reporting.DocumentType;
 import org.openbravo.base.secureApp.VariablesSecureApp;
 import org.openbravo.client.kernel.RequestContext;
 import org.openbravo.database.ConnectionProvider;
+import org.openbravo.erpCommon.businessUtility.Preferences;
+import org.openbravo.erpCommon.utility.PropertyException;
 import org.openbravo.model.common.order.Order;
 import org.openbravo.service.db.DalConnectionProvider;
+import net.sf.jasperreports.export.SimplePdfExporterConfiguration;
 
 /**
  * Utility class for generating document reports in PDF format.
@@ -44,13 +48,13 @@ public class DocumentReportingUtils {
    *
    * @param tabId
    *     The ID of the tab where the record is located.
-   * @param recordId
-   *     The ID of the record to generate the PDF for.
+   * @param recordIds
+   *     The list of record IDs to generate the PDF for.
    * @return A byte array containing the PDF data.
    * @throws OBException
    *     If an error occurs during PDF generation.
    */
-  public static byte[] generatePDF(String tabId, String recordId) {
+  public static byte[] generatePDF(String tabId, List<String> recordIds) {
     byte[] pdfData = null;
     try {
       OBContext.setAdminMode();
@@ -59,12 +63,12 @@ public class DocumentReportingUtils {
         throw new OBException("Tab not found with ID: " + tabId);
       }
 
-      pdfData = tryCustomProcess(tab, recordId);
+      pdfData = tryCustomProcess(tab, recordIds);
 
       if (pdfData == null) {
-        DocumentType docType = determineDocumentType(tab, recordId);
+        DocumentType docType = determineDocumentType(tab, recordIds);
         if (docType != DocumentType.UNKNOWN) {
-          pdfData = generateStandardReport(docType, recordId);
+          pdfData = generateStandardReport(docType, recordIds);
         }
       }
 
@@ -84,20 +88,20 @@ public class DocumentReportingUtils {
    *
    * @param tab
    *     The tab definition.
-   * @param recordId
-   *     The ID of the record.
+   * @param recordIds
+   *     The list of record IDs.
    * @return A byte array containing the PDF data, or null if no custom process is defined.
    * @throws Exception
    *     If an error occurs during custom process execution.
    */
-  private static byte[] tryCustomProcess(Tab tab, String recordId) throws Exception {
+  private static byte[] tryCustomProcess(Tab tab, List<String> recordIds) throws Exception {
     byte[] result = null;
     if (tab.getProcess() != null) {
       Process process = tab.getProcess();
       if (Boolean.TRUE.equals(process.isJasperReport())) {
-        result = generateJasperProcess(process, recordId);
+        result = generateJasperProcess(process, recordIds);
       } else if (process.getJavaClassName() != null) {
-        result = executeCustomJavaProcess(process.getJavaClassName(), recordId);
+        result = executeCustomJavaProcess(process.getJavaClassName(), recordIds);
       }
     }
     return result;
@@ -108,11 +112,15 @@ public class DocumentReportingUtils {
    *
    * @param tab
    *     The tab definition.
-   * @param recordId
-   *     The ID of the record.
+   * @param recordIds
+   *     The list of record IDs.
    * @return The determined DocumentType, or DocumentType.UNKNOWN if not found.
    */
-  private static DocumentType determineDocumentType(Tab tab, String recordId) {
+  private static DocumentType determineDocumentType(Tab tab, List<String> recordIds) {
+    if (recordIds == null || recordIds.isEmpty()) {
+      return DocumentType.UNKNOWN;
+    }
+    String recordId = recordIds.get(0);
     DocumentType docType = DocumentType.UNKNOWN;
     BaseOBObject o = OBDal.getInstance().get(tab.getTable().getName(), recordId);
     String tableName = tab.getTable().getDBTableName();
@@ -136,20 +144,40 @@ public class DocumentReportingUtils {
    *
    * @param process
    *     The process definition containing the Jasper template information.
-   * @param recordId
-   *     The ID of the record to be used as a parameter for the report.
+   * @param recordIds
+   *     The list of record IDs to be used as parameters for the report.
    * @return A byte array containing the PDF data.
    */
-  private static byte[] generateJasperProcess(Process process, String recordId) {
+  private static byte[] generateJasperProcess(Process process, List<String> recordIds) throws Exception {
     // The JRNAME usually contains the path to the .jrxml (eg: @basedesign@/org/...)
     String jrxmlPath = process.getJRTemplateName();
-    Map<String, Object> parameters = new HashMap<>();
-    // By convention the parameter is usually DOCUMENT_ID or the PK column name
-    parameters.put("DOCUMENT_ID", recordId);
+    ConnectionProvider cp = new DalConnectionProvider(false);
+    List<JasperPrint> jrPrintReports = new ArrayList<>();
 
-    ByteArrayOutputStream os = new ByteArrayOutputStream();
-    ReportingUtils.exportJR(jrxmlPath, ExportType.PDF, parameters, os, false, new DalConnectionProvider(false), null, null);
-    return os.toByteArray();
+    for (String recordId : recordIds) {
+      Map<String, Object> parameters = new HashMap<>();
+      // By convention the parameter is usually DOCUMENT_ID or the PK column name
+      parameters.put("DOCUMENT_ID", recordId);
+      try {
+        JasperPrint jp = ReportingUtils.generateJasperPrint(jrxmlPath, parameters, cp, null);
+        jrPrintReports.add(jp);
+      } catch (Exception e) {
+        // If generateJasperPrint fails, we skip this record
+      }
+    }
+
+    if (jrPrintReports.isEmpty()) {
+      return new byte[0];
+    }
+
+    if (jrPrintReports.size() == 1) {
+      return net.sf.jasperreports.engine.JasperExportManager.exportReportToPdf(jrPrintReports.get(0));
+    } else {
+      ByteArrayOutputStream baos = new ByteArrayOutputStream();
+      ReportingUtils.concatPDFReport(new ArrayList<>(jrPrintReports), true, baos,
+          new SimplePdfExporterConfiguration());
+      return baos.toByteArray();
+    }
   }
 
   /**
@@ -158,13 +186,13 @@ public class DocumentReportingUtils {
    *
    * @param className
    *     The fully qualified name of the Java class to execute.
-   * @param recordId
-   *     The ID of the record to be processed.
+   * @param recordIds
+   *     The list of record IDs to be processed.
    * @return A byte array containing the PDF data (currently returns empty bytes).
    * @throws Exception
    *     If an error occurs during process execution.
    */
-  private static byte[] executeCustomJavaProcess(String className, String recordId) throws Exception {
+  private static byte[] executeCustomJavaProcess(String className, List<String> recordIds) throws Exception {
     Class<?> clazz ;
     try {
       clazz = Class.forName(className);
@@ -192,7 +220,7 @@ public class DocumentReportingUtils {
 
       // Set parameters expected by standard processes
       Map<String, Object> params = new HashMap<>();
-      params.put("recordId", recordId); // Typical parameter name; sometimes it's the primary key column name.
+      params.put("recordId", recordIds.get(0)); // Typical parameter name; sometimes it's the primary key column name.
       bundle.setParams(params);
 
       // Execute the process
@@ -211,13 +239,11 @@ public class DocumentReportingUtils {
    *
    * @param docType
    *     The type of document (e.g., Sales Order, Invoice).
-   * @param recordId
+   * @param recordIds
    *     The ID of the record to generate the report for.
    * @return A byte array containing the PDF data.
-   * @throws Exception
-   *     If an error occurs during report generation.
    */
-  private static byte[] generateStandardReport(DocumentType docType, String recordId) {
+  private static byte[] generateStandardReport(DocumentType docType, List<String> recordIds) {
     try {
       ConnectionProvider cp = new DalConnectionProvider(false);
       ConfigParameters servletConfiguration = KernelServlet.getGlobalParameters();
@@ -229,17 +255,59 @@ public class DocumentReportingUtils {
       } else {
         vars = RequestContext.get().getVariablesSecureApp();
       }
+      boolean multiReports = recordIds.size() > 1;
       final ReportManager reportManager = new ReportManager(servletConfiguration.strFTPDirectory,
           null, servletConfiguration.strBaseDesignPath, servletConfiguration.strDefaultDesignPath,
-          servletConfiguration.prefix, false);
-      Report report = new Report(cp, docType, recordId, vars.getLanguage(), "default", false,
-          Report.OutputTypeEnum.PRINT);
+          servletConfiguration.prefix, multiReports);
+      Collection<JasperPrint> jrPrintReports = new ArrayList<JasperPrint>();
+      for (String recordId : recordIds) {
+        Report report = new Report(cp, docType, recordId, vars.getLanguage(), "default", multiReports,
+            Report.OutputTypeEnum.PRINT);
 
-      // The ReportManager fills the JasperPrint
-      net.sf.jasperreports.engine.JasperPrint jp = reportManager.processReport(report, vars);
-      return net.sf.jasperreports.engine.JasperExportManager.exportReportToPdf(jp);
+        // The ReportManager fills the JasperPrint
+        net.sf.jasperreports.engine.JasperPrint jp = reportManager.processReport(report, vars);
+        jrPrintReports.add(jp);
+      }
+
+      if (jrPrintReports.size() == 1) {
+        return net.sf.jasperreports.engine.JasperExportManager.exportReportToPdf(jrPrintReports.iterator().next());
+      } else if (jrPrintReports.size() > 1) {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        ReportingUtils.concatPDFReport(new ArrayList<>(jrPrintReports), true, baos, new SimplePdfExporterConfiguration());
+        return baos.toByteArray();
+      }
+      return new byte[0];
     } catch (Exception e) {
       throw new OBException("Error generating standard report for document type: " + docType, e);
     }
+  }
+
+  /**
+   * Checks if direct print is enabled for the given tab.
+   *
+   * @param tabId
+   *     The ID of the tab.
+   * @return true if direct print is enabled, false otherwise.
+   */
+  public static boolean isDirectPrint(String tabId) {
+    OBContext context = OBContext.getOBContext();
+    String preferenceValue = "";
+    try {
+      OBContext.setAdminMode(true);
+      Tab tab = OBDal.getInstance().get(Tab.class, tabId);
+      if (tab == null) {
+        return false;
+      }
+      try {
+        preferenceValue = Preferences.getPreferenceValue("DirectPrint", true,
+            context.getCurrentClient(), context.getCurrentOrganization(), context.getUser(),
+            context.getRole(), tab.getWindow());
+      } catch (PropertyException e) {
+        return false;
+      }
+    } finally {
+      OBContext.restorePreviousMode();
+    }
+    return Preferences.YES.equals(preferenceValue);
   }
 }

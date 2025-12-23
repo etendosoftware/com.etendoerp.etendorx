@@ -1,6 +1,8 @@
 package com.etendoerp.etendorx.services;
 
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.verify;
@@ -83,9 +85,11 @@ public class DocumentPrintServletTest {
     byte[] pdfBytes = new byte[]{1, 2, 3};
 
     when(request.getParameter(TAB_ID)).thenReturn(tabId);
-    when(request.getParameter(RECORD_ID)).thenReturn(recordId);
-    documentReportingUtilsMockedStatic.when(() -> DocumentReportingUtils.generatePDF(tabId, recordId))
+    when(request.getParameterValues(RECORD_ID)).thenReturn(new String[]{recordId});
+    documentReportingUtilsMockedStatic.when(() -> DocumentReportingUtils.generatePDF(eq(tabId), anyList()))
         .thenReturn(pdfBytes);
+    documentReportingUtilsMockedStatic.when(() -> DocumentReportingUtils.isDirectPrint(tabId))
+        .thenReturn(true);
 
     servlet.doGet(PATH, request, response);
 
@@ -104,7 +108,7 @@ public class DocumentPrintServletTest {
   @Test
   public void testDoGetBadRequest() throws Exception {
     when(request.getParameter(TAB_ID)).thenReturn(null);
-    when(request.getParameter(RECORD_ID)).thenReturn("someId");
+    when(request.getParameterValues(RECORD_ID)).thenReturn(new String[]{"someId"});
 
     servlet.doGet(PATH, request, response);
 
@@ -124,8 +128,8 @@ public class DocumentPrintServletTest {
     String recordId = TEST_RECORD_ID;
 
     when(request.getParameter(TAB_ID)).thenReturn(tabId);
-    when(request.getParameter(RECORD_ID)).thenReturn(recordId);
-    documentReportingUtilsMockedStatic.when(() -> DocumentReportingUtils.generatePDF(tabId, recordId))
+    when(request.getParameterValues(RECORD_ID)).thenReturn(new String[]{recordId});
+    documentReportingUtilsMockedStatic.when(() -> DocumentReportingUtils.generatePDF(eq(tabId), anyList()))
         .thenThrow(new RuntimeException("Test exception"));
 
     servlet.doGet(PATH, request, response);

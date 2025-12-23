@@ -11,6 +11,8 @@ import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
 import java.io.OutputStream;
+import java.util.Collections;
+import java.util.List;
 
 import org.junit.After;
 import org.junit.Before;
@@ -107,21 +109,21 @@ public class DocumentReportingUtilsTest {
   }
 
   /**
-   * Tests {@link DocumentReportingUtils#generatePDF(String, String)} when the tab is not found.
+   * Tests {@link DocumentReportingUtils#generatePDF(String, List)} when the tab is not found.
    */
   @Test(expected = OBException.class)
   public void testGeneratePDFTabNotFound() {
     when(obDal.get(Tab.class, "invalidTabId")).thenReturn(null);
-    DocumentReportingUtils.generatePDF("invalidTabId", RECORD_ID);
+    DocumentReportingUtils.generatePDF("invalidTabId", Collections.singletonList(RECORD_ID));
   }
 
   /**
-   * Tests {@link DocumentReportingUtils#generatePDF(String, String)} with a custom Jasper process.
+   * Tests {@link DocumentReportingUtils#generatePDF(String, List)} with a custom Jasper process.
    */
   @Test
   public void testGeneratePDFCustomJasperProcess() {
     String tabId = "tabId";
-    String recordId = RECORD_ID;
+    List<String> recordIds = Collections.singletonList(RECORD_ID);
     byte[] expectedPdf = new byte[]{1, 2, 3};
 
     when(obDal.get(Tab.class, tabId)).thenReturn(tab);
@@ -137,19 +139,19 @@ public class DocumentReportingUtilsTest {
       return null;
     });
 
-    byte[] result = DocumentReportingUtils.generatePDF(tabId, recordId);
+    byte[] result = DocumentReportingUtils.generatePDF(tabId, recordIds);
 
     assertNotNull(result);
     assertArrayEquals(expectedPdf, result);
   }
 
   /**
-   * Tests {@link DocumentReportingUtils#generatePDF(String, String)} when no print method is found.
+   * Tests {@link DocumentReportingUtils#generatePDF(String, List)} when no print method is found.
    */
   @Test(expected = OBException.class)
   public void testGeneratePDFNoPrintMethodFound() {
     String tabId = "tabId";
-    String recordId = RECORD_ID;
+    List<String> recordIds = Collections.singletonList(RECORD_ID);
 
     when(obDal.get(Tab.class, tabId)).thenReturn(tab);
     when(tab.getProcess()).thenReturn(null);
@@ -157,7 +159,7 @@ public class DocumentReportingUtilsTest {
     when(table.getName()).thenReturn("UnknownTable");
     when(obDal.get(anyString(), anyString())).thenReturn(null);
 
-    DocumentReportingUtils.generatePDF(tabId, recordId);
+    DocumentReportingUtils.generatePDF(tabId, recordIds);
   }
 
 }
