@@ -19,6 +19,9 @@ import org.junit.jupiter.api.Test;
 
 class EtendoRequestWrapperTest {
 
+  public static final String PARAM_1 = "param1";
+  public static final String VALUE_1 = "value1";
+
   @Test
   void testWrapper() throws Exception {
     HttpServletRequest originalRequest = mock(HttpServletRequest.class);
@@ -27,7 +30,7 @@ class EtendoRequestWrapperTest {
     String newURI = "/new-uri";
     String newBody = "new body";
     Map<String, String[]> newParams = new HashMap<>();
-    newParams.put("param1", new String[]{"value1"});
+    newParams.put(PARAM_1, new String[]{ VALUE_1 });
     
     EtendoRequestWrapper wrapper = new EtendoRequestWrapper(originalRequest, newURI, newBody, newParams);
     
@@ -43,11 +46,11 @@ class EtendoRequestWrapperTest {
     assertTrue(inputStream.isReady());
     
     // Test Parameters
-    assertEquals("value1", wrapper.getParameter("param1"));
-    assertArrayEquals(new String[]{"value1"}, wrapper.getParameterValues("param1"));
-    assertTrue(wrapper.getParameterMap().containsKey("param1"));
+    assertEquals(VALUE_1, wrapper.getParameter(PARAM_1));
+    assertArrayEquals(new String[]{ VALUE_1 }, wrapper.getParameterValues(PARAM_1));
+    assertTrue(wrapper.getParameterMap().containsKey(PARAM_1));
     
     Enumeration<String> names = wrapper.getParameterNames();
-    assertTrue(Collections.list(names).contains("param1"));
+    assertTrue(Collections.list(names).contains(PARAM_1));
   }
 }

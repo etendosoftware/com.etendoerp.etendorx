@@ -259,7 +259,7 @@ public class DocumentReportingUtils {
       final ReportManager reportManager = new ReportManager(servletConfiguration.strFTPDirectory,
           null, servletConfiguration.strBaseDesignPath, servletConfiguration.strDefaultDesignPath,
           servletConfiguration.prefix, multiReports);
-      Collection<JasperPrint> jrPrintReports = new ArrayList<JasperPrint>();
+      Collection<JasperPrint> jrPrintReports = new ArrayList<>();
       for (String recordId : recordIds) {
         Report report = new Report(cp, docType, recordId, vars.getLanguage(), "default", multiReports,
             Report.OutputTypeEnum.PRINT);

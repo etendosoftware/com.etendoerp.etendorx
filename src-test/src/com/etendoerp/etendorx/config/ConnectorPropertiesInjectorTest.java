@@ -25,6 +25,8 @@ import com.smf.securewebservices.utils.SecureWebServicesUtils;
 
 class ConnectorPropertiesInjectorTest {
 
+  public static final String TEST_INSTANCE_ID = "test-instance-id";
+  public static final String TEST_TOKEN = "test-token";
   private MockedStatic<OBDal> obDalMockedStatic;
   private MockedStatic<OBContext> obContextMockedStatic;
   private MockedStatic<SecureWebServicesUtils> secureWebServicesUtilsMockedStatic;
@@ -52,7 +54,7 @@ class ConnectorPropertiesInjectorTest {
     sourceJSON.put("name", "worker");
     
     JSONObject source = new JSONObject();
-    source.put("connector.instance", "test-instance-id");
+    source.put("connector.instance", TEST_INSTANCE_ID);
     
     JSONObject propertySource = new JSONObject();
     propertySource.put("source", source);
@@ -66,17 +68,18 @@ class ConnectorPropertiesInjectorTest {
     obDalMockedStatic.when(OBDal::getInstance).thenReturn(obDal);
     
     InstanceConnector instanceConnector = mock(InstanceConnector.class);
-    when(obDal.get(InstanceConnector.class, "test-instance-id")).thenReturn(instanceConnector);
+    when(obDal.get(InstanceConnector.class, TEST_INSTANCE_ID)).thenReturn(instanceConnector);
     
     User user = mock(User.class);
     when(instanceConnector.getUserForToken()).thenReturn(user);
     
-    secureWebServicesUtilsMockedStatic.when(() -> SecureWebServicesUtils.generateToken(user)).thenReturn("test-token");
+    secureWebServicesUtilsMockedStatic.when(() -> SecureWebServicesUtils.generateToken(user)).thenReturn(
+        TEST_TOKEN);
 
     injector.injectConfig(sourceJSON);
 
-    assertEquals("test-token", source.getString("token"));
-    assertEquals("test-token", source.getString("classic.token"));
+    assertEquals(TEST_TOKEN, source.getString("token"));
+    assertEquals(TEST_TOKEN, source.getString("classic.token"));
   }
 
   @Test
@@ -94,7 +97,7 @@ class ConnectorPropertiesInjectorTest {
     sourceJSON.put("name", "worker");
     
     JSONObject source = new JSONObject();
-    source.put("connector.instance", "test-instance-id");
+    source.put("connector.instance", TEST_INSTANCE_ID);
     
     JSONObject propertySource = new JSONObject();
     propertySource.put("source", source);
@@ -106,7 +109,7 @@ class ConnectorPropertiesInjectorTest {
 
     OBDal obDal = mock(OBDal.class);
     obDalMockedStatic.when(OBDal::getInstance).thenReturn(obDal);
-    when(obDal.get(InstanceConnector.class, "test-instance-id")).thenReturn(null);
+    when(obDal.get(InstanceConnector.class, TEST_INSTANCE_ID)).thenReturn(null);
     
     OBContext context = mock(OBContext.class);
     obContextMockedStatic.when(OBContext::getOBContext).thenReturn(context);
