@@ -12,9 +12,7 @@ import org.openbravo.service.web.WebService;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.OutputStream;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 
 /**
  * Web service servlet that handles document printing requests.
@@ -23,11 +21,9 @@ import java.util.List;
 public class DocumentPrintServlet implements WebService {
   private static final Logger log4j = LogManager.getLogger(DocumentPrintServlet.class);
   public static final String TAB_ID = "tabId";
-  public static final String REPORT_ID = "reportid";
   public static final String RECORD_ID = "recordId";
 
-  public void process(HttpServletRequest request, HttpServletResponse response)
-      throws Exception {
+  public void process(HttpServletRequest request, HttpServletResponse response) {
     JSONObject payload = getPayload(request);
     String tabId = getTabId(request, payload);
 
@@ -36,17 +32,53 @@ public class DocumentPrintServlet implements WebService {
       return;
     }
 
-    List<String> recordIds = getRecordIds(request, payload);
+    List<Map<String, String>> params = getRequestParameters(payload);
 
     setupRequestContext(request);
 
     try {
-      byte[] pdfBytes = DocumentReportingUtils.generatePDF(tabId, recordIds);
+      byte[] pdfBytes = DocumentReportingUtils.generatePDF(tabId, params);
       boolean directPrint = DocumentReportingUtils.isDirectPrint(tabId);
       sendPdfResponse(response, pdfBytes, directPrint);
     } catch (Exception e) {
       handleError(response, e);
     }
+  }
+
+  private List<Map<String, String>> getRequestParameters(JSONObject payload) {
+    if (payload != null) {
+      try {
+        JSONArray paramsObj = payload.optJSONArray("parameters");
+        if (paramsObj != null) {
+          List<Map<String, String>> paramsList = new ArrayList<>();
+          for (int i = 0; i < paramsObj.length(); i++) {
+            JSONObject paramObj = paramsObj.getJSONObject(i);
+            Map<String, String> paramMap = jsonObjectToMap(paramObj);
+            paramsList.add(paramMap);
+          }
+          // For simplicity, returning the first set of parameters
+          return paramsList;
+        }
+      } catch (Exception e) {
+        log4j.error("Error extracting parameters from payload", e);
+      }
+    }
+    return Collections.emptyList();
+  }
+
+  private Map<String, String> jsonObjectToMap(JSONObject paramsObj) {
+    Map<String, String> map = new java.util.HashMap<>();
+    try {
+      Iterator<String> itk = paramsObj.keys();
+      for (Iterator<String> it = itk; it.hasNext(); ) {
+        String key = it.next();
+        map.put(key, paramsObj.getString(key));
+      }
+      return map;
+    } catch (Exception e) {
+      log4j.error("Error converting JSONObject to Map", e);
+    }
+    return Collections.emptyMap();
   }
 
   /**
@@ -223,58 +255,4 @@ public class DocumentPrintServlet implements WebService {
     return tabId != null ? tabId.trim() : null;
   }
 
-  /**
-   * Retrieves the record IDs from the request parameters or payload.
-   *
-   * @param request The HTTP servlet request.
-   * @param payload The JSON payload.
-   * @return A list of record IDs.
-   */
-  private List<String> getRecordIds(HttpServletRequest request, JSONObject payload) {
-    List<String> recordIds = new ArrayList<>();
-
-    // Try parameters first
-    String[] paramIds = request.getParameterValues(RECORD_ID);
-    if (paramIds == null) {
-      paramIds = request.getParameterValues(REPORT_ID);
-    }
-
-    if (paramIds != null) {
-      recordIds.addAll(Arrays.asList(paramIds));
-    }
-
-    // Try payload if parameters are empty
-    if (recordIds.isEmpty() && payload != null) {
-      addIdsFromPayload(recordIds, payload, RECORD_ID);
-      if (recordIds.isEmpty()) {
-        addIdsFromPayload(recordIds, payload, REPORT_ID);
-      }
-    }
-
-    return recordIds;
-  }
-
-  /**
-   * Adds IDs from a specific key in the JSON payload to the list.
-   *
-   * @param recordIds The list to add IDs to.
-   * @param payload   The JSON payload.
-   * @param key       The key to look for.
-   */
-  private void addIdsFromPayload(List<String> recordIds, JSONObject payload, String key) {
-    if (payload.has(key)) {
-      try {
-        JSONArray array = payload.optJSONArray(key);
-        if (array != null) {
-          for (int i = 0; i < array.length(); i++) {
-            recordIds.add(array.getString(i));
-          }
-        } else {
-          recordIds.add(payload.getString(key));
-        }
-      } catch (Exception e) {
-        log4j.error("Error getting " + key + " from payload", e);
-      }
-    }
-  }
 }

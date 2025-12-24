@@ -114,7 +114,7 @@ public class DocumentReportingUtilsTest {
   @Test(expected = OBException.class)
   public void testGeneratePDFTabNotFound() {
     when(obDal.get(Tab.class, "invalidTabId")).thenReturn(null);
-    DocumentReportingUtils.generatePDF("invalidTabId", Collections.singletonList(RECORD_ID));
+    DocumentReportingUtils.generatePDF("invalidTabId", Collections.singletonList(Collections.singletonMap(DocumentReportingUtils.PARAM_RECORD_ID, RECORD_ID)));
   }
 
   /**
@@ -123,7 +123,6 @@ public class DocumentReportingUtilsTest {
   @Test
   public void testGeneratePDFCustomJasperProcess() {
     String tabId = "tabId";
-    List<String> recordIds = Collections.singletonList(RECORD_ID);
     byte[] expectedPdf = new byte[]{1, 2, 3};
 
     when(obDal.get(Tab.class, tabId)).thenReturn(tab);
@@ -139,7 +138,7 @@ public class DocumentReportingUtilsTest {
       return null;
     });
 
-    byte[] result = DocumentReportingUtils.generatePDF(tabId, recordIds);
+    byte[] result = DocumentReportingUtils.generatePDF(tabId, Collections.singletonList(Collections.singletonMap(DocumentReportingUtils.PARAM_RECORD_ID, RECORD_ID)));
 
     assertNotNull(result);
     assertArrayEquals(expectedPdf, result);
@@ -151,7 +150,6 @@ public class DocumentReportingUtilsTest {
   @Test(expected = OBException.class)
   public void testGeneratePDFNoPrintMethodFound() {
     String tabId = "tabId";
-    List<String> recordIds = Collections.singletonList(RECORD_ID);
 
     when(obDal.get(Tab.class, tabId)).thenReturn(tab);
     when(tab.getProcess()).thenReturn(null);
@@ -159,7 +157,7 @@ public class DocumentReportingUtilsTest {
     when(table.getName()).thenReturn("UnknownTable");
     when(obDal.get(anyString(), anyString())).thenReturn(null);
 
-    DocumentReportingUtils.generatePDF(tabId, recordIds);
+    DocumentReportingUtils.generatePDF(tabId, Collections.singletonList(Collections.singletonMap(DocumentReportingUtils.PARAM_RECORD_ID, RECORD_ID)));
   }
 
 }
