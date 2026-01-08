@@ -3,7 +3,7 @@ package com.etendoerp.etendorx.printreport;
 import com.etendoerp.etendorx.config.InitialConfigUtil;
 import net.sf.jasperreports.engine.JasperPrint;
 import net.sf.jasperreports.export.SimplePdfExporterConfiguration;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 import org.openbravo.base.ConfigParameters;
@@ -27,7 +27,11 @@ import org.openbravo.model.common.order.Order;
 import org.openbravo.service.db.DalConnectionProvider;
 
 import java.io.ByteArrayOutputStream;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Utility class for generating document reports in PDF format.
@@ -206,8 +210,7 @@ public class DocumentReportingUtils {
    * @param params
    * @return A byte array containing the PDF data.
    */
-  private static byte[] generateJasperProcess(Process process, List<Map<String, String>> params)
-      throws Exception {
+  private static byte[] generateJasperProcess(Process process, List<Map<String, String>> params) {
     ConfigParameters config = getConfig();
     String jrxmlPath = resolvePath(process.getJRTemplateName(), config);
     ConnectionProvider cp = new DalConnectionProvider(false);
@@ -230,14 +233,18 @@ public class DocumentReportingUtils {
       return new byte[0];
     }
 
-    if (jrPrintReports.size() == 1) {
-      return net.sf.jasperreports.engine.JasperExportManager.exportReportToPdf(
-          jrPrintReports.get(0));
-    } else {
-      ByteArrayOutputStream baos = new ByteArrayOutputStream();
-      ReportingUtils.concatPDFReport(new ArrayList<>(jrPrintReports), true, baos,
-          new SimplePdfExporterConfiguration());
-      return baos.toByteArray();
+    try {
+      if (jrPrintReports.size() == 1) {
+        return net.sf.jasperreports.engine.JasperExportManager.exportReportToPdf(
+            jrPrintReports.get(0));
+      } else {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        ReportingUtils.concatPDFReport(new ArrayList<>(jrPrintReports), true, baos,
+            new SimplePdfExporterConfiguration());
+        return baos.toByteArray();
+      }
+    } catch (Exception e) {
+      throw new OBException("Error generating Jasper report for process: " + process.getName(), e);
     }
   }
 
@@ -283,7 +290,7 @@ public class DocumentReportingUtils {
       for (Map<String, String> parameter : parameters) {
         // Set parameters expected by standard processes
         Map<String, Object> params = new HashMap<>();
-        params.put("recordId", parameter.getOrDefault("recordId", ""));
+        params.put(PARAM_RECORD_ID, parameter.getOrDefault(PARAM_RECORD_ID, ""));
         bundle.setParams(params);
 
         // Execute the process
