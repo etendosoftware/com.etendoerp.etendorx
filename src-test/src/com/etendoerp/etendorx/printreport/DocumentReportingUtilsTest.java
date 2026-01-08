@@ -11,6 +11,7 @@ import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
 import java.io.OutputStream;
+import java.lang.reflect.Field;
 import java.util.Collections;
 import java.util.List;
 
@@ -18,6 +19,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.MockedStatic;
+import org.openbravo.base.ConfigParameters;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.base.secureApp.VariablesSecureApp;
 import org.openbravo.client.application.report.ReportingUtils;
@@ -61,8 +63,9 @@ public class DocumentReportingUtilsTest {
    */
   @Before
   public void setUp() {
-    dalContextListenerMockedStatic = mockStatic(DalContextListener.class);
     ServletContext servletContextMock = mock(ServletContext.class);
+    
+    dalContextListenerMockedStatic = mockStatic(DalContextListener.class);
     dalContextListenerMockedStatic.when(DalContextListener::getServletContext).thenReturn(servletContextMock);
 
     weldUtilsMockedStatic = mockStatic(WeldUtils.class);
@@ -81,6 +84,25 @@ public class DocumentReportingUtilsTest {
     requestContextMockedStatic = mockStatic(RequestContext.class);
     kernelServletMockedStatic = mockStatic(KernelServlet.class);
     jasperExportManagerMockedStatic = mockStatic(JasperExportManager.class);
+    
+    // Create a mock ConfigParameters with public fields set
+    // We need to create a mock that allows field access
+    ConfigParameters configParams = mock(ConfigParameters.class, invocation -> {
+      String methodName = invocation.getMethod().getName();
+      // Default mock behavior
+      return null;
+    });
+    
+    // Use reflection to set the prefix field (non-final)
+    try {
+      Field prefixField = ConfigParameters.class.getDeclaredField("prefix");
+      prefixField.setAccessible(true);
+      prefixField.set(configParams, "/mock/prefix/");
+    } catch (Exception e) {
+      // If reflection fails, we'll just rely on mocking getGlobalParameters to never be called
+    }
+    
+    kernelServletMockedStatic.when(KernelServlet::getGlobalParameters).thenReturn(configParams);
 
     RequestContext requestContext = mock(RequestContext.class);
     tab = mock(Tab.class);
@@ -89,8 +111,12 @@ public class DocumentReportingUtilsTest {
     VariablesSecureApp vars = mock(VariablesSecureApp.class);
 
     requestContextMockedStatic.when(RequestContext::get).thenReturn(requestContext);
+    requestContextMockedStatic.when(RequestContext::getServletContext).thenReturn(servletContextMock);
     when(requestContext.getVariablesSecureApp()).thenReturn(vars);
     when(tab.getTable()).thenReturn(table);
+    
+    // Mock ReportingUtils.getBaseDesign()
+    reportingUtilsMockedStatic.when(ReportingUtils::getBaseDesign).thenReturn("/basedesign");
   }
 
   /**
@@ -129,14 +155,17 @@ public class DocumentReportingUtilsTest {
     when(tab.getProcess()).thenReturn(process);
     when(process.isJasperReport()).thenReturn(true);
     when(process.getJRTemplateName()).thenReturn("template.jrxml");
+    when(process.getName()).thenReturn("Test Process");
 
-    reportingUtilsMockedStatic.when(() -> ReportingUtils.exportJR(
-        anyString(), any(), anyMap(), any(OutputStream.class), anyBoolean(), any(), any(), any()
-    )).thenAnswer(invocation -> {
-      OutputStream os = invocation.getArgument(3);
-      os.write(expectedPdf);
-      return null;
-    });
+    // Mock JasperPrint and JasperExportManager
+    net.sf.jasperreports.engine.JasperPrint jasperPrint = mock(net.sf.jasperreports.engine.JasperPrint.class);
+    
+    reportingUtilsMockedStatic.when(() -> ReportingUtils.generateJasperPrint(
+        anyString(), anyMap(), any(), any()
+    )).thenReturn(jasperPrint);
+    
+    jasperExportManagerMockedStatic.when(() -> JasperExportManager.exportReportToPdf(jasperPrint))
+        .thenReturn(expectedPdf);
 
     byte[] result = DocumentReportingUtils.generatePDF(tabId, Collections.singletonList(Collections.singletonMap(DocumentReportingUtils.PARAM_RECORD_ID, RECORD_ID)));
 
