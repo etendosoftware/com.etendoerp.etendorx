@@ -10,4 +10,9 @@
         <class>com.etendoerp.etendorx.services.ImageUploadServlet</class>
         <singleton>true</singleton>
     </bean>
+    <bean>
+        <name>print</name>
+        <class>com.etendoerp.etendorx.services.DocumentPrintServlet</class>
+        <singleton>true</singleton>
+    </bean>
 </provider>

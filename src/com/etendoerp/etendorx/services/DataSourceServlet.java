@@ -22,6 +22,7 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import com.etendoerp.etendorx.config.InitialConfigUtil;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.entity.ContentType;
 import org.apache.logging.log4j.LogManager;
@@ -228,14 +229,11 @@ public class DataSourceServlet implements WebService {
       VariablesSecureApp variables = RequestContext.get().getVariablesSecureApp();
       if (variables.getJavaDateFormat() == null || StringUtils.isEmpty(
           variables.getSessionValue("#DecimalSeparator|generalQtyEdition"))) {
-        SecureWebServicesUtils.fillSessionVariables(request);
+        InitialConfigUtil.initialize(request);
         log.debug("Session variables loaded in DataSourceServlet.");
-
       } else {
         log.debug("Session variables already loaded previously.");
       }
-    } catch (ServletException e) {
-      throw new OBException(e);
     } finally {
       OBContext.restorePreviousMode();
     }

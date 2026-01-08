@@ -352,10 +352,15 @@ public class RXConfigUtils {
    * @return an ETRXConfig instance
    */
   public static ETRXConfig getRXConfig(String serviceName) {
-    return (ETRXConfig) OBDal.getInstance().createCriteria(ETRXConfig.class)
-        .add(Restrictions.eq(ETRXConfig.PROPERTY_SERVICENAME, serviceName))
-        .setMaxResults(1)
-        .uniqueResult();
+    try {
+      return (ETRXConfig) OBDal.getInstance()
+          .createCriteria(ETRXConfig.class)
+          .add(Restrictions.eq(ETRXConfig.PROPERTY_SERVICENAME, serviceName))
+          .setMaxResults(1)
+          .uniqueResult();
+    } catch (RuntimeException e) {
+      throw new OBException("Error retrieving ETRXConfig for service: " + serviceName, e);
+    }
   }
 
   /**
