@@ -19,6 +19,11 @@ import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.test.base.TestConstants;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
@@ -35,6 +40,7 @@ import static org.mockito.Mockito.when;
 @RunWith(Parameterized.class)
 public class InitializeRXServicesTest extends WeldBaseTest {
 
+  public static final String USER_DIR = "user.dir";
   private final boolean rxEnable;
   private final boolean tomcatEnable;
   private final boolean asyncEnable;
@@ -90,6 +96,9 @@ public class InitializeRXServicesTest extends WeldBaseTest {
     List<ETRXConfig> pre = OBDal.getInstance().createCriteria(ETRXConfig.class).list();
     pre.forEach(OBDal.getInstance()::remove);
     OBDal.getInstance().flush();
+
+    // Copy YAML files to build/compose for testing
+    setupTestYamlFiles();
   }
 
   @Test
@@ -101,7 +110,7 @@ public class InitializeRXServicesTest extends WeldBaseTest {
     mockProperties.setProperty("docker_com.etendoerp.etendorx_connector", String.valueOf(connectorEnable));
     mockProperties.setProperty("docker.exclude", "");
     // Add source.path property for RXConfigUtils to find compose directory
-    mockProperties.setProperty("source.path", System.getProperty("user.dir"));
+    mockProperties.setProperty("source.path", System.getProperty(USER_DIR));
 
     try (MockedStatic<OBPropertiesProvider> mockedStatic = mockStatic(OBPropertiesProvider.class)) {
       mockedStatic.when(OBPropertiesProvider::getInstance).thenReturn(obPropertiesProvider);
@@ -148,5 +157,38 @@ public class InitializeRXServicesTest extends WeldBaseTest {
     List<ETRXConfig> rxConfigsForTest = OBDal.getInstance().createCriteria(ETRXConfig.class).list();
     rxConfigsForTest.forEach(OBDal.getInstance()::remove);
     OBDal.getInstance().flush();
+  }
+
+  /**
+   * Sets up YAML files for testing by copying them from compose/ to build/compose/
+   */
+  private void setupTestYamlFiles() throws IOException {
+    // Source directory where the actual YAML files are located
+    // The compose directory is in modules/com.etendoerp.etendorx/compose
+    Path sourceDir = Paths.get(System.getProperty(USER_DIR), "modules", "com.etendoerp.etendorx", "compose");
+    
+    // Target directory where tests expect to find them (build/compose)
+    Path targetDir = Paths.get(System.getProperty(USER_DIR), "build", "compose");
+    
+    // Create target directory if it doesn't exist
+    if (!Files.exists(targetDir)) {
+      Files.createDirectories(targetDir);
+    }
+    
+    // Copy YAML files needed for tests
+    String[] yamlFiles = {
+        "com.etendoerp.etendorx.yml",
+        "com.etendoerp.etendorx_async.yml",
+        "com.etendoerp.etendorx_connector.yml"
+    };
+    
+    for (String yamlFile : yamlFiles) {
+      Path source = sourceDir.resolve(yamlFile);
+      Path target = targetDir.resolve(yamlFile);
+      
+      if (Files.exists(source)) {
+        Files.copy(source, target, StandardCopyOption.REPLACE_EXISTING);
+      }
+    }
   }
 }
