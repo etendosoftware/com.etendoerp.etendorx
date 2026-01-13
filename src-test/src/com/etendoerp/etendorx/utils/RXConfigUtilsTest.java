@@ -46,7 +46,7 @@ class RXConfigUtilsTest {
 
   @BeforeEach
   void setUp() throws IOException {
-    composeDir = tempDir.resolve("modules").resolve("com.etendoerp.etendorx").resolve("compose");
+    composeDir = tempDir.resolve("build").resolve("compose");
     Files.createDirectories(composeDir);
 
     // Setup mock for OBPropertiesProvider

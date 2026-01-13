@@ -25,7 +25,7 @@ import java.util.regex.Pattern;
 public class RXConfigUtils {
   public static final String WORKER = "worker";
   public static final String OBCONNSRV = "obconnsrv";
-  public static final String COMPOSE_DIR = "/modules/com.etendoerp.etendorx/compose";
+  public static final String COMPOSE_DIR = "/build/compose";
   private static final Logger log = LoggerFactory.getLogger(RXConfigUtils.class);
   private static final String LOCALHOST_URL = "http://localhost:%d";
   private static final String ASYNCPROCESS = "asyncprocess";
