@@ -431,6 +431,9 @@ public class DataSourceUtils {
    * <p>
    * This method iterates over the column values in the form initialization response,
    * converts the keys using the provided map, and updates the new record data with the values.
+   * <p>
+   * If the form initialization response does not contain columnValues (e.g., due to an error),
+   * this method will log a warning and return without applying any values.
    *
    * @param formInitResponse
    *     The JSON object containing the form initialization response.
@@ -443,6 +446,13 @@ public class DataSourceUtils {
    */
   public static void applyColumnValues(JSONObject formInitResponse, Map<String, String> mapConvertionKey,
       JSONObject dataFromNewRecord) throws JSONException {
+    // Check if columnValues exists - it may be missing if form initialization failed
+    if (!formInitResponse.has("columnValues")) {
+      log.warn("Form initialization response does not contain 'columnValues'. Response keys: {}", 
+          formInitResponse.keys());
+      return;
+    }
+    
     var columnValues = formInitResponse.getJSONObject("columnValues");
     var keys = columnValues.keys();
     while (keys.hasNext()) {
