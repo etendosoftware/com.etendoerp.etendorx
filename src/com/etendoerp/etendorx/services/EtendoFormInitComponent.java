@@ -19,6 +19,7 @@ import java.util.Map;
 public class EtendoFormInitComponent extends org.openbravo.client.application.window.FormInitializationComponent {
 
   private static final Logger log = LogManager.getLogger();
+  private static final String TAB_ID = "TAB_ID";
 
   /**
    * Executes the form initialization with the given parameters and content.
@@ -31,7 +32,7 @@ public class EtendoFormInitComponent extends org.openbravo.client.application.wi
    */
   @Override
   public JSONObject execute(Map<String, Object> parameters, String content) {
-    String tabId = (String) parameters.get("TAB_ID");
+    String tabId = (String) parameters.get(TAB_ID);
     log.debug("Starting form initialization for tab: {}", tabId);
     
     try {
@@ -39,7 +40,7 @@ public class EtendoFormInitComponent extends org.openbravo.client.application.wi
       boolean wasInAdminMode = OBContext.getOBContext().isInAdministratorMode();
       if (!wasInAdminMode) {
         OBContext.setAdminMode();
-        log.trace("Switched to admin mode for form initialization");
+        log.debug("Switched to admin mode for form initialization");
       }
       try {
         // Eagerly initialize tab metadata before calling super.execute()
@@ -53,7 +54,7 @@ public class EtendoFormInitComponent extends org.openbravo.client.application.wi
       } finally {
         if (!wasInAdminMode) {
           OBContext.restorePreviousMode();
-          log.trace("Restored previous mode after form initialization");
+          log.debug("Restored previous mode after form initialization");
         }
       }
     } catch (Exception e) {
@@ -73,7 +74,7 @@ public class EtendoFormInitComponent extends org.openbravo.client.application.wi
    */
   private void initializeTabMetadata(Map<String, Object> parameters) {
     try {
-      String tabId = (String) parameters.get("TAB_ID");
+      String tabId = (String) parameters.get(TAB_ID);
       if (tabId == null || "null".equals(tabId)) {
         log.debug("No tab ID provided, skipping metadata initialization");
         return;
@@ -85,82 +86,104 @@ public class EtendoFormInitComponent extends org.openbravo.client.application.wi
         return;
       }
       
-      log.debug("Initializing metadata for tab: {} with {} fields", tabId, tab.getADFieldList().size());
-      int initializedFields = 0;
-      int initializedCallouts = 0;
-      int initializedReferences = 0;
-      int initializedSelectors = 0;
-      
       // Eagerly load all field metadata
       for (Field field : tab.getADFieldList()) {
-        
-        Column column = field.getColumn();
-        if (column == null) {
-          continue;
-        }
-        
-        initializedFields++;
-        
-        // Initialize callout and its model implementations
-        if (column.getCallout() != null) {
-          // Force initialization of callout proxy
-          column.getCallout().getId();
-          // Initialize model implementations
-          if (column.getCallout().getADModelImplementationList() != null) {
-            column.getCallout().getADModelImplementationList().size();
-          }
-          initializedCallouts++;
-        }
-        
-        // Initialize reference and its selector lists
-        Reference reference = column.getReference();
-        if (reference != null) {
-          // Force initialization of reference proxy
-          reference.getId();
-          initializedReferences++;
-          // Initialize selector lists and their fields used by FKSelectorUIDefinition
-          if (reference.getOBUISELSelectorList() != null) {
-            reference.getOBUISELSelectorList().forEach(selector -> {
-              if (selector.getOBUISELSelectorFieldList() != null) {
-                selector.getOBUISELSelectorFieldList().forEach(selectorField -> {
-                  // Initialize each selector field to prevent lazy loading
-                  selectorField.getId();
-                  if (selectorField.getProperty() != null) {
-                    selectorField.getProperty();
-                  }
-                });
-              }
-            });
-            initializedSelectors++;
-          }
-        }
-        
-        // Initialize reference search key (used for foreign key fields)
-        Reference referenceSearchKey = column.getReferenceSearchKey();
-        if (referenceSearchKey != null) {
-          referenceSearchKey.getId();
-          if (referenceSearchKey.getOBUISELSelectorList() != null) {
-            referenceSearchKey.getOBUISELSelectorList().forEach(selector -> {
-              if (selector.getOBUISELSelectorFieldList() != null) {
-                selector.getOBUISELSelectorFieldList().forEach(selectorField -> {
-                  selectorField.getId();
-                  if (selectorField.getProperty() != null) {
-                    selectorField.getProperty();
-                  }
-                });
-              }
-            });
-          }
-        }
+        initializeFieldMetadata(field);
       }
       
-      log.debug("Metadata initialization complete for tab {}: {} fields, {} callouts, {} references, {} selectors", 
-          tabId, initializedFields, initializedCallouts, initializedReferences, initializedSelectors);
+      log.debug("Metadata initialization complete for tab {}", tabId);
           
     } catch (Exception e) {
       // Log but don't fail - the original LazyInitializationException will still occur
       // and provide better error context
-      log.warn("Failed to eagerly initialize tab metadata for tab: {}", parameters.get("TAB_ID"), e);
+      log.warn("Failed to eagerly initialize tab metadata for tab: {}", parameters.get(TAB_ID), e);
+    }
+  }
+
+  /**
+   * Initializes metadata for a single field.
+   *
+   * @param field The field to initialize
+   */
+  private void initializeFieldMetadata(Field field) {
+    Column column = field.getColumn();
+    if (column == null) {
+      return;
+    }
+    
+    initializeCallout(column);
+    initializeReference(column.getReference());
+    initializeReferenceSearchKey(column.getReferenceSearchKey());
+  }
+
+  /**
+   * Initializes callout and its model implementations.
+   *
+   * @param column The column containing the callout
+   */
+  private void initializeCallout(Column column) {
+    if (column.getCallout() != null) {
+      // Force initialization of callout proxy
+      column.getCallout().getId();
+      // Initialize model implementations
+      if (column.getCallout().getADModelImplementationList() != null) {
+        column.getCallout().getADModelImplementationList().size();
+      }
+    }
+  }
+
+  /**
+   * Initializes reference and its selector lists.
+   *
+   * @param reference The reference to initialize
+   */
+  private void initializeReference(Reference reference) {
+    if (reference != null) {
+      // Force initialization of reference proxy
+      reference.getId();
+      // Initialize selector lists and their fields used by FKSelectorUIDefinition
+      if (reference.getOBUISELSelectorList() != null) {
+        initializeSelectorList(reference);
+      }
+    }
+  }
+
+  /**
+   * Initializes reference search key and its selector lists.
+   *
+   * @param referenceSearchKey The reference search key to initialize
+   */
+  private void initializeReferenceSearchKey(Reference referenceSearchKey) {
+    if (referenceSearchKey != null) {
+      referenceSearchKey.getId();
+      if (referenceSearchKey.getOBUISELSelectorList() != null) {
+        initializeSelectorList(referenceSearchKey);
+      }
+    }
+  }
+
+  /**
+   * Initializes selector list and all its selector fields.
+   *
+   * @param reference The reference containing the selector list
+   */
+  private void initializeSelectorList(Reference reference) {
+    reference.getOBUISELSelectorList().forEach(selector -> {
+      if (selector.getOBUISELSelectorFieldList() != null) {
+        selector.getOBUISELSelectorFieldList().forEach(this::initializeSelectorField);
+      }
+    });
+  }
+
+  /**
+   * Initializes a single selector field and its property.
+   *
+   * @param selectorField The selector field to initialize
+   */
+  private void initializeSelectorField(org.openbravo.userinterface.selector.SelectorField selectorField) {
+    selectorField.getId();
+    if (selectorField.getProperty() != null) {
+      selectorField.getProperty();
     }
   }
 
