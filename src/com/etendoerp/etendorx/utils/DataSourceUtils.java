@@ -1,5 +1,20 @@
 package com.etendoerp.etendorx.utils;
-
+/*
+ *************************************************************************
+ * The contents of this file are subject to the Etendo License
+ * (the "License"), you may not use this file except in compliance with
+ * the License.
+ * You may obtain a copy of the License at
+ * https://github.com/etendosoftware/etendo_core/blob/main/legal/Etendo_license.txt
+ * Software distributed under the License is distributed on an
+ * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+ * implied. See the License for the specific language governing rights
+ * and limitations under the License.
+ * All portions are Copyright © 2021–2026 FUTIT SERVICES, S.L
+ * All Rights Reserved.
+ * Contributor(s): Futit Services S.L.
+ *************************************************************************
+ */
 
 import java.math.BigDecimal;
 import java.text.ParseException;
@@ -431,6 +446,9 @@ public class DataSourceUtils {
    * <p>
    * This method iterates over the column values in the form initialization response,
    * converts the keys using the provided map, and updates the new record data with the values.
+   * <p>
+   * If the form initialization response does not contain columnValues (e.g., due to an error),
+   * this method will log a warning and return without applying any values.
    *
    * @param formInitResponse
    *     The JSON object containing the form initialization response.
@@ -443,6 +461,13 @@ public class DataSourceUtils {
    */
   public static void applyColumnValues(JSONObject formInitResponse, Map<String, String> mapConvertionKey,
       JSONObject dataFromNewRecord) throws JSONException {
+    // Check if columnValues exists - it may be missing if form initialization failed
+    if (!formInitResponse.has("columnValues")) {
+      log.warn("Form initialization response does not contain 'columnValues'. Response keys: {}", 
+          formInitResponse.keys());
+      return;
+    }
+    
     var columnValues = formInitResponse.getJSONObject("columnValues");
     var keys = columnValues.keys();
     while (keys.hasNext()) {
