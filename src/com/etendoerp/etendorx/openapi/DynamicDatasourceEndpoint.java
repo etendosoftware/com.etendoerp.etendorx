@@ -330,9 +330,7 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
     List<Parameter> putParams = new ArrayList<>(formInitParams);
     putParams.add(createPathParameter("id", "Entity ID to update"));
 
-    // Wrap the request schema to accept both single object and array of objects
-    Schema<?> flexibleRequestSchema = createSingleOrArraySchema(formInitRequestSchema);
-
+    // PUT only accepts single objects, not arrays
     EndpointConfig patchConfig = new EndpointConfig.Builder()
         .tag(tag)
         .actionValue(entityName + "/{id}")
@@ -341,7 +339,7 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
         .responseSchema(formInitResponseSchema)
         .responseExample(formInitResponseExample.toString())
         .parameters(putParams)
-        .requestBodySchema(flexibleRequestSchema)
+        .requestBodySchema(formInitRequestSchema)
         .requestBodyExample(formInitRequestExample)
         .httpMethod(OpenAPIConstants.PUT)
         .build();
