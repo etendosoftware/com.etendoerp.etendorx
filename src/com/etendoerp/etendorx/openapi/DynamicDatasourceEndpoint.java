@@ -38,6 +38,7 @@ import io.swagger.v3.oas.models.Operation;
 import io.swagger.v3.oas.models.PathItem;
 import io.swagger.v3.oas.models.Paths;
 import io.swagger.v3.oas.models.media.ArraySchema;
+import io.swagger.v3.oas.models.media.ComposedSchema;
 import io.swagger.v3.oas.models.media.Content;
 import io.swagger.v3.oas.models.media.MediaType;
 import io.swagger.v3.oas.models.media.Schema;
@@ -329,6 +330,9 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
     List<Parameter> putParams = new ArrayList<>(formInitParams);
     putParams.add(createPathParameter("id", "Entity ID to update"));
 
+    // Wrap the request schema to accept both single object and array of objects
+    Schema<?> flexibleRequestSchema = createSingleOrArraySchema(formInitRequestSchema);
+
     EndpointConfig patchConfig = new EndpointConfig.Builder()
         .tag(tag)
         .actionValue(entityName + "/{id}")
@@ -337,7 +341,7 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
         .responseSchema(formInitResponseSchema)
         .responseExample(formInitResponseExample.toString())
         .parameters(putParams)
-        .requestBodySchema(formInitRequestSchema)
+        .requestBodySchema(flexibleRequestSchema)
         .requestBodyExample(formInitRequestExample)
         .httpMethod(OpenAPIConstants.PUT)
         .build();
@@ -471,6 +475,9 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
     String customDescription = StringUtils.isNotEmpty(description) ? description : "";
     String finalDescription = String.format(POST_DESCRIPTION_TEMPLATE, entityName, customDescription);
 
+    // Wrap the request schema to accept both single object and array of objects
+    Schema<?> flexibleRequestSchema = createSingleOrArraySchema(formInitRequestSchema);
+
     EndpointConfig postConfig = new EndpointConfig.Builder()
         .tag(tag)
         .actionValue(entityName)
@@ -479,12 +486,34 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
         .responseSchema(formInitResponseSchema)
         .responseExample(formInitResponseExample.toString())
         .parameters(formInitParams)
-        .requestBodySchema(formInitRequestSchema)
+        .requestBodySchema(flexibleRequestSchema)
         .requestBodyExample(formInitRequestExample)
         .httpMethod(OpenAPIConstants.POST)
         .build();
 
     createEndpoint(openAPI, postConfig);
+  }
+
+  /**
+   * Creates a schema that accepts either a single object or an array of objects.
+   * This is used for POST and PUT endpoints to support bulk operations.
+   *
+   * @param itemSchema
+   *     the schema for a single item
+   * @return a schema that accepts either a single object or an array of objects
+   */
+  private Schema<?> createSingleOrArraySchema(Schema<?> itemSchema) {
+    // Create array schema
+    ArraySchema arraySchema = new ArraySchema();
+    arraySchema.items(itemSchema);
+    arraySchema.description("Array of objects for bulk operations");
+
+    // Create oneOf schema that accepts either single object or array
+    ComposedSchema oneOfSchema = new ComposedSchema();
+    oneOfSchema.oneOf(List.of(itemSchema, arraySchema));
+    oneOfSchema.description("Single object or array of objects");
+
+    return oneOfSchema;
   }
 
   /**
