@@ -494,7 +494,7 @@ public class DynamicDatasourceEndpoint implements OpenAPIEndpoint {
 
   /**
    * Creates a schema that accepts either a single object or an array of objects.
-   * This is used for POST and PUT endpoints to support bulk operations.
+   * This is used for POST endpoints to support bulk operations.
    *
    * @param itemSchema
    *     the schema for a single item
