@@ -1,15 +1,37 @@
 package com.etendoerp.etendorx;
 
+/*
+ *************************************************************************
+ * The contents of this file are subject to the Etendo License
+ * (the "License"), you may not use this file except in compliance
+ * with the License.
+ * You may obtain a copy of the License at
+ * https://github.com/etendosoftware/etendo_core/blob/main/legal/Etendo_license.txt
+ * Software distributed under the License is distributed on an
+ * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+ * implied. See the License for the specific language governing rights
+ * and limitations under the License.
+ * All portions are Copyright (C) 2021-2026 FUTIT SERVICES, S.L
+ * All Rights Reserved.
+ * Contributor(s): Futit Services S.L.
+ *************************************************************************
+ */
+
 // Standard Java imports
 
-import com.etendoerp.etendorx.data.ConfigServiceParam;
-import com.etendoerp.etendorx.data.ETRXConfig;
-import com.etendoerp.etendorx.data.ETRXoAuthProvider;
-import com.etendoerp.etendorx.utils.OAuthProviderConfigInjector;
-import com.etendoerp.etendorx.utils.OAuthProviderConfigInjectorRegistry;
-import com.etendoerp.etendorx.utils.RXConfigUtils;
-import com.smf.securewebservices.SWSConfig;
-import com.smf.securewebservices.utils.SecureWebServicesUtils;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.Writer;
+import java.net.HttpURLConnection;
+import java.net.URI;
+import java.util.AbstractMap.SimpleEntry;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -26,19 +48,14 @@ import org.openbravo.erpCommon.utility.Utility;
 import org.openbravo.model.ad.access.User;
 import org.openbravo.service.db.DalConnectionProvider;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.Writer;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.util.AbstractMap.SimpleEntry;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import com.etendoerp.etendorx.data.ConfigServiceParam;
+import com.etendoerp.etendorx.data.ETRXConfig;
+import com.etendoerp.etendorx.data.ETRXoAuthProvider;
+import com.etendoerp.etendorx.utils.OAuthProviderConfigInjector;
+import com.etendoerp.etendorx.utils.OAuthProviderConfigInjectorRegistry;
+import com.etendoerp.etendorx.utils.RXConfigUtils;
+import com.smf.securewebservices.SWSConfig;
+import com.smf.securewebservices.utils.SecureWebServicesUtils;
 
 /**
  * This class is the base class for the build configuration servlets. It provides the basic
@@ -81,7 +98,8 @@ public class BuildConfig extends HttpBaseServlet {
   /**
    * This method extracts the URI from the given HTTP request.
    *
-   * @param request The HTTP request from which the URI is to be extracted.
+   * @param request
+   *     The HTTP request from which the URI is to be extracted.
    * @return The URI as a string. It is the part of the request URL that comes after the servlet path.
    */
   private static String getURIFromRequest(HttpServletRequest request) {
@@ -94,16 +112,18 @@ public class BuildConfig extends HttpBaseServlet {
    * Handles the GET request by fetching configuration, updating with OAuth providers,
    * and sending the response.
    *
-   * @param request  The HttpServletRequest object.
-   * @param response The HttpServletResponse object.
+   * @param request
+   *     The HttpServletRequest object.
+   * @param response
+   *     The HttpServletResponse object.
    */
   @Override
   public void doGet(HttpServletRequest request, HttpServletResponse response) {
     try {
       OBContext.setAdminMode();
 
-      // Validate SWS configuration
-      validateSWSConfiguration();
+      // Validate SWS configuration and get instance
+      SWSConfig swsConfig = validateSWSConfiguration();
 
       // Process request and get service configuration
       final String serviceURI = getURIFromRequest(request);
@@ -111,23 +131,24 @@ public class BuildConfig extends HttpBaseServlet {
       final JSONObject defaultConfig = getDefaultConfigToJsonObject(serviceURI);
 
       // Find and configure source
-      SimpleEntry<Integer, JSONObject> sourceEntry = findSource(defaultConfig.getJSONArray("propertySources"), serviceName);
+      SimpleEntry<Integer, JSONObject> sourceEntry = findSource(defaultConfig.getJSONArray("propertySources"),
+          serviceName);
       ETRXConfig rxConfig = getRXConfigForService(serviceName);
       JSONObject sourceJSON = sourceEntry.getValue();
       addRXParams(sourceJSON, rxConfig);
 
       // Apply OAuth provider configurations
-      applyOAuthConfigurations(defaultConfig);
+      List<OAuthProviderConfigInjector> allInjectors = OAuthProviderConfigInjectorRegistry.getInjectors();
+      applyOAuthConfigurations(defaultConfig, allInjectors);
 
       // Validate encryption algorithm
       validateEncryptionAlgorithm();
 
       // Configure security settings
-      SWSConfig swsConfig = SWSConfig.getInstance();
       JSONObject keys = new JSONObject(swsConfig.getPrivateKey());
 
       if (StringUtils.equals(AUTH_SERVICE, serviceName)) {
-        configureAuthService(sourceJSON, keys);
+        configureAuthService(sourceJSON, keys, allInjectors);
       }
 
       // Add public key (required for all services)
@@ -145,13 +166,14 @@ public class BuildConfig extends HttpBaseServlet {
   }
 
   /**
-   * Validates SWS configuration.
+   * Validates SWS configuration and returns the instance.
    */
-  private void validateSWSConfiguration() {
+  private SWSConfig validateSWSConfiguration() {
     SWSConfig swsConfig = SWSConfig.getInstance();
     if (swsConfig == null || swsConfig.getPrivateKey() == null) {
       throw new OBException(getLocalizedMessage("SMFSWS_Misconfigured"));
     }
+    return swsConfig;
   }
 
   /**
@@ -169,7 +191,7 @@ public class BuildConfig extends HttpBaseServlet {
     ETRXConfig rxConfig = RXConfigUtils.getRXConfig(serviceName);
     if (rxConfig == null) {
       String errorMessage = getLocalizedMessage("ETRX_NoConfigFound");
-      throw new OBException(StringUtils.replace(errorMessage, "%s", serviceName));
+      throw new OBException(String.format(errorMessage, serviceName));
     }
     return rxConfig;
   }
@@ -177,8 +199,8 @@ public class BuildConfig extends HttpBaseServlet {
   /**
    * Applies OAuth provider configurations.
    */
-  private void applyOAuthConfigurations(JSONObject defaultConfig) throws JSONException {
-    List<OAuthProviderConfigInjector> allInjectors = OAuthProviderConfigInjectorRegistry.getInjectors();
+  private void applyOAuthConfigurations(JSONObject defaultConfig,
+      List<OAuthProviderConfigInjector> allInjectors) throws JSONException {
     for (OAuthProviderConfigInjector injector : allInjectors) {
       injector.injectConfig(defaultConfig);
     }
@@ -198,7 +220,8 @@ public class BuildConfig extends HttpBaseServlet {
   /**
    * Configures authentication service specific settings.
    */
-  private void configureAuthService(JSONObject sourceJSON, JSONObject keys) throws Exception {
+  private void configureAuthService(JSONObject sourceJSON, JSONObject keys,
+      List<OAuthProviderConfigInjector> allInjectors) throws Exception {
     // Generate tokens for system and admin users
     User sysUser = OBDal.getInstance().get(User.class, SYS_USER_ID);
     String sysToken = SecureWebServicesUtils.generateToken(sysUser);
@@ -212,7 +235,6 @@ public class BuildConfig extends HttpBaseServlet {
     sourceJSON.put(PRIVATE_KEY, keys.getString(PRIVATE_KEY));
 
     // Update with OAuth providers
-    List<OAuthProviderConfigInjector> allInjectors = OAuthProviderConfigInjectorRegistry.getInjectors();
     updateSourceWithOAuthProviders(sourceJSON, allInjectors);
   }
 
@@ -220,9 +242,9 @@ public class BuildConfig extends HttpBaseServlet {
    * Adds the public key to the configuration.
    */
   private void addPublicKey(JSONObject sourceJSON, JSONObject keys) throws JSONException {
-    String publicKey = keys.getString(PUBLIC_KEY);
-    publicKey = StringUtils.replace(publicKey, BEGIN_PUBLIC_KEY, "");
-    publicKey = StringUtils.replace(publicKey, END_PUBLIC_KEY, "");
+    String publicKey = keys.getString(PUBLIC_KEY)
+        .replace(BEGIN_PUBLIC_KEY, "")
+        .replace(END_PUBLIC_KEY, "");
     sourceJSON.put(PUBLIC_KEY, publicKey);
   }
 
@@ -239,9 +261,11 @@ public class BuildConfig extends HttpBaseServlet {
   /**
    * This method retrieves the algorithm preference from the database.
    *
-   * @param preferenceString The preference string to be retrieved.
+   * @param preferenceString
+   *     The preference string to be retrieved.
    * @return The algorithm preference as a string.
-   * @throws PropertyException If there is an error retrieving the preference.
+   * @throws PropertyException
+   *     If there is an error retrieving the preference.
    */
   protected String getAlgorithmPref(String preferenceString) throws PropertyException {
     return Preferences.getPreferenceValue(preferenceString, true,
@@ -255,18 +279,19 @@ public class BuildConfig extends HttpBaseServlet {
   /**
    * This method adds the RX parameters to the services JSON Object for configs.
    *
-   * @param sourceJSON The source JSON object.
-   * @param rxConfig   The RX configuration.
+   * @param sourceJSON
+   *     The source JSON object.
+   * @param rxConfig
+   *     The RX configuration.
    */
   private void addRXParams(JSONObject sourceJSON, ETRXConfig rxConfig) {
-    List<ConfigServiceParam> paramList = rxConfig.getETRXServiceParamList();
-    for (ConfigServiceParam param : paramList) {
-      try {
+    try {
+      for (ConfigServiceParam param : rxConfig.getETRXServiceParamList()) {
         sourceJSON.put(param.getParameterKey(), param.getParameterValue());
-      } catch (JSONException e) {
-        log.error(e.getMessage(), e);
-        throw new OBException(e);
       }
+    } catch (JSONException e) {
+      log.error(e.getMessage(), e);
+      throw new OBException(e);
     }
   }
 
@@ -274,54 +299,55 @@ public class BuildConfig extends HttpBaseServlet {
    * This method gets the default configuration from the ETRXConfig entity and converts it to a JSON object.
    *
    * @return The default configuration as a JSON object.
-   * @throws JSONException If there is an error parsing the JSON.
+   * @throws JSONException
+   *     If there is an error parsing the JSON.
    */
   protected JSONObject getDefaultConfigToJsonObject(String serviceURI) throws JSONException, IOException {
     ETRXConfig rxConfig = RXConfigUtils.getRXConfig(CONFIG_SERVICE);
     if (rxConfig == null) {
-      throw new OBException(String.format(Utility.messageBD(new DalConnectionProvider(), "ETRX_NoConfigFound",
-          OBContext.getOBContext().getLanguage().getLanguage()), CONFIG_SERVICE));
+      throw new OBException(String.format(getLocalizedMessage("ETRX_NoConfigFound"), CONFIG_SERVICE));
     }
-    String serverURL = rxConfig.getServiceURL();
-    URL url = new URL(serverURL + serviceURI);
-    HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-    conn.setRequestMethod("GET");
-    final InputStream inputStream = conn.getInputStream();
-    BufferedReader bR = new BufferedReader(new InputStreamReader(inputStream));
-    String line;
-    StringBuilder responseStrBuilder = new StringBuilder();
-    while ((line = bR.readLine()) != null) {
-      responseStrBuilder.append(line);
+    HttpURLConnection conn = (HttpURLConnection) URI.create(
+        rxConfig.getServiceURL() + serviceURI).toURL().openConnection();
+    try {
+      conn.setRequestMethod("GET");
+      try (BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()))) {
+        return new JSONObject(reader.lines().collect(Collectors.joining()));
+      }
+    } finally {
+      conn.disconnect();
     }
-    inputStream.close();
-    return new JSONObject(responseStrBuilder.toString());
   }
 
   /**
    * This method finds the source JSON object in the property sources array.
    * If no default config is found for the specific service, it retrieves the application default config.
    *
-   * @param propSource The property sources array.
-   * @param service    The service name.
+   * @param propSource
+   *     The property sources array.
+   * @param service
+   *     The service name.
    * @return The index and the source JSON object.
-   * @throws JSONException If there is an error parsing the JSON.
+   * @throws JSONException
+   *     If there is an error parsing the JSON.
    */
   private SimpleEntry<Integer, JSONObject> findSource(JSONArray propSource, String service) throws JSONException {
     final int length = propSource.length();
     for (int i = 0; i < length; i++) {
-      if (propSource.getJSONObject(i).getString("name").contains(service)) {
-        return new SimpleEntry<>(i, propSource.getJSONObject(i).getJSONObject(SOURCE));
+      JSONObject entry = propSource.getJSONObject(i);
+      if (entry.getString("name").contains(service)) {
+        return new SimpleEntry<>(i, entry.getJSONObject(SOURCE));
       }
     }
-    // If no default config is found for the specific service, retrieve the application default config.
-    // That it's always load at the last index of the JSONArray
+    // No service-specific config found; fall back to the application default at the last index
     return new SimpleEntry<>(length - 1, propSource.getJSONObject(length - 1).getJSONObject(SOURCE));
   }
 
   /**
    * This method updates the source JSON object with the oAuth providers details.
    *
-   * @param sourceJSON The source JSON object.
+   * @param sourceJSON
+   *     The source JSON object.
    */
   private void updateSourceWithOAuthProviders(JSONObject sourceJSON, List<OAuthProviderConfigInjector> allInjectors) {
     OBDal.getInstance().createCriteria(ETRXoAuthProvider.class)
@@ -333,11 +359,13 @@ public class BuildConfig extends HttpBaseServlet {
   /**
    * This method updates the source JSON object with the details of a single oAuth provider.
    *
-   * @param sourceJSON The source JSON object.
-   * @param provider   The oAuth provider.
+   * @param sourceJSON
+   *     The source JSON object.
+   * @param provider
+   *     The oAuth provider.
    */
   private void updateSourceWithOAuthProvider(JSONObject sourceJSON, ETRXoAuthProvider provider,
-                                             List<OAuthProviderConfigInjector> allInjectors) {
+      List<OAuthProviderConfigInjector> allInjectors) {
     try {
       // Skip EtendoMiddleware provider
       if (StringUtils.equals(ETENDO_MIDDLEWARE, provider.getValue())) {
@@ -370,63 +398,56 @@ public class BuildConfig extends HttpBaseServlet {
   /**
    * Configures OAuth registration settings.
    */
-  private void configureOAuthRegistration(JSONObject sourceJSON, ETRXoAuthProvider provider, String providerName) {
-    final String registrationPrefix = SPRING_SECURITY_OAUTH_2_CLIENT_REGISTRATION + providerName;
-
-    Map<String, String> registrationValues = new HashMap<>();
-    registrationValues.put(registrationPrefix + ".provider", providerName);
-    registrationValues.put(registrationPrefix + ".client-id", provider.getIDForClient());
-    registrationValues.put(registrationPrefix + ".client-secret", provider.getClientSecret());
-    registrationValues.put(registrationPrefix + ".scope", provider.getScope());
-    registrationValues.put(registrationPrefix + ".client-name", provider.getClientName());
-    registrationValues.put(registrationPrefix + ".authorization-grant-type", provider.getAuthorizationGrantType());
-    registrationValues.put(registrationPrefix + ".redirect-uri", provider.getRedirectURI());
-    registrationValues.put(registrationPrefix + ".code_challenge_method", provider.getCodeChallengeMethod());
-    registrationValues.put(registrationPrefix + ".client-authentication-method", provider.getClientAuthenticationMethod());
-    registrationValues.put(registrationPrefix + ".token-uri", provider.getTokenURI());
-
-    addValuesToSource(sourceJSON, registrationValues);
+  private void configureOAuthRegistration(JSONObject sourceJSON, ETRXoAuthProvider provider,
+      String providerName) throws JSONException {
+    final String p = SPRING_SECURITY_OAUTH_2_CLIENT_REGISTRATION + providerName;
+    putIfNotNull(sourceJSON, p + ".provider", providerName);
+    putIfNotNull(sourceJSON, p + ".client-id", provider.getIDForClient());
+    putIfNotNull(sourceJSON, p + ".client-secret", provider.getClientSecret());
+    putIfNotNull(sourceJSON, p + ".scope", provider.getScope());
+    putIfNotNull(sourceJSON, p + ".client-name", provider.getClientName());
+    putIfNotNull(sourceJSON, p + ".authorization-grant-type", provider.getAuthorizationGrantType());
+    putIfNotNull(sourceJSON, p + ".redirect-uri", provider.getRedirectURI());
+    putIfNotNull(sourceJSON, p + ".code_challenge_method", provider.getCodeChallengeMethod());
+    putIfNotNull(sourceJSON, p + ".client-authentication-method", provider.getClientAuthenticationMethod());
+    putIfNotNull(sourceJSON, p + ".token-uri", provider.getTokenURI());
   }
 
   /**
    * Configures OAuth provider settings.
    */
-  private void configureOAuthProvider(JSONObject sourceJSON, ETRXoAuthProvider provider, String providerName) {
-    final String providerPrefix = SPRING_SECURITY_OAUTH_2_CLIENT_PROVIDER + providerName;
-
-    Map<String, String> providerValues = new HashMap<>();
-    providerValues.put(providerPrefix + ".authorization-uri", provider.getAuthorizationURI());
-    providerValues.put(providerPrefix + ".jwk-set-uri", provider.getJWKSetURI());
-    providerValues.put(providerPrefix + ".token-uri", provider.getTokenURI());
-    providerValues.put(providerPrefix + ".user-info-uri", provider.getUserInfoURI());
-    providerValues.put(providerPrefix + ".user-name-attribute", provider.getUserNameAttribute());
-
-    addValuesToSource(sourceJSON, providerValues);
+  private void configureOAuthProvider(JSONObject sourceJSON, ETRXoAuthProvider provider,
+      String providerName) throws JSONException {
+    final String p = SPRING_SECURITY_OAUTH_2_CLIENT_PROVIDER + providerName;
+    putIfNotNull(sourceJSON, p + ".authorization-uri", provider.getAuthorizationURI());
+    putIfNotNull(sourceJSON, p + ".jwk-set-uri", provider.getJWKSetURI());
+    putIfNotNull(sourceJSON, p + ".token-uri", provider.getTokenURI());
+    putIfNotNull(sourceJSON, p + ".user-info-uri", provider.getUserInfoURI());
+    putIfNotNull(sourceJSON, p + ".user-name-attribute", provider.getUserNameAttribute());
   }
 
   /**
-   * Adds a map of values to the source JSON, skipping null values.
+   * Puts a value into the JSON object only if the value is not null.
    */
-  private void addValuesToSource(JSONObject sourceJSON, Map<String, String> values) {
-    values.forEach((key, value) -> {
-      if (value != null) {
-        try {
-          sourceJSON.put(key, value);
-        } catch (JSONException e) {
-          throw new OBException("Error adding OAuth configuration: " + key, e);
-        }
-      }
-    });
+  private static void putIfNotNull(JSONObject json, String key, String value) throws JSONException {
+    if (value != null) {
+      json.put(key, value);
+    }
   }
 
   /**
    * This method sends the response to the client.
    *
-   * @param response   The HTTP response.
-   * @param result     The result JSON object.
-   * @param sourceJSON The source JSON object.
-   * @param indexFound The index of the source JSON object in the property sources array.
-   * @throws IOException If there is an error writing the response.
+   * @param response
+   *     The HTTP response.
+   * @param result
+   *     The result JSON object.
+   * @param sourceJSON
+   *     The source JSON object.
+   * @param indexFound
+   *     The index of the source JSON object in the property sources array.
+   * @throws IOException
+   *     If there is an error writing the response.
    */
   private void sendResponse(HttpServletResponse response, JSONObject result, JSONObject sourceJSON, Integer indexFound)
       throws IOException {
@@ -445,8 +466,10 @@ public class BuildConfig extends HttpBaseServlet {
   /**
    * This method sends an error response in JSON format.
    *
-   * @param response     The HttpServletResponse object.
-   * @param errorMessage The error message to be sent to the client.
+   * @param response
+   *     The HttpServletResponse object.
+   * @param errorMessage
+   *     The error message to be sent to the client.
    */
   private void sendErrorResponse(HttpServletResponse response, String errorMessage) {
     response.setContentType("application/json");
@@ -458,7 +481,7 @@ public class BuildConfig extends HttpBaseServlet {
       errorResponse.put("message", errorMessage);
       writer.write(errorResponse.toString());
     } catch (IOException | JSONException ex) {
-      log.error(String.format("Error sending the error response: %s", ex.getMessage()), ex);
+      log.error("Error sending the error response: {}", ex.getMessage(), ex);
     }
   }
 }
