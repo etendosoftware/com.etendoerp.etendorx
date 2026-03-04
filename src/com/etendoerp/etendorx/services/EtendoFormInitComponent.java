@@ -65,7 +65,7 @@ public class EtendoFormInitComponent extends org.openbravo.client.application.wi
         // accesses callouts, references, and other lazy-loaded properties
         initializeTabMetadata(parameters);
 
-        JSONObject result = super.execute(parameters, content);
+        JSONObject result = invokeSuperExecute(parameters, content);
         log.debug("Form initialization completed successfully for tab: {}", tabId);
         return result;
       } finally {
@@ -80,6 +80,15 @@ public class EtendoFormInitComponent extends org.openbravo.client.application.wi
       OBDal.getInstance().getSession().clear();
       throw e;
     }
+  }
+
+  /**
+   * Invokes the parent class's execute method.
+   * Extracted to allow stubbing in unit tests, since the parent method is protected
+   * and in a different package.
+   */
+  protected JSONObject invokeSuperExecute(Map<String, Object> parameters, String content) {
+    return super.execute(parameters, content);
   }
 
   /**
