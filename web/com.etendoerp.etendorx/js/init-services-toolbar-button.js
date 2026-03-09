@@ -5,7 +5,8 @@
 
           // define the callback function which shows the result to the user
           callback = function(rpcResponse, data, rpcRequest) {
-            isc.say(data.text + '<br>' + 'Refresh the grid to see the changes.');
+            isc.say(data.text);
+            grid.refreshGrid();
           }
 
           // and call the server

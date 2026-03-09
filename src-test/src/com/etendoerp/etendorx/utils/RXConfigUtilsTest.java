@@ -1,5 +1,22 @@
 package com.etendoerp.etendorx.utils;
 
+/*
+ *************************************************************************
+ * The contents of this file are subject to the Etendo License
+ * (the "License"), you may not use this file except in compliance
+ * with the License.
+ * You may obtain a copy of the License at
+ * https://github.com/etendosoftware/etendo_core/blob/main/legal/Etendo_license.txt
+ * Software distributed under the License is distributed on an
+ * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+ * implied. See the License for the specific language governing rights
+ * and limitations under the License.
+ * All portions are Copyright (C) 2021-2026 FUTIT SERVICES, S.L
+ * All Rights Reserved.
+ * Contributor(s): Futit Services S.L.
+ *************************************************************************
+ */
+
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -358,6 +375,193 @@ class RXConfigUtilsTest {
       assertTrue(e.getMessage().contains("YAML file not found") ||
               e.getMessage().contains("Failed to parse services"),
           "Should throw exception about missing YAML file");
+    }
+  }
+
+  // ========== Tests for YAML parsing edge cases (processYamlLine, tryParseServiceName, processPortLine) ==========
+
+  /**
+   * Verifies that lines appearing before the "services:" section are ignored
+   * by the parser and do not produce any service entries.
+   */
+  @Test
+  void testParseYamlIgnoresLinesBeforeServicesSection() throws IOException {
+    String yamlContent =
+        "version: '3'\n" +
+            "# This is a header comment\n" +
+            "networks:\n" +
+            "  default:\n" +
+            "    driver: bridge\n" +
+            "services:\n" +
+            "  myservice:\n" +
+            "    ports:\n" +
+            "      - \"9000:9000\"\n";
+    writeYamlFile(ETENDORX_YML, yamlContent);
+    RXConfigUtils.resetCache();
+
+    Map<String, Integer> services = RXConfigUtils.getServicesByType(RXConfigUtils.ServiceConfigType.ETENDORX);
+    assertEquals(1, services.size(), "Only the service after services: section should be parsed");
+    assertEquals(9000, services.get("myservice"), "Port should match");
+  }
+
+  /**
+   * Verifies that commented-out service definitions (lines starting with #)
+   * are not treated as valid services by tryParseServiceName.
+   */
+  @Test
+  void testParseYamlIgnoresCommentedOutServices() throws IOException {
+    String yamlContent =
+        "services:\n" +
+            "  # commented_service:\n" +
+            "  real_service:\n" +
+            "    ports:\n" +
+            "      - \"7000:7000\"\n";
+    writeYamlFile(ETENDORX_YML, yamlContent);
+    RXConfigUtils.resetCache();
+
+    Map<String, Integer> services = RXConfigUtils.getServicesByType(RXConfigUtils.ServiceConfigType.ETENDORX);
+    assertFalse(services.containsKey("commented_service"), "Commented service should be ignored");
+    assertEquals(7000, services.get("real_service"), "Real service should be parsed");
+  }
+
+  /**
+   * Verifies that a service definition with 4+ space indent is not treated
+   * as a top-level service (tryParseServiceName returns false for deep indentation).
+   */
+  @Test
+  void testParseYamlIgnoresDeeplyIndentedServiceNames() throws IOException {
+    String yamlContent =
+        "services:\n" +
+            "  parent:\n" +
+            "    ports:\n" +
+            "      - \"6000:6000\"\n" +
+            "    depends_on:\n" +
+            "      nested_not_a_service:\n" +
+            "        condition: service_started\n";
+    writeYamlFile(ETENDORX_YML, yamlContent);
+    RXConfigUtils.resetCache();
+
+    Map<String, Integer> services = RXConfigUtils.getServicesByType(RXConfigUtils.ServiceConfigType.ETENDORX);
+    assertEquals(1, services.size(), "Only parent service should be parsed");
+    assertTrue(services.containsKey("parent"), "Should contain parent service");
+    assertFalse(services.containsKey("nested_not_a_service"), "Deeply indented name should not be a service");
+  }
+
+  /**
+   * Verifies that a service defined without a ports section is not included
+   * in the parsed results (processPortLine is never reached).
+   */
+  @Test
+  void testParseYamlServiceWithoutPortsIsNotIncluded() throws IOException {
+    String yamlContent =
+        "services:\n" +
+            "  no_ports_svc:\n" +
+            "    environment:\n" +
+            "      - FOO=bar\n" +
+            "  with_ports_svc:\n" +
+            "    ports:\n" +
+            "      - \"5000:5000\"\n";
+    writeYamlFile(ETENDORX_YML, yamlContent);
+    RXConfigUtils.resetCache();
+
+    Map<String, Integer> services = RXConfigUtils.getServicesByType(RXConfigUtils.ServiceConfigType.ETENDORX);
+    assertFalse(services.containsKey("no_ports_svc"), "Service without ports should not appear");
+    assertEquals(5000, services.get("with_ports_svc"), "Service with ports should be parsed");
+  }
+
+  /**
+   * Verifies that only the first port mapping is taken for a service that
+   * exposes multiple ports (processPortLine resets state after first match).
+   */
+  @Test
+  void testParseYamlOnlyFirstPortMappingIsUsed() throws IOException {
+    String yamlContent =
+        "services:\n" +
+            "  multiport:\n" +
+            "    ports:\n" +
+            "      - \"3000:3000\"\n" +
+            "      - \"3001:3001\"\n" +
+            "      - \"3002:3002\"\n";
+    writeYamlFile(ETENDORX_YML, yamlContent);
+    RXConfigUtils.resetCache();
+
+    Map<String, Integer> services = RXConfigUtils.getServicesByType(RXConfigUtils.ServiceConfigType.ETENDORX);
+    assertEquals(3000, services.get("multiport"), "Should use the first port mapping only");
+  }
+
+  /**
+   * Verifies that port mappings without quotes are parsed correctly
+   * (PORT_PATTERN supports both quoted and unquoted formats).
+   */
+  @Test
+  void testParseYamlUnquotedPortMappings() throws IOException {
+    String yamlContent =
+        "services:\n" +
+            "  unquoted:\n" +
+            "    ports:\n" +
+            "      - 4000:4000\n";
+    writeYamlFile(ETENDORX_YML, yamlContent);
+    RXConfigUtils.resetCache();
+
+    Map<String, Integer> services = RXConfigUtils.getServicesByType(RXConfigUtils.ServiceConfigType.ETENDORX);
+    assertEquals(4000, services.get("unquoted"), "Unquoted port mapping should be parsed");
+  }
+
+  /**
+   * Verifies that the parser exits the ports section when encountering a
+   * non-port, non-list line (e.g. another property like "environment:"),
+   * exercising the else-if branch in processPortLine.
+   */
+  @Test
+  void testParseYamlExitsPortsSectionOnNonPortLine() throws IOException {
+    String yamlContent =
+        "services:\n" +
+            "  svc_a:\n" +
+            "    ports:\n" +
+            "    environment:\n" +
+            "      - FOO=bar\n" +
+            "  svc_b:\n" +
+            "    ports:\n" +
+            "      - \"2000:2000\"\n";
+    writeYamlFile(ETENDORX_YML, yamlContent);
+    RXConfigUtils.resetCache();
+
+    Map<String, Integer> services = RXConfigUtils.getServicesByType(RXConfigUtils.ServiceConfigType.ETENDORX);
+    assertFalse(services.containsKey("svc_a"), "svc_a should have no port (ports section exited early)");
+    assertEquals(2000, services.get("svc_b"), "svc_b should be parsed correctly");
+  }
+
+  /**
+   * Verifies that an empty YAML file (no services section) throws an exception
+   * since no services can be found.
+   */
+  @Test
+  void testParseYamlEmptyFileThrowsException() throws IOException {
+    writeYamlFile(ETENDORX_YML, "");
+    RXConfigUtils.resetCache();
+
+    try {
+      RXConfigUtils.getServicesByType(RXConfigUtils.ServiceConfigType.ETENDORX);
+      assertTrue(false, "Should have thrown exception for empty YAML");
+    } catch (OBException e) {
+      assertTrue(e.getMessage().contains("No services found"), "Should report no services found");
+    }
+  }
+
+  /**
+   * Verifies that a YAML file containing only the "services:" header
+   * with no service definitions throws an exception.
+   */
+  @Test
+  void testParseYamlServicesHeaderOnlyThrowsException() throws IOException {
+    writeYamlFile(ETENDORX_YML, "services:\n");
+    RXConfigUtils.resetCache();
+
+    try {
+      RXConfigUtils.getServicesByType(RXConfigUtils.ServiceConfigType.ETENDORX);
+      assertTrue(false, "Should have thrown exception for services-only YAML");
+    } catch (OBException e) {
+      assertTrue(e.getMessage().contains("No services found"), "Should report no services found");
     }
   }
 
