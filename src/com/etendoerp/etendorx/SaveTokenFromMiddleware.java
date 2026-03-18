@@ -2,6 +2,7 @@ package com.etendoerp.etendorx;
 
 import com.etendoerp.etendorx.data.ETRXTokenInfo;
 import com.etendoerp.etendorx.data.ETRXoAuthProvider;
+import com.etendoerp.etendorx.utils.TokenEncryptionUtil;
 import org.apache.commons.lang3.StringUtils;
 import org.hibernate.criterion.Restrictions;
 import org.openbravo.base.HttpBaseServlet;
@@ -178,12 +179,25 @@ public class SaveTokenFromMiddleware extends HttpBaseServlet {
         response.flushBuffer();
         return;
       }
+      String accessTokenParam = request.getParameter("access_token");
+      // refresh_token is intentionally kept server-side in the middleware (stored encrypted in its
+      // own SQLite DB and used via /oauth-integrations/refresh-token). The middleware never forwards
+      // refresh_token to Etendo, and ETRXTokenInfo has no column for it. Only access_token is
+      // required here.
+      if (StringUtils.isBlank(accessTokenParam)) {
+        log4j.warn("[SaveTokenFromMiddleware] Missing access_token parameter");
+        String responseURL = getResponseBody(true, "Missing Parameters", "access_token is required");
+        response.sendRedirect(responseURL);
+        response.flushBuffer();
+        return;
+      }
+
       ETRXoAuthProvider middlewareProvider = getETRXoAuthProvider();
       User currentUser = OBContext.getOBContext().getUser();
       Organization currentOrg = OBContext.getOBContext().getCurrentOrganization();
       removeOldTokens(currentUser, currentOrg);
       ETRXTokenInfo newToken = OBProvider.getInstance().get(ETRXTokenInfo.class);
-      newToken.setToken(request.getParameter("access_token"));
+      newToken.setToken(TokenEncryptionUtil.encrypt(accessTokenParam));
       String providerScope = request.getParameter("provider") + " - " + request.getParameter("scope");
       newToken.setMiddlewareProvider(providerScope);
       newToken.setEtrxOauthProvider(middlewareProvider);
@@ -202,8 +216,8 @@ public class SaveTokenFromMiddleware extends HttpBaseServlet {
     } catch (OBException | IOException e) {
       log4j.error("Error saving the token from the middleware", e);
       String responseURL = getResponseBody(true);
-      response.setHeader("Location", responseURL);
       try {
+        response.sendRedirect(responseURL);
         response.flushBuffer();
       } catch (IOException ex) {
         log4j.error(ex);

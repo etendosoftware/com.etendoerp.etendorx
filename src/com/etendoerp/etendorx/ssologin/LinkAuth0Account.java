@@ -35,6 +35,7 @@ import com.auth0.jwt.interfaces.RSAKeyProvider;
 import com.etendoerp.etendorx.auth.JwkRSAKeyProvider;
 import com.etendoerp.etendorx.auth.SWSAuthenticationManager;
 import com.etendoerp.etendorx.data.ETRXTokenUser;
+import com.etendoerp.etendorx.utils.TokenEncryptionUtil;
 
 /**
  * This class handles the linking of Auth0 accounts with the application.
@@ -131,7 +132,7 @@ public class LinkAuth0Account extends HttpBaseServlet {
       }
       tokenUser = OBProvider.getInstance().get(ETRXTokenUser.class);
       tokenUser.setSub(sub);
-      tokenUser.setOAuthToken(token);
+      tokenUser.setOAuthToken(TokenEncryptionUtil.encrypt(token));
       String[] provider = StringUtils.split(sub, "|");
       tokenUser.setTokenProvider(provider[0]);
       tokenUser.setUserForToken(OBContext.getOBContext().getUser());

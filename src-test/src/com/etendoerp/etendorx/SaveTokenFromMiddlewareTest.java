@@ -80,7 +80,7 @@ class SaveTokenFromMiddlewareTest {
   }
 
   @Test
-  void testDoGet_whenSaveThrowsOBException_setsErrorHeader() throws Exception {
+  void testDoGet_whenSaveThrowsOBException_redirectsWithErrorUrl() throws Exception {
     HttpServletRequest request = mockRequest("tokenError", "ProviderX", "scopeX");
     HttpServletResponse response = mock(HttpServletResponse.class);
 
@@ -93,15 +93,92 @@ class SaveTokenFromMiddlewareTest {
 
     new SaveTokenFromMiddleware().doGet(request, response);
 
+    // After the security fix the catch block uses response.sendRedirect() instead of setHeader.
     String expectedErrorUrl = buildUrl("errorContext", "Error", "Error saving token", SaveTokenFromMiddleware.ERROR_ICON, SaveTokenFromMiddleware.RED);
-    verify(response).setHeader("Location", expectedErrorUrl);
+    verify(response).sendRedirect(expectedErrorUrl);
     verify(response).flushBuffer();
-    verify(response, never()).sendRedirect(anyString());
+    verify(response, never()).setHeader(eq("Location"), anyString());
+  }
+
+  /**
+   * When access_token parameter is blank the null-guard redirects with a "Missing Parameters" error
+   * and never reaches the DB save path.
+   */
+  @Test
+  void testDoGet_whenAccessTokenIsBlank_redirectsWithMissingParamsError() throws Exception {
+    HttpServletRequest request = mock(HttpServletRequest.class);
+    when(request.getParameter("error")).thenReturn(null);
+    when(request.getParameter("error_description")).thenReturn(null);
+    when(request.getParameter("access_token")).thenReturn("");  // blank
+    when(request.getParameter("refresh_token")).thenReturn("some-refresh-token");
+    HttpServletResponse response = mock(HttpServletResponse.class);
+
+    mockProperties("myContext");
+    mockContextLanguage("en_US");
+
+    new SaveTokenFromMiddleware().doGet(request, response);
+
+    String expectedUrl = buildUrl("myContext", "Missing Parameters",
+        "access_token and refresh_token are required",
+        SaveTokenFromMiddleware.ERROR_ICON, SaveTokenFromMiddleware.RED);
+    verify(response).sendRedirect(expectedUrl);
+    verify(response).flushBuffer();
+  }
+
+  /**
+   * When refresh_token parameter is blank the null-guard redirects with a "Missing Parameters" error
+   * and never reaches the DB save path.
+   */
+  @Test
+  void testDoGet_whenRefreshTokenIsBlank_redirectsWithMissingParamsError() throws Exception {
+    HttpServletRequest request = mock(HttpServletRequest.class);
+    when(request.getParameter("error")).thenReturn(null);
+    when(request.getParameter("error_description")).thenReturn(null);
+    when(request.getParameter("access_token")).thenReturn("some-access-token");
+    when(request.getParameter("refresh_token")).thenReturn(null);  // null == blank
+    HttpServletResponse response = mock(HttpServletResponse.class);
+
+    mockProperties("myContext");
+    mockContextLanguage("en_US");
+
+    new SaveTokenFromMiddleware().doGet(request, response);
+
+    String expectedUrl = buildUrl("myContext", "Missing Parameters",
+        "access_token and refresh_token are required",
+        SaveTokenFromMiddleware.ERROR_ICON, SaveTokenFromMiddleware.RED);
+    verify(response).sendRedirect(expectedUrl);
+    verify(response).flushBuffer();
+  }
+
+  /**
+   * When the OAuth provider sends an error parameter the servlet redirects immediately with a
+   * formatted error title derived from the error code, without attempting to save any token.
+   */
+  @Test
+  void testDoGet_whenOAuthErrorParamPresent_redirectsWithFormattedError() throws Exception {
+    HttpServletRequest request = mock(HttpServletRequest.class);
+    when(request.getParameter("error")).thenReturn("access_denied");
+    when(request.getParameter("error_description")).thenReturn("User denied access");
+    HttpServletResponse response = mock(HttpServletResponse.class);
+
+    mockProperties("myContext");
+    mockContextLanguage("en_US");
+
+    new SaveTokenFromMiddleware().doGet(request, response);
+
+    // "access_denied" formatted → "Access Denied"
+    String expectedUrl = buildUrl("myContext", "Access Denied", "User denied access",
+        SaveTokenFromMiddleware.ERROR_ICON, SaveTokenFromMiddleware.RED);
+    verify(response).sendRedirect(expectedUrl);
+    verify(response).flushBuffer();
+    // Must not attempt to read access_token or interact with DB
+    verify(request, never()).getParameter("access_token");
   }
 
   private HttpServletRequest mockRequest(String token, String provider, String scope) {
     HttpServletRequest req = mock(HttpServletRequest.class);
     when(req.getParameter("access_token")).thenReturn(token);
+    when(req.getParameter("refresh_token")).thenReturn("dummy-refresh-token");
     when(req.getParameter("provider")).thenReturn(provider);
     when(req.getParameter("scope")).thenReturn(scope);
     when(req.getParameter("error")).thenReturn(null);
@@ -135,7 +212,10 @@ class SaveTokenFromMiddlewareTest {
     when(contextMock.getUser()).thenReturn(mock(org.openbravo.model.ad.access.User.class));
 
     obContextStatic = mockStatic(OBContext.class);
+    // Stub both the no-arg setAdminMode() used by doGet's try block and the boolean overload
+    obContextStatic.when(OBContext::setAdminMode).thenAnswer(inv -> null);
     obContextStatic.when(() -> OBContext.setAdminMode(true)).thenAnswer(inv -> null);
+    obContextStatic.when(OBContext::restorePreviousMode).thenAnswer(inv -> null);
     obContextStatic.when(OBContext::getOBContext).thenReturn(contextMock);
   }
 

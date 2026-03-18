@@ -2,6 +2,7 @@ package com.etendoerp.etendorx.oauth;
 
 import com.etendoerp.etendorx.data.ETRXTokenInfo;
 import com.etendoerp.etendorx.utils.GoogleServiceUtil;
+import com.etendoerp.etendorx.utils.TokenEncryptionUtil;
 import org.apache.commons.lang3.StringUtils;
 import org.codehaus.jettison.json.JSONObject;
 import org.hibernate.criterion.Restrictions;
@@ -94,7 +95,12 @@ public class GetOAuthToken extends HttpBaseServlet {
       if (token == null) {
         throw new OBException("Token not found.");
       }
-      tokenInfo.put("accessToken", getValidToken(token).getToken());
+      ETRXTokenInfo validToken = getValidToken(token);
+      String decryptedToken = TokenEncryptionUtil.decrypt(validToken.getToken());
+      if (decryptedToken == null) {
+        throw new OBException("Failed to decrypt access token.");
+      }
+      tokenInfo.put("accessToken", decryptedToken);
 
       response.setContentType("application/json");
       response.setCharacterEncoding("UTF-8");

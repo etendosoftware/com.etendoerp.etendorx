@@ -8,6 +8,7 @@ import com.auth0.jwt.algorithms.Algorithm;
 import com.auth0.jwt.interfaces.DecodedJWT;
 import com.auth0.jwt.interfaces.RSAKeyProvider;
 import com.etendoerp.etendorx.data.ETRXTokenUser;
+import com.etendoerp.etendorx.utils.TokenEncryptionUtil;
 import com.etendoerp.etendorx.utils.TokenVerifier;
 import com.smf.securewebservices.utils.SecureWebServicesUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -333,7 +334,7 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
     }
     if (token != null) {
       try {
-        log4j.debug(" Decoding token {}", token);
+        log4j.debug("Decoding incoming Bearer token");
         DecodedJWT decodedToken = SecureWebServicesUtils.decodeToken(token);
         if (decodedToken != null) {
           String userId = decodedToken.getClaim("user").asString();
@@ -646,8 +647,8 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
    */
   private String handleSSOLogin(String code, String accessToken, HttpServletRequest request,
                                 HttpServletResponse response) throws IOException {
-    log4j.debug("SSO Code to request token: {}", code);
-    log4j.debug("SSO Token coming from the request: {}", accessToken);
+    log4j.debug("SSO Code to request token received");
+    log4j.debug("SSO Token received from request");
 
     String token = StringUtils.isBlank(accessToken) ? getAuthToken(request) : accessToken;
     validateToken(token, request, response);
@@ -723,7 +724,7 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
       OBContext.setAdminMode(true);
       ETRXTokenUser tokenUser = getTokenUser(sub);
       if (tokenUser != null) {
-        tokenUser.setOAuthToken(token);
+        tokenUser.setOAuthToken(TokenEncryptionUtil.encrypt(token));
       } else {
         return null;
       }

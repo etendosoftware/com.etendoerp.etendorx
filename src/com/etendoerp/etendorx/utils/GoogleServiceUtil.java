@@ -73,6 +73,21 @@ public class GoogleServiceUtil {
   }
 
   /**
+   * Decrypts the token stored in an {@link ETRXTokenInfo} record.
+   *
+   * @param tokenInfo the token info record whose token field is AES-256-GCM encrypted
+   * @return the plaintext access token
+   * @throws OBException if decryption fails
+   */
+  private static String getDecryptedToken(ETRXTokenInfo tokenInfo) {
+    String decrypted = TokenEncryptionUtil.decrypt(tokenInfo.getToken());
+    if (decrypted == null) {
+      throw new OBException("[GoogleServiceUtil] Failed to decrypt token for record: " + tokenInfo.getId());
+    }
+    return decrypted;
+  }
+
+  /**
    * Creates a Google Sheets API client instance using the provided OAuth2 access token.
    *
    * @param accessToken OAuth2 Bearer token with sufficient scope (e.g. spreadsheets.readonly).
@@ -134,7 +149,7 @@ public class GoogleServiceUtil {
   public static String getTabName(int index, String sheetId, ETRXTokenInfo token, String accountID) throws OBException, IOException {
     try {
       ETRXTokenInfo validToken = getValidAccessTokenOrRefresh(token, accountID);
-      Sheets sheetsService = GoogleServiceUtil.getSheetsService(validToken.getToken());
+      Sheets sheetsService = GoogleServiceUtil.getSheetsService(getDecryptedToken(validToken));
       Spreadsheet spreadsheet = sheetsService.spreadsheets().get(sheetId).execute();
       List<Sheet> sheets = spreadsheet.getSheets();
       if (sheets == null || sheets.isEmpty()) {
@@ -255,7 +270,7 @@ public class GoogleServiceUtil {
   public static List<List<Object>> findSpreadsheetAndTab(String sheetId, String tabName,
                                                          ETRXTokenInfo token, String accountID) throws IOException {
     ETRXTokenInfo validToken = getValidAccessTokenOrRefresh(token, accountID);
-    Sheets sheetsService = GoogleServiceUtil.getSheetsService(validToken.getToken());
+    Sheets sheetsService = GoogleServiceUtil.getSheetsService(getDecryptedToken(validToken));
     Spreadsheet spreadsheet = sheetsService.spreadsheets().get(sheetId).execute();
     List<Sheet> sheets = spreadsheet.getSheets();
     boolean foundTab = sheets.stream()
@@ -299,7 +314,7 @@ public class GoogleServiceUtil {
     HttpTransport httpTransport = new NetHttpTransport();
     JsonFactory jsonFactory = GsonFactory.getDefaultInstance();
     ETRXTokenInfo validToken = getValidAccessTokenOrRefresh(accessToken, accountID);
-    Sheets service = new Sheets.Builder(httpTransport, jsonFactory, bearerTokenInitializer(validToken.getToken()))
+    Sheets service = new Sheets.Builder(httpTransport, jsonFactory, bearerTokenInitializer(getDecryptedToken(validToken)))
         .setApplicationName("Etendo Google Picker Integration")
         .build();
     range = StringUtils.isBlank(range) ? "A1:Z1000" : range;
@@ -393,7 +408,7 @@ public class GoogleServiceUtil {
     HttpURLConnection conn = (HttpURLConnection) url.openConnection();
     conn.setRequestMethod("GET");
     ETRXTokenInfo validToken = getValidAccessTokenOrRefresh(accessToken, accountID);
-    conn.setRequestProperty(AUTHORIZATION, BEARER + validToken.getToken());
+    conn.setRequestProperty(AUTHORIZATION, BEARER + getDecryptedToken(validToken));
     conn.setRequestProperty(ACCEPT, APPLICATION_JSON);
     String errorMessage = Utility.messageBD(new DalConnectionProvider(), "ETRX_ErrorGettingAccessFiles",
         OBContext.getOBContext().getLanguage().getLanguage());
@@ -433,7 +448,7 @@ public class GoogleServiceUtil {
     HttpURLConnection conn = (HttpURLConnection) url.openConnection();
     conn.setRequestMethod("POST");
     ETRXTokenInfo validToken = getValidAccessTokenOrRefresh(accessToken, accountID);
-    conn.setRequestProperty(AUTHORIZATION, BEARER + validToken.getToken());
+    conn.setRequestProperty(AUTHORIZATION, BEARER + getDecryptedToken(validToken));
     conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
     conn.setDoOutput(true);
 
@@ -478,12 +493,12 @@ public class GoogleServiceUtil {
    */
   public static ETRXTokenInfo getValidAccessTokenOrRefresh(ETRXTokenInfo accessToken, String accountId) {
     try {
-      validateAccessToken(accessToken.getToken());
+      validateAccessToken(getDecryptedToken(accessToken));
       return accessToken;
     } catch (OBException e) {
       LOG.warn(Utility.messageBD(new DalConnectionProvider(), "ETRX_RefreshingToken",
           OBContext.getOBContext().getLanguage().getLanguage()));
-      accessToken.setToken(refreshAccessToken(accountId));
+      accessToken.setToken(TokenEncryptionUtil.encrypt(refreshAccessToken(accountId)));
       Date now = new Date();
       Calendar calendar = Calendar.getInstance();
       calendar.setTime(now);
@@ -606,7 +621,7 @@ public class GoogleServiceUtil {
     HttpURLConnection conn = (HttpURLConnection) url.openConnection();
     conn.setRequestMethod("PUT");
     ETRXTokenInfo validToken = getValidAccessTokenOrRefresh(accessToken, accountID);
-    conn.setRequestProperty(AUTHORIZATION, BEARER + validToken.getToken());
+    conn.setRequestProperty(AUTHORIZATION, BEARER + getDecryptedToken(validToken));
     conn.setRequestProperty("Content-Type", APPLICATION_JSON);
     conn.setDoOutput(true);
 
