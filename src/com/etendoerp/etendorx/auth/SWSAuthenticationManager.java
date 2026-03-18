@@ -424,7 +424,7 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
 
     String origin = request.getHeader("Origin");
 
-    if (!StringUtils.isBlank(origin)) {
+    if (!StringUtils.isBlank(origin) && isAllowedOrigin(origin, request)) {
       response.setHeader("Access-Control-Allow-Origin", origin);
       response.setHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
       response.setHeader("Access-Control-Allow-Credentials", "true");
@@ -432,6 +432,35 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
           "Content-Type, origin, accept, X-Requested-With");
       response.setHeader("Access-Control-Max-Age", "1000");
     }
+  }
+
+  /**
+   * Returns true if the given origin is in the allowlist of trusted origins.
+   * Allowed origins are: the middleware URL and the Etendo server's own origin.
+   *
+   * @param origin  the Origin header value from the request
+   * @param request the current HTTP request
+   * @return true if the origin is allowed, false otherwise
+   */
+  private boolean isAllowedOrigin(String origin, HttpServletRequest request) {
+    Properties obProperties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
+
+    // Middleware origin
+    String middlewareUrl = StringUtils.trimToEmpty(obProperties.getProperty("sso.middleware.url"));
+    if (!StringUtils.isBlank(middlewareUrl) && origin.startsWith(middlewareUrl)) {
+      return true;
+    }
+
+    // Etendo server's own origin
+    String etendoOrigin = request.getScheme() + "://" + request.getServerName()
+        + (request.getServerPort() != 80 && request.getServerPort() != 443
+            ? ":" + request.getServerPort() : "");
+    if (origin.equals(etendoOrigin)) {
+      return true;
+    }
+
+    log4j.warn("[CORS] Rejected disallowed origin: {}", origin);
+    return false;
   }
 
   /**

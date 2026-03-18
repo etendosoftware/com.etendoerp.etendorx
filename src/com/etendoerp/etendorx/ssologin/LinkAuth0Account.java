@@ -8,6 +8,7 @@ import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
+import java.util.Properties;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
@@ -24,8 +25,15 @@ import org.openbravo.base.session.OBPropertiesProvider;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBDal;
 
+import com.auth0.jwk.JwkProvider;
+import com.auth0.jwk.UrlJwkProvider;
 import com.auth0.jwt.JWT;
+import com.auth0.jwt.JWTVerifier;
+import com.auth0.jwt.algorithms.Algorithm;
 import com.auth0.jwt.interfaces.DecodedJWT;
+import com.auth0.jwt.interfaces.RSAKeyProvider;
+import com.etendoerp.etendorx.auth.JwkRSAKeyProvider;
+import com.etendoerp.etendorx.auth.SWSAuthenticationManager;
 import com.etendoerp.etendorx.data.ETRXTokenUser;
 
 /**
@@ -59,9 +67,49 @@ public class LinkAuth0Account extends HttpBaseServlet {
   public void doPost(HttpServletRequest req, HttpServletResponse res)
       throws IOException, ServletException {
     String token = getAuthToken(req);
+    try {
+      verifyToken(token);
+    } catch (OBException e) {
+      log4j.error("[LinkAuth0Account] Aborting account linking due to invalid token", e);
+      res.sendRedirect("/" + OBPropertiesProvider.getInstance().getOpenbravoProperties().get("context.name"));
+      return;
+    }
     HashMap<String, String> tokenValues = decodeToken(token);
     matchUser(token, tokenValues.get("sub"));
     res.sendRedirect("/" + OBPropertiesProvider.getInstance().getOpenbravoProperties().get("context.name"));
+  }
+
+  /**
+   * Verifies the JWT signature against the JWKS exposed by the middleware or Auth0.
+   * Throws OBException if the token is invalid, expired, or has a bad signature.
+   *
+   * @param token the JWT to verify
+   */
+  private void verifyToken(String token) {
+    try {
+      Properties obProperties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
+      String authType = obProperties.getProperty("sso.auth.type");
+      String baseURL = StringUtils.equals("Middleware", authType)
+          ? obProperties.getProperty("sso.middleware.url")
+          : "https://" + obProperties.getProperty("sso.domain.url");
+
+      URL jwkURL = new URL(baseURL + "/.well-known/jwks.json");
+      JwkProvider jwkProvider = new UrlJwkProvider(jwkURL);
+
+      DecodedJWT jwt = JWT.decode(token);
+      RSAKeyProvider keyProvider = new JwkRSAKeyProvider(jwkProvider, jwt.getKeyId());
+      Algorithm algorithm = Algorithm.RSA256(keyProvider);
+
+      String issuer = StringUtils.equals("Middleware", authType)
+          ? SWSAuthenticationManager.MIDDLEWARE_ISSUER
+          : baseURL + "/";
+
+      JWTVerifier verifier = JWT.require(algorithm).withIssuer(issuer).build();
+      verifier.verify(token);
+    } catch (Exception e) {
+      log4j.error("[LinkAuth0Account] Token verification failed", e);
+      throw new OBException("Token verification failed during account linking", e);
+    }
   }
 
   /**
