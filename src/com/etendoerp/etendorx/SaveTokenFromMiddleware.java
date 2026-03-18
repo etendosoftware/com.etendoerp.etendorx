@@ -197,7 +197,7 @@ public class SaveTokenFromMiddleware extends HttpBaseServlet {
       Organization currentOrg = OBContext.getOBContext().getCurrentOrganization();
       removeOldTokens(currentUser, currentOrg);
       ETRXTokenInfo newToken = OBProvider.getInstance().get(ETRXTokenInfo.class);
-      newToken.setToken(TokenEncryptionUtil.encrypt(accessTokenParam));
+      newToken.setToken(TokenEncryptionUtil.isKeyConfigured() ? TokenEncryptionUtil.encrypt(accessTokenParam) : accessTokenParam);
       String providerScope = request.getParameter("provider") + " - " + request.getParameter("scope");
       newToken.setMiddlewareProvider(providerScope);
       newToken.setEtrxOauthProvider(middlewareProvider);

@@ -1,17 +1,20 @@
+/*
+ *************************************************************************
+ * The contents of this file are subject to the Etendo License
+ * (the "License"), you may not use this file except in compliance
+ * with the License.
+ * You may obtain a copy of the License at
+ * https://github.com/etendosoftware/etendo_core/blob/main/legal/Etendo_license.txt
+ * Software distributed under the License is distributed on an
+ * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+ * implied. See the License for the specific language governing rights
+ * and limitations under the License.
+ * All portions are Copyright (C) 2021-2024 FUTIT SERVICES, S.L
+ * All Rights Reserved.
+ * Contributor(s): Futit Services S.L.
+ *************************************************************************
+ */
 package com.etendoerp.etendorx.utils;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.mockStatic;
-import static org.mockito.Mockito.when;
-
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
-import java.util.Properties;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,6 +25,21 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.base.session.OBPropertiesProvider;
 
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
+import java.util.Base64;
+import java.util.Properties;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.when;
+
 /**
  * Unit tests for TokenEncryptionUtil: encrypt/decrypt round-trip, format validation,
  * wrong-key failure, invalid ciphertext, and missing/invalid key handling.
@@ -29,9 +47,15 @@ import org.openbravo.base.session.OBPropertiesProvider;
 @ExtendWith(MockitoExtension.class)
 class TokenEncryptionUtilTest {
 
-  /** A valid 64-character hex key (32 bytes) for use in tests. */
+  private static final String ENCRYPTION_KEY_PROPERTY = "etrx.token.encryption.key";
+
+  /**
+   * A valid 64-character hex key (32 bytes) for use in tests.
+   */
   private static final String VALID_KEY = "a".repeat(64);
-  /** A second valid key used to test cross-key decryption failure. */
+  /**
+   * A second valid key used to test cross-key decryption failure.
+   */
   private static final String OTHER_KEY = "b".repeat(64);
 
   private MockedStatic<OBPropertiesProvider> obPropsStatic;
@@ -40,10 +64,10 @@ class TokenEncryptionUtilTest {
   @BeforeEach
   void setUp() {
     props = new Properties();
-    props.setProperty("etrx.token.encryption.key", VALID_KEY);
+    props.setProperty(ENCRYPTION_KEY_PROPERTY, VALID_KEY);
 
     OBPropertiesProvider providerMock = mock(OBPropertiesProvider.class);
-    when(providerMock.getOpenbravoProperties()).thenReturn(props);
+    lenient().when(providerMock.getOpenbravoProperties()).thenReturn(props);
 
     obPropsStatic = mockStatic(OBPropertiesProvider.class);
     obPropsStatic.when(OBPropertiesProvider::getInstance).thenReturn(providerMock);
@@ -64,7 +88,7 @@ class TokenEncryptionUtilTest {
    * Encrypting and then decrypting returns the original plaintext.
    */
   @Test
-  void testEncryptDecrypt_roundTrip_returnsOriginalPlaintext() {
+  void testEncryptDecryptRoundTripReturnsOriginalPlaintext() {
     String plaintext = "my-secret-access-token";
     String ciphertext = TokenEncryptionUtil.encrypt(plaintext);
     String decrypted = TokenEncryptionUtil.decrypt(ciphertext);
@@ -75,7 +99,7 @@ class TokenEncryptionUtilTest {
    * An empty string round-trips cleanly.
    */
   @Test
-  void testEncryptDecrypt_roundTrip_emptyString() {
+  void testEncryptDecryptRoundTripEmptyString() {
     String ciphertext = TokenEncryptionUtil.encrypt("");
     assertEquals("", TokenEncryptionUtil.decrypt(ciphertext));
   }
@@ -84,7 +108,7 @@ class TokenEncryptionUtilTest {
    * A long token string (1 000 chars) round-trips cleanly.
    */
   @Test
-  void testEncryptDecrypt_roundTrip_longString() {
+  void testEncryptDecryptRoundTripLongString() {
     String longToken = "x".repeat(1000);
     assertEquals(longToken, TokenEncryptionUtil.decrypt(TokenEncryptionUtil.encrypt(longToken)));
   }
@@ -93,7 +117,7 @@ class TokenEncryptionUtilTest {
    * Unicode content round-trips cleanly.
    */
   @Test
-  void testEncryptDecrypt_roundTrip_unicode() {
+  void testEncryptDecryptRoundTripUnicode() {
     String unicode = "token-\u00e9\u00e0\u00fc-\u4e2d\u6587";
     assertEquals(unicode, TokenEncryptionUtil.decrypt(TokenEncryptionUtil.encrypt(unicode)));
   }
@@ -106,7 +130,7 @@ class TokenEncryptionUtilTest {
    * Ciphertext has exactly two colon-separated segments (base64(iv):base64(ciphertext+authTag)).
    */
   @Test
-  void testEncrypt_outputFormat_twoColonSeparatedSegments() {
+  void testEncryptOutputFormatTwoColonSeparatedSegments() {
     String ciphertext = TokenEncryptionUtil.encrypt("hello");
     String[] parts = ciphertext.split(":", 2);
     assertEquals(2, parts.length,
@@ -117,7 +141,7 @@ class TokenEncryptionUtilTest {
    * Both segments are non-empty Base64 strings.
    */
   @Test
-  void testEncrypt_outputFormat_nonEmptyBase64Segments() {
+  void testEncryptOutputFormatNonEmptyBase64Segments() {
     String ciphertext = TokenEncryptionUtil.encrypt("hello");
     String[] parts = ciphertext.split(":", 2);
     assertTrue(parts[0].length() > 0, "IV segment must not be empty");
@@ -132,7 +156,7 @@ class TokenEncryptionUtilTest {
    * Encrypting the same plaintext twice yields different ciphertexts (random IV).
    */
   @Test
-  void testEncrypt_randomIV_differentCiphertextsForSamePlaintext() {
+  void testEncryptRandomIVDifferentCiphertextsForSamePlaintext() {
     String c1 = TokenEncryptionUtil.encrypt("same-plaintext");
     String c2 = TokenEncryptionUtil.encrypt("same-plaintext");
     assertNotEquals(c1, c2,
@@ -147,11 +171,11 @@ class TokenEncryptionUtilTest {
    * Decrypting with a different key returns null.
    */
   @Test
-  void testDecrypt_wrongKey_returnsNull() {
+  void testDecryptWrongKeyReturnsNull() {
     String ciphertext = TokenEncryptionUtil.encrypt("secret");
 
     // Switch to a different key
-    props.setProperty("etrx.token.encryption.key", OTHER_KEY);
+    props.setProperty(ENCRYPTION_KEY_PROPERTY, OTHER_KEY);
 
     assertNull(TokenEncryptionUtil.decrypt(ciphertext),
         "decrypt() must return null when the key differs from the one used to encrypt");
@@ -165,7 +189,7 @@ class TokenEncryptionUtilTest {
    * A ciphertext with no colon (single segment) returns null.
    */
   @Test
-  void testDecrypt_invalidInput_noColon_returnsNull() {
+  void testDecryptInvalidInputNoColonReturnsNull() {
     assertNull(TokenEncryptionUtil.decrypt("notvalidatall"));
   }
 
@@ -173,7 +197,7 @@ class TokenEncryptionUtilTest {
    * A ciphertext with a corrupted payload (zeros) returns null due to GCM auth-tag failure.
    */
   @Test
-  void testDecrypt_invalidInput_corruptedPayload_returnsNull() {
+  void testDecryptInvalidInputCorruptedPayloadReturnsNull() {
     String ciphertext = TokenEncryptionUtil.encrypt("data");
     String[] parts = ciphertext.split(":", 2);
     // Replace the ciphertext+authTag segment with zeros of the same length
@@ -185,7 +209,7 @@ class TokenEncryptionUtilTest {
    * An empty string returns null.
    */
   @Test
-  void testDecrypt_invalidInput_emptyString_returnsNull() {
+  void testDecryptInvalidInputEmptyStringReturnsNull() {
     assertNull(TokenEncryptionUtil.decrypt(""));
   }
 
@@ -197,8 +221,8 @@ class TokenEncryptionUtilTest {
    * encrypt() throws OBException when the property is not set.
    */
   @Test
-  void testEncrypt_missingKey_throwsOBException() {
-    props.remove("etrx.token.encryption.key");
+  void testEncryptMissingKeyThrowsOBException() {
+    props.remove(ENCRYPTION_KEY_PROPERTY);
     assertThrows(OBException.class, () -> TokenEncryptionUtil.encrypt("test"),
         "encrypt() must throw OBException when etrx.token.encryption.key is not set");
   }
@@ -207,8 +231,8 @@ class TokenEncryptionUtilTest {
    * encrypt() throws OBException when the key is shorter than 64 chars.
    */
   @Test
-  void testEncrypt_shortKey_throwsOBException() {
-    props.setProperty("etrx.token.encryption.key", "tooshort");
+  void testEncryptShortKeyThrowsOBException() {
+    props.setProperty(ENCRYPTION_KEY_PROPERTY, "tooshort");
     assertThrows(OBException.class, () -> TokenEncryptionUtil.encrypt("test"),
         "encrypt() must throw OBException when the key is shorter than 64 chars");
   }
@@ -217,8 +241,8 @@ class TokenEncryptionUtilTest {
    * encrypt() throws OBException when the key is longer than 64 chars.
    */
   @Test
-  void testEncrypt_longKey_throwsOBException() {
-    props.setProperty("etrx.token.encryption.key", "a".repeat(65));
+  void testEncryptLongKeyThrowsOBException() {
+    props.setProperty(ENCRYPTION_KEY_PROPERTY, "a".repeat(65));
     assertThrows(OBException.class, () -> TokenEncryptionUtil.encrypt("test"),
         "encrypt() must throw OBException when the key is longer than 64 chars");
   }
@@ -227,9 +251,9 @@ class TokenEncryptionUtilTest {
    * decrypt() returns null when the property is not set (key lookup throws; catch returns null).
    */
   @Test
-  void testDecrypt_missingKey_returnsNull() {
+  void testDecryptMissingKeyReturnsNull() {
     String ciphertext = TokenEncryptionUtil.encrypt("test");
-    props.remove("etrx.token.encryption.key");
+    props.remove(ENCRYPTION_KEY_PROPERTY);
     assertNull(TokenEncryptionUtil.decrypt(ciphertext),
         "decrypt() must return null when etrx.token.encryption.key is not set");
   }
@@ -244,7 +268,7 @@ class TokenEncryptionUtilTest {
    * this must be caught and return null rather than propagating.
    */
   @Test
-  void testDecrypt_withNonBase64IvSegment_returnsNull() {
+  void testDecryptWithNonBase64IvSegmentReturnsNull() {
     // "!!!not-base64!!!" is not valid Base64 — Base64.getDecoder().decode() throws IllegalArgumentException
     // This should be caught and return null
     assertNull(TokenEncryptionUtil.decrypt("!!!not-base64!!!:validBase64Payload=="));
@@ -254,7 +278,7 @@ class TokenEncryptionUtilTest {
    * A ciphertext whose payload segment is not valid Base64 returns null.
    */
   @Test
-  void testDecrypt_withNonBase64PayloadSegment_returnsNull() {
+  void testDecryptWithNonBase64PayloadSegmentReturnsNull() {
     String validIv = Base64.getEncoder().encodeToString(new byte[12]);
     assertNull(TokenEncryptionUtil.decrypt(validIv + ":!!!not-base64!!!"));
   }
@@ -267,7 +291,7 @@ class TokenEncryptionUtilTest {
    * Attempting to instantiate TokenEncryptionUtil via reflection throws IllegalStateException.
    */
   @Test
-  void testConstructor_throwsIllegalStateException() throws Exception {
+  void testConstructorThrowsIllegalStateException() throws Exception {
     Constructor<TokenEncryptionUtil> constructor =
         TokenEncryptionUtil.class.getDeclaredConstructor();
     constructor.setAccessible(true);

@@ -60,6 +60,7 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
   public static final String MIDDLEWARE_ISSUER = "https://etendo-sso.us.auth0.com/";
   public static final String CONTEXT_NAME = "context.name";
   public static final String SSO_AUTH_TYPE = "sso.auth.type";
+  private static final String SSO_MIDDLEWARE_URL = "sso.middleware.url";
   private static final Logger log4j = LogManager.getLogger();
   private static final String INVALID_TOKEN_MESSAGE = "SWS - Token is not valid";
   private static final String ACCESS_TOKEN = "access_token";
@@ -126,14 +127,34 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
    */
   private static void printPageError(String title, String description, HttpServletRequest request,
                                      HttpServletResponse response) throws IOException {
+    printPageError(title, description, null, request, response);
+  }
+
+  /**
+   * Redirects the user to a custom error page with a provided title, description, and optional
+   * error type hint.
+   * <p>
+   * When {@code errorType} is {@code "config"}, the error page hides the re-login button and
+   * shows a "Contact your administrator" note instead, because the user cannot resolve a server
+   * misconfiguration error on their own.
+   *
+   * @param title       The title of the error message to be displayed on the error page.
+   * @param description The detailed description of the error.
+   * @param errorType   An optional hint for the error page UI (e.g. {@code "config"}). May be null.
+   * @param request     The {@link HttpServletRequest} used to extract the base URL and context.
+   * @param response    The {@link HttpServletResponse} used to send the redirect to the error page.
+   * @throws IOException If the response cannot be written or redirected properly.
+   */
+  private static void printPageError(String title, String description, String errorType,
+                                     HttpServletRequest request,
+                                     HttpServletResponse response) throws IOException {
     final Properties openbravoProperties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
     String authType = ((String) openbravoProperties.get(SSO_AUTH_TYPE)).trim();
     String logoutRedirectUri = StringUtils.remove(request.getRequestURL().toString(),
         request.getServletPath()).trim();
     String contextName = ((String) openbravoProperties.get(CONTEXT_NAME)).trim();
     String titleStr = URLEncoder.encode(title, StandardCharsets.UTF_8);
-    String descriptionStr = URLEncoder.encode(description,
-        StandardCharsets.UTF_8);
+    String descriptionStr = URLEncoder.encode(description, StandardCharsets.UTF_8);
     String errorUrl = String.format("/%s/web/com.etendoerp.etendorx/resources/Auth0ErrorPage.html"
             + "?logoutRedirectUri=%s&title=%s&description=%s&authType=%s",
         contextName,
@@ -141,6 +162,9 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
         titleStr,
         descriptionStr,
         authType);
+    if (!StringUtils.isBlank(errorType)) {
+      errorUrl += "&errorType=" + URLEncoder.encode(errorType, StandardCharsets.UTF_8);
+    }
 
     response.setStatus(HttpServletResponse.SC_FOUND);
     response.setHeader("Location", errorUrl);
@@ -249,7 +273,7 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
           errorDescription
       );
     } else {
-      String middlewareUrl = ((String) openbravoProperties.get("sso.middleware.url")).trim();
+      String middlewareUrl = ((String) openbravoProperties.get(SSO_MIDDLEWARE_URL)).trim();
       ssoNoUserLinkURL = String.format(
           "/%s/web/com.etendoerp.etendorx/resources/Auth0ErrorPage.html"
               + "?authType=Middleware"
@@ -447,8 +471,8 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
     Properties obProperties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
 
     // Middleware origin
-    String middlewareUrl = StringUtils.trimToEmpty(obProperties.getProperty("sso.middleware.url"));
-    if (!StringUtils.isBlank(middlewareUrl) && origin.startsWith(middlewareUrl)) {
+    String middlewareUrl = StringUtils.trimToEmpty(obProperties.getProperty(SSO_MIDDLEWARE_URL));
+    if (!StringUtils.isBlank(middlewareUrl) && origin.equals(middlewareUrl.replaceAll("/$", ""))) {
       return true;
     }
 
@@ -688,7 +712,7 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
       Properties obProperties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
       String integrationType = obProperties.getProperty(SSO_AUTH_TYPE);
       String baseURL = StringUtils.equals("Middleware", integrationType) ? obProperties.getProperty(
-          "sso.middleware.url") :
+          SSO_MIDDLEWARE_URL) :
           "https://" + obProperties.getProperty(SSO_DOMAIN_URL);
       URL jwkURL = new URL(baseURL + "/.well-known/jwks.json");
       JwkProvider provider = new UrlJwkProvider(jwkURL);
@@ -724,7 +748,7 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
       OBContext.setAdminMode(true);
       ETRXTokenUser tokenUser = getTokenUser(sub);
       if (tokenUser != null) {
-        tokenUser.setOAuthToken(TokenEncryptionUtil.encrypt(token));
+        tokenUser.setOAuthToken(TokenEncryptionUtil.isKeyConfigured() ? TokenEncryptionUtil.encrypt(token) : token);
       } else {
         return null;
       }

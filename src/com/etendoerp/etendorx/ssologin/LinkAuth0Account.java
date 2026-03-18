@@ -24,6 +24,8 @@ import org.openbravo.base.provider.OBProvider;
 import org.openbravo.base.session.OBPropertiesProvider;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBDal;
+import org.openbravo.erpCommon.utility.Utility;
+import org.openbravo.service.db.DalConnectionProvider;
 
 import com.auth0.jwk.JwkProvider;
 import com.auth0.jwk.UrlJwkProvider;
@@ -41,6 +43,9 @@ import com.etendoerp.etendorx.utils.TokenEncryptionUtil;
  * This class handles the linking of Auth0 accounts with the application.
  */
 public class LinkAuth0Account extends HttpBaseServlet {
+
+  public static final String MIDDLEWARE = "Middleware";
+  public static final String ETENDO = "etendo";
 
   /**
    * Handles GET requests by delegating to the doPost method.
@@ -72,12 +77,12 @@ public class LinkAuth0Account extends HttpBaseServlet {
       verifyToken(token);
     } catch (OBException e) {
       log4j.error("[LinkAuth0Account] Aborting account linking due to invalid token", e);
-      res.sendRedirect("/" + OBPropertiesProvider.getInstance().getOpenbravoProperties().get("context.name"));
+      res.sendRedirect("/" + OBPropertiesProvider.getInstance().getOpenbravoProperties().getProperty(SWSAuthenticationManager.CONTEXT_NAME, ETENDO));
       return;
     }
     HashMap<String, String> tokenValues = decodeToken(token);
     matchUser(token, tokenValues.get("sub"));
-    res.sendRedirect("/" + OBPropertiesProvider.getInstance().getOpenbravoProperties().get("context.name"));
+    res.sendRedirect("/" + OBPropertiesProvider.getInstance().getOpenbravoProperties().getProperty(SWSAuthenticationManager.CONTEXT_NAME, ETENDO));
   }
 
   /**
@@ -89,10 +94,18 @@ public class LinkAuth0Account extends HttpBaseServlet {
   private void verifyToken(String token) {
     try {
       Properties obProperties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
-      String authType = obProperties.getProperty("sso.auth.type");
-      String baseURL = StringUtils.equals("Middleware", authType)
-          ? obProperties.getProperty("sso.middleware.url")
-          : "https://" + obProperties.getProperty("sso.domain.url");
+      String authType = obProperties.getProperty(SWSAuthenticationManager.SSO_AUTH_TYPE);
+      String middlewareUrl = obProperties.getProperty("sso.middleware.url", "");
+      String domainUrl = obProperties.getProperty("sso.domain.url", "");
+      if (StringUtils.equals(MIDDLEWARE, authType) && StringUtils.isBlank(middlewareUrl)) {
+        throw new OBException("[LinkAuth0Account] Property 'sso.middleware.url' is not configured");
+      }
+      if (!StringUtils.equals(MIDDLEWARE, authType) && StringUtils.isBlank(domainUrl)) {
+        throw new OBException("[LinkAuth0Account] Property 'sso.domain.url' is not configured");
+      }
+      String baseURL = StringUtils.equals(MIDDLEWARE, authType)
+          ? middlewareUrl
+          : "https://" + domainUrl;
 
       URL jwkURL = new URL(baseURL + "/.well-known/jwks.json");
       JwkProvider jwkProvider = new UrlJwkProvider(jwkURL);
@@ -101,7 +114,7 @@ public class LinkAuth0Account extends HttpBaseServlet {
       RSAKeyProvider keyProvider = new JwkRSAKeyProvider(jwkProvider, jwt.getKeyId());
       Algorithm algorithm = Algorithm.RSA256(keyProvider);
 
-      String issuer = StringUtils.equals("Middleware", authType)
+      String issuer = StringUtils.equals(MIDDLEWARE, authType)
           ? SWSAuthenticationManager.MIDDLEWARE_ISSUER
           : baseURL + "/";
 
@@ -132,7 +145,7 @@ public class LinkAuth0Account extends HttpBaseServlet {
       }
       tokenUser = OBProvider.getInstance().get(ETRXTokenUser.class);
       tokenUser.setSub(sub);
-      tokenUser.setOAuthToken(TokenEncryptionUtil.encrypt(token));
+      tokenUser.setOAuthToken(TokenEncryptionUtil.isKeyConfigured() ? TokenEncryptionUtil.encrypt(token) : token);
       String[] provider = StringUtils.split(sub, "|");
       tokenUser.setTokenProvider(provider[0]);
       tokenUser.setUserForToken(OBContext.getOBContext().getUser());
@@ -171,7 +184,7 @@ public class LinkAuth0Account extends HttpBaseServlet {
    * @return the authentication token
    */
   private String getAuthToken(HttpServletRequest request) {
-    String authType = OBPropertiesProvider.getInstance().getOpenbravoProperties().getProperty("sso.auth.type");
+    String authType = OBPropertiesProvider.getInstance().getOpenbravoProperties().getProperty(SWSAuthenticationManager.SSO_AUTH_TYPE);
     return StringUtils.equals("Auth0", authType) ? getTokenFromAuth0(request) : request.getParameter("access_token");
   }
 

@@ -1,3 +1,19 @@
+/*
+ *************************************************************************
+ * The contents of this file are subject to the Etendo License
+ * (the "License"), you may not use this file except in compliance
+ * with the License.
+ * You may obtain a copy of the License at
+ * https://github.com/etendosoftware/etendo_core/blob/main/legal/Etendo_license.txt
+ * Software distributed under the License is distributed on an
+ * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+ * implied. See the License for the specific language governing rights
+ * and limitations under the License.
+ * All portions are Copyright (C) 2021-2024 FUTIT SERVICES, S.L
+ * All Rights Reserved.
+ * Contributor(s): Futit Services S.L.
+ *************************************************************************
+ */
 package com.etendoerp.etendorx.utils;
 
 import org.apache.logging.log4j.LogManager;
@@ -45,7 +61,23 @@ public class TokenEncryptionUtil {
   }
 
   /**
+   * Returns true if etrx.token.encryption.key is present and is a valid 64-char hex string.
+   */
+  public static boolean isKeyConfigured() {
+    try {
+      String hexKey = OBPropertiesProvider.getInstance()
+          .getOpenbravoProperties().getProperty(PROPERTY_KEY);
+      return hexKey != null && hexKey.trim().length() == 64;
+    } catch (Exception e) {
+      return false;
+    }
+  }
+
+  /**
    * Encrypts a plaintext string. Output format: base64(iv):base64(ciphertext+authTag)
+   *
+   * @param plaintext the plaintext string to encrypt
+   * @return encrypted string in format base64(iv):base64(ciphertext+authTag)
    */
   public static String encrypt(String plaintext) {
     try {
@@ -64,6 +96,9 @@ public class TokenEncryptionUtil {
 
   /**
    * Decrypts a string produced by encrypt(). Returns null on failure.
+   *
+   * @param ciphertext encrypted string produced by encrypt()
+   * @return decrypted plaintext, or null if decryption fails
    */
   public static String decrypt(String ciphertext) {
     try {

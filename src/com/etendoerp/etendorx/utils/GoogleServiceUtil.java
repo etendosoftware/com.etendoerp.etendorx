@@ -80,9 +80,16 @@ public class GoogleServiceUtil {
    * @throws OBException if decryption fails
    */
   private static String getDecryptedToken(ETRXTokenInfo tokenInfo) {
-    String decrypted = TokenEncryptionUtil.decrypt(tokenInfo.getToken());
-    if (decrypted == null) {
-      throw new OBException("[GoogleServiceUtil] Failed to decrypt token for record: " + tokenInfo.getId());
+    String rawToken = tokenInfo.getToken();
+    String decrypted;
+    if (TokenEncryptionUtil.isKeyConfigured()) {
+      decrypted = TokenEncryptionUtil.decrypt(rawToken);
+      if (decrypted == null) {
+        // Key is configured but decrypt failed — fall back to raw (legacy plain-text stored before encryption was configured)
+        decrypted = rawToken;
+      }
+    } else {
+      decrypted = rawToken;
     }
     return decrypted;
   }
@@ -498,7 +505,7 @@ public class GoogleServiceUtil {
     } catch (OBException e) {
       LOG.warn(Utility.messageBD(new DalConnectionProvider(), "ETRX_RefreshingToken",
           OBContext.getOBContext().getLanguage().getLanguage()));
-      accessToken.setToken(TokenEncryptionUtil.encrypt(refreshAccessToken(accountId)));
+      accessToken.setToken(TokenEncryptionUtil.isKeyConfigured() ? TokenEncryptionUtil.encrypt(refreshAccessToken(accountId)) : refreshAccessToken(accountId));
       Date now = new Date();
       Calendar calendar = Calendar.getInstance();
       calendar.setTime(now);

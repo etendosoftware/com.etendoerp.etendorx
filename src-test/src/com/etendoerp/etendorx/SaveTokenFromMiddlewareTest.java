@@ -2,6 +2,7 @@ package com.etendoerp.etendorx;
 
 import com.etendoerp.etendorx.data.ETRXTokenInfo;
 import com.etendoerp.etendorx.data.ETRXoAuthProvider;
+import com.etendoerp.etendorx.utils.TokenEncryptionUtil;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -30,6 +31,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
@@ -42,12 +44,19 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class SaveTokenFromMiddlewareTest {
 
+  private static final String CONTEXT_NAME = "myContext";
+  private static final String LANG_EN_US = "en_US";
+  private static final String PARAM_ERROR = "error";
+  private static final String PARAM_ERROR_DESC = "error_description";
+  private static final String PARAM_ACCESS_TOKEN = "access_token";
+
   private MockedStatic<OBPropertiesProvider> obPropsStatic;
   private MockedStatic<Utility> utilityStatic;
   private MockedStatic<OBContext> obContextStatic;
   private MockedStatic<OBProvider> obProviderStatic;
   private MockedStatic<OBDal> obDalStatic;
   private MockedStatic<SaveTokenFromMiddleware> middlewareStatic;
+  private MockedStatic<TokenEncryptionUtil> tokenEncryptionStatic;
 
   @AfterEach
   void tearDown() {
@@ -57,38 +66,48 @@ class SaveTokenFromMiddlewareTest {
     if (obProviderStatic != null) obProviderStatic.close();
     if (obDalStatic != null) obDalStatic.close();
     if (middlewareStatic != null) middlewareStatic.close();
+    if (tokenEncryptionStatic != null) tokenEncryptionStatic.close();
+  }
+
+  private void mockTokenEncryption() {
+    tokenEncryptionStatic = mockStatic(TokenEncryptionUtil.class);
+    tokenEncryptionStatic.when(TokenEncryptionUtil::isKeyConfigured).thenReturn(true);
+    tokenEncryptionStatic.when(() -> TokenEncryptionUtil.encrypt(anyString()))
+        .thenAnswer(inv -> "encrypted:" + inv.getArgument(0));
   }
 
   @Test
-  void testDoGet_whenSaveSucceeds_redirectsWithSuccessUrl() throws Exception {
+  void testDoGetWhenSaveSucceedsRedirectsWithSuccessUrl() throws Exception {
     HttpServletRequest request = mockRequest("token123", "MyProvider", "read write");
     HttpServletResponse response = mock(HttpServletResponse.class);
 
-    mockProperties("myContext");
+    mockProperties(CONTEXT_NAME);
     mockUtilityMessages("CREATED", "DESCRIPTION");
-    mockContextLanguage("en_US");
+    mockContextLanguage(LANG_EN_US);
+    mockTokenEncryption();
     mockOBProviderTokenInfo();
     mockOBDalSaveSuccess();
     mockGetETRXoAuthProvider();
 
     new SaveTokenFromMiddleware().doGet(request, response);
 
-    String expectedUrl = buildUrl("myContext", "CREATED", "DESCRIPTION", SaveTokenFromMiddleware.SUCCESS_ICON, SaveTokenFromMiddleware.GREEN);
+    String expectedUrl = buildUrl(CONTEXT_NAME, "CREATED", "DESCRIPTION", SaveTokenFromMiddleware.SUCCESS_ICON, SaveTokenFromMiddleware.GREEN);
     verify(response).sendRedirect(expectedUrl);
     verify(response).flushBuffer();
     verify(response, never()).setHeader(eq("Location"), anyString());
   }
 
   @Test
-  void testDoGet_whenSaveThrowsOBException_redirectsWithErrorUrl() throws Exception {
+  void testDoGetWhenSaveThrowsOBExceptionRedirectsWithErrorUrl() throws Exception {
     HttpServletRequest request = mockRequest("tokenError", "ProviderX", "scopeX");
     HttpServletResponse response = mock(HttpServletResponse.class);
 
     mockProperties("errorContext");
     mockUtilityMessages("FAIL", "FAILDESC");
     mockContextLanguage("es_ES");
+    mockTokenEncryption();
     mockOBProviderTokenInfo();
-    var dalMock = mockOBDalSaveThrows();
+    var dalMock = mockOBDalSaveThrows(); // NOSONAR - dalMock used via OBDal static mock
     mockGetETRXoAuthProvider();
 
     new SaveTokenFromMiddleware().doGet(request, response);
@@ -105,46 +124,21 @@ class SaveTokenFromMiddlewareTest {
    * and never reaches the DB save path.
    */
   @Test
-  void testDoGet_whenAccessTokenIsBlank_redirectsWithMissingParamsError() throws Exception {
+  void testDoGetWhenAccessTokenIsBlankRedirectsWithMissingParamsError() throws Exception {
     HttpServletRequest request = mock(HttpServletRequest.class);
-    when(request.getParameter("error")).thenReturn(null);
-    when(request.getParameter("error_description")).thenReturn(null);
-    when(request.getParameter("access_token")).thenReturn("");  // blank
-    when(request.getParameter("refresh_token")).thenReturn("some-refresh-token");
+    when(request.getParameter(PARAM_ERROR)).thenReturn(null);
+    when(request.getParameter(PARAM_ERROR_DESC)).thenReturn(null);
+    when(request.getParameter(PARAM_ACCESS_TOKEN)).thenReturn("");  // blank
     HttpServletResponse response = mock(HttpServletResponse.class);
 
-    mockProperties("myContext");
-    mockContextLanguage("en_US");
+    mockProperties(CONTEXT_NAME);
+    mockContextLanguage(LANG_EN_US);
+    mockTokenEncryption();
 
     new SaveTokenFromMiddleware().doGet(request, response);
 
-    String expectedUrl = buildUrl("myContext", "Missing Parameters",
-        "access_token and refresh_token are required",
-        SaveTokenFromMiddleware.ERROR_ICON, SaveTokenFromMiddleware.RED);
-    verify(response).sendRedirect(expectedUrl);
-    verify(response).flushBuffer();
-  }
-
-  /**
-   * When refresh_token parameter is blank the null-guard redirects with a "Missing Parameters" error
-   * and never reaches the DB save path.
-   */
-  @Test
-  void testDoGet_whenRefreshTokenIsBlank_redirectsWithMissingParamsError() throws Exception {
-    HttpServletRequest request = mock(HttpServletRequest.class);
-    when(request.getParameter("error")).thenReturn(null);
-    when(request.getParameter("error_description")).thenReturn(null);
-    when(request.getParameter("access_token")).thenReturn("some-access-token");
-    when(request.getParameter("refresh_token")).thenReturn(null);  // null == blank
-    HttpServletResponse response = mock(HttpServletResponse.class);
-
-    mockProperties("myContext");
-    mockContextLanguage("en_US");
-
-    new SaveTokenFromMiddleware().doGet(request, response);
-
-    String expectedUrl = buildUrl("myContext", "Missing Parameters",
-        "access_token and refresh_token are required",
+    String expectedUrl = buildUrl(CONTEXT_NAME, "Missing Parameters",
+        "access_token is required",
         SaveTokenFromMiddleware.ERROR_ICON, SaveTokenFromMiddleware.RED);
     verify(response).sendRedirect(expectedUrl);
     verify(response).flushBuffer();
@@ -155,34 +149,34 @@ class SaveTokenFromMiddlewareTest {
    * formatted error title derived from the error code, without attempting to save any token.
    */
   @Test
-  void testDoGet_whenOAuthErrorParamPresent_redirectsWithFormattedError() throws Exception {
+  void testDoGetWhenOAuthErrorParamPresentRedirectsWithFormattedError() throws Exception {
     HttpServletRequest request = mock(HttpServletRequest.class);
-    when(request.getParameter("error")).thenReturn("access_denied");
-    when(request.getParameter("error_description")).thenReturn("User denied access");
+    when(request.getParameter(PARAM_ERROR)).thenReturn("access_denied");
+    when(request.getParameter(PARAM_ERROR_DESC)).thenReturn("User denied access");
     HttpServletResponse response = mock(HttpServletResponse.class);
 
-    mockProperties("myContext");
-    mockContextLanguage("en_US");
+    mockProperties(CONTEXT_NAME);
+    mockContextLanguage(LANG_EN_US);
+    mockTokenEncryption();
 
     new SaveTokenFromMiddleware().doGet(request, response);
 
     // "access_denied" formatted → "Access Denied"
-    String expectedUrl = buildUrl("myContext", "Access Denied", "User denied access",
+    String expectedUrl = buildUrl(CONTEXT_NAME, "Access Denied", "User denied access",
         SaveTokenFromMiddleware.ERROR_ICON, SaveTokenFromMiddleware.RED);
     verify(response).sendRedirect(expectedUrl);
     verify(response).flushBuffer();
     // Must not attempt to read access_token or interact with DB
-    verify(request, never()).getParameter("access_token");
+    verify(request, never()).getParameter(PARAM_ACCESS_TOKEN);
   }
 
   private HttpServletRequest mockRequest(String token, String provider, String scope) {
     HttpServletRequest req = mock(HttpServletRequest.class);
-    when(req.getParameter("access_token")).thenReturn(token);
-    when(req.getParameter("refresh_token")).thenReturn("dummy-refresh-token");
+    when(req.getParameter(PARAM_ACCESS_TOKEN)).thenReturn(token);
     when(req.getParameter("provider")).thenReturn(provider);
     when(req.getParameter("scope")).thenReturn(scope);
-    when(req.getParameter("error")).thenReturn(null);
-    when(req.getParameter("error_description")).thenReturn(null);
+    when(req.getParameter(PARAM_ERROR)).thenReturn(null);
+    when(req.getParameter(PARAM_ERROR_DESC)).thenReturn(null);
 
     return req;
   }
@@ -207,9 +201,9 @@ class SaveTokenFromMiddlewareTest {
   private void mockContextLanguage(String languageCode) {
     var contextMock = mock(OBContext.class);
     var langMock = mock(Language.class);
-    when(langMock.getLanguage()).thenReturn(languageCode);
-    when(contextMock.getLanguage()).thenReturn(langMock);
-    when(contextMock.getUser()).thenReturn(mock(org.openbravo.model.ad.access.User.class));
+    lenient().when(langMock.getLanguage()).thenReturn(languageCode);
+    lenient().when(contextMock.getLanguage()).thenReturn(langMock);
+    lenient().when(contextMock.getUser()).thenReturn(mock(org.openbravo.model.ad.access.User.class));
 
     obContextStatic = mockStatic(OBContext.class);
     // Stub both the no-arg setAdminMode() used by doGet's try block and the boolean overload

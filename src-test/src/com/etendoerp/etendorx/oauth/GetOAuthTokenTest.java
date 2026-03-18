@@ -27,6 +27,7 @@ import org.openbravo.model.ad.access.User;
 
 import com.etendoerp.etendorx.data.ETRXTokenInfo;
 import com.etendoerp.etendorx.utils.GoogleServiceUtil;
+import com.etendoerp.etendorx.utils.TokenEncryptionUtil;
 
 class GetOAuthTokenTest {
 
@@ -34,6 +35,7 @@ class GetOAuthTokenTest {
   private MockedStatic<OBContext> obContextMockedStatic;
   private MockedStatic<SystemInfo> systemInfoMockedStatic;
   private MockedStatic<GoogleServiceUtil> googleServiceUtilMockedStatic;
+  private MockedStatic<TokenEncryptionUtil> tokenEncryptionUtilMockedStatic;
 
   private GetOAuthToken servlet;
   private HttpServletRequest request;
@@ -46,6 +48,11 @@ class GetOAuthTokenTest {
     obContextMockedStatic = mockStatic(OBContext.class);
     systemInfoMockedStatic = mockStatic(SystemInfo.class);
     googleServiceUtilMockedStatic = mockStatic(GoogleServiceUtil.class);
+    tokenEncryptionUtilMockedStatic = mockStatic(TokenEncryptionUtil.class);
+    tokenEncryptionUtilMockedStatic.when(TokenEncryptionUtil::isKeyConfigured).thenReturn(true);
+    // decrypt() returns its input so assertions that check for the token value remain valid
+    tokenEncryptionUtilMockedStatic.when(() -> TokenEncryptionUtil.decrypt(anyString()))
+        .thenAnswer(inv -> inv.getArgument(0));
 
     servlet = new GetOAuthToken();
     request = mock(HttpServletRequest.class);
@@ -60,6 +67,7 @@ class GetOAuthTokenTest {
     obContextMockedStatic.close();
     systemInfoMockedStatic.close();
     googleServiceUtilMockedStatic.close();
+    tokenEncryptionUtilMockedStatic.close();
   }
 
   @Test
