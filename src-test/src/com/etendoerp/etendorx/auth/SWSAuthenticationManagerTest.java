@@ -262,6 +262,13 @@ public class SWSAuthenticationManagerTest extends WeldBaseTest {
   /**
    * Tests the valid token and user authentication flow with successful session creation.
    *
+   * <p>The ETRX_AllowSSOLogin preference is explicitly set to "N" (SSO disabled via
+   * client-level opt-out), which is the mechanism clients use to disable SSO now that
+   * the default has changed from "N" (opt-in) to "Y" (opt-out). Because the request
+   * carries an OAUTH2 legacy access_token (not an SSO code) and sso.auth.type is not
+   * configured, the SSO branch is never entered and the legacy authentication path
+   * succeeds as normal.
+   *
    * @throws Exception
    *     if an error occurs during the test
    */
@@ -290,6 +297,7 @@ public class SWSAuthenticationManagerTest extends WeldBaseTest {
       when(mockPropertiesProvider.getOpenbravoProperties()).thenReturn(props);
       when(props.getProperty("OAUTH2_SECRET")).thenReturn("secret");
       when(props.getProperty("OAUTH2_ISSUER")).thenReturn("issuer");
+      // sso.auth.type not set → isSSOLoginAttempt() returns false → SSO branch skipped
 
       when(mockOBDal.createCriteria(User.class)).thenReturn(criteria);
       when(criteria.add(any())).thenReturn(criteria);
@@ -299,6 +307,8 @@ public class SWSAuthenticationManagerTest extends WeldBaseTest {
       when(criteria.uniqueResult()).thenReturn(mockUser);
       when(mockUser.getId()).thenReturn(USER_ID_123);
 
+      // Preference with value "N" represents a client-level opt-out of SSO
+      // (the new opt-out model: create preference with "N" to disable SSO).
       when(mockOBDal.createCriteria(Preference.class)).thenReturn(criteriaPref);
       when(criteriaPref.add(any())).thenReturn(criteriaPref);
       when(criteriaPref.setFilterOnReadableClients(false)).thenReturn(criteriaPref);

@@ -176,9 +176,9 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
           .setFilterOnReadableClients(false)
           .setFilterOnReadableOrganization(false)
           .setMaxResults(1).uniqueResult();
-      return allowSSOPref != null ? allowSSOPref.getSearchKey() : "N";
+      return allowSSOPref != null ? allowSSOPref.getSearchKey() : "Y";
     } catch (OBSecurityException e) {
-      return null;
+      return "Y";
     }
   }
 
