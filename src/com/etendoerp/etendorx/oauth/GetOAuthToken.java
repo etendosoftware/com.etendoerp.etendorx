@@ -2,6 +2,7 @@ package com.etendoerp.etendorx.oauth;
 
 import com.etendoerp.etendorx.data.ETRXTokenInfo;
 import com.etendoerp.etendorx.utils.GoogleServiceUtil;
+import com.etendoerp.etendorx.utils.TokenEncryptionUtil;
 import org.apache.commons.lang3.StringUtils;
 import org.codehaus.jettison.json.JSONObject;
 import org.hibernate.criterion.Restrictions;
@@ -10,6 +11,8 @@ import org.openbravo.base.exception.OBException;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.SystemInfo;
+import org.openbravo.erpCommon.utility.Utility;
+import org.openbravo.service.db.DalConnectionProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,6 +35,8 @@ import javax.servlet.http.HttpServletResponse;
 public class GetOAuthToken extends HttpBaseServlet {
 
   private static final Logger log = LoggerFactory.getLogger(GetOAuthToken.class);
+  private static final String APPLICATION_JSON = "application/json";
+  private static final String UTF_8 = "UTF-8";
 
   /**
    * Obtains the account identifier for the current system.
@@ -94,10 +99,18 @@ public class GetOAuthToken extends HttpBaseServlet {
       if (token == null) {
         throw new OBException("Token not found.");
       }
-      tokenInfo.put("accessToken", getValidToken(token).getToken());
+      ETRXTokenInfo validToken = getValidToken(token);
+      String rawToken = validToken.getToken();
+      String decryptedToken = TokenEncryptionUtil.decrypt(rawToken);
+      if (decryptedToken == null) {
+        // Fallback: token was stored in plain text by an older version of Etendo — use as-is
+        log.warn("[GetOAuthToken] Token is not encrypted (legacy plain-text format). Consider re-authorizing to encrypt it.");
+        decryptedToken = rawToken;
+      }
+      tokenInfo.put("accessToken", decryptedToken);
 
-      response.setContentType("application/json");
-      response.setCharacterEncoding("UTF-8");
+      response.setContentType(APPLICATION_JSON);
+      response.setCharacterEncoding(UTF_8);
       response.getWriter().write(tokenInfo.toString());
 
     } catch (Exception e) {
@@ -106,8 +119,8 @@ public class GetOAuthToken extends HttpBaseServlet {
       try {
         JSONObject error = new JSONObject();
         error.put("error", "Failed to retrieve token");
-        response.setContentType("application/json");
-        response.setCharacterEncoding("UTF-8");
+        response.setContentType(APPLICATION_JSON);
+        response.setCharacterEncoding(UTF_8);
         response.getWriter().write(error.toString());
       } catch (Exception ignored) {
         log.error("Ignored error: {}", ignored.getMessage());

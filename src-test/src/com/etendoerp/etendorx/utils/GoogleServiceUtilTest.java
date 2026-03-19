@@ -52,6 +52,7 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class GoogleServiceUtilTest {
 
+  private static final String DECRYPTED_ACCESS_TOKEN = "decrypted-access-token";
   private static final ETRXTokenInfo TOKEN = token("mockAccessToken");
   private static final String ACCOUNT_ID = "etendo123";
   private static final String SHEET_TITLE = "MiHoja";
@@ -140,9 +141,14 @@ class GoogleServiceUtilTest {
   void testGetTabNameValidIndexReturnsTabName() throws Exception {
     String sheetId = "sid", title = "MySheet";
 
-    try (var gs = mockStatic(GoogleServiceUtil.class, CALLS_REAL_METHODS)) {
+    try (var gs = mockStatic(GoogleServiceUtil.class, CALLS_REAL_METHODS);
+         var enc = mockStatic(TokenEncryptionUtil.class)) {
       gs.when(() -> GoogleServiceUtil.getValidAccessTokenOrRefresh(TOKEN, ACCOUNT_ID))
           .thenReturn(TOKEN);
+
+      // decrypt() must return a non-null value so getDecryptedToken() does not throw
+      enc.when(() -> TokenEncryptionUtil.decrypt(org.mockito.ArgumentMatchers.anyString()))
+          .thenReturn(DECRYPTED_ACCESS_TOKEN);
 
       Sheets sheetsSvc = mock(Sheets.class, RETURNS_DEEP_STUBS);
 
@@ -166,9 +172,13 @@ class GoogleServiceUtilTest {
     String sheetId = "sid", tab = "T1";
     List<List<Object>> data = List.of(List.of("A", "B"), List.of("C", "D"));
 
-    try (var gs = mockStatic(GoogleServiceUtil.class, CALLS_REAL_METHODS)) {
+    try (var gs = mockStatic(GoogleServiceUtil.class, CALLS_REAL_METHODS);
+         var enc = mockStatic(TokenEncryptionUtil.class)) {
       gs.when(() -> GoogleServiceUtil.getValidAccessTokenOrRefresh(TOKEN, ACCOUNT_ID))
           .thenReturn(TOKEN);
+
+      enc.when(() -> TokenEncryptionUtil.decrypt(org.mockito.ArgumentMatchers.anyString()))
+          .thenReturn(DECRYPTED_ACCESS_TOKEN);
 
       Sheets sheetsSvc = mock(Sheets.class, RETURNS_DEEP_STUBS);
       Sheet fakeSheet = new Sheet().setProperties(new SheetProperties().setTitle(tab));
@@ -194,9 +204,13 @@ class GoogleServiceUtilTest {
   @Test
   void testFindSpreadsheetAndTabTabNotFoundThrowsOBException() throws Exception {
     try (var lh = new LocaleHelper("ETRX_TabNotFound", "no encontrada");
-         var gs = mockStatic(GoogleServiceUtil.class, CALLS_REAL_METHODS)) {
+         var gs = mockStatic(GoogleServiceUtil.class, CALLS_REAL_METHODS);
+         var enc = mockStatic(TokenEncryptionUtil.class)) {
       gs.when(() -> GoogleServiceUtil.getValidAccessTokenOrRefresh(TOKEN, ACCOUNT_ID))
           .thenReturn(TOKEN);
+
+      enc.when(() -> TokenEncryptionUtil.decrypt(org.mockito.ArgumentMatchers.anyString()))
+          .thenReturn(DECRYPTED_ACCESS_TOKEN);
 
       Sheets sheetsSvc = mock(Sheets.class, RETURNS_DEEP_STUBS);
       when(sheetsSvc.spreadsheets()
@@ -226,9 +240,13 @@ class GoogleServiceUtilTest {
    */
   @Test
   void testFindSpreadsheetAndTabEmptyValuesReturnsEmptyList() throws Exception {
-    try (var gs = mockStatic(GoogleServiceUtil.class, CALLS_REAL_METHODS)) {
+    try (var gs = mockStatic(GoogleServiceUtil.class, CALLS_REAL_METHODS);
+         var enc = mockStatic(TokenEncryptionUtil.class)) {
       gs.when(() -> GoogleServiceUtil.getValidAccessTokenOrRefresh(TOKEN, ACCOUNT_ID))
           .thenReturn(TOKEN);
+
+      enc.when(() -> TokenEncryptionUtil.decrypt(org.mockito.ArgumentMatchers.anyString()))
+          .thenReturn(DECRYPTED_ACCESS_TOKEN);
 
       Sheets sheetsSvc = mock(Sheets.class, RETURNS_DEEP_STUBS);
       when(sheetsSvc.spreadsheets()

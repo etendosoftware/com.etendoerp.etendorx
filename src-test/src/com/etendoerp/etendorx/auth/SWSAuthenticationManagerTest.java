@@ -43,6 +43,7 @@ import org.openbravo.test.base.TestConstants;
 
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
+import com.etendoerp.etendorx.utils.TokenEncryptionUtil;
 
 /**
  * Unit tests for the SWSAuthenticationManager class.
@@ -185,12 +186,17 @@ public class SWSAuthenticationManagerTest extends WeldBaseTest {
     String token = "invalidToken";
     String receivedUser = "testuser";
 
-    // Setup mocks
-    when(mockRequest.getParameter("access_token")).thenReturn(token);
-    when(mockRequest.getParameter("user")).thenReturn(receivedUser);
+    try (MockedStatic<TokenEncryptionUtil> encStatic = mockStatic(TokenEncryptionUtil.class)) {
+      // Key is configured so the encryption guard is skipped and execution reaches token validation
+      encStatic.when(TokenEncryptionUtil::isKeyConfigured).thenReturn(true);
 
-    // Invoke method will throw OBException
-    authManager.doAuthenticate(mockRequest, mockResponse);
+      // Setup mocks
+      when(mockRequest.getParameter("access_token")).thenReturn(token);
+      when(mockRequest.getParameter("user")).thenReturn(receivedUser);
+
+      // Invoke method will throw OBException due to invalid token
+      authManager.doAuthenticate(mockRequest, mockResponse);
+    }
   }
 
   /**
@@ -205,6 +211,12 @@ public class SWSAuthenticationManagerTest extends WeldBaseTest {
   public void testSetCORSHeaders() throws ServletException, IOException {
     // Prepare test data
     String origin = "http://test.com";
+
+    // Configure the properties provider so that isAllowedOrigin() approves the test origin
+    Properties corsProps = mock(Properties.class);
+    when(corsProps.getProperty("sso.middleware.url")).thenReturn(origin);
+    when(mockPropertiesProvider.getOpenbravoProperties()).thenReturn(corsProps);
+    OBPropertiesProvider.setInstance(mockPropertiesProvider);
 
     // Setup mocks
     when(mockRequest.getHeader("Origin")).thenReturn(origin);
@@ -290,6 +302,7 @@ public class SWSAuthenticationManagerTest extends WeldBaseTest {
       when(mockPropertiesProvider.getOpenbravoProperties()).thenReturn(props);
       when(props.getProperty("OAUTH2_SECRET")).thenReturn("secret");
       when(props.getProperty("OAUTH2_ISSUER")).thenReturn("issuer");
+      when(props.getProperty("etrx.token.encryption.key")).thenReturn("a".repeat(64));
 
       when(mockOBDal.createCriteria(User.class)).thenReturn(criteria);
       when(criteria.add(any())).thenReturn(criteria);

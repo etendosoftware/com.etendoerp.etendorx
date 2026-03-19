@@ -8,6 +8,7 @@ import com.auth0.jwt.algorithms.Algorithm;
 import com.auth0.jwt.interfaces.DecodedJWT;
 import com.auth0.jwt.interfaces.RSAKeyProvider;
 import com.etendoerp.etendorx.data.ETRXTokenUser;
+import com.etendoerp.etendorx.utils.TokenEncryptionUtil;
 import com.etendoerp.etendorx.utils.TokenVerifier;
 import com.smf.securewebservices.utils.SecureWebServicesUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -59,6 +60,7 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
   public static final String MIDDLEWARE_ISSUER = "https://etendo-sso.us.auth0.com/";
   public static final String CONTEXT_NAME = "context.name";
   public static final String SSO_AUTH_TYPE = "sso.auth.type";
+  private static final String SSO_MIDDLEWARE_URL = "sso.middleware.url";
   private static final Logger log4j = LogManager.getLogger();
   private static final String INVALID_TOKEN_MESSAGE = "SWS - Token is not valid";
   private static final String ACCESS_TOKEN = "access_token";
@@ -125,14 +127,34 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
    */
   private static void printPageError(String title, String description, HttpServletRequest request,
                                      HttpServletResponse response) throws IOException {
+    printPageError(title, description, null, request, response);
+  }
+
+  /**
+   * Redirects the user to a custom error page with a provided title, description, and optional
+   * error type hint.
+   * <p>
+   * When {@code errorType} is {@code "config"}, the error page hides the re-login button and
+   * shows a "Contact your administrator" note instead, because the user cannot resolve a server
+   * misconfiguration error on their own.
+   *
+   * @param title       The title of the error message to be displayed on the error page.
+   * @param description The detailed description of the error.
+   * @param errorType   An optional hint for the error page UI (e.g. {@code "config"}). May be null.
+   * @param request     The {@link HttpServletRequest} used to extract the base URL and context.
+   * @param response    The {@link HttpServletResponse} used to send the redirect to the error page.
+   * @throws IOException If the response cannot be written or redirected properly.
+   */
+  private static void printPageError(String title, String description, String errorType,
+                                     HttpServletRequest request,
+                                     HttpServletResponse response) throws IOException {
     final Properties openbravoProperties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
     String authType = ((String) openbravoProperties.get(SSO_AUTH_TYPE)).trim();
     String logoutRedirectUri = StringUtils.remove(request.getRequestURL().toString(),
         request.getServletPath()).trim();
     String contextName = ((String) openbravoProperties.get(CONTEXT_NAME)).trim();
     String titleStr = URLEncoder.encode(title, StandardCharsets.UTF_8);
-    String descriptionStr = URLEncoder.encode(description,
-        StandardCharsets.UTF_8);
+    String descriptionStr = URLEncoder.encode(description, StandardCharsets.UTF_8);
     String errorUrl = String.format("/%s/web/com.etendoerp.etendorx/resources/Auth0ErrorPage.html"
             + "?logoutRedirectUri=%s&title=%s&description=%s&authType=%s",
         contextName,
@@ -140,6 +162,9 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
         titleStr,
         descriptionStr,
         authType);
+    if (!StringUtils.isBlank(errorType)) {
+      errorUrl += "&errorType=" + URLEncoder.encode(errorType, StandardCharsets.UTF_8);
+    }
 
     response.setStatus(HttpServletResponse.SC_FOUND);
     response.setHeader("Location", errorUrl);
@@ -248,7 +273,7 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
           errorDescription
       );
     } else {
-      String middlewareUrl = ((String) openbravoProperties.get("sso.middleware.url")).trim();
+      String middlewareUrl = ((String) openbravoProperties.get(SSO_MIDDLEWARE_URL)).trim();
       ssoNoUserLinkURL = String.format(
           "/%s/web/com.etendoerp.etendorx/resources/Auth0ErrorPage.html"
               + "?authType=Middleware"
@@ -333,7 +358,7 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
     }
     if (token != null) {
       try {
-        log4j.debug(" Decoding token {}", token);
+        log4j.debug("Decoding incoming Bearer token");
         DecodedJWT decodedToken = SecureWebServicesUtils.decodeToken(token);
         if (decodedToken != null) {
           String userId = decodedToken.getClaim("user").asString();
@@ -424,7 +449,7 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
 
     String origin = request.getHeader("Origin");
 
-    if (!StringUtils.isBlank(origin)) {
+    if (!StringUtils.isBlank(origin) && isAllowedOrigin(origin, request)) {
       response.setHeader("Access-Control-Allow-Origin", origin);
       response.setHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
       response.setHeader("Access-Control-Allow-Credentials", "true");
@@ -432,6 +457,35 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
           "Content-Type, origin, accept, X-Requested-With");
       response.setHeader("Access-Control-Max-Age", "1000");
     }
+  }
+
+  /**
+   * Returns true if the given origin is in the allowlist of trusted origins.
+   * Allowed origins are: the middleware URL and the Etendo server's own origin.
+   *
+   * @param origin  the Origin header value from the request
+   * @param request the current HTTP request
+   * @return true if the origin is allowed, false otherwise
+   */
+  private boolean isAllowedOrigin(String origin, HttpServletRequest request) {
+    Properties obProperties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
+
+    // Middleware origin
+    String middlewareUrl = StringUtils.trimToEmpty(obProperties.getProperty(SSO_MIDDLEWARE_URL));
+    if (!StringUtils.isBlank(middlewareUrl) && origin.equals(middlewareUrl.replaceAll("/$", ""))) {
+      return true;
+    }
+
+    // Etendo server's own origin
+    String etendoOrigin = request.getScheme() + "://" + request.getServerName()
+        + (request.getServerPort() != 80 && request.getServerPort() != 443
+            ? ":" + request.getServerPort() : "");
+    if (origin.equals(etendoOrigin)) {
+      return true;
+    }
+
+    log4j.warn("[CORS] Rejected disallowed origin: {}", origin);
+    return false;
   }
 
   /**
@@ -617,8 +671,8 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
    */
   private String handleSSOLogin(String code, String accessToken, HttpServletRequest request,
                                 HttpServletResponse response) throws IOException {
-    log4j.debug("SSO Code to request token: {}", code);
-    log4j.debug("SSO Token coming from the request: {}", accessToken);
+    log4j.debug("SSO Code to request token received");
+    log4j.debug("SSO Token received from request");
 
     String token = StringUtils.isBlank(accessToken) ? getAuthToken(request) : accessToken;
     validateToken(token, request, response);
@@ -658,7 +712,7 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
       Properties obProperties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
       String integrationType = obProperties.getProperty(SSO_AUTH_TYPE);
       String baseURL = StringUtils.equals("Middleware", integrationType) ? obProperties.getProperty(
-          "sso.middleware.url") :
+          SSO_MIDDLEWARE_URL) :
           "https://" + obProperties.getProperty(SSO_DOMAIN_URL);
       URL jwkURL = new URL(baseURL + "/.well-known/jwks.json");
       JwkProvider provider = new UrlJwkProvider(jwkURL);
@@ -694,7 +748,7 @@ public class SWSAuthenticationManager extends DefaultAuthenticationManager {
       OBContext.setAdminMode(true);
       ETRXTokenUser tokenUser = getTokenUser(sub);
       if (tokenUser != null) {
-        tokenUser.setOAuthToken(token);
+        tokenUser.setOAuthToken(TokenEncryptionUtil.isKeyConfigured() ? TokenEncryptionUtil.encrypt(token) : token);
       } else {
         return null;
       }

@@ -58,6 +58,13 @@
         .btn-primary:hover {
           opacity: 80%;
         }
+
+        .admin-note {
+          font-size: 0.9rem;
+          color: #888;
+          margin-top: 1.5rem;
+          font-style: italic;
+        }
     </style>
 </head>
 <body>
@@ -68,9 +75,12 @@
     <h1 id="error-title">Error</h1>
     <p id="error-description">An unknown error occurred</p>
 
-    <button class="btn-primary" onclick="goBack()">
+    <button id="back-btn" class="btn-primary" onclick="goBack()">
         Go back to Login
     </button>
+    <p id="admin-note" class="admin-note" style="display:none;">
+        Please contact your system administrator to resolve this issue.
+    </p>
 </div>
 
 <script>
@@ -88,6 +98,7 @@
     const clientId          = getQueryParam("clientId");          // only for Auth0
     const logoutRedirectUri = getQueryParam("logoutRedirectUri"); // for both cases (Auth0 or Middleware)
     const middlewareUrl     = getQueryParam("middlewareUrl");     // only for Middleware
+    const errorType         = getQueryParam("errorType");         // "config" for server misconfiguration errors
 
     // 2) Put the decoded title and description into the DOM
     if (titleParam) {
@@ -95,6 +106,12 @@
     }
     if (descriptionParam) {
       document.getElementById("error-description").textContent = decodeURIComponent(descriptionParam);
+    }
+
+    // 2b) For config errors the re-login button is irrelevant — hide it and show the admin note instead
+    if (errorType === "config") {
+      document.getElementById("back-btn").style.display = "none";
+      document.getElementById("admin-note").style.display = "block";
     }
 
     // 3) If it is Middleware, create a hidden iframe to perform logout
