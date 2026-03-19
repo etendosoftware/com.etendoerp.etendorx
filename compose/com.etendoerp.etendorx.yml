@@ -97,6 +97,7 @@ services:
       - DEBUG_MODE=${DAS_DEBUG_MODE:-false}
       - DISABLE_DEBUG=${DAS_DISABLE_DEBUG:-false}
       - GRADLE_FLAGS=${DAS_GRADLE_FLAGS:-}
+      - JAVA_OPTS=${DAS_JAVA_OPTS:-}
       # --- OpenTelemetry ---
       - ENABLE_OPEN_TELEMETRY=${OTEL_DAS_ENABLE:-false}
       - OTEL_SERVICE_NAME=${OTEL_DAS_NAME:-das}
@@ -234,6 +235,10 @@ services:
 
   asyncprocess:
     env_file: ".env"
+    depends_on:
+      config:
+        condition: service_healthy
+    image: ${CONTEXT_NAME:-etendo}/asyncprocess:${ETENDORX_VERSION:-latest}
     build:
       context: .
       dockerfile: dynamic/Dockerfile
@@ -246,9 +251,6 @@ services:
         - SPRING_CLOUD_CONFIG_SERVER_NATIVE_SEARCHLOCATIONS=file:///rxconfig
         - CONFIG_SERVER_URL=
         - DEBUG_MODE=true
-    depends_on:
-      config:
-        condition: service_healthy
     ports:
       - "8099:8099"
       - "${ASYNCPROCESS_DEBUG_PORT:-5024}:8000"
