@@ -18,6 +18,8 @@ classic:
     name: {CONTEXT_NAME}
 subapp:
   url: http://host.docker.internal:3000
+obconnector:
+  url: http://obconnsrv:8101
 
 spring:
   cloud:
