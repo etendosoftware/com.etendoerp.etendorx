@@ -67,6 +67,8 @@ public class DataSourceServletInpTableIdTest {
   private static final String EXPECTED_WINDOW_ID = "TEST_WINDOW_ID";
   private static final String EXPECTED_TAB_ID = "TEST_TAB_ID";
   private static final String TABLE_NAME = "TestTable";
+  private static final String BUSINESS_PARTNER = BUSINESS_PARTNER;
+  private static final String INP_C_BPARTNER_ID = INP_C_BPARTNER_ID;
 
   private Tab createMockTab() {
     Tab tab = mock(Tab.class);
@@ -92,8 +94,8 @@ public class DataSourceServletInpTableIdTest {
         .thenAnswer(inv -> {
           LinkedHashMap<String, String> norm2input = inv.getArgument(1);
           Map<String, String> input2norm = inv.getArgument(2);
-          norm2input.put("businessPartner", "inpcBpartnerId");
-          input2norm.put("inpcBpartnerId", "businessPartner");
+          norm2input.put(BUSINESS_PARTNER, INP_C_BPARTNER_ID);
+          input2norm.put(INP_C_BPARTNER_ID, BUSINESS_PARTNER);
           return null;
         });
     ds.when(() -> DataSourceUtils.keyConvertion(any(JSONObject.class), any(Map.class)))
@@ -129,6 +131,10 @@ public class DataSourceServletInpTableIdTest {
         EXPECTED_TABLE_ID, changeJson.getString("inpTableId"));
   }
 
+  /**
+   * Verifies that getEtendoPostWrapper includes inpTableId in the dataInpFormat
+   * JSON passed to formInit.execute() during CHANGE events.
+   */
   @Test
   @SuppressWarnings("unchecked")
   public void postWrapperIncludesInpTableIdInChangeContent() throws Exception {
@@ -140,7 +146,7 @@ public class DataSourceServletInpTableIdTest {
     EtendoFormInitComponent formInit = mock(EtendoFormInitComponent.class);
     when(formInit.execute(anyMap(), anyString())).thenReturn(new JSONObject());
 
-    JSONObject data = new JSONObject().put("businessPartner", "BP_ID");
+    JSONObject data = new JSONObject().put(BUSINESS_PARTNER, "BP_ID");
     JSONObject body = new JSONObject().put("data", data);
     List<RequestField> fieldList = new ArrayList<>();
 
@@ -169,6 +175,10 @@ public class DataSourceServletInpTableIdTest {
     }
   }
 
+  /**
+   * Verifies that getEtendoPutWrapper includes inpTableId in the dataInpFormat
+   * JSON passed to formInit.execute() during CHANGE events.
+   */
   @Test
   @SuppressWarnings("unchecked")
   public void putWrapperIncludesInpTableIdInChangeContent() throws Exception {
@@ -188,7 +198,7 @@ public class DataSourceServletInpTableIdTest {
         mock(org.openbravo.service.datasource.DataSourceServlet.class);
 
     // When doGet is called, write a fake response with existing record data
-    JSONObject existingRecord = new JSONObject().put("id", "RECORD_123").put("businessPartner", "OLD_BP");
+    JSONObject existingRecord = new JSONObject().put("id", "RECORD_123").put(BUSINESS_PARTNER, "OLD_BP");
     JSONObject fakeGetResponse = new JSONObject()
         .put(DataSourceConstants.RESPONSE, new JSONObject()
             .put(DataSourceConstants.DATA, new JSONArray().put(existingRecord)));
@@ -200,7 +210,7 @@ public class DataSourceServletInpTableIdTest {
       return null;
     }).when(internalServlet).doGet(any(), any());
 
-    JSONObject updateData = new JSONObject().put("businessPartner", "NEW_BP");
+    JSONObject updateData = new JSONObject().put(BUSINESS_PARTNER, "NEW_BP");
     JSONObject fullBody = new JSONObject().put("data", updateData);
     List<RequestField> fieldList = new ArrayList<>();
 
