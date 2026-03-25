@@ -1127,10 +1127,9 @@ public class DataSourceServlet implements WebService {
     DataSourceUtils.applyColumnValues(formInitResponse, dbname2input, dataInpFormat);
 
     dataInpFormat.put("keyProperty", "id");
-    dataInpFormat.put(OBBindingsConstants.WINDOW_ID_PARAM,
-        DataSourceUtils.getTabByDataSourceName(extractedParts[0]).getWindow().getId());
-    dataInpFormat.put("inpTableId",
-        DataSourceUtils.getTabByDataSourceName(extractedParts[0]).getTable().getId());
+    Tab tab = DataSourceUtils.getTabByDataSourceName(extractedParts[0]);
+    dataInpFormat.put(OBBindingsConstants.WINDOW_ID_PARAM, tab.getWindow().getId());
+    dataInpFormat.put("inpTableId", tab.getTable().getId());
 
     //to proceed with Change events, we need to iterate over the keys of newData, setting the values in dataInpFormat and calling the formInit.
     // we need to convert the keys to normalized format to input format.
