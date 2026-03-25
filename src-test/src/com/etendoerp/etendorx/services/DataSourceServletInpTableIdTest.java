@@ -24,7 +24,6 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -134,6 +133,8 @@ public class DataSourceServletInpTableIdTest {
   /**
    * Verifies that getEtendoPostWrapper includes inpTableId in the dataInpFormat
    * JSON passed to formInit.execute() during CHANGE events.
+   *
+   * @throws Exception if reflection invocation or JSON parsing fails
    */
   @Test
   @SuppressWarnings("unchecked")
@@ -178,6 +179,8 @@ public class DataSourceServletInpTableIdTest {
   /**
    * Verifies that getEtendoPutWrapper includes inpTableId in the dataInpFormat
    * JSON passed to formInit.execute() during CHANGE events.
+   *
+   * @throws Exception if reflection invocation or JSON parsing fails
    */
   @Test
   @SuppressWarnings("unchecked")
