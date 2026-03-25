@@ -51,6 +51,7 @@ import org.openbravo.model.ad.datamodel.Table;
 import org.openbravo.model.ad.ui.Tab;
 import org.openbravo.model.ad.ui.Window;
 
+import com.etendoerp.etendorx.services.wrapper.EtendoResponseWrapper;
 import com.etendoerp.etendorx.services.wrapper.RequestField;
 import com.etendoerp.etendorx.utils.DataSourceUtils;
 import com.etendoerp.etendorx.utils.SelectorHandlerUtil;
