@@ -17,6 +17,7 @@
 
 package com.etendoerp.etendorx.auth;
 
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -245,10 +246,11 @@ class SWSAuthenticationManagerSSOPrefTest {
         () -> authManager.doAuthenticate(mockRequest, mockResponse));
 
     // showSSOConfigError() calls Utility.messageBD() which needs OBContext (not mocked).
-    // The resulting NPE is wrapped in OBException; its message references "OBContext",
-    // which is the signature that the misconfiguration path was actually taken.
-    assertTrue(ex.getMessage().contains("OBContext"),
-        "Expected misconfiguration path (OBContext NPE from showSSOConfigError), got: " + ex.getMessage());
+    // The resulting NPE is caught by doAuthenticate and re-wrapped in an OBException.
+    // We assert the cause is a NullPointerException rather than inspecting the message text,
+    // because NPE messages differ between Java 11 (null) and Java 17 (descriptive via JEP 358).
+    assertInstanceOf(NullPointerException.class, ex.getCause(),
+        "Expected misconfiguration path (OBContext NPE from showSSOConfigError), got: " + ex);
   }
 
   // ---------------------------------------------------------------------------
@@ -361,12 +363,14 @@ class SWSAuthenticationManagerSSOPrefTest {
 
     // misconfiguredSSO(null, AUTH0_CODE, "N", "Auth0") → true
     // doAuthenticate calls showSSOConfigError → Utility.messageBD → OBContext NPE.
-    // The NPE is wrapped in OBException; message references "OBContext".
+    // The NPE is caught by doAuthenticate and re-wrapped in an OBException.
+    // We assert the cause is a NullPointerException rather than inspecting the message text,
+    // because NPE messages differ between Java 11 (null) and Java 17 (descriptive via JEP 358).
     OBException ex = assertThrows(OBException.class,
         () -> authManager.doAuthenticate(mockRequest, mockResponse));
 
-    assertTrue(ex.getMessage().contains("OBContext"),
-        "Expected misconfiguration path (OBContext NPE from showSSOConfigError), got: " + ex.getMessage());
+    assertInstanceOf(NullPointerException.class, ex.getCause(),
+        "Expected misconfiguration path (OBContext NPE from showSSOConfigError), got: " + ex);
   }
 
   /**
