@@ -67,8 +67,8 @@ public class DataSourceServletInpTableIdTest {
   private static final String EXPECTED_WINDOW_ID = "TEST_WINDOW_ID";
   private static final String EXPECTED_TAB_ID = "TEST_TAB_ID";
   private static final String TABLE_NAME = "TestTable";
-  private static final String BUSINESS_PARTNER = BUSINESS_PARTNER;
-  private static final String INP_C_BPARTNER_ID = INP_C_BPARTNER_ID;
+  private static final String BUSINESS_PARTNER = "businessPartner";
+  private static final String INP_C_BPARTNER_ID = "inpcBpartnerId";
 
   private Tab createMockTab() {
     Tab tab = mock(Tab.class);
