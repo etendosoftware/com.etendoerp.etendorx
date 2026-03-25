@@ -983,6 +983,7 @@ public class DataSourceServlet implements WebService {
     JSONObject dataInpFormat = DataSourceUtils.keyConvertion(dataFromNewRecord, norm2input);
     dataInpFormat.put("keyProperty", "id");//    "keyProperty":"id",
     dataInpFormat.put(OBBindingsConstants.WINDOW_ID_PARAM, tab.getWindow().getId());
+    dataInpFormat.put("inpTableId", tab.getTable().getId());
 
 
     //the props in the request are in normalized format, so to maintain the order in that list, we can iterate over the keys of the normalized map,
@@ -1128,6 +1129,8 @@ public class DataSourceServlet implements WebService {
     dataInpFormat.put("keyProperty", "id");
     dataInpFormat.put(OBBindingsConstants.WINDOW_ID_PARAM,
         DataSourceUtils.getTabByDataSourceName(extractedParts[0]).getWindow().getId());
+    dataInpFormat.put("inpTableId",
+        DataSourceUtils.getTabByDataSourceName(extractedParts[0]).getTable().getId());
 
     //to proceed with Change events, we need to iterate over the keys of newData, setting the values in dataInpFormat and calling the formInit.
     // we need to convert the keys to normalized format to input format.
