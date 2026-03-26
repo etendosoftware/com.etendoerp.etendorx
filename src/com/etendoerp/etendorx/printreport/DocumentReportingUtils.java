@@ -9,7 +9,6 @@ import org.apache.log4j.Logger;
 import org.openbravo.base.ConfigParameters;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.base.secureApp.VariablesSecureApp;
-import org.openbravo.base.structure.BaseOBObject;
 import org.openbravo.client.application.report.ReportingUtils;
 import org.openbravo.client.kernel.KernelServlet;
 import org.openbravo.client.kernel.RequestContext;
@@ -23,7 +22,6 @@ import org.openbravo.erpCommon.utility.reporting.Report;
 import org.openbravo.erpCommon.utility.reporting.ReportManager;
 import org.openbravo.model.ad.ui.Process;
 import org.openbravo.model.ad.ui.Tab;
-import org.openbravo.model.common.order.Order;
 import org.openbravo.service.db.DalConnectionProvider;
 
 import java.io.ByteArrayOutputStream;
@@ -91,19 +89,40 @@ public class DocumentReportingUtils {
    * @return A map of parameters.
    */
   private static Map<String, Object> getJasperParameters(ConfigParameters config,
-      Map<String, String> params) {
+      Map<String, String> params, String jrxmlPath) {
     Map<String, Object> parameters = new HashMap<>();
-
-    String baseDesign = ReportingUtils.getBaseDesign();
-    String absoluteBaseDesign = config.prefix + baseDesign;
-
-    parameters.put("BASE_DESIGN", absoluteBaseDesign);
+    parameters.put("BASE_DESIGN", config.prefix + ReportingUtils.getBaseDesign());
     if (params != null) {
-      for (Map.Entry<String, String> entry : params.entrySet()) {
-        parameters.put(entry.getKey(), entry.getValue());
-      }
+      parameters.putAll(params);
+      mapRecordIdToReportParameters(params.get(PARAM_RECORD_ID), jrxmlPath, parameters);
     }
     return parameters;
+  }
+
+  /**
+   * Maps recordId to Jasper report parameters that expect a document ID using $P!{} SQL injection.
+   * Etendo templates require the format ('uuid') for IN clauses.
+   */
+  private static void mapRecordIdToReportParameters(String recordId, String jrxmlPath,
+      Map<String, Object> parameters) {
+    if (recordId == null || jrxmlPath == null) {
+      return;
+    }
+    String recordIdInClause = "('" + recordId + "')";
+    try {
+      net.sf.jasperreports.engine.JasperReport report = ReportingUtils.compileReport(jrxmlPath);
+      for (net.sf.jasperreports.engine.JRParameter p : report.getParameters()) {
+        String name = p.getName();
+        if (!p.isSystemDefined()
+            && p.getValueClass() == String.class
+            && name.toUpperCase().endsWith("_ID")
+            && !parameters.containsKey(name)) {
+          parameters.put(name, recordIdInClause);
+        }
+      }
+    } catch (Exception e) {
+      log4j.warn("Could not inspect Jasper parameters from: " + jrxmlPath, e);
+    }
   }
 
   /**
@@ -124,10 +143,15 @@ public class DocumentReportingUtils {
         throw new OBException("Tab not found with ID: " + tabId);
       }
 
-      pdfData = tryCustomProcess(tab, params);
+      try {
+        pdfData = tryCustomProcess(tab, params);
+      } catch (Exception e) {
+        log4j.warn("Custom process failed, falling back to standard report generation. Cause: " + e.getMessage(), e);
+        pdfData = null;
+      }
 
-      if (pdfData == null) {
-        DocumentType docType = determineDocumentType(tab, params);
+      if (pdfData == null || pdfData.length == 0) {
+        DocumentType docType = determineDocumentType(tab);
         if (docType != DocumentType.UNKNOWN) {
           pdfData = generateStandardReport(docType, params);
         }
@@ -168,38 +192,21 @@ public class DocumentReportingUtils {
   }
 
   /**
-   * Determines the DocumentType for a given tab and record.
+   * Determines the DocumentType for a given tab based on its table name.
    *
-   * @param tab       The tab definition.
-   * @param params    The list of parameter maps containing record IDs.
+   * @param tab The tab definition.
    * @return The determined DocumentType, or DocumentType.UNKNOWN if not found.
    */
-  private static DocumentType determineDocumentType(Tab tab, List<Map<String, String>> params) {
-    if (params == null || params.isEmpty()) {
-      return DocumentType.UNKNOWN;
-    }
-    if (params.get(0) == null ||
-        !params.get(0).containsKey(DocumentReportingUtils.PARAM_RECORD_ID)) {
-      return DocumentType.UNKNOWN;
-    }
-    String recordId = params.get(0).get(DocumentReportingUtils.PARAM_RECORD_ID);
-    DocumentType docType = DocumentType.UNKNOWN;
-    BaseOBObject o = OBDal.getInstance().get(tab.getTable().getName(), recordId);
+  private static DocumentType determineDocumentType(Tab tab) {
     String tableName = tab.getTable().getDBTableName();
-
-    if ("C_ORDER".equalsIgnoreCase(tableName) && o instanceof Order) {
-      Order order = (Order) o;
-      docType = Boolean.TRUE.equals(order.isSalesTransaction()) ?
-          DocumentType.SALESORDER :
-          DocumentType.PURCHASEORDER;
-    } else if ("C_INVOICE".equalsIgnoreCase(tableName)) {
-      docType = DocumentType.SALESINVOICE;
-    } else if ("M_INOUT".equalsIgnoreCase(tableName)) {
-      docType = DocumentType.SHIPMENT;
-    } else if ("FIN_PAYMENT".equalsIgnoreCase(tableName)) {
-      docType = DocumentType.PAYMENT;
+    DocumentType docType = DocumentType.getByTableName(tableName);
+    if (docType == null) {
+      return DocumentType.UNKNOWN;
     }
-
+    // Report.java has no case for PURCHASEORDER — both order types use the same report data
+    if (docType == DocumentType.PURCHASEORDER) {
+      docType = DocumentType.SALESORDER;
+    }
     return docType;
   }
 
@@ -217,7 +224,7 @@ public class DocumentReportingUtils {
     List<JasperPrint> jrPrintReports = new ArrayList<>();
 
     for (Map<String, String> param : params) {
-      Map<String, Object> parameters = getJasperParameters(config, param);
+      Map<String, Object> parameters = getJasperParameters(config, param, jrxmlPath);
       try {
         JasperPrint jp = ReportingUtils.generateJasperPrint(jrxmlPath, parameters, cp, null);
         if (jp != null) {
