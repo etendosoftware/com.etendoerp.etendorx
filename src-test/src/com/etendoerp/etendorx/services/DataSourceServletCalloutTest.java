@@ -26,6 +26,7 @@ import org.openbravo.dal.service.OBDal;
 import org.openbravo.model.common.order.Order;
 import org.openbravo.model.common.order.OrderLine;
 import org.openbravo.test.base.TestConstants;
+import org.junit.Assert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -70,7 +71,8 @@ public class DataSourceServletCalloutTest extends WeldBaseTest {
     elementsToClean = new ArrayList<>();
     elementsToClean = TestUtils.buildExampleHeadlessFlow();
     OBDal.getInstance().flush();
-    OBDal.getInstance().commitAndClose();
+    OBDal.getInstance().getSession().getTransaction().commit();
+    OBDal.getInstance().getSession().beginTransaction();
 
     OBContext.setOBContext(TestConstants.Users.ADMIN, TestConstants.Roles.FB_GRP_ADMIN, TestConstants.Clients.FB_GRP,
         TestConstants.Orgs.ESP_NORTE);
@@ -109,13 +111,15 @@ public class DataSourceServletCalloutTest extends WeldBaseTest {
     JSONObject responseString = new JSONObject(responsePack.getResponseContent());
     log.info("Post to TestSalesOrderHeader:" + jsonToSend.toString(2));
     log.info("Response: " + responseString.toString(2));
-    assert responseString.has(RESPONSE) && responseString.getJSONObject(RESPONSE).has(
-        DATA) && responseString.getJSONObject(RESPONSE).getJSONArray(DATA).length() > 0;
+    Assert.assertTrue("POST TestSalesOrderHeader failed: " + responseString,
+        responseString.has(RESPONSE) && responseString.getJSONObject(RESPONSE).has(
+            DATA) && responseString.getJSONObject(RESPONSE).getJSONArray(DATA).length() > 0);
     var headerCreatedJSon = responseString.getJSONObject(RESPONSE).getJSONArray(DATA).getJSONObject(0);
     var salesOrderOB = OBDal.getInstance().get(Order.class, headerCreatedJSon.getString(ID));
-    assert salesOrderOB != null;
+    Assert.assertNotNull("Sales order not found in DB", salesOrderOB);
     elementsToClean.add(salesOrderOB); //only add the header to clean up, because the lines are automatically deleted
-    assert StringUtils.equalsIgnoreCase(salesOrderOB.getPartnerAddress().getId(), BP_LOCATION_ALSUPER_ID);
+    Assert.assertTrue("BP Location mismatch",
+        StringUtils.equalsIgnoreCase(salesOrderOB.getPartnerAddress().getId(), BP_LOCATION_ALSUPER_ID));
 
     //TEST CASE 2: Create a sales order line
     // Given a request of creation of a sales order line
@@ -132,18 +136,22 @@ public class DataSourceServletCalloutTest extends WeldBaseTest {
     responseString = new JSONObject(responsePack.getResponseContent());
     log.info("Post to TestSalesOrderLine:" + body.toString(2));
     log.info("Response: " + responseString.toString(2));
-    assert responseString.has(RESPONSE) && responseString.getJSONObject(RESPONSE).has(
-        DATA) && responseString.getJSONObject(RESPONSE).getJSONArray(DATA).length() > 0;
+    Assert.assertTrue("POST TestSalesOrderLine failed: " + responseString,
+        responseString.has(RESPONSE) && responseString.getJSONObject(RESPONSE).has(
+            DATA) && responseString.getJSONObject(RESPONSE).getJSONArray(DATA).length() > 0);
     var lineCreatedJSon = responseString.getJSONObject(RESPONSE).getJSONArray(DATA).getJSONObject(0);
     var salesOrderLineOB = OBDal.getInstance().get(OrderLine.class, lineCreatedJSon.getString(ID));
-    assert salesOrderLineOB != null;
-    assert StringUtils.equalsIgnoreCase(salesOrderLineOB.getSalesOrder().getId(), salesOrderOB.getId());
+    Assert.assertNotNull("Sales order line not found in DB", salesOrderLineOB);
+    Assert.assertTrue("Order line not linked to header",
+        StringUtils.equalsIgnoreCase(salesOrderLineOB.getSalesOrder().getId(), salesOrderOB.getId()));
 
     OBDal.getInstance().refresh(salesOrderOB);
     //The prices must be greater than 0, because must be automatically calculated
-    assert BigDecimal.ZERO.compareTo(salesOrderLineOB.getUnitPrice()) < 0;
+    Assert.assertTrue("Unit price should be > 0, was: " + salesOrderLineOB.getUnitPrice(),
+        BigDecimal.ZERO.compareTo(salesOrderLineOB.getUnitPrice()) < 0);
     //the Order must have a grand total greater than 0
-    assert BigDecimal.ZERO.compareTo(salesOrderOB.getGrandTotalAmount()) < 0;
+    Assert.assertTrue("Grand total should be > 0, was: " + salesOrderOB.getGrandTotalAmount(),
+        BigDecimal.ZERO.compareTo(salesOrderOB.getGrandTotalAmount()) < 0);
     BigDecimal totalAmountWithOneUnit = salesOrderOB.getGrandTotalAmount();
 
     // Test case 3: Update the sales order line
@@ -161,15 +169,17 @@ public class DataSourceServletCalloutTest extends WeldBaseTest {
     responseString = new JSONObject(responsePack.getResponseContent());
     log.info("Put to TestSalesOrderLine:" + body.toString(2));
     log.info("Response: " + responseString.toString(2));
-    assert responseString.has(RESPONSE) && responseString.getJSONObject(RESPONSE).has(
-        DATA) && responseString.getJSONObject(RESPONSE).getJSONArray(DATA).length() > 0;
+    Assert.assertTrue("PUT TestSalesOrderLine failed: " + responseString,
+        responseString.has(RESPONSE) && responseString.getJSONObject(RESPONSE).has(
+            DATA) && responseString.getJSONObject(RESPONSE).getJSONArray(DATA).length() > 0);
     lineCreatedJSon = responseString.getJSONObject(RESPONSE).getJSONArray(DATA).getJSONObject(0);
     salesOrderLineOB = OBDal.getInstance().get(OrderLine.class, lineCreatedJSon.getString(ID));
-    assert salesOrderLineOB != null;
+    Assert.assertNotNull("Updated order line not found in DB", salesOrderLineOB);
 
     OBDal.getInstance().refresh(salesOrderOB);
     //the Order must have a grand total greater than 0 and greater than the previous total
-    assert totalAmountWithOneUnit.compareTo(salesOrderOB.getGrandTotalAmount()) < 0;
+    Assert.assertTrue("Grand total should increase after qty update, was: " + salesOrderOB.getGrandTotalAmount(),
+        totalAmountWithOneUnit.compareTo(salesOrderOB.getGrandTotalAmount()) < 0);
 
 
   }
@@ -183,8 +193,9 @@ public class DataSourceServletCalloutTest extends WeldBaseTest {
     String openAPISpec = new OpenAPIController().getOpenAPIJson("localhost", "TESTFLOW",
         "http://localhost:8080/etendo");
     // Then
-    assert StringUtils.isNotEmpty(openAPISpec);
-    assert StringUtils.containsIgnoreCase(openAPISpec, "TestSalesOrderHeader");
+    Assert.assertTrue("OpenAPI spec should not be empty", StringUtils.isNotEmpty(openAPISpec));
+    Assert.assertTrue("OpenAPI spec should contain TestSalesOrderHeader",
+        StringUtils.containsIgnoreCase(openAPISpec, "TestSalesOrderHeader"));
   }
 
 
