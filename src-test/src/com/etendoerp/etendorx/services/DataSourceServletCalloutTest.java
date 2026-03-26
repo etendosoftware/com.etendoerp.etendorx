@@ -111,33 +111,37 @@ public class DataSourceServletCalloutTest extends WeldBaseTest {
       }
       for (Field field : tab.getADFieldList()) {
         Column column = field.getColumn();
-        if (column == null) {
-          continue;
-        }
-        // Force initialization of the Validation proxy and its validationCode
-        if (column.getValidation() != null) {
-          column.getValidation().getValidationCode();
-        }
-        // Also force initialization of callout proxy
-        if (column.getCallout() != null) {
-          column.getCallout().getId();
-          if (column.getCallout().getADModelImplementationList() != null) {
-            column.getCallout().getADModelImplementationList().size();
-          }
-        }
-        // Force initialization of reference and referenceSearchKey
-        if (column.getReference() != null) {
-          column.getReference().getId();
-        }
-        if (column.getReferenceSearchKey() != null) {
-          column.getReferenceSearchKey().getId();
-          if (column.getReferenceSearchKey().getADReferencedTableList() != null) {
-            column.getReferenceSearchKey().getADReferencedTableList().size();
-          }
+        if (column != null) {
+          initializeColumnMetadata(column);
         }
       }
     } finally {
       OBContext.restorePreviousMode();
+    }
+  }
+
+  /**
+   * Force-initializes all lazy-loaded proxies on a column that
+   * FormInitializationComponent may access after a session clear.
+   */
+  private void initializeColumnMetadata(Column column) {
+    if (column.getValidation() != null) {
+      column.getValidation().getValidationCode();
+    }
+    if (column.getCallout() != null) {
+      column.getCallout().getId();
+      if (column.getCallout().getADModelImplementationList() != null) {
+        column.getCallout().getADModelImplementationList().size();
+      }
+    }
+    if (column.getReference() != null) {
+      column.getReference().getId();
+    }
+    if (column.getReferenceSearchKey() != null) {
+      column.getReferenceSearchKey().getId();
+      if (column.getReferenceSearchKey().getADReferencedTableList() != null) {
+        column.getReferenceSearchKey().getADReferencedTableList().size();
+      }
     }
   }
 
