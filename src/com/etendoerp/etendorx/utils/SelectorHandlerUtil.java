@@ -100,7 +100,7 @@ public class SelectorHandlerUtil {
             convertToHashMAp.put("_entityName", selectorDefined.getTable().getJavaClassName());
             String hqlWhereClause = selectorDefined.getHQLWhereClause();
             if (StringUtils.isEmpty(hqlWhereClause)) {
-                hqlWhereClause = " where 1=1";
+                hqlWhereClause = "1=1";
             }
             String whereClauseAndFilters = hqlWhereClause + headlessFilterClause + addFilterClause(selectorDefined,
                     convertToHashMAp, request);
