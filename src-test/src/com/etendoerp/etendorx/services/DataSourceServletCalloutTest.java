@@ -70,6 +70,7 @@ public class DataSourceServletCalloutTest extends WeldBaseTest {
     elementsToClean = new ArrayList<>();
     elementsToClean = TestUtils.buildExampleHeadlessFlow();
     OBDal.getInstance().flush();
+    OBDal.getInstance().commitAndClose();
 
     OBContext.setOBContext(TestConstants.Users.ADMIN, TestConstants.Roles.FB_GRP_ADMIN, TestConstants.Clients.FB_GRP,
         TestConstants.Orgs.ESP_NORTE);
@@ -197,9 +198,13 @@ public class DataSourceServletCalloutTest extends WeldBaseTest {
     VariablesSecureApp vars = new VariablesSecureApp(OBContext.getOBContext().getUser().getId(),
         OBContext.getOBContext().getCurrentClient().getId(), OBContext.getOBContext().getCurrentOrganization().getId());
     RequestContext.get().setVariableSecureApp(vars);
+    OBDal.getInstance().getSession().clear();
     for (BaseOBObject element : elementsToClean) {
-      log.info("Removing element: " + element.getEntityName() + " with id: " + element.getId());
-      OBDal.getInstance().remove(element);
+      BaseOBObject fresh = OBDal.getInstance().get(element.getClass(), element.getId());
+      if (fresh != null) {
+        log.info("Removing element: " + element.getEntityName() + " with id: " + element.getId());
+        OBDal.getInstance().remove(fresh);
+      }
     }
     OBDal.getInstance().flush();
     OBDal.getInstance().commitAndClose();
