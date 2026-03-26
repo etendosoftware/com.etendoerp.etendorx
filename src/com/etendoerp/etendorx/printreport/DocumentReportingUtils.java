@@ -22,6 +22,7 @@ import org.openbravo.erpCommon.utility.reporting.Report;
 import org.openbravo.erpCommon.utility.reporting.ReportManager;
 import org.openbravo.model.ad.ui.Process;
 import org.openbravo.model.ad.ui.Tab;
+import org.openbravo.model.common.order.Order;
 import org.openbravo.service.db.DalConnectionProvider;
 
 import java.io.ByteArrayOutputStream;
@@ -108,6 +109,9 @@ public class DocumentReportingUtils {
     if (recordId == null || jrxmlPath == null) {
       return;
     }
+    if (!recordId.matches("[0-9A-Fa-f]{32}|[0-9A-Fa-f\\-]{36}")) {
+      throw new OBException("Invalid recordId format: " + recordId);
+    }
     String recordIdInClause = "('" + recordId + "')";
     try {
       net.sf.jasperreports.engine.JasperReport report = ReportingUtils.compileReport(jrxmlPath);
@@ -143,20 +147,7 @@ public class DocumentReportingUtils {
         throw new OBException("Tab not found with ID: " + tabId);
       }
 
-      try {
-        pdfData = tryCustomProcess(tab, params);
-      } catch (Exception e) {
-        log4j.warn("Custom process failed, falling back to standard report generation. Cause: " + e.getMessage(), e);
-        pdfData = null;
-      }
-
-      if (pdfData == null || pdfData.length == 0) {
-        DocumentType docType = determineDocumentType(tab);
-        if (docType != DocumentType.UNKNOWN) {
-          pdfData = generateStandardReport(docType, params);
-        }
-      }
-
+      pdfData = resolvePDF(tab, params);
       if (pdfData == null) {
         throw new OBException(
             "No print method found for table: " + tab.getTable().getDBTableName());
@@ -165,6 +156,23 @@ public class DocumentReportingUtils {
       throw new OBException(e);
     } finally {
       OBContext.restorePreviousMode();
+    }
+    return pdfData;
+  }
+
+  private static byte[] resolvePDF(Tab tab, List<Map<String, String>> params) {
+    byte[] pdfData;
+    try {
+      pdfData = tryCustomProcess(tab, params);
+    } catch (Exception e) {
+      log4j.warn("Custom process failed, falling back to standard report generation. Cause: " + e.getMessage(), e);
+      pdfData = null;
+    }
+    if (pdfData == null || pdfData.length == 0) {
+      DocumentType docType = determineDocumentType(tab, params);
+      if (docType != DocumentType.UNKNOWN) {
+        pdfData = generateStandardReport(docType, params);
+      }
     }
     return pdfData;
   }
@@ -192,22 +200,35 @@ public class DocumentReportingUtils {
   }
 
   /**
-   * Determines the DocumentType for a given tab based on its table name.
+   * Determines the DocumentType for a given tab and record.
+   * For C_ORDER, inspects the record's document type to distinguish quotations, sales orders,
+   * and purchase orders (PURCHASEORDER is remapped to SALESORDER since Report.java has no case for it).
    *
-   * @param tab The tab definition.
+   * @param tab    The tab definition.
+   * @param params The list of parameter maps containing record IDs.
    * @return The determined DocumentType, or DocumentType.UNKNOWN if not found.
    */
-  private static DocumentType determineDocumentType(Tab tab) {
+  private static DocumentType determineDocumentType(Tab tab, List<Map<String, String>> params) {
     String tableName = tab.getTable().getDBTableName();
-    DocumentType docType = DocumentType.getByTableName(tableName);
-    if (docType == null) {
+    if (!"C_ORDER".equalsIgnoreCase(tableName)) {
+      DocumentType docType = DocumentType.getByTableName(tableName);
+      return docType != null ? docType : DocumentType.UNKNOWN;
+    }
+    if (params == null || params.isEmpty() || params.get(0) == null
+        || !params.get(0).containsKey(PARAM_RECORD_ID)) {
       return DocumentType.UNKNOWN;
     }
-    // Report.java has no case for PURCHASEORDER — both order types use the same report data
-    if (docType == DocumentType.PURCHASEORDER) {
-      docType = DocumentType.SALESORDER;
+    String recordId = params.get(0).get(PARAM_RECORD_ID);
+    Order order = OBDal.getInstance().get(Order.class, recordId);
+    if (order == null) {
+      return DocumentType.UNKNOWN;
     }
-    return docType;
+    org.openbravo.model.common.enterprise.DocumentType docTypeEntity = order.getDocumentType();
+    if (docTypeEntity != null && "OB".equals(docTypeEntity.getSOSubType())) {
+      return DocumentType.QUOTATION;
+    }
+    // Report.java has no case for PURCHASEORDER — both order types use the same report data
+    return DocumentType.SALESORDER;
   }
 
   /**
