@@ -98,11 +98,7 @@ public class SelectorHandlerUtil {
             HashMap<String, String> convertToHashMAp = convertToHashMAp(dataInpFormat);
             OBDal.getInstance().refresh(selectorDefined);
             convertToHashMAp.put("_entityName", selectorDefined.getTable().getJavaClassName());
-            String hqlWhereClause = selectorDefined.getHQLWhereClause();
-            if (StringUtils.isEmpty(hqlWhereClause)) {
-                hqlWhereClause = "1=1";
-            }
-            String whereClauseAndFilters = hqlWhereClause + headlessFilterClause + addFilterClause(selectorDefined,
+            String whereClauseAndFilters = selectorDefined.getHQLWhereClause() + headlessFilterClause + addFilterClause(selectorDefined,
                     convertToHashMAp, request);
             whereClauseAndFilters = fullfillSessionsVariables(whereClauseAndFilters, db2Input, dataInpFormat);
             convertToHashMAp.put("whereAndFilterClause", whereClauseAndFilters);
