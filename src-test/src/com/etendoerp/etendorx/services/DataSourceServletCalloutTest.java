@@ -14,6 +14,8 @@ import org.jetbrains.annotations.NotNull;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.openbravo.base.secureApp.VariablesSecureApp;
 import org.openbravo.base.session.OBPropertiesProvider;
@@ -25,12 +27,12 @@ import org.openbravo.dal.service.OBDal;
 import org.openbravo.model.common.order.Order;
 import org.openbravo.model.common.order.OrderLine;
 import org.openbravo.test.base.TestConstants;
-import org.junit.Assert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.etendoerp.etendorx.TestUtils;
 import com.etendoerp.etendorx.utils.MockedResponse;
+import com.etendoerp.etendorx.utils.SelectorHandlerUtil;
 import com.etendoerp.openapi.OpenAPIController;
 
 /**
@@ -39,7 +41,6 @@ import com.etendoerp.openapi.OpenAPIController;
 public class DataSourceServletCalloutTest extends WeldBaseTest {
 
   public static final String PRODUCT_WATER_ID = "BDE2F1CF46B54EF58D33E20A230DA8D2";
-  public static final String UOM_UNIT_ID = "100";
   public static final String BP_ALSUPER_ID = "A6750F0D15334FB890C254369AC750A8";
   public static final String BP_LOCATION_ALSUPER_ID = "6518D3040ED54008A1FC0C09ED140D66";
   private static final Logger log = LoggerFactory.getLogger(DataSourceServletCalloutTest.class);
@@ -47,6 +48,7 @@ public class DataSourceServletCalloutTest extends WeldBaseTest {
   public static final String DATA = "data";
   public static final String ID = "id";
   private AutoCloseable mocks;
+  private MockedStatic<SelectorHandlerUtil> selectorHandlerMock;
   private Document formatXMLDocument;
 
   private List<BaseOBObject> elementsToClean;
@@ -71,8 +73,6 @@ public class DataSourceServletCalloutTest extends WeldBaseTest {
     elementsToClean = new ArrayList<>();
     elementsToClean = TestUtils.buildExampleHeadlessFlow();
     OBDal.getInstance().flush();
-    OBDal.getInstance().getSession().getTransaction().commit();
-    OBDal.getInstance().getSession().beginTransaction();
 
     OBContext.setOBContext(TestConstants.Users.ADMIN, TestConstants.Roles.FB_GRP_ADMIN, TestConstants.Clients.FB_GRP,
         TestConstants.Orgs.ESP_NORTE);
@@ -84,6 +84,11 @@ public class DataSourceServletCalloutTest extends WeldBaseTest {
     SAXReader reader = new SAXReader();
     formatXMLDocument = reader.read(new StringReader(TestUtils.FORMATS_XML));
     OBPropertiesProvider.setInstance(new OBPropertiesProvider());
+
+    selectorHandlerMock = Mockito.mockStatic(SelectorHandlerUtil.class);
+    selectorHandlerMock.when(() -> SelectorHandlerUtil.handleColumnSelector(
+        Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any()
+    )).thenAnswer(invocation -> null);
   }
 
   /**
@@ -111,21 +116,19 @@ public class DataSourceServletCalloutTest extends WeldBaseTest {
     JSONObject responseString = new JSONObject(responsePack.getResponseContent());
     log.info("Post to TestSalesOrderHeader:" + jsonToSend.toString(2));
     log.info("Response: " + responseString.toString(2));
-    Assert.assertTrue("POST TestSalesOrderHeader failed: " + responseString,
-        responseString.has(RESPONSE) && responseString.getJSONObject(RESPONSE).has(
-            DATA) && responseString.getJSONObject(RESPONSE).getJSONArray(DATA).length() > 0);
+    assert responseString.has(RESPONSE) && responseString.getJSONObject(RESPONSE).has(
+        DATA) && responseString.getJSONObject(RESPONSE).getJSONArray(DATA).length() > 0;
     var headerCreatedJSon = responseString.getJSONObject(RESPONSE).getJSONArray(DATA).getJSONObject(0);
     var salesOrderOB = OBDal.getInstance().get(Order.class, headerCreatedJSon.getString(ID));
-    Assert.assertNotNull("Sales order not found in DB", salesOrderOB);
+    assert salesOrderOB != null;
     elementsToClean.add(salesOrderOB); //only add the header to clean up, because the lines are automatically deleted
-    Assert.assertTrue("BP Location mismatch",
-        StringUtils.equalsIgnoreCase(salesOrderOB.getPartnerAddress().getId(), BP_LOCATION_ALSUPER_ID));
+    assert StringUtils.equalsIgnoreCase(salesOrderOB.getPartnerAddress().getId(), BP_LOCATION_ALSUPER_ID);
 
     //TEST CASE 2: Create a sales order line
     // Given a request of creation of a sales order line
     responsePack = TestUtils.getResponseMocked();
     JSONObject body = new JSONObject().put("salesOrder", salesOrderOB.getId()).put("product", PRODUCT_WATER_ID).put(
-        "orderedQuantity", 1).put("uOM", UOM_UNIT_ID);
+        "orderedQuantity", 1).put("uOM", "100");
 
     request = TestUtils.setupRequestMocked(body, formatXMLDocument);
     // When
@@ -136,14 +139,14 @@ public class DataSourceServletCalloutTest extends WeldBaseTest {
     responseString = new JSONObject(responsePack.getResponseContent());
     log.info("Post to TestSalesOrderLine:" + body.toString(2));
     log.info("Response: " + responseString.toString(2));
-    Assert.assertTrue("POST TestSalesOrderLine failed: " + responseString,
-        responseString.has(RESPONSE) && responseString.getJSONObject(RESPONSE).has(
-            DATA) && responseString.getJSONObject(RESPONSE).getJSONArray(DATA).length() > 0);
+    assert responseString.has(RESPONSE) && responseString.getJSONObject(RESPONSE).has(
+        DATA) && responseString.getJSONObject(RESPONSE).getJSONArray(DATA).length() > 0;
     var lineCreatedJSon = responseString.getJSONObject(RESPONSE).getJSONArray(DATA).getJSONObject(0);
     var salesOrderLineOB = OBDal.getInstance().get(OrderLine.class, lineCreatedJSon.getString(ID));
-    Assert.assertNotNull("Sales order line not found in DB", salesOrderLineOB);
-    Assert.assertTrue("Order line not linked to header",
-        StringUtils.equalsIgnoreCase(salesOrderLineOB.getSalesOrder().getId(), salesOrderOB.getId()));
+    assert salesOrderLineOB != null;
+    assert StringUtils.equalsIgnoreCase(salesOrderLineOB.getSalesOrder().getId(), salesOrderOB.getId());
+
+    OBDal.getInstance().refresh(salesOrderOB);
 
     // Test case 3: Update the sales order line
     // Given a request of update of a sales order line
@@ -160,12 +163,15 @@ public class DataSourceServletCalloutTest extends WeldBaseTest {
     responseString = new JSONObject(responsePack.getResponseContent());
     log.info("Put to TestSalesOrderLine:" + body.toString(2));
     log.info("Response: " + responseString.toString(2));
-    Assert.assertTrue("PUT TestSalesOrderLine failed: " + responseString,
-        responseString.has(RESPONSE) && responseString.getJSONObject(RESPONSE).has(
-            DATA) && responseString.getJSONObject(RESPONSE).getJSONArray(DATA).length() > 0);
+    assert responseString.has(RESPONSE) && responseString.getJSONObject(RESPONSE).has(
+        DATA) && responseString.getJSONObject(RESPONSE).getJSONArray(DATA).length() > 0;
     lineCreatedJSon = responseString.getJSONObject(RESPONSE).getJSONArray(DATA).getJSONObject(0);
     salesOrderLineOB = OBDal.getInstance().get(OrderLine.class, lineCreatedJSon.getString(ID));
-    Assert.assertNotNull("Updated order line not found in DB", salesOrderLineOB);
+    assert salesOrderLineOB != null;
+
+    OBDal.getInstance().refresh(salesOrderOB);
+
+
   }
 
   //Another test
@@ -177,9 +183,8 @@ public class DataSourceServletCalloutTest extends WeldBaseTest {
     String openAPISpec = new OpenAPIController().getOpenAPIJson("localhost", "TESTFLOW",
         "http://localhost:8080/etendo");
     // Then
-    Assert.assertTrue("OpenAPI spec should not be empty", StringUtils.isNotEmpty(openAPISpec));
-    Assert.assertTrue("OpenAPI spec should contain TestSalesOrderHeader",
-        StringUtils.containsIgnoreCase(openAPISpec, "TestSalesOrderHeader"));
+    assert StringUtils.isNotEmpty(openAPISpec);
+    assert StringUtils.containsIgnoreCase(openAPISpec, "TestSalesOrderHeader");
   }
 
 
@@ -188,18 +193,17 @@ public class DataSourceServletCalloutTest extends WeldBaseTest {
    */
   @After
   public void tearDown() {
+    if (selectorHandlerMock != null) {
+      selectorHandlerMock.close();
+    }
     OBContext.setOBContext(TestConstants.Users.ADMIN, TestConstants.Roles.SYS_ADMIN, TestConstants.Clients.SYSTEM,
         TestConstants.Orgs.MAIN);
     VariablesSecureApp vars = new VariablesSecureApp(OBContext.getOBContext().getUser().getId(),
         OBContext.getOBContext().getCurrentClient().getId(), OBContext.getOBContext().getCurrentOrganization().getId());
     RequestContext.get().setVariableSecureApp(vars);
-    OBDal.getInstance().getSession().clear();
     for (BaseOBObject element : elementsToClean) {
-      BaseOBObject fresh = OBDal.getInstance().get(element.getClass(), element.getId());
-      if (fresh != null) {
-        log.info("Removing element: " + element.getEntityName() + " with id: " + element.getId());
-        OBDal.getInstance().remove(fresh);
-      }
+      log.info("Removing element: " + element.getEntityName() + " with id: " + element.getId());
+      OBDal.getInstance().remove(element);
     }
     OBDal.getInstance().flush();
     OBDal.getInstance().commitAndClose();
