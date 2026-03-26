@@ -33,6 +33,9 @@ import org.slf4j.LoggerFactory;
 import com.etendoerp.etendorx.TestUtils;
 import com.etendoerp.etendorx.utils.MockedResponse;
 import com.etendoerp.openapi.OpenAPIController;
+import org.openbravo.model.ad.ui.Tab;
+import org.openbravo.model.ad.ui.Field;
+import org.openbravo.model.ad.datamodel.Column;
 
 /**
  * Unit tests for the DataSourceServlet class.
@@ -84,6 +87,58 @@ public class DataSourceServletCalloutTest extends WeldBaseTest {
     SAXReader reader = new SAXReader();
     formatXMLDocument = reader.read(new StringReader(TestUtils.FORMATS_XML));
     OBPropertiesProvider.setInstance(new OBPropertiesProvider());
+
+    // Pre-warm all lazy-loaded column metadata (especially Validations) for tabs 186 and 187
+    // (Sales Order Header/Line). This prevents LazyInitializationException when
+    // FormInitializationComponent accesses column.getValidation().getValidationCode()
+    // after a session clear (which can happen on selector query errors in CI environments).
+    // EtendoFormInitComponent.initializeFieldMetadata misses Validation initialization,
+    // so we force it here while the session is active.
+    initializeTabValidations("186");
+    initializeTabValidations("187");
+  }
+
+  /**
+   * Eagerly initializes all lazy-loaded column metadata for a tab,
+   * including Validation objects that FormInitializationComponent needs.
+   */
+  private void initializeTabValidations(String tabId) {
+    try {
+      OBContext.setAdminMode();
+      Tab tab = OBDal.getInstance().get(Tab.class, tabId);
+      if (tab == null) {
+        return;
+      }
+      for (Field field : tab.getADFieldList()) {
+        Column column = field.getColumn();
+        if (column == null) {
+          continue;
+        }
+        // Force initialization of the Validation proxy and its validationCode
+        if (column.getValidation() != null) {
+          column.getValidation().getValidationCode();
+        }
+        // Also force initialization of callout proxy
+        if (column.getCallout() != null) {
+          column.getCallout().getId();
+          if (column.getCallout().getADModelImplementationList() != null) {
+            column.getCallout().getADModelImplementationList().size();
+          }
+        }
+        // Force initialization of reference and referenceSearchKey
+        if (column.getReference() != null) {
+          column.getReference().getId();
+        }
+        if (column.getReferenceSearchKey() != null) {
+          column.getReferenceSearchKey().getId();
+          if (column.getReferenceSearchKey().getADReferencedTableList() != null) {
+            column.getReferenceSearchKey().getADReferencedTableList().size();
+          }
+        }
+      }
+    } finally {
+      OBContext.restorePreviousMode();
+    }
   }
 
   /**
