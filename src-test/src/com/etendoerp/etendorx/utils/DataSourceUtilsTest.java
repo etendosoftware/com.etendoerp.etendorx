@@ -20,6 +20,7 @@ package com.etendoerp.etendorx.utils;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -180,6 +181,15 @@ class DataSourceUtilsTest {
   }
 
   @Test
+  void testGetValueFromItemWithDoubleValue() throws JSONException {
+    JSONObject item = new JSONObject();
+    item.put(VALUE, 3.14);
+
+    Object result = DataSourceUtils.getValueFromItem(item, YYYY_MM_DD, DD_MM_YYYY, false);
+    assertEquals(3.14, result);
+  }
+
+  @Test
   void testGetValueFromItemWithDateConversion() throws JSONException {
     JSONObject item = new JSONObject();
     item.put(VALUE, "2024-01-15");
@@ -289,6 +299,20 @@ class DataSourceUtilsTest {
   void testValueConvertToInputFormatDefaultType() throws ParseException {
     Object result = DataSourceUtils.valueConvertToInputFormat("someValue", "UnknownType");
     assertEquals("someValue", result);
+  }
+
+  @Test
+  void testGetInpNameSimpleColumn() {
+    String result = DataSourceUtils.getInpName("AD_Client_ID");
+    assertNotNull(result);
+    assertTrue(result.startsWith("inp"));
+  }
+
+  @Test
+  void testGetInpNameLowerCaseColumn() {
+    String result = DataSourceUtils.getInpName("name");
+    assertNotNull(result);
+    assertTrue(result.startsWith("inp"));
   }
 
   @Test
