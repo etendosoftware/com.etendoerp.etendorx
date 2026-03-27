@@ -45,6 +45,12 @@ public class SelectorHandlerUtilTest extends WeldBaseTest {
     private static final String TEST_VALUE = "testValue";
     private static final String TEST_COLUMN = "testColumn";
     private static final String FALLBACK = "fallback";
+    private static final String VALUE = "value";
+    private static final String INP_AD_ORG_ID = "inpadOrgId";
+    private static final String FALLBACK_NAME = "fallback.name";
+    private static final String FALLBACK_NAME_NORMALIZED = "fallback$name";
+    private static final String INP_C_BPARTNER_ID = "inpcBpartnerId";
+    private static final String INP_C_BPARTNER_ID_DES = "inpcBpartnerId_DES";
 
     @Mock
     private HttpServletRequest mockRequest;
@@ -76,27 +82,27 @@ public class SelectorHandlerUtilTest extends WeldBaseTest {
 
     // ========== Reflection helpers ==========
 
-    private Object callProcessValue(Object value) throws Exception {
+    private Object callProcessValue(Object value) throws ReflectiveOperationException {
         Method method = SelectorHandlerUtil.class.getDeclaredMethod("processValue", Object.class);
         method.setAccessible(true);
         return method.invoke(null, value);
     }
 
-    private JSONObject callConvertRowToJSONObject(Map<String, Object> row) throws Exception {
+    private JSONObject callConvertRowToJSONObject(Map<String, Object> row) throws ReflectiveOperationException {
         Method method = SelectorHandlerUtil.class.getDeclaredMethod("convertRowToJSONObject", Map.class);
         method.setAccessible(true);
         return (JSONObject) method.invoke(null, row);
     }
 
     private String callFullfillSessionsVariables(String whereClause, Map<String, String> db2Input,
-            JSONObject dataInpFormat) throws Exception {
+            JSONObject dataInpFormat) throws ReflectiveOperationException {
         Method method = SelectorHandlerUtil.class.getDeclaredMethod("fullfillSessionsVariables",
                 String.class, Map.class, JSONObject.class);
         method.setAccessible(true);
         return (String) method.invoke(null, whereClause, db2Input, dataInpFormat);
     }
 
-    private HashMap<String, String> callConvertToHashMAp(JSONObject dataInpFormat) throws Exception {
+    private HashMap<String, String> callConvertToHashMAp(JSONObject dataInpFormat) throws ReflectiveOperationException {
         Method method = SelectorHandlerUtil.class.getDeclaredMethod("convertToHashMAp", JSONObject.class);
         method.setAccessible(true);
         @SuppressWarnings("unchecked")
@@ -104,14 +110,14 @@ public class SelectorHandlerUtilTest extends WeldBaseTest {
         return result;
     }
 
-    private String callGetNormalizedFieldName(SelectorField sf, boolean isCustomHql) throws Exception {
+    private String callGetNormalizedFieldName(SelectorField sf, boolean isCustomHql) throws ReflectiveOperationException {
         Method method = SelectorHandlerUtil.class.getDeclaredMethod("getNormalizedFieldName",
                 SelectorField.class, boolean.class);
         method.setAccessible(true);
         return (String) method.invoke(null, sf, isCustomHql);
     }
 
-    private String callGetTargetKey(String changedColumnInp, SelectorField sf) throws Exception {
+    private String callGetTargetKey(String changedColumnInp, SelectorField sf) throws ReflectiveOperationException {
         Method method = SelectorHandlerUtil.class.getDeclaredMethod("getTargetKey",
                 String.class, SelectorField.class);
         method.setAccessible(true);
@@ -119,21 +125,21 @@ public class SelectorHandlerUtilTest extends WeldBaseTest {
     }
 
     private String callGetHeadlessFilterClause(Tab tab, Column col, String changedColumnInp,
-            JSONObject dataInpFormat) throws Exception {
+            JSONObject dataInpFormat) throws ReflectiveOperationException {
         Method method = SelectorHandlerUtil.class.getDeclaredMethod("getHeadlessFilterClause",
                 Tab.class, Column.class, String.class, JSONObject.class);
         method.setAccessible(true);
         return (String) method.invoke(null, tab, col, changedColumnInp, dataInpFormat);
     }
 
-    private String callGetExtraProperties(Selector selector) throws Exception {
+    private String callGetExtraProperties(Selector selector) throws ReflectiveOperationException {
         Method method = SelectorHandlerUtil.class.getDeclaredMethod("getExtraProperties", Selector.class);
         method.setAccessible(true);
         return (String) method.invoke(null, selector);
     }
 
     private Column callGetValueColumn(org.openbravo.model.ad.domain.Selector selectorValidation,
-            Selector selectorDefined) throws Exception {
+            Selector selectorDefined) throws ReflectiveOperationException {
         Method method = SelectorHandlerUtil.class.getDeclaredMethod("getValueColumn",
                 org.openbravo.model.ad.domain.Selector.class, Selector.class);
         method.setAccessible(true);
@@ -141,7 +147,7 @@ public class SelectorHandlerUtilTest extends WeldBaseTest {
     }
 
     private void callSavePrefixFields(JSONObject dataInpFormat, String changedColumnInp,
-            Selector selectorDefined, JSONObject obj, boolean isCustomHql) throws Exception {
+            Selector selectorDefined, JSONObject obj, boolean isCustomHql) throws ReflectiveOperationException {
         Method method = SelectorHandlerUtil.class.getDeclaredMethod("savePrefixFields",
                 JSONObject.class, String.class, Selector.class, JSONObject.class, boolean.class);
         method.setAccessible(true);
@@ -149,7 +155,7 @@ public class SelectorHandlerUtilTest extends WeldBaseTest {
     }
 
     private JSONObject callFindMatchingRecordInBatch(List<Map<String, Object>> results,
-            String recordID, String valueField) throws Exception {
+            String recordID, String valueField) throws ReflectiveOperationException {
         Method method = SelectorHandlerUtil.class.getDeclaredMethod("findMatchingRecordInBatch",
                 List.class, String.class, String.class);
         method.setAccessible(true);
@@ -157,7 +163,7 @@ public class SelectorHandlerUtilTest extends WeldBaseTest {
     }
 
     private String callAddFilterClause(Selector selector, HashMap<String, String> hs1,
-            HttpServletRequest request) throws Exception {
+            HttpServletRequest request) throws ReflectiveOperationException {
         Method method = SelectorHandlerUtil.class.getDeclaredMethod("addFilterClause",
                 Selector.class, HashMap.class, HttpServletRequest.class);
         method.setAccessible(true);
@@ -167,62 +173,62 @@ public class SelectorHandlerUtilTest extends WeldBaseTest {
     // ========== processValue tests ==========
 
     @Test
-    public void testProcessValue_Null() throws Exception {
+    public void testProcessValue_Null() throws ReflectiveOperationException {
         Object result = callProcessValue(null);
         assertEquals(JSONObject.NULL, result);
     }
 
     @Test
-    public void testProcessValue_String() throws Exception {
+    public void testProcessValue_String() throws ReflectiveOperationException {
         Object result = callProcessValue("hello");
         assertEquals("hello", result);
     }
 
     @Test
-    public void testProcessValue_EmptyString() throws Exception {
+    public void testProcessValue_EmptyString() throws ReflectiveOperationException {
         Object result = callProcessValue("");
         assertEquals("", result);
     }
 
     @Test
-    public void testProcessValue_Number() throws Exception {
+    public void testProcessValue_Number() throws ReflectiveOperationException {
         Object result = callProcessValue(42);
         assertEquals(42, result);
     }
 
     @Test
-    public void testProcessValue_Double() throws Exception {
+    public void testProcessValue_Double() throws ReflectiveOperationException {
         Object result = callProcessValue(3.14);
         assertEquals(3.14, result);
     }
 
     @Test
-    public void testProcessValue_Long() throws Exception {
+    public void testProcessValue_Long() throws ReflectiveOperationException {
         Object result = callProcessValue(999999999L);
         assertEquals(999999999L, result);
     }
 
     @Test
-    public void testProcessValue_Boolean() throws Exception {
+    public void testProcessValue_Boolean() throws ReflectiveOperationException {
         assertEquals(true, callProcessValue(true));
         assertEquals(false, callProcessValue(false));
     }
 
     @Test
-    public void testProcessValue_BigDecimal() throws Exception {
+    public void testProcessValue_BigDecimal() throws ReflectiveOperationException {
         Object result = callProcessValue(new java.math.BigDecimal("123.45"));
         assertEquals(new java.math.BigDecimal("123.45"), result);
     }
 
     @Test
-    public void testProcessValue_Date() throws Exception {
+    public void testProcessValue_Date() throws ReflectiveOperationException, java.text.ParseException {
         Date date = new java.text.SimpleDateFormat("yyyy-MM-dd").parse("2026-01-15");
         Object result = callProcessValue(date);
         assertEquals("2026-01-15", result);
     }
 
     @Test
-    public void testProcessValue_Timestamp() throws Exception {
+    public void testProcessValue_Timestamp() throws ReflectiveOperationException {
         Timestamp ts = Timestamp.valueOf("2026-01-15 10:30:00");
         Object result = callProcessValue(ts);
         assertNotNull(result);
@@ -230,7 +236,7 @@ public class SelectorHandlerUtilTest extends WeldBaseTest {
     }
 
     @Test
-    public void testProcessValue_UnknownObjectFallsBackToString() throws Exception {
+    public void testProcessValue_UnknownObjectFallsBackToString() throws ReflectiveOperationException {
         Object result = callProcessValue(new ArrayList<>());
         assertEquals("[]", result);
     }
@@ -238,7 +244,7 @@ public class SelectorHandlerUtilTest extends WeldBaseTest {
     // ========== convertRowToJSONObject tests ==========
 
     @Test
-    public void testConvertRowToJSONObject_EmptyMap() throws Exception {
+    public void testConvertRowToJSONObject_EmptyMap() throws ReflectiveOperationException {
         Map<String, Object> row = new HashMap<>();
         JSONObject result = callConvertRowToJSONObject(row);
         assertNotNull(result);
@@ -246,7 +252,7 @@ public class SelectorHandlerUtilTest extends WeldBaseTest {
     }
 
     @Test
-    public void testConvertRowToJSONObject_WithValues() throws Exception {
+    public void testConvertRowToJSONObject_WithValues() throws ReflectiveOperationException, JSONException {
         Map<String, Object> row = new LinkedHashMap<>();
         row.put("name", "Test");
         row.put("count", 5);
@@ -260,9 +266,9 @@ public class SelectorHandlerUtilTest extends WeldBaseTest {
     }
 
     @Test
-    public void testConvertRowToJSONObject_NullKeySkipped() throws Exception {
+    public void testConvertRowToJSONObject_NullKeySkipped() throws ReflectiveOperationException, JSONException {
         Map<String, Object> row = new HashMap<>();
-        row.put(null, "value");
+        row.put(null, VALUE);
         row.put("valid", "data");
         JSONObject result = callConvertRowToJSONObject(row);
         assertEquals("data", result.getString("valid"));
@@ -270,7 +276,8 @@ public class SelectorHandlerUtilTest extends WeldBaseTest {
     }
 
     @Test
-    public void testConvertRowToJSONObject_WithDateValues() throws Exception {
+    public void testConvertRowToJSONObject_WithDateValues() throws ReflectiveOperationException, JSONException,
+            java.text.ParseException {
         Map<String, Object> row = new LinkedHashMap<>();
         Date date = new java.text.SimpleDateFormat("yyyy-MM-dd").parse("2026-03-15");
         Timestamp ts = Timestamp.valueOf("2026-03-15 14:30:00");
@@ -284,69 +291,69 @@ public class SelectorHandlerUtilTest extends WeldBaseTest {
     // ========== fullfillSessionsVariables tests ==========
 
     @Test
-    public void testFullfillSessionsVariables_SingleReplacement() throws Exception {
+    public void testFullfillSessionsVariables_SingleReplacement() throws ReflectiveOperationException, JSONException {
         String whereClause = "e.organization.id = @AD_Org_ID@";
         Map<String, String> db2Input = new HashMap<>();
-        db2Input.put("AD_Org_ID", "inpadOrgId");
+        db2Input.put("AD_Org_ID", INP_AD_ORG_ID);
         JSONObject data = new JSONObject();
-        data.put("inpadOrgId", "ORG123");
+        data.put(INP_AD_ORG_ID, "ORG123");
 
         String result = callFullfillSessionsVariables(whereClause, db2Input, data);
         assertEquals("e.organization.id = 'ORG123'", result);
     }
 
     @Test
-    public void testFullfillSessionsVariables_MultipleReplacements() throws Exception {
+    public void testFullfillSessionsVariables_MultipleReplacements() throws ReflectiveOperationException,
+            JSONException {
         String whereClause = "e.client.id = @AD_Client_ID@ AND e.org.id = @AD_Org_ID@";
         Map<String, String> db2Input = new HashMap<>();
         db2Input.put("AD_Client_ID", "inpadClientId");
-        db2Input.put("AD_Org_ID", "inpadOrgId");
+        db2Input.put("AD_Org_ID", INP_AD_ORG_ID);
         JSONObject data = new JSONObject();
         data.put("inpadClientId", "CLIENT1");
-        data.put("inpadOrgId", "ORG1");
+        data.put(INP_AD_ORG_ID, "ORG1");
 
         String result = callFullfillSessionsVariables(whereClause, db2Input, data);
         assertEquals("e.client.id = 'CLIENT1' AND e.org.id = 'ORG1'", result);
     }
 
     @Test
-    public void testFullfillSessionsVariables_NoMatchingKeys() throws Exception {
+    public void testFullfillSessionsVariables_NoMatchingKeys() throws ReflectiveOperationException, JSONException {
         String whereClause = "e.name = @UNKNOWN@";
         Map<String, String> db2Input = new HashMap<>();
         db2Input.put("OTHER", "inpOther");
         JSONObject data = new JSONObject();
-        data.put("inpOther", "value");
+        data.put("inpOther", VALUE);
 
         String result = callFullfillSessionsVariables(whereClause, db2Input, data);
         assertEquals("e.name = @UNKNOWN@", result);
     }
 
     @Test
-    public void testFullfillSessionsVariables_EmptyMaps() throws Exception {
+    public void testFullfillSessionsVariables_EmptyMaps() throws ReflectiveOperationException {
         String whereClause = "1=1";
         String result = callFullfillSessionsVariables(whereClause, new HashMap<>(), new JSONObject());
         assertEquals("1=1", result);
     }
 
     @Test
-    public void testFullfillSessionsVariables_KeyInMapButNotInJson() throws Exception {
+    public void testFullfillSessionsVariables_KeyInMapButNotInJson() throws ReflectiveOperationException {
         String whereClause = "e.id = @M_Product_ID@";
         Map<String, String> db2Input = new HashMap<>();
         db2Input.put("M_Product_ID", "inpmProductId");
         JSONObject data = new JSONObject();
-        // inpmProductId is NOT in data
 
         String result = callFullfillSessionsVariables(whereClause, db2Input, data);
         assertEquals("e.id = @M_Product_ID@", result);
     }
 
     @Test
-    public void testFullfillSessionsVariables_CaseInsensitive() throws Exception {
+    public void testFullfillSessionsVariables_CaseInsensitive() throws ReflectiveOperationException, JSONException {
         String whereClause = "e.org = @ad_org_id@";
         Map<String, String> db2Input = new HashMap<>();
-        db2Input.put("ad_org_id", "inpadOrgId");
+        db2Input.put("ad_org_id", INP_AD_ORG_ID);
         JSONObject data = new JSONObject();
-        data.put("inpadOrgId", "O1");
+        data.put(INP_AD_ORG_ID, "O1");
 
         String result = callFullfillSessionsVariables(whereClause, db2Input, data);
         assertEquals("e.org = 'O1'", result);
@@ -355,7 +362,7 @@ public class SelectorHandlerUtilTest extends WeldBaseTest {
     // ========== convertToHashMAp tests ==========
 
     @Test
-    public void testConvertToHashMAp_BasicConversion() throws Exception {
+    public void testConvertToHashMAp_BasicConversion() throws ReflectiveOperationException, JSONException {
         JSONObject json = new JSONObject();
         json.put("key1", "value1");
         json.put("key2", 123);
@@ -367,14 +374,14 @@ public class SelectorHandlerUtilTest extends WeldBaseTest {
     }
 
     @Test
-    public void testConvertToHashMAp_EmptyJson() throws Exception {
+    public void testConvertToHashMAp_EmptyJson() throws ReflectiveOperationException {
         JSONObject json = new JSONObject();
         HashMap<String, String> result = callConvertToHashMAp(json);
         assertTrue(result.isEmpty());
     }
 
     @Test
-    public void testConvertToHashMAp_BooleanValue() throws Exception {
+    public void testConvertToHashMAp_BooleanValue() throws ReflectiveOperationException, JSONException {
         JSONObject json = new JSONObject();
         json.put("flag", true);
         HashMap<String, String> result = callConvertToHashMAp(json);
@@ -384,7 +391,7 @@ public class SelectorHandlerUtilTest extends WeldBaseTest {
     // ========== getNormalizedFieldName tests ==========
 
     @Test
-    public void testGetNormalizedFieldName_CustomHql_WithDisplayAlias() throws Exception {
+    public void testGetNormalizedFieldName_CustomHql_WithDisplayAlias() throws ReflectiveOperationException {
         when(mockSelectorField.getDisplayColumnAlias()).thenReturn("test.field.name");
         when(mockSelectorField.getName()).thenReturn("testName");
 
@@ -393,25 +400,25 @@ public class SelectorHandlerUtilTest extends WeldBaseTest {
     }
 
     @Test
-    public void testGetNormalizedFieldName_CustomHql_FallbackToName() throws Exception {
+    public void testGetNormalizedFieldName_CustomHql_FallbackToName() throws ReflectiveOperationException {
         when(mockSelectorField.getDisplayColumnAlias()).thenReturn(null);
-        when(mockSelectorField.getName()).thenReturn("fallback.name");
+        when(mockSelectorField.getName()).thenReturn(FALLBACK_NAME);
 
         String result = callGetNormalizedFieldName(mockSelectorField, true);
-        assertEquals("fallback$name", result);
+        assertEquals(FALLBACK_NAME_NORMALIZED, result);
     }
 
     @Test
-    public void testGetNormalizedFieldName_CustomHql_EmptyAliasFallbackToName() throws Exception {
+    public void testGetNormalizedFieldName_CustomHql_EmptyAliasFallbackToName() throws ReflectiveOperationException {
         when(mockSelectorField.getDisplayColumnAlias()).thenReturn("");
-        when(mockSelectorField.getName()).thenReturn("fallback.name");
+        when(mockSelectorField.getName()).thenReturn(FALLBACK_NAME);
 
         String result = callGetNormalizedFieldName(mockSelectorField, true);
-        assertEquals("fallback$name", result);
+        assertEquals(FALLBACK_NAME_NORMALIZED, result);
     }
 
     @Test
-    public void testGetNormalizedFieldName_RegularSelector_WithProperty() throws Exception {
+    public void testGetNormalizedFieldName_RegularSelector_WithProperty() throws ReflectiveOperationException {
         when(mockSelectorField.getProperty()).thenReturn("entity.property");
         when(mockSelectorField.getName()).thenReturn("testName");
 
@@ -420,16 +427,17 @@ public class SelectorHandlerUtilTest extends WeldBaseTest {
     }
 
     @Test
-    public void testGetNormalizedFieldName_RegularSelector_FallbackToName() throws Exception {
+    public void testGetNormalizedFieldName_RegularSelector_FallbackToName() throws ReflectiveOperationException {
         when(mockSelectorField.getProperty()).thenReturn("");
-        when(mockSelectorField.getName()).thenReturn("fallback.name");
+        when(mockSelectorField.getName()).thenReturn(FALLBACK_NAME);
 
         String result = callGetNormalizedFieldName(mockSelectorField, false);
-        assertEquals("fallback$name", result);
+        assertEquals(FALLBACK_NAME_NORMALIZED, result);
     }
 
     @Test
-    public void testGetNormalizedFieldName_RegularSelector_NullPropertyFallbackToName() throws Exception {
+    public void testGetNormalizedFieldName_RegularSelector_NullPropertyFallbackToName()
+            throws ReflectiveOperationException {
         when(mockSelectorField.getProperty()).thenReturn(null);
         when(mockSelectorField.getName()).thenReturn("simple");
 
@@ -438,14 +446,14 @@ public class SelectorHandlerUtilTest extends WeldBaseTest {
     }
 
     @Test
-    public void testGetNormalizedFieldName_NoDots() throws Exception {
+    public void testGetNormalizedFieldName_NoDots() throws ReflectiveOperationException {
         when(mockSelectorField.getProperty()).thenReturn("nodots");
         String result = callGetNormalizedFieldName(mockSelectorField, false);
         assertEquals("nodots", result);
     }
 
     @Test
-    public void testGetNormalizedFieldName_LongStringWithDots() throws Exception {
+    public void testGetNormalizedFieldName_LongStringWithDots() throws ReflectiveOperationException {
         String longString = "a".repeat(500) + "." + "b".repeat(500);
         when(mockSelectorField.getDisplayColumnAlias()).thenReturn(longString);
         when(mockSelectorField.getName()).thenReturn(FALLBACK);
@@ -459,14 +467,14 @@ public class SelectorHandlerUtilTest extends WeldBaseTest {
     // ========== getTargetKey tests ==========
 
     @Test
-    public void testGetTargetKey_WithSuffix() throws Exception {
+    public void testGetTargetKey_WithSuffix() throws ReflectiveOperationException {
         when(mockSelectorField.getSuffix()).thenReturn("_SUFFIX");
         String result = callGetTargetKey(TEST_COLUMN, mockSelectorField);
         assertEquals("testColumn_SUFFIX", result);
     }
 
     @Test
-    public void testGetTargetKey_EmptySuffixUsesInpName() throws Exception {
+    public void testGetTargetKey_EmptySuffixUsesInpName() throws ReflectiveOperationException {
         when(mockSelectorField.getSuffix()).thenReturn("");
         Column col = mock(Column.class);
         when(mockSelectorField.getColumn()).thenReturn(col);
@@ -477,7 +485,7 @@ public class SelectorHandlerUtilTest extends WeldBaseTest {
     }
 
     @Test
-    public void testGetTargetKey_NullSuffixUsesInpName() throws Exception {
+    public void testGetTargetKey_NullSuffixUsesInpName() throws ReflectiveOperationException {
         when(mockSelectorField.getSuffix()).thenReturn(null);
         Column col = mock(Column.class);
         when(mockSelectorField.getColumn()).thenReturn(col);
@@ -490,7 +498,7 @@ public class SelectorHandlerUtilTest extends WeldBaseTest {
     // ========== getHeadlessFilterClause tests ==========
 
     @Test
-    public void testGetHeadlessFilterClause_NoFilter() throws Exception {
+    public void testGetHeadlessFilterClause_NoFilter() throws ReflectiveOperationException, JSONException {
         List<Field> fieldList = new ArrayList<>();
         fieldList.add(mockField);
         when(mockTab.getADFieldList()).thenReturn(fieldList);
@@ -505,7 +513,7 @@ public class SelectorHandlerUtilTest extends WeldBaseTest {
     }
 
     @Test
-    public void testGetHeadlessFilterClause_EmptyFilter() throws Exception {
+    public void testGetHeadlessFilterClause_EmptyFilter() throws ReflectiveOperationException, JSONException {
         List<Field> fieldList = new ArrayList<>();
         fieldList.add(mockField);
         when(mockTab.getADFieldList()).thenReturn(fieldList);
@@ -520,7 +528,7 @@ public class SelectorHandlerUtilTest extends WeldBaseTest {
     }
 
     @Test
-    public void testGetHeadlessFilterClause_WithFilter() throws Exception {
+    public void testGetHeadlessFilterClause_WithFilter() throws ReflectiveOperationException, JSONException {
         List<Field> fieldList = new ArrayList<>();
         fieldList.add(mockField);
         when(mockTab.getADFieldList()).thenReturn(fieldList);
@@ -535,7 +543,8 @@ public class SelectorHandlerUtilTest extends WeldBaseTest {
     }
 
     @Test
-    public void testGetHeadlessFilterClause_CaseInsensitiveIdReplacement() throws Exception {
+    public void testGetHeadlessFilterClause_CaseInsensitiveIdReplacement() throws ReflectiveOperationException,
+            JSONException {
         List<Field> fieldList = new ArrayList<>();
         fieldList.add(mockField);
         when(mockTab.getADFieldList()).thenReturn(fieldList);
@@ -550,7 +559,7 @@ public class SelectorHandlerUtilTest extends WeldBaseTest {
     }
 
     @Test
-    public void testGetHeadlessFilterClause_NoMatchingColumn() throws Exception {
+    public void testGetHeadlessFilterClause_NoMatchingColumn() throws ReflectiveOperationException, JSONException {
         Column otherColumn = mock(Column.class);
         List<Field> fieldList = new ArrayList<>();
         fieldList.add(mockField);
@@ -566,7 +575,7 @@ public class SelectorHandlerUtilTest extends WeldBaseTest {
     }
 
     @Test
-    public void testGetHeadlessFilterClause_EmptyFieldList() throws Exception {
+    public void testGetHeadlessFilterClause_EmptyFieldList() throws ReflectiveOperationException, JSONException {
         when(mockTab.getADFieldList()).thenReturn(new ArrayList<>());
 
         JSONObject data = new JSONObject();
@@ -579,7 +588,7 @@ public class SelectorHandlerUtilTest extends WeldBaseTest {
     // ========== addFilterClause tests ==========
 
     @Test
-    public void testAddFilterClause_NullFilterExpression() throws Exception {
+    public void testAddFilterClause_NullFilterExpression() throws ReflectiveOperationException {
         when(mockSelector.getFilterExpression()).thenReturn(null);
         String result = callAddFilterClause(mockSelector, new HashMap<>(), mockRequest);
         assertEquals("", result);
@@ -588,7 +597,7 @@ public class SelectorHandlerUtilTest extends WeldBaseTest {
     // ========== getValueColumn tests ==========
 
     @Test
-    public void testGetValueColumn_DefinedSelectorWithValueField() throws Exception {
+    public void testGetValueColumn_DefinedSelectorWithValueField() throws ReflectiveOperationException {
         Column valueColumn = mock(Column.class);
         SelectorField valueField = mock(SelectorField.class);
         when(valueField.getColumn()).thenReturn(valueColumn);
@@ -603,7 +612,7 @@ public class SelectorHandlerUtilTest extends WeldBaseTest {
     }
 
     @Test
-    public void testGetValueColumn_CustomQueryFallsBackToValidation() throws Exception {
+    public void testGetValueColumn_CustomQueryFallsBackToValidation() throws ReflectiveOperationException {
         SelectorField valueField = mock(SelectorField.class);
         Column definedColumn = mock(Column.class);
         when(valueField.getColumn()).thenReturn(definedColumn);
@@ -620,7 +629,7 @@ public class SelectorHandlerUtilTest extends WeldBaseTest {
     }
 
     @Test
-    public void testGetValueColumn_NullSelectorDefined() throws Exception {
+    public void testGetValueColumn_NullSelectorDefined() throws ReflectiveOperationException {
         Column validationColumn = mock(Column.class);
         org.openbravo.model.ad.domain.Selector selectorValidation = mock(
                 org.openbravo.model.ad.domain.Selector.class);
@@ -631,7 +640,7 @@ public class SelectorHandlerUtilTest extends WeldBaseTest {
     }
 
     @Test
-    public void testGetValueColumn_NullValueFieldFallsBackToValidation() throws Exception {
+    public void testGetValueColumn_NullValueFieldFallsBackToValidation() throws ReflectiveOperationException {
         when(mockSelector.getValuefield()).thenReturn(null);
 
         Column validationColumn = mock(Column.class);
@@ -646,14 +655,14 @@ public class SelectorHandlerUtilTest extends WeldBaseTest {
     // ========== getExtraProperties tests ==========
 
     @Test
-    public void testGetExtraProperties_EmptyList() throws Exception {
+    public void testGetExtraProperties_EmptyList() throws ReflectiveOperationException {
         when(mockSelector.getOBUISELSelectorFieldList()).thenReturn(new ArrayList<>());
         String result = callGetExtraProperties(mockSelector);
         assertEquals("", result);
     }
 
     @Test
-    public void testGetExtraProperties_WithOutfields() throws Exception {
+    public void testGetExtraProperties_WithOutfields() throws ReflectiveOperationException {
         SelectorField sf1 = mock(SelectorField.class);
         when(sf1.isOutfield()).thenReturn(true);
         when(sf1.getProperty()).thenReturn("product.name");
@@ -677,7 +686,7 @@ public class SelectorHandlerUtilTest extends WeldBaseTest {
     }
 
     @Test
-    public void testGetExtraProperties_ValueFieldIncluded() throws Exception {
+    public void testGetExtraProperties_ValueFieldIncluded() throws ReflectiveOperationException {
         SelectorField valueField = mock(SelectorField.class);
         when(valueField.isOutfield()).thenReturn(false);
         when(valueField.getProperty()).thenReturn("id");
@@ -691,7 +700,7 @@ public class SelectorHandlerUtilTest extends WeldBaseTest {
     }
 
     @Test
-    public void testGetExtraProperties_SortedBySortno() throws Exception {
+    public void testGetExtraProperties_SortedBySortno() throws ReflectiveOperationException {
         SelectorField sf1 = mock(SelectorField.class);
         when(sf1.isOutfield()).thenReturn(true);
         when(sf1.getProperty()).thenReturn("second");
@@ -712,7 +721,7 @@ public class SelectorHandlerUtilTest extends WeldBaseTest {
     // ========== findMatchingRecordInBatch tests ==========
 
     @Test
-    public void testFindMatchingRecordInBatch_Found() throws Exception {
+    public void testFindMatchingRecordInBatch_Found() throws ReflectiveOperationException, JSONException {
         Map<String, Object> row1 = new LinkedHashMap<>();
         row1.put("id", "AAA");
         row1.put("name", "Product A");
@@ -730,7 +739,7 @@ public class SelectorHandlerUtilTest extends WeldBaseTest {
     }
 
     @Test
-    public void testFindMatchingRecordInBatch_NotFound() throws Exception {
+    public void testFindMatchingRecordInBatch_NotFound() throws ReflectiveOperationException {
         Map<String, Object> row1 = new LinkedHashMap<>();
         row1.put("id", "AAA");
 
@@ -741,14 +750,14 @@ public class SelectorHandlerUtilTest extends WeldBaseTest {
     }
 
     @Test
-    public void testFindMatchingRecordInBatch_EmptyList() throws Exception {
+    public void testFindMatchingRecordInBatch_EmptyList() throws ReflectiveOperationException {
         List<Map<String, Object>> results = new ArrayList<>();
         JSONObject found = callFindMatchingRecordInBatch(results, "AAA", "id");
         assertNull(found);
     }
 
     @Test
-    public void testFindMatchingRecordInBatch_MissingValueField() throws Exception {
+    public void testFindMatchingRecordInBatch_MissingValueField() throws ReflectiveOperationException {
         Map<String, Object> row1 = new LinkedHashMap<>();
         row1.put("name", "Product A");
 
@@ -761,7 +770,7 @@ public class SelectorHandlerUtilTest extends WeldBaseTest {
     // ========== savePrefixFields tests ==========
 
     @Test
-    public void testSavePrefixFields_WithOutfield() throws Exception {
+    public void testSavePrefixFields_WithOutfield() throws ReflectiveOperationException, JSONException {
         SelectorField sf = mock(SelectorField.class);
         when(sf.isOutfield()).thenReturn(true);
         when(sf.getProperty()).thenReturn("businessPartner.name");
@@ -774,14 +783,14 @@ public class SelectorHandlerUtilTest extends WeldBaseTest {
         JSONObject selectorResult = new JSONObject();
         selectorResult.put("businessPartner$name", "Test Partner");
 
-        callSavePrefixFields(dataInp, "inpcBpartnerId", mockSelector, selectorResult, false);
+        callSavePrefixFields(dataInp, INP_C_BPARTNER_ID, mockSelector, selectorResult, false);
 
-        assertTrue(dataInp.has("inpcBpartnerId_DES"));
-        assertEquals("Test Partner", dataInp.getString("inpcBpartnerId_DES"));
+        assertTrue(dataInp.has(INP_C_BPARTNER_ID_DES));
+        assertEquals("Test Partner", dataInp.getString(INP_C_BPARTNER_ID_DES));
     }
 
     @Test
-    public void testSavePrefixFields_NoOutfields() throws Exception {
+    public void testSavePrefixFields_NoOutfields() throws ReflectiveOperationException, JSONException {
         SelectorField sf = mock(SelectorField.class);
         when(sf.isOutfield()).thenReturn(false);
         when(sf.getSortno()).thenReturn(10L);
@@ -792,12 +801,12 @@ public class SelectorHandlerUtilTest extends WeldBaseTest {
         JSONObject dataInp = new JSONObject();
         JSONObject selectorResult = new JSONObject();
 
-        callSavePrefixFields(dataInp, "inpcBpartnerId", mockSelector, selectorResult, false);
+        callSavePrefixFields(dataInp, INP_C_BPARTNER_ID, mockSelector, selectorResult, false);
         assertEquals(0, dataInp.length());
     }
 
     @Test
-    public void testSavePrefixFields_CustomHql_UsesDisplayAlias() throws Exception {
+    public void testSavePrefixFields_CustomHql_UsesDisplayAlias() throws ReflectiveOperationException, JSONException {
         SelectorField sf = mock(SelectorField.class);
         when(sf.isOutfield()).thenReturn(true);
         when(sf.getDisplayColumnAlias()).thenReturn("bp_name");
@@ -811,14 +820,14 @@ public class SelectorHandlerUtilTest extends WeldBaseTest {
         JSONObject selectorResult = new JSONObject();
         selectorResult.put("bp_name", "Custom Partner");
 
-        callSavePrefixFields(dataInp, "inpcBpartnerId", mockSelector, selectorResult, true);
+        callSavePrefixFields(dataInp, INP_C_BPARTNER_ID, mockSelector, selectorResult, true);
 
-        assertTrue(dataInp.has("inpcBpartnerId_DES"));
-        assertEquals("Custom Partner", dataInp.getString("inpcBpartnerId_DES"));
+        assertTrue(dataInp.has(INP_C_BPARTNER_ID_DES));
+        assertEquals("Custom Partner", dataInp.getString(INP_C_BPARTNER_ID_DES));
     }
 
     @Test
-    public void testSavePrefixFields_FieldNotInResult() throws Exception {
+    public void testSavePrefixFields_FieldNotInResult() throws ReflectiveOperationException, JSONException {
         SelectorField sf = mock(SelectorField.class);
         when(sf.isOutfield()).thenReturn(true);
         when(sf.getProperty()).thenReturn("missing.field");
@@ -828,14 +837,14 @@ public class SelectorHandlerUtilTest extends WeldBaseTest {
 
         JSONObject dataInp = new JSONObject();
         JSONObject selectorResult = new JSONObject();
-        selectorResult.put("other$field", "value");
+        selectorResult.put("other$field", VALUE);
 
-        callSavePrefixFields(dataInp, "inpcBpartnerId", mockSelector, selectorResult, false);
+        callSavePrefixFields(dataInp, INP_C_BPARTNER_ID, mockSelector, selectorResult, false);
         assertEquals(0, dataInp.length());
     }
 
     @Test
-    public void testSavePrefixFields_MultipleOutfields() throws Exception {
+    public void testSavePrefixFields_MultipleOutfields() throws ReflectiveOperationException, JSONException {
         SelectorField sf1 = mock(SelectorField.class);
         when(sf1.isOutfield()).thenReturn(true);
         when(sf1.getProperty()).thenReturn("name");
@@ -855,8 +864,8 @@ public class SelectorHandlerUtilTest extends WeldBaseTest {
         selectorResult.put("name", "Partner");
         selectorResult.put("taxId", "12345");
 
-        callSavePrefixFields(dataInp, "inpcBpartnerId", mockSelector, selectorResult, false);
-        assertEquals("Partner", dataInp.getString("inpcBpartnerId_DES"));
+        callSavePrefixFields(dataInp, INP_C_BPARTNER_ID, mockSelector, selectorResult, false);
+        assertEquals("Partner", dataInp.getString(INP_C_BPARTNER_ID_DES));
         assertEquals("12345", dataInp.getString("inpcBpartnerId_TAX"));
     }
 }
