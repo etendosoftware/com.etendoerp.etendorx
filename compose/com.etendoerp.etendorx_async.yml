@@ -59,7 +59,7 @@ services:
       resources:
         limits:
           cpus: "${CONNECT_CPU_LIMIT:-${BASE_CONNECT_CPU_LIMIT:-1}}"
-          memory: "${CONNECT_MEMORY_LIMIT:-${BASE_CONNECT_MEMORY_LIMIT:-512M}}"
+          memory: "${CONNECT_MEMORY_LIMIT:-${BASE_CONNECT_MEMORY_LIMIT:-1024M}}"
 
 networks:
   etendo:

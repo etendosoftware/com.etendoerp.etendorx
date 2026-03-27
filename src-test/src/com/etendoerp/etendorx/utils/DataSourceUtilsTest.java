@@ -1,291 +1,340 @@
 package com.etendoerp.etendorx.utils;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+/*
+ *************************************************************************
+ * The contents of this file are subject to the Etendo License
+ * (the "License"), you may not use this file except in compliance
+ * with the License.
+ * You may obtain a copy of the License at
+ * https://github.com/etendosoftware/etendo_core/blob/main/legal/Etendo_license.txt
+ * Software distributed under the License is distributed on an
+ * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+ * implied. See the License for the specific language governing rights
+ * and limitations under the License.
+ * All portions are Copyright (C) 2021-2026 FUTIT SERVICES, S.L
+ * All Rights Reserved.
+ * Contributor(s): Futit Services S.L.
+ *************************************************************************
+ */
+
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.math.BigDecimal;
+import java.text.ParseException;
 import java.util.HashMap;
 import java.util.Map;
 
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
-import org.junit.Before;
-import org.junit.Test;
-import org.mockito.MockitoAnnotations;
-import org.openbravo.base.weld.test.WeldBaseTest;
+import org.junit.jupiter.api.Test;
+import org.openbravo.model.ad.datamodel.Column;
 import org.openbravo.model.ad.domain.Reference;
 
-/**
- * Unit tests for DataSourceUtils utility methods.
- */
-public class DataSourceUtilsTest extends WeldBaseTest {
+class DataSourceUtilsTest {
 
-  @Before
-  public void setUp() throws Exception {
-    super.setUp();
-    MockitoAnnotations.openMocks(this);
-  }
-
-  // ========== extractDataSourceAndID ==========
-
-  @Test
-  public void testExtractDataSourceAndID_WithID() {
-    String[] result = DataSourceUtils.extractDataSourceAndID("/SalesOrder/ABC123");
-    assertEquals(2, result.length);
-    assertEquals("SalesOrder", result[0]);
-    assertEquals("ABC123", result[1]);
-  }
+  public static final String VALUE_1 = "value1";
+  public static final String VALUE_2 = "value2";
+  public static final String VALUE_3 = "value3";
+  public static final String CLASSIC_VALUE = "classicValue";
+  public static final String DD_MM_YYYY = "dd-MM-yyyy";
+  public static final String MY_VALUE = "myValue";
+  public static final String VALUE = "value";
+  public static final String EXISTING = "existing";
+  public static final String OLD_KEY_1 = "oldKey1";
+  public static final String OLD_KEY_2 = "oldKey2";
+  public static final String YYYY_MM_DD = "yyyy-MM-dd";
 
   @Test
-  public void testExtractDataSourceAndID_WithoutID() {
-    String[] result = DataSourceUtils.extractDataSourceAndID("/SalesOrder");
-    assertEquals(1, result.length);
-    assertEquals("SalesOrder", result[0]);
-  }
-
-  @Test(expected = IllegalArgumentException.class)
-  public void testExtractDataSourceAndID_TooManyParts() {
-    DataSourceUtils.extractDataSourceAndID("/a/b/c/d");
-  }
-
-  // ========== keyConvertion ==========
-
-  @Test
-  public void testKeyConvertion_AllKeysMapped() throws JSONException {
+  void testKeyConvertionWithMappedKeys() throws JSONException {
     JSONObject data = new JSONObject();
-    data.put("name", "Test");
-    data.put("value", 100);
+    data.put(OLD_KEY_1, VALUE_1);
+    data.put(OLD_KEY_2, VALUE_2);
+    data.put("unmappedKey", VALUE_3);
 
     Map<String, String> map = new HashMap<>();
-    map.put("name", "nombre");
-    map.put("value", "valor");
+    map.put(OLD_KEY_1, "newKey1");
+    map.put(OLD_KEY_2, "newKey2");
 
     JSONObject result = DataSourceUtils.keyConvertion(data, map);
-    assertEquals("Test", result.getString("nombre"));
-    assertEquals(100, result.getInt("valor"));
-    assertFalse(result.has("name"));
+
+    assertEquals(VALUE_1, result.get("newKey1"));
+    assertEquals(VALUE_2, result.get("newKey2"));
+    assertEquals(VALUE_3, result.get("unmappedKey"));
+    assertFalse(result.has(OLD_KEY_1));
+    assertFalse(result.has(OLD_KEY_2));
   }
 
   @Test
-  public void testKeyConvertion_SomeKeysUnmapped() throws JSONException {
+  void testKeyConvertionWithEmptyMap() throws JSONException {
     JSONObject data = new JSONObject();
-    data.put("mapped", "yes");
-    data.put("unmapped", "no");
+    data.put("key1", VALUE_1);
 
-    Map<String, String> map = new HashMap<>();
-    map.put("mapped", "converted");
+    JSONObject result = DataSourceUtils.keyConvertion(data, new HashMap<>());
 
-    JSONObject result = DataSourceUtils.keyConvertion(data, map);
-    assertEquals("yes", result.getString("converted"));
-    assertEquals("no", result.getString("unmapped"));
+    assertEquals(VALUE_1, result.get("key1"));
   }
 
   @Test
-  public void testKeyConvertion_EmptyData() throws JSONException {
+  void testKeyConvertionWithEmptyData() throws JSONException {
     JSONObject result = DataSourceUtils.keyConvertion(new JSONObject(), new HashMap<>());
-    assertEquals(0, result.length());
+    assertFalse(result.keys().hasNext());
   }
 
-  // ========== applyChanges ==========
-
   @Test
-  public void testApplyChanges_NewKeys() throws JSONException {
-    JSONObject existing = new JSONObject();
-    existing.put("a", 1);
+  void testApplyChanges() throws JSONException {
+    JSONObject preexistent = new JSONObject();
+    preexistent.put(EXISTING, "oldValue");
+    preexistent.put("untouched", "stays");
 
     JSONObject changes = new JSONObject();
-    changes.put("b", 2);
+    changes.put(EXISTING, "newValue");
+    changes.put("newField", "added");
 
-    JSONObject result = DataSourceUtils.applyChanges(existing, changes);
-    assertEquals(1, result.getInt("a"));
-    assertEquals(2, result.getInt("b"));
+    JSONObject result = DataSourceUtils.applyChanges(preexistent, changes);
+
+    assertEquals("newValue", result.get(EXISTING));
+    assertEquals("stays", result.get("untouched"));
+    assertEquals("added", result.get("newField"));
   }
 
   @Test
-  public void testApplyChanges_OverwriteExisting() throws JSONException {
-    JSONObject existing = new JSONObject();
-    existing.put("key", "old");
+  void testApplyChangesEmptyChanges() throws JSONException {
+    JSONObject preexistent = new JSONObject();
+    preexistent.put("key", VALUE);
 
-    JSONObject changes = new JSONObject();
-    changes.put("key", "new");
+    JSONObject result = DataSourceUtils.applyChanges(preexistent, new JSONObject());
 
-    JSONObject result = DataSourceUtils.applyChanges(existing, changes);
-    assertEquals("new", result.getString("key"));
+    assertEquals(VALUE, result.get("key"));
   }
 
   @Test
-  public void testApplyChanges_EmptyChanges() throws JSONException {
-    JSONObject existing = new JSONObject();
-    existing.put("keep", "this");
-
-    JSONObject result = DataSourceUtils.applyChanges(existing, new JSONObject());
-    assertEquals("this", result.getString("keep"));
+  void testExtractDataSourceAndIDWithBothParts() {
+    String[] result = DataSourceUtils.extractDataSourceAndID("/MyDataSource/12345");
+    assertEquals(2, result.length);
+    assertEquals("MyDataSource", result[0]);
+    assertEquals("12345", result[1]);
   }
 
-  // ========== isReferenceToAnotherTable ==========
+  @Test
+  void testExtractDataSourceAndIDWithoutID() {
+    String[] result = DataSourceUtils.extractDataSourceAndID("/MyDataSource");
+    assertEquals(1, result.length);
+    assertEquals("MyDataSource", result[0]);
+  }
 
   @Test
-  public void testIsReferenceToAnotherTable_Search() {
+  void testExtractDataSourceAndIDInvalidURI() {
+    assertThrows(IllegalArgumentException.class,
+        () -> DataSourceUtils.extractDataSourceAndID("/a/b/c/d"));
+  }
+
+  @Test
+  void testGetValueFromItemDirectFromClassic() throws JSONException {
+    JSONObject item = new JSONObject();
+    item.put(CLASSIC_VALUE, MY_VALUE);
+
+    Object result = DataSourceUtils.getValueFromItem(item, YYYY_MM_DD, DD_MM_YYYY, true);
+    assertEquals(MY_VALUE, result);
+  }
+
+  @Test
+  void testGetValueFromItemDirectFromClassicEmpty() throws JSONException {
+    JSONObject item = new JSONObject();
+    item.put(CLASSIC_VALUE, "");
+
+    Object result = DataSourceUtils.getValueFromItem(item, YYYY_MM_DD, DD_MM_YYYY, true);
+    assertNull(result);
+  }
+
+  @Test
+  void testGetValueFromItemDirectFromClassicMissing() throws JSONException {
+    JSONObject item = new JSONObject();
+
+    Object result = DataSourceUtils.getValueFromItem(item, YYYY_MM_DD, DD_MM_YYYY, true);
+    assertNull(result);
+  }
+
+  @Test
+  void testGetValueFromItemWithNumericValue() throws JSONException {
+    JSONObject item = new JSONObject();
+    item.put(VALUE, 42L);
+
+    Object result = DataSourceUtils.getValueFromItem(item, YYYY_MM_DD, DD_MM_YYYY, false);
+    assertEquals(42L, result);
+  }
+
+  @Test
+  void testGetValueFromItemWithIntegerValue() throws JSONException {
+    JSONObject item = new JSONObject();
+    item.put(VALUE, 100);
+
+    Object result = DataSourceUtils.getValueFromItem(item, YYYY_MM_DD, DD_MM_YYYY, false);
+    assertEquals(100, result);
+  }
+
+  @Test
+  void testGetValueFromItemWithDoubleValue() throws JSONException {
+    JSONObject item = new JSONObject();
+    item.put(VALUE, 3.14);
+
+    Object result = DataSourceUtils.getValueFromItem(item, YYYY_MM_DD, DD_MM_YYYY, false);
+    assertEquals(3.14, result);
+  }
+
+  @Test
+  void testGetValueFromItemWithDateConversion() throws JSONException {
+    JSONObject item = new JSONObject();
+    item.put(VALUE, "2024-01-15");
+
+    Object result = DataSourceUtils.getValueFromItem(item, YYYY_MM_DD, DD_MM_YYYY, false);
+    assertEquals("15-01-2024", result);
+  }
+
+  @Test
+  void testGetValueFromItemWithInvalidDate() throws JSONException {
+    JSONObject item = new JSONObject();
+    item.put(VALUE, "not-a-date");
+
+    Object result = DataSourceUtils.getValueFromItem(item, YYYY_MM_DD, DD_MM_YYYY, false);
+    assertEquals("not-a-date", result);
+  }
+
+  @Test
+  void testGetValueFromItemFallbackToClassicValue() throws JSONException {
+    JSONObject item = new JSONObject();
+    item.put(CLASSIC_VALUE, "fallback");
+
+    Object result = DataSourceUtils.getValueFromItem(item, YYYY_MM_DD, DD_MM_YYYY, false);
+    assertEquals("fallback", result);
+  }
+
+  @Test
+  void testGetValueFromItemNoValueNoClassic() throws JSONException {
+    JSONObject item = new JSONObject();
+
+    Object result = DataSourceUtils.getValueFromItem(item, YYYY_MM_DD, DD_MM_YYYY, false);
+    assertNull(result);
+  }
+
+  @Test
+  void testIsReferenceToAnotherTableSearch() {
     Reference ref = mock(Reference.class);
     when(ref.getId()).thenReturn("30");
     assertTrue(DataSourceUtils.isReferenceToAnotherTable(ref));
   }
 
   @Test
-  public void testIsReferenceToAnotherTable_TableDir() {
+  void testIsReferenceToAnotherTableTableDir() {
     Reference ref = mock(Reference.class);
     when(ref.getId()).thenReturn("19");
     assertTrue(DataSourceUtils.isReferenceToAnotherTable(ref));
   }
 
   @Test
-  public void testIsReferenceToAnotherTable_Table() {
+  void testIsReferenceToAnotherTableTable() {
     Reference ref = mock(Reference.class);
     when(ref.getId()).thenReturn("18");
     assertTrue(DataSourceUtils.isReferenceToAnotherTable(ref));
   }
 
   @Test
-  public void testIsReferenceToAnotherTable_ID() {
+  void testIsReferenceToAnotherTableID() {
     Reference ref = mock(Reference.class);
     when(ref.getId()).thenReturn("13");
     assertTrue(DataSourceUtils.isReferenceToAnotherTable(ref));
   }
 
   @Test
-  public void testIsReferenceToAnotherTable_Other() {
+  void testIsReferenceToAnotherTableFalse() {
     Reference ref = mock(Reference.class);
     when(ref.getId()).thenReturn("10");
     assertFalse(DataSourceUtils.isReferenceToAnotherTable(ref));
   }
 
-  // ========== valueConvertToInputFormat ==========
-
   @Test
-  public void testValueConvertToInputFormat_NullType() throws Exception {
-    assertEquals("hello", DataSourceUtils.valueConvertToInputFormat("hello", null));
+  void testValueConvertToInputFormatBigDecimal() throws ParseException {
+    Object result = DataSourceUtils.valueConvertToInputFormat(new BigDecimal("123.45"), "BigDecimal");
+    assertEquals("123.45", result);
   }
 
   @Test
-  public void testValueConvertToInputFormat_BigDecimal() throws Exception {
-    assertEquals("123.45", DataSourceUtils.valueConvertToInputFormat(new java.math.BigDecimal("123.45"), "BigDecimal"));
+  void testValueConvertToInputFormatLong() throws ParseException {
+    Object result = DataSourceUtils.valueConvertToInputFormat(100L, "Long");
+    assertEquals("100", result);
   }
 
   @Test
-  public void testValueConvertToInputFormat_LongFromInteger() throws Exception {
-    assertEquals("42", DataSourceUtils.valueConvertToInputFormat(42, "Long"));
+  void testValueConvertToInputFormatLongFromInteger() throws ParseException {
+    Object result = DataSourceUtils.valueConvertToInputFormat(42, "Long");
+    assertEquals("42", result);
   }
 
   @Test
-  public void testValueConvertToInputFormat_LongFromLong() throws Exception {
-    assertEquals("999999", DataSourceUtils.valueConvertToInputFormat(999999L, "Long"));
+  void testValueConvertToInputFormatBooleanTrue() throws ParseException {
+    Object result = DataSourceUtils.valueConvertToInputFormat(true, "Boolean");
+    assertEquals("Y", result);
   }
 
   @Test
-  public void testValueConvertToInputFormat_BooleanTrue() throws Exception {
-    assertEquals("Y", DataSourceUtils.valueConvertToInputFormat(true, "Boolean"));
+  void testValueConvertToInputFormatBooleanFalse() throws ParseException {
+    Object result = DataSourceUtils.valueConvertToInputFormat(false, "Boolean");
+    assertEquals("N", result);
   }
 
   @Test
-  public void testValueConvertToInputFormat_BooleanFalse() throws Exception {
-    assertEquals("N", DataSourceUtils.valueConvertToInputFormat(false, "Boolean"));
+  void testValueConvertToInputFormatNullType() throws ParseException {
+    Object result = DataSourceUtils.valueConvertToInputFormat("hello", null);
+    assertEquals("hello", result);
   }
 
   @Test
-  public void testValueConvertToInputFormat_DefaultType() throws Exception {
-    assertEquals("anyValue", DataSourceUtils.valueConvertToInputFormat("anyValue", "UnknownType"));
+  void testValueConvertToInputFormatDefaultType() throws ParseException {
+    Object result = DataSourceUtils.valueConvertToInputFormat("someValue", "UnknownType");
+    assertEquals("someValue", result);
   }
 
-  // ========== getInpName ==========
-
   @Test
-  public void testGetInpName_SimpleColumn() {
+  void testGetInpNameSimpleColumn() {
     String result = DataSourceUtils.getInpName("AD_Client_ID");
     assertNotNull(result);
     assertTrue(result.startsWith("inp"));
   }
 
   @Test
-  public void testGetInpName_LowerCaseColumn() {
+  void testGetInpNameLowerCaseColumn() {
     String result = DataSourceUtils.getInpName("name");
     assertNotNull(result);
     assertTrue(result.startsWith("inp"));
   }
 
-  // ========== getValueFromItem ==========
-
   @Test
-  public void testGetValueFromItem_DirectFromClassic() throws JSONException {
-    JSONObject item = new JSONObject();
-    item.put("classicValue", "myValue");
-    Object result = DataSourceUtils.getValueFromItem(item, "yyyy-MM-dd", "dd-MM-yyyy", true);
-    assertEquals("myValue", result);
+  void testGetHQLColumnNameNullColumn() {
+    String[] result = DataSourceUtils.getHQLColumnName((Column) null);
+    assertArrayEquals(new String[]{ "null", "String" }, result);
   }
 
   @Test
-  public void testGetValueFromItem_DirectFromClassic_Empty() throws JSONException {
-    JSONObject item = new JSONObject();
-    item.put("classicValue", "");
-    Object result = DataSourceUtils.getValueFromItem(item, "yyyy-MM-dd", "dd-MM-yyyy", true);
-    assertNull(result);
+  void testGetHQLColumnNameNullTable() {
+    Column column = mock(Column.class);
+    when(column.getTable()).thenReturn(null);
+    String[] result = DataSourceUtils.getHQLColumnName(column);
+    assertArrayEquals(new String[]{ "null", "String" }, result);
   }
 
   @Test
-  public void testGetValueFromItem_WithLongValue() throws JSONException {
-    JSONObject item = new JSONObject();
-    item.put("value", 42L);
-    Object result = DataSourceUtils.getValueFromItem(item, "yyyy-MM-dd", "dd-MM-yyyy", false);
-    assertEquals(42L, result);
-  }
-
-  @Test
-  public void testGetValueFromItem_WithIntegerValue() throws JSONException {
-    JSONObject item = new JSONObject();
-    item.put("value", 10);
-    Object result = DataSourceUtils.getValueFromItem(item, "yyyy-MM-dd", "dd-MM-yyyy", false);
-    assertEquals(10, result);
-  }
-
-  @Test
-  public void testGetValueFromItem_WithDoubleValue() throws JSONException {
-    JSONObject item = new JSONObject();
-    item.put("value", 3.14);
-    Object result = DataSourceUtils.getValueFromItem(item, "yyyy-MM-dd", "dd-MM-yyyy", false);
-    assertEquals(3.14, result);
-  }
-
-  @Test
-  public void testGetValueFromItem_WithDateString() throws JSONException {
-    JSONObject item = new JSONObject();
-    item.put("value", "2026-01-15");
-    Object result = DataSourceUtils.getValueFromItem(item, "yyyy-MM-dd", "dd-MM-yyyy", false);
-    assertEquals("15-01-2026", result);
-  }
-
-  @Test
-  public void testGetValueFromItem_WithNonDateString() throws JSONException {
-    JSONObject item = new JSONObject();
-    item.put("value", "notADate");
-    Object result = DataSourceUtils.getValueFromItem(item, "yyyy-MM-dd", "dd-MM-yyyy", false);
-    assertEquals("notADate", result);
-  }
-
-  @Test
-  public void testGetValueFromItem_NoValueFallsBackToClassic() throws JSONException {
-    JSONObject item = new JSONObject();
-    item.put("classicValue", "fallback");
-    Object result = DataSourceUtils.getValueFromItem(item, "yyyy-MM-dd", "dd-MM-yyyy", false);
-    assertEquals("fallback", result);
-  }
-
-  @Test
-  public void testGetValueFromItem_NoValueNoClassic() throws JSONException {
-    JSONObject item = new JSONObject();
-    Object result = DataSourceUtils.getValueFromItem(item, "yyyy-MM-dd", "dd-MM-yyyy", false);
-    assertNull(result);
+  void testConstants() {
+    assertEquals(CLASSIC_VALUE, DataSourceUtils.CLASSIC_VALUE);
+    assertEquals("30", DataSourceUtils.REFERENCE_SEARCH);
+    assertEquals("19", DataSourceUtils.REFERENCE_TABLEDIR);
+    assertEquals("18", DataSourceUtils.REFERENCE_TABLE);
+    assertEquals("13", DataSourceUtils.REFERENCE_ID);
   }
 }

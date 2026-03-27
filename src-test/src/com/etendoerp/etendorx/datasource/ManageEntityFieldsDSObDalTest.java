@@ -1,5 +1,22 @@
+/*
+ *************************************************************************
+ * The contents of this file are subject to the Etendo License
+ * (the "License"), you may not use this file except in compliance with
+ * the License.
+ * You may obtain a copy of the License at
+ * https://github.com/etendosoftware/etendo_core/blob/main/legal/Etendo_license.txt
+ * Software distributed under the License is distributed on an
+ * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+ * implied. See the License for the specific language governing rights
+ * and limitations under the License.
+ * All portions are Copyright © 2021–2026 FUTIT SERVICES, S.L
+ * All Rights Reserved.
+ * Contributor(s): Futit Services S.L.
+ *************************************************************************
+ */
 package com.etendoerp.etendorx.datasource;
 
+import static org.junit.Assume.assumeFalse;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -19,6 +36,7 @@ import org.openbravo.dal.service.OBDal;
 import org.openbravo.model.ad.datamodel.Table;
 import org.openbravo.test.base.TestConstants;
 
+import com.etendoerp.etendorx.TestUtils;
 import com.etendoerp.etendorx.data.ETRXEntityField;
 import com.etendoerp.etendorx.data.ETRXProjection;
 import com.etendoerp.etendorx.data.ETRXProjectionEntity;
@@ -38,6 +56,9 @@ public class ManageEntityFieldsDSObDalTest extends WeldBaseTest {
   @Before
   public void setUp() throws Exception {
     super.setUp();
+
+    assumeFalse("Skipped on Oracle DB", TestUtils.isOracle());
+
     OBContext.setOBContext(TestConstants.Users.SYSTEM, TestConstants.Roles.SYS_ADMIN,
         TestConstants.Clients.SYSTEM, TestConstants.Orgs.MAIN);
     VariablesSecureApp vars = new VariablesSecureApp(OBContext.getOBContext().getUser().getId(),

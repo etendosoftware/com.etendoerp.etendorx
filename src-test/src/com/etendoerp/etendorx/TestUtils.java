@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
+import java.sql.DatabaseMetaData;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -27,6 +28,7 @@ import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.dom4j.Document;
 import org.dom4j.Element;
+import org.hibernate.Session;
 import org.jetbrains.annotations.NotNull;
 import org.openbravo.base.HttpSessionWrapper;
 import org.openbravo.base.provider.OBProvider;
@@ -398,4 +400,27 @@ public class TestUtils {
       httpSession.setAttribute(getUpperCase("#FormatInternal|" + name), formatInternal);
     }
   }
+  /**
+   * Determines whether the current database is Oracle by inspecting the
+   * JDBC {@link DatabaseMetaData#getDatabaseProductName()} through the
+   * active Hibernate session.
+   *
+   * @return {@code true} if the database product name contains "oracle"
+   *     (case-insensitive), {@code false} otherwise or if an error occurs.
+   */
+  public static boolean isOracle() {
+    try {
+      Session session = OBDal.getInstance().getSession();
+      return session.doReturningWork(conn -> {
+        DatabaseMetaData md = conn.getMetaData();
+        return StringUtils.containsIgnoreCase(
+            md.getDatabaseProductName(),
+            "oracle"
+        );
+      });
+    } catch (Exception e) {
+      return false;
+    }
+  }
+
 }

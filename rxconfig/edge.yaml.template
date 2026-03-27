@@ -18,6 +18,8 @@ classic:
     name: {CONTEXT_NAME}
 subapp:
   url: http://host.docker.internal:3000
+obconnector:
+  url: http://obconnsrv:8101
 
 spring:
   cloud:
@@ -66,9 +68,18 @@ spring:
 
         # CUSTOM (API Connector)
         - id: obconnector
-          uri: http://{OBCON_URL}:8101
+          uri: ${obconnector.url}
           predicates:
             - Method=GET, POST, PUT, DELETE
             - Path=/api/sync/**
           filters:
             - JwtAuthenticationFilter
+
+        # Root route
+        - id: root-route
+          uri: no://op
+          predicates:
+            - Method=GET,POST
+            - Path=/
+          filters:
+            - SetStatus=200

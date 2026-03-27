@@ -176,7 +176,6 @@ task "rx.setup" {
                     content = content.replace('{BBDD_SID}', project.property("bbdd.sid").toString())
                     content = content.replace('{CONTEXT_NAME}', project.property("context.name").toString())
                     content = content.replace('{ETENDORX_BASEPACKAGE}', project.hasProperty("etendorx.basepackage") ? project.property("etendorx.basepackage").toString() : "")
-                    content = content.replace('{OBCON_URL}', isTomcatEnabled ? 'obconnsrv' : 'host.docker.internal')
                     destFile.text = content
                 }
             }
@@ -818,7 +817,57 @@ task "jaeger.build" {
     }
 }
 
+task "rx.prepare.volumes" {
+    description = 'Pre-creates bind-mount volume directories with proper permissions before Docker Compose runs'
+    group = 'Docker'
+    dependsOn "generateEnvFile"
+
+    doLast {
+        def volPath = volumesDir.get()
+        def composeDir = sourceDir.get().toPath().resolve("compose").toFile()
+        if (!composeDir.exists()) {
+            logger.warn("Compose directory not found: ${composeDir}")
+            return
+        }
+
+        def volumePaths = [] as Set
+        composeDir.eachFileMatch(~/.+\.yml/) { composeFile ->
+            composeFile.eachLine { line ->
+                def matcher = line =~ /\$\{VOLUMES_PATH\}\/([^:]+):/
+                if (matcher.find()) {
+                    volumePaths.add(matcher.group(1))
+                }
+            }
+        }
+
+        volumePaths.each { relativePath ->
+            def targetDir = new File(volPath, relativePath)
+            // If the path looks like a file (has extension), create its parent directory
+            if (relativePath.contains('.') && relativePath.lastIndexOf('.') > relativePath.lastIndexOf('/')) {
+                targetDir = targetDir.parentFile
+            }
+            if (!targetDir.exists()) {
+                logger.lifecycle("Creating volume directory: ${targetDir}")
+                targetDir.mkdirs()
+            }
+            // Set world-writable permissions so containers with any UID can write
+            targetDir.setWritable(true, false)
+            targetDir.setReadable(true, false)
+            targetDir.setExecutable(true, false)
+        }
+    }
+}
+
 afterEvaluate {
+    // Volume preparation runs for any dockerized service, not just RX
+    if (tasks.hasProperty("generateEnvFile")) {
+        tasks.named("resources.build").configure { task ->
+            task.dependsOn("rx.prepare.volumes")
+        }
+        tasks.named("resources.up").configure { task ->
+            task.dependsOn("rx.prepare.volumes")
+        }
+    }
     if (isRXDockerized() && tasks.hasProperty("generateEnvFile")) {
         tasks.named("generateEnvFile").configure { task ->
             task.finalizedBy("rx.env.file")
