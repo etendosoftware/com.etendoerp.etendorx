@@ -170,6 +170,17 @@ public class SelectorHandlerUtilTest extends WeldBaseTest {
         return (String) method.invoke(null, selector, hs1, request);
     }
 
+    private String callBuildHQLQuery(Selector selectorDefined, Tab tab, Column col, String changedColumnInp,
+            JSONObject dataInpFormat, Map<String, String> db2Input, HttpServletRequest request)
+            throws ReflectiveOperationException {
+        Method method = SelectorHandlerUtil.class.getDeclaredMethod("buildHQLQuery",
+                Selector.class, Tab.class, Column.class, String.class, JSONObject.class, Map.class,
+                HttpServletRequest.class);
+        method.setAccessible(true);
+        return (String) method.invoke(null, selectorDefined, tab, col, changedColumnInp, dataInpFormat, db2Input,
+                request);
+    }
+
     // ========== processValue tests ==========
 
     @Test
@@ -867,5 +878,58 @@ public class SelectorHandlerUtilTest extends WeldBaseTest {
         callSavePrefixFields(dataInp, INP_C_BPARTNER_ID, mockSelector, selectorResult, false);
         assertEquals("Partner", dataInp.getString(INP_C_BPARTNER_ID_DES));
         assertEquals("12345", dataInp.getString("inpcBpartnerId_TAX"));
+    }
+
+    // ========== buildHQLQuery tests (ETP-3623) ==========
+
+    @Test
+    public void testBuildHQLQuery_EmptyFilters_RemovesAndPlaceholder()
+            throws ReflectiveOperationException, JSONException {
+        when(mockSelector.getHQL()).thenReturn("SELECT e FROM Entity e WHERE 1=1 and @additional_filters@");
+        when(mockSelector.getFilterExpression()).thenReturn(null);
+        when(mockTab.getADFieldList()).thenReturn(Collections.emptyList());
+
+        String result = callBuildHQLQuery(mockSelector, mockTab, mockColumn, "inpmProductId",
+                new JSONObject(), new HashMap<>(), mockRequest);
+
+        assertEquals("SELECT e FROM Entity e WHERE 1=1 ", result);
+    }
+
+    @Test
+    public void testBuildHQLQuery_NonEmptyFilters_AndPreceded_DoesNotDuplicateAND()
+            throws ReflectiveOperationException, JSONException {
+        when(mockSelector.getHQL()).thenReturn("SELECT e FROM Entity e WHERE 1=1 and @additional_filters@");
+        when(mockSelector.getFilterExpression()).thenReturn(null);
+        when(mockField.getColumn()).thenReturn(mockColumn);
+        when(mockField.getEtrxFilterClause()).thenReturn("pl.salesPriceList = true");
+        when(mockTab.getADFieldList()).thenReturn(Collections.singletonList(mockField));
+
+        JSONObject dataInpFormat = new JSONObject();
+        dataInpFormat.put("inpmProductId", "test");
+
+        String result = callBuildHQLQuery(mockSelector, mockTab, mockColumn, "inpmProductId",
+                dataInpFormat, new HashMap<>(), mockRequest);
+
+        assertFalse("HQL must not contain 'and AND'", result.contains("and AND"));
+        assertTrue("HQL must contain the filter clause", result.contains("pl.salesPriceList = true"));
+    }
+
+    @Test
+    public void testBuildHQLQuery_NonEmptyFilters_StandalonePlaceholder_Replaced()
+            throws ReflectiveOperationException, JSONException {
+        when(mockSelector.getHQL()).thenReturn("SELECT e FROM Entity e WHERE @additional_filters@");
+        when(mockSelector.getFilterExpression()).thenReturn(null);
+        when(mockField.getColumn()).thenReturn(mockColumn);
+        when(mockField.getEtrxFilterClause()).thenReturn("pl.salesPriceList = true");
+        when(mockTab.getADFieldList()).thenReturn(Collections.singletonList(mockField));
+
+        JSONObject dataInpFormat = new JSONObject();
+        dataInpFormat.put("inpmProductId", "test");
+
+        String result = callBuildHQLQuery(mockSelector, mockTab, mockColumn, "inpmProductId",
+                dataInpFormat, new HashMap<>(), mockRequest);
+
+        assertTrue("Standalone placeholder must be replaced", result.contains("pl.salesPriceList = true"));
+        assertFalse("Placeholder must be removed", result.contains("@additional_filters@"));
     }
 }
