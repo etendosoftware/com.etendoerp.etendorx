@@ -51,6 +51,8 @@ public class SelectorHandlerUtilTest extends WeldBaseTest {
     private static final String FALLBACK_NAME_NORMALIZED = "fallback$name";
     private static final String INP_C_BPARTNER_ID = "inpcBpartnerId";
     private static final String INP_C_BPARTNER_ID_DES = "inpcBpartnerId_DES";
+    private static final String INP_M_PRODUCT_ID = INP_M_PRODUCT_ID;
+    private static final String SALES_PRICE_LIST_FILTER = SALES_PRICE_LIST_FILTER;
 
     @Mock
     private HttpServletRequest mockRequest;
@@ -351,7 +353,7 @@ public class SelectorHandlerUtilTest extends WeldBaseTest {
     public void testFullfillSessionsVariables_KeyInMapButNotInJson() throws ReflectiveOperationException {
         String whereClause = "e.id = @M_Product_ID@";
         Map<String, String> db2Input = new HashMap<>();
-        db2Input.put("M_Product_ID", "inpmProductId");
+        db2Input.put("M_Product_ID", INP_M_PRODUCT_ID);
         JSONObject data = new JSONObject();
 
         String result = callFullfillSessionsVariables(whereClause, db2Input, data);
@@ -889,7 +891,7 @@ public class SelectorHandlerUtilTest extends WeldBaseTest {
         when(mockSelector.getFilterExpression()).thenReturn(null);
         when(mockTab.getADFieldList()).thenReturn(Collections.emptyList());
 
-        String result = callBuildHQLQuery(mockSelector, mockTab, mockColumn, "inpmProductId",
+        String result = callBuildHQLQuery(mockSelector, mockTab, mockColumn, INP_M_PRODUCT_ID,
                 new JSONObject(), new HashMap<>(), mockRequest);
 
         assertEquals("SELECT e FROM Entity e WHERE 1=1 ", result);
@@ -901,17 +903,17 @@ public class SelectorHandlerUtilTest extends WeldBaseTest {
         when(mockSelector.getHQL()).thenReturn("SELECT e FROM Entity e WHERE 1=1 and @additional_filters@");
         when(mockSelector.getFilterExpression()).thenReturn(null);
         when(mockField.getColumn()).thenReturn(mockColumn);
-        when(mockField.getEtrxFilterClause()).thenReturn("pl.salesPriceList = true");
+        when(mockField.getEtrxFilterClause()).thenReturn(SALES_PRICE_LIST_FILTER);
         when(mockTab.getADFieldList()).thenReturn(Collections.singletonList(mockField));
 
         JSONObject dataInpFormat = new JSONObject();
-        dataInpFormat.put("inpmProductId", "test");
+        dataInpFormat.put(INP_M_PRODUCT_ID, "test");
 
-        String result = callBuildHQLQuery(mockSelector, mockTab, mockColumn, "inpmProductId",
+        String result = callBuildHQLQuery(mockSelector, mockTab, mockColumn, INP_M_PRODUCT_ID,
                 dataInpFormat, new HashMap<>(), mockRequest);
 
         assertFalse("HQL must not contain 'and AND'", result.contains("and AND"));
-        assertTrue("HQL must contain the filter clause", result.contains("pl.salesPriceList = true"));
+        assertTrue("HQL must contain the filter clause", result.contains(SALES_PRICE_LIST_FILTER));
     }
 
     @Test
@@ -920,16 +922,16 @@ public class SelectorHandlerUtilTest extends WeldBaseTest {
         when(mockSelector.getHQL()).thenReturn("SELECT e FROM Entity e WHERE @additional_filters@");
         when(mockSelector.getFilterExpression()).thenReturn(null);
         when(mockField.getColumn()).thenReturn(mockColumn);
-        when(mockField.getEtrxFilterClause()).thenReturn("pl.salesPriceList = true");
+        when(mockField.getEtrxFilterClause()).thenReturn(SALES_PRICE_LIST_FILTER);
         when(mockTab.getADFieldList()).thenReturn(Collections.singletonList(mockField));
 
         JSONObject dataInpFormat = new JSONObject();
-        dataInpFormat.put("inpmProductId", "test");
+        dataInpFormat.put(INP_M_PRODUCT_ID, "test");
 
-        String result = callBuildHQLQuery(mockSelector, mockTab, mockColumn, "inpmProductId",
+        String result = callBuildHQLQuery(mockSelector, mockTab, mockColumn, INP_M_PRODUCT_ID,
                 dataInpFormat, new HashMap<>(), mockRequest);
 
-        assertTrue("Standalone placeholder must be replaced", result.contains("pl.salesPriceList = true"));
+        assertTrue("Standalone placeholder must be replaced", result.contains(SALES_PRICE_LIST_FILTER));
         assertFalse("Placeholder must be removed", result.contains("@additional_filters@"));
     }
 }
