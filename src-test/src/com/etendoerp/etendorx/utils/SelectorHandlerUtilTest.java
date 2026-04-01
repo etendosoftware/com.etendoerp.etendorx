@@ -22,8 +22,8 @@ import org.openbravo.userinterface.selector.SelectorField;
 
 /**
  * Unit tests for SelectorHandlerUtil class.
- * Covers: processValue, convertRowToJSONObject, fullfillSessionsVariables,
- * convertToHashMAp, getNormalizedFieldName, getTargetKey.
+ * Covers: processValue, convertRowToJSONObject, fulfillSessionsVariables,
+ * convertToHashMap, getNormalizedFieldName, getTargetKey.
  * All tests invoke actual production code via reflection to ensure SonarQube coverage.
  */
 public class SelectorHandlerUtilTest extends SelectorHandlerUtilBaseTest {
@@ -225,7 +225,7 @@ public class SelectorHandlerUtilTest extends SelectorHandlerUtilBaseTest {
         json.put("key1", "value1");
         json.put("key2", 123);
 
-        HashMap<String, String> result = callConvertToHashMAp(json);
+        HashMap<String, String> result = callConvertToHashMap(json);
         assertEquals(2, result.size());
         assertEquals("value1", result.get("key1"));
         assertEquals("123", result.get("key2"));
@@ -234,7 +234,7 @@ public class SelectorHandlerUtilTest extends SelectorHandlerUtilBaseTest {
     @Test
     public void testConvertToHashMAp_EmptyJson() throws ReflectiveOperationException {
         JSONObject json = new JSONObject();
-        HashMap<String, String> result = callConvertToHashMAp(json);
+        HashMap<String, String> result = callConvertToHashMap(json);
         assertTrue(result.isEmpty());
     }
 
@@ -242,7 +242,7 @@ public class SelectorHandlerUtilTest extends SelectorHandlerUtilBaseTest {
     public void testConvertToHashMAp_BooleanValue() throws ReflectiveOperationException, JSONException {
         JSONObject json = new JSONObject();
         json.put("flag", true);
-        HashMap<String, String> result = callConvertToHashMAp(json);
+        HashMap<String, String> result = callConvertToHashMap(json);
         assertEquals("true", result.get("flag"));
     }
 
