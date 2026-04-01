@@ -1,3 +1,19 @@
+/*
+ *************************************************************************
+ * The contents of this file are subject to the Etendo License
+ * (the "License"), you may not use this file except in compliance
+ * with the License.
+ * You may obtain a copy of the License at
+ * https://github.com/etendosoftware/etendo_core/blob/main/legal/Etendo_license.txt
+ * Software distributed under the License is distributed on an
+ * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+ * implied. See the License for the specific language governing rights
+ * and limitations under the License.
+ * All portions are Copyright (C) 2021-2026 FUTIT SERVICES, S.L
+ * All Rights Reserved.
+ * Contributor(s): Futit Services S.L.
+ *************************************************************************
+ */
 package com.etendoerp.etendorx.utils;
 
 import static org.mockito.Mockito.when;
@@ -89,7 +105,7 @@ public abstract class SelectorHandlerUtilBaseTest extends WeldBaseTest {
         return (String) method.invoke(null, whereClause, db2Input, dataInpFormat);
     }
 
-    HashMap<String, String> callConvertToHashMAp(JSONObject dataInpFormat) throws ReflectiveOperationException {
+    HashMap<String, String> callConvertToHashMap(JSONObject dataInpFormat) throws ReflectiveOperationException {
         Method method = SelectorHandlerUtil.class.getDeclaredMethod("convertToHashMAp", JSONObject.class);
         method.setAccessible(true);
         @SuppressWarnings("unchecked")
