@@ -461,7 +461,8 @@ public class SelectorHandlerUtil {
         if (StringUtils.isEmpty(additionalFilters.trim())) {
             result = hqlQuery.replace("and @additional_filters@", "").replace("@additional_filters@", "");
         } else {
-            result = hqlQuery.replace("@additional_filters@", additionalFilters);
+            result = hqlQuery.replace("and @additional_filters@", additionalFilters)
+                .replace("@additional_filters@", additionalFilters);
         }
 
         return fullfillSessionsVariables(result, db2Input, dataInpFormat);
