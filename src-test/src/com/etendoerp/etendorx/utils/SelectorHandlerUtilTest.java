@@ -217,10 +217,10 @@ public class SelectorHandlerUtilTest extends SelectorHandlerUtilBaseTest {
         assertEquals("e.org = 'O1'", result);
     }
 
-    // ========== convertToHashMAp tests ==========
+    // ========== convertToHashMap tests ==========
 
     @Test
-    public void testConvertToHashMAp_BasicConversion() throws ReflectiveOperationException, JSONException {
+    public void testConvertToHashMap_BasicConversion() throws ReflectiveOperationException, JSONException {
         JSONObject json = new JSONObject();
         json.put("key1", "value1");
         json.put("key2", 123);
@@ -232,14 +232,14 @@ public class SelectorHandlerUtilTest extends SelectorHandlerUtilBaseTest {
     }
 
     @Test
-    public void testConvertToHashMAp_EmptyJson() throws ReflectiveOperationException {
+    public void testConvertToHashMap_EmptyJson() throws ReflectiveOperationException {
         JSONObject json = new JSONObject();
         HashMap<String, String> result = callConvertToHashMap(json);
         assertTrue(result.isEmpty());
     }
 
     @Test
-    public void testConvertToHashMAp_BooleanValue() throws ReflectiveOperationException, JSONException {
+    public void testConvertToHashMap_BooleanValue() throws ReflectiveOperationException, JSONException {
         JSONObject json = new JSONObject();
         json.put("flag", true);
         HashMap<String, String> result = callConvertToHashMap(json);
