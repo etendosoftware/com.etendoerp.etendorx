@@ -2,7 +2,7 @@ package com.etendoerp.etendorx.printreport;
 
 import com.etendoerp.etendorx.config.InitialConfigUtil;
 import net.sf.jasperreports.engine.JasperPrint;
-import net.sf.jasperreports.export.SimplePdfExporterConfiguration;
+import net.sf.jasperreports.pdf.SimplePdfExporterConfiguration;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;

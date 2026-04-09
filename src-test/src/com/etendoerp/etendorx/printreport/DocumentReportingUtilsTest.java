@@ -34,8 +34,8 @@ import org.openbravo.model.ad.datamodel.Table;
 import org.openbravo.model.ad.ui.Process;
 import org.openbravo.model.ad.ui.Tab;
 
-import javax.servlet.ServletContext;
-import javax.enterprise.inject.spi.BeanManager;
+import jakarta.servlet.ServletContext;
+import jakarta.enterprise.inject.spi.BeanManager;
 import net.sf.jasperreports.engine.JasperExportManager;
 
 /**

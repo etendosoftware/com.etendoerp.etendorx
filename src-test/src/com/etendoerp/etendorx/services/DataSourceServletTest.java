@@ -8,11 +8,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintWriter;
 
-import javax.servlet.ReadListener;
-import javax.servlet.ServletInputStream;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import javax.servlet.http.HttpSession;
+import jakarta.servlet.ReadListener;
+import jakarta.servlet.ServletInputStream;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
@@ -290,7 +290,7 @@ public class DataSourceServletTest extends WeldBaseTest {
               DataSourceServlet.class, java.lang.invoke.MethodHandles.lookup());
           java.lang.invoke.MethodHandle mh = lookup.findStatic(DataSourceServlet.class, "getTab",
               java.lang.invoke.MethodType.methodType(org.openbravo.model.ad.ui.Tab.class, String.class,
-                  javax.servlet.http.HttpServletRequest.class, javax.servlet.http.HttpServletResponse.class,
+                  jakarta.servlet.http.HttpServletRequest.class, jakarta.servlet.http.HttpServletResponse.class,
                   java.util.List.class));
           java.util.List<com.etendoerp.etendorx.services.wrapper.RequestField> fieldList = new java.util.ArrayList<>();
           Object tabResult = mh.invoke(DATASOURCE_USERS, mockRequest, mockResponse, fieldList);
