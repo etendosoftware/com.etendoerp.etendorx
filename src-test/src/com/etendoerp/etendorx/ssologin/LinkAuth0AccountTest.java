@@ -2,10 +2,10 @@ package com.etendoerp.etendorx.ssologin;
 
 import java.util.Properties;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
-import org.hibernate.criterion.Criterion;
+import org.openbravo.dal.service.Restriction;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

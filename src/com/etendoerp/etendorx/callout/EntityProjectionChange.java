@@ -2,7 +2,7 @@ package com.etendoerp.etendorx.callout;
 
 import org.openbravo.erpCommon.ad_callouts.SimpleCallout;
 
-import javax.servlet.ServletException;
+import jakarta.servlet.ServletException;
 
 public class EntityProjectionChange extends SimpleCallout {
   @Override

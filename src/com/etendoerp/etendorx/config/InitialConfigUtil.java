@@ -7,8 +7,8 @@ import org.openbravo.base.secureApp.LoginUtils;
 import org.openbravo.base.secureApp.VariablesSecureApp;
 import org.openbravo.client.kernel.RequestContext;
 
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
 
 
 /**
