@@ -12,8 +12,8 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletRequestWrapper;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequestWrapper;
 
 /**
  * A wrapper class for HttpServletRequest that allows modification of the request body and URI.
@@ -64,13 +64,13 @@ public class EtendoRequestWrapper extends HttpServletRequestWrapper {
    * @throws IOException
    */
   @Override
-  public javax.servlet.ServletInputStream getInputStream() throws IOException {
+  public jakarta.servlet.ServletInputStream getInputStream() throws IOException {
     ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(
         modifiedBody.getBytes(StandardCharsets.UTF_8));
     /**
      * Return a new ServletInputStream that reads from the modified request body.
      */
-    return new javax.servlet.ServletInputStream() {
+    return new jakarta.servlet.ServletInputStream() {
       @Override
       public int read() throws IOException {
         return byteArrayInputStream.read();
@@ -87,7 +87,7 @@ public class EtendoRequestWrapper extends HttpServletRequestWrapper {
       }
 
       @Override
-      public void setReadListener(javax.servlet.ReadListener readListener) {
+      public void setReadListener(jakarta.servlet.ReadListener readListener) {
         // No-op
       }
     };
