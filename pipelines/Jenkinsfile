@@ -186,45 +186,20 @@ pipeline {
                                             GIT_SSH_COMMAND='${sshCmd}' git clone ${module}
                                             """
 
-                                            if (!(env.GIT_BRANCH.contains("-Y")) &&  !(env.GIT_BRANCH.startsWith("prerelease")) && !(env.GIT_BRANCH.startsWith("release")) && !(env.GIT_BRANCH.startsWith("main" )) && !(env.GIT_BRANCH.startsWith("master")) && !(env.GIT_BRANCH.startsWith("hotfix"))) {
-                                                echo "-------------------------- Checking out to ${module_package} Module Branch --------------------------"
-                                                if (isFeatureBranch && epicKey) {
-                                                    sh """
-                                                    cd ${CLASSIC_DIR}/modules/${module_package}
-                                                    git checkout ${env.EPIC_BRANCH} || git checkout ${env.DEVELOP_BRANCH}
-                                                    """
-                                                } else {
-                                                    sh """
-                                                    cd ${CLASSIC_DIR}/modules/${module_package}
-                                                    git checkout ${env.DEVELOP_BRANCH}
-                                                    """
-                                                }
-                                            } else if (env.FROM_BACKPORT == TRUE) {
-                                                if (isFeatureBranch && epicKey) {
-                                                    sh """
-                                                    cd ${CLASSIC_DIR}/modules/${module_package}
-                                                    git checkout ${env.EPIC_BRANCH} || git checkout ${env.BACKPORT_BRANCH}
-                                                    """
-                                                } else {
-                                                    sh """
-                                                    cd ${CLASSIC_DIR}/modules/${module_package}
-                                                    git checkout ${env.BACKPORT_BRANCH}
-                                                    """
-                                                }
-                                            } else if (env.FROM_PRERELEASE == TRUE) {
-                                                if (isFeatureBranch && epicKey) {
-                                                    sh """
-                                                    cd ${CLASSIC_DIR}/modules/${module_package}
-                                                    git checkout ${env.EPIC_BRANCH} || git checkout ${env.PRERELEASE_BRANCH}
-                                                    """
-                                                } else {
-                                                    sh """
-                                                    cd ${CLASSIC_DIR}/modules/${module_package}
-                                                    git checkout ${env.PRERELEASE_BRANCH}
-                                                    """
-                                                }
+                                            echo "--------------- Checking out to Correct Branch in ${module_package} Module ---------------"
+                                            // Align with JenkinsfileforModuleGithub: use CORE_BRANCH directly
+                                            if (env.CORE_BRANCH != env.MAIN_BRANCH) {
+                                                sh """
+                                                cd ${CLASSIC_DIR}/modules/${module_package}
+                                                git checkout ${env.CORE_BRANCH}
+                                                """
                                             }
-
+                                            if (isFeatureBranch && epicKey) {
+                                                sh """
+                                                cd ${CLASSIC_DIR}/modules/${module_package}
+                                                git checkout ${env.EPIC_BRANCH} || echo 'Epic branch ${env.EPIC_BRANCH} not found in ${module_package}'
+                                                """
+                                            }
                                             sh """
                                             cd ${CLASSIC_DIR}/modules/${module_package}
                                             git checkout ${env.GIT_BRANCH} || echo 'Branch ${env.GIT_BRANCH} not found in ${module_package}'
@@ -509,7 +484,7 @@ pipeline {
                                     -Dsonar.scm.revision=${GIT_COMMIT} \
                                     ${jacocoReportPathAttribute}
                             """
-                            echo '---------------------- Getting SonarQube Report URL ----------------------'
+                            echo '-------------------------- Getting SonarQube Report URL --------------------------'
                             def branchName = URLEncoder.encode(GIT_BRANCH, 'UTF-8')
                             def projectUrl = "${SONAR_SERVER}/dashboard?id=${env.PROJECT_KEY}&branch=${branchName}"
                             env.PROJECT_URL = "${projectUrl}"
