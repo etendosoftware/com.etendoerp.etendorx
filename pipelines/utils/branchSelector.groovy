@@ -35,6 +35,9 @@ def determineBranch(boolean includeDevLogic = true) {
       } else if (env.FROM_PRERELEASE == TRUE) {
         echo "Branch from Prerelease (${env.PRERELEASE_BRANCH})"
         return env.PRERELEASE_BRANCH
+      } else if (yearCommitBranch.toInteger() > yearPrereleaseBranch.toInteger() && yearCommitBranch.toInteger() > yearBackportBranch.toInteger()) {
+        echo "Branch year (${yearCommitBranch}) is newer than both backport (${yearBackportBranch}) and prerelease (${yearPrereleaseBranch}) — using develop branch"
+        return env.DEVELOP_BRANCH
       } else {
         error("Year mismatch: module branch (${yearCommitBranch}) does not match backport (${yearBackportBranch}) or prerelease (${yearPrereleaseBranch}).")
       }
