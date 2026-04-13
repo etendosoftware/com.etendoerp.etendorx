@@ -69,7 +69,7 @@ class GetOAuthTokenTest {
     
     OBCriteria<ETRXTokenInfo> criteria = mock(OBCriteria.class);
     when(obDal.createCriteria(ETRXTokenInfo.class)).thenReturn(criteria);
-    when(criteria.add(any(Criterion.class))).thenReturn(criteria);
+    when(criteria.add(any(Restriction.class))).thenReturn(criteria);
     when(criteria.setMaxResults(1)).thenReturn(criteria);
     
     ETRXTokenInfo token = mock(ETRXTokenInfo.class);
@@ -102,7 +102,7 @@ class GetOAuthTokenTest {
     
     OBCriteria<ETRXTokenInfo> criteria = mock(OBCriteria.class);
     when(obDal.createCriteria(ETRXTokenInfo.class)).thenReturn(criteria);
-    when(criteria.add(any(Criterion.class))).thenReturn(criteria);
+    when(criteria.add(any(Restriction.class))).thenReturn(criteria);
     when(criteria.setMaxResults(1)).thenReturn(criteria);
     when(criteria.uniqueResult()).thenReturn(null);
     

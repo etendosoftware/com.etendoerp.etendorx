@@ -188,7 +188,7 @@ class LinkAuth0AccountTest {
     var existing = mock(ETRXTokenUser.class);
 
     when(dal.createCriteria(ETRXTokenUser.class)).thenReturn(criteria);
-    when(criteria.add(any(Criterion.class))).thenReturn(criteria);
+    when(criteria.add(any(Restriction.class))).thenReturn(criteria);
     when(criteria.setFilterOnReadableClients(false)).thenReturn(criteria);
     when(criteria.setFilterOnReadableOrganization(false)).thenReturn(criteria);
     when(criteria.setMaxResults(1)).thenReturn(criteria);
@@ -206,7 +206,7 @@ class LinkAuth0AccountTest {
     OBCriteria<ETRXTokenUser> criteria = mock(OBCriteria.class);
 
     when(dal.createCriteria(ETRXTokenUser.class)).thenReturn(criteria);
-    when(criteria.add(any(Criterion.class))).thenReturn(criteria);
+    when(criteria.add(any(Restriction.class))).thenReturn(criteria);
     when(criteria.setFilterOnReadableClients(false)).thenReturn(criteria);
     when(criteria.setFilterOnReadableOrganization(false)).thenReturn(criteria);
     when(criteria.setMaxResults(1)).thenReturn(criteria);
