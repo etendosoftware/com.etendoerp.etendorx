@@ -13,7 +13,6 @@ import java.io.StringWriter;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
-import org.hibernate.Criteria;
 import org.openbravo.dal.service.Restriction;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
