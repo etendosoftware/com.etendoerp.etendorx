@@ -38,6 +38,7 @@ import org.openbravo.client.kernel.RequestContext;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.model.ad.ui.Tab;
+import org.openbravo.test.base.TestConstants;
 import org.openbravo.test.base.mock.OBServletContextMock;
 
 import com.etendoerp.etendorx.data.OpenAPITab;
@@ -194,9 +195,21 @@ public class TestUtils {
    */
   public static List<BaseOBObject> buildExampleHeadlessFlow() {
     var createdElements = new ArrayList<BaseOBObject>();
+    var client = OBDal.getInstance().get(org.openbravo.model.ad.system.Client.class,
+        TestConstants.Clients.SYSTEM);
+    var organization = OBDal.getInstance().get(org.openbravo.model.common.enterprise.Organization.class,
+        TestConstants.Orgs.MAIN);
+    var etendorxModule = OBDal.getInstance().get(org.openbravo.model.ad.module.Module.class,
+        "BC7B2F721FD249F5A360C6AAD2A7EBF7");
+    var openapiModule = OBDal.getInstance().get(org.openbravo.model.ad.module.Module.class,
+        "E692D086EFC140F488614A2C8ACE1764");
     // new request header
     OpenAPIRequest opApiRequest = OBProvider.getInstance().get(OpenAPIRequest.class);
     opApiRequest.setNewOBObject(true);
+    opApiRequest.setClient(client);
+    opApiRequest.setOrganization(organization);
+    opApiRequest.setActive(true);
+    opApiRequest.setModule(openapiModule);
     opApiRequest.setName("TestSalesOrderHeader");
     opApiRequest.setDescription("Test Sales Order Header");
     opApiRequest.setType("ETRX_Tab");
@@ -206,6 +219,10 @@ public class TestUtils {
     // link tab to request (header)
     OpenAPITab opApiTab = OBProvider.getInstance().get(OpenAPITab.class);
     opApiTab.setNewOBObject(true);
+    opApiTab.setClient(client);
+    opApiTab.setOrganization(organization);
+    opApiTab.setActive(true);
+    opApiTab.setModule(etendorxModule);
     opApiTab.setOpenAPIRequest(opApiRequest);
     opApiTab.setRelatedTabs(OBDal.getInstance().get(Tab.class, "186"));
     OBDal.getInstance().save(opApiTab);
@@ -214,6 +231,10 @@ public class TestUtils {
     // new request line
     OpenAPIRequest opApiRequestLine = OBProvider.getInstance().get(OpenAPIRequest.class);
     opApiRequestLine.setNewOBObject(true);
+    opApiRequestLine.setClient(client);
+    opApiRequestLine.setOrganization(organization);
+    opApiRequestLine.setActive(true);
+    opApiRequestLine.setModule(openapiModule);
     opApiRequestLine.setName("TestSalesOrderLine");
     opApiRequestLine.setDescription("Test Sales Order Line");
     opApiRequestLine.setType("ETRX_Tab");
@@ -223,6 +244,10 @@ public class TestUtils {
     // link tab to request (line)
     OpenAPITab opApiTabLine = OBProvider.getInstance().get(OpenAPITab.class);
     opApiTabLine.setNewOBObject(true);
+    opApiTabLine.setClient(client);
+    opApiTabLine.setOrganization(organization);
+    opApiTabLine.setActive(true);
+    opApiTabLine.setModule(etendorxModule);
     opApiTabLine.setOpenAPIRequest(opApiRequestLine);
     opApiTabLine.setRelatedTabs(OBDal.getInstance().get(Tab.class, "187"));
     OBDal.getInstance().save(opApiTabLine);
@@ -231,6 +256,10 @@ public class TestUtils {
     // new flow
     OpenApiFlow flow = OBProvider.getInstance().get(OpenApiFlow.class);
     flow.setNewOBObject(true);
+    flow.setClient(client);
+    flow.setOrganization(organization);
+    flow.setActive(true);
+    flow.setModule(openapiModule);
     flow.setName("TESTFLOW");
     flow.setDescription("Test Flow Description");
     OBDal.getInstance().save(flow);
@@ -239,6 +268,10 @@ public class TestUtils {
     // new flow-request link (header)
     OpenApiFlowPoint flowpoint = OBProvider.getInstance().get(OpenApiFlowPoint.class);
     flowpoint.setNewOBObject(true);
+    flowpoint.setClient(client);
+    flowpoint.setOrganization(organization);
+    flowpoint.setActive(true);
+    flowpoint.setModule(openapiModule);
     flowpoint.setEtapiOpenapiReq(opApiRequest);
     flowpoint.setEtapiOpenapiFlow(flow);
     OBDal.getInstance().save(flowpoint);
@@ -247,6 +280,10 @@ public class TestUtils {
     // new flow-request link (line)
     OpenApiFlowPoint flowpointLine = OBProvider.getInstance().get(OpenApiFlowPoint.class);
     flowpointLine.setNewOBObject(true);
+    flowpointLine.setClient(client);
+    flowpointLine.setOrganization(organization);
+    flowpointLine.setActive(true);
+    flowpointLine.setModule(openapiModule);
     flowpointLine.setEtapiOpenapiReq(opApiRequestLine);
     flowpointLine.setEtapiOpenapiFlow(flow);
     OBDal.getInstance().save(flowpointLine);
@@ -377,6 +414,13 @@ public class TestUtils {
    */
   private static void loadFormats(HttpSession httpSession, Document xmlDocument) {
     Document formatDoc = xmlDocument;
+    if (formatDoc == null) {
+      try {
+        formatDoc = new org.dom4j.io.SAXReader().read(new java.io.StringReader(FORMATS_XML));
+      } catch (Exception e) {
+        throw new IllegalStateException("Unable to initialize fallback Format.xml for tests", e);
+      }
+    }
     Element root = formatDoc.getRootElement();
 
     // Get all <Number> elements
