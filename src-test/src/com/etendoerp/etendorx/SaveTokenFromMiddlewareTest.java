@@ -17,8 +17,8 @@ import org.openbravo.erpCommon.utility.Utility;
 import org.openbravo.model.ad.system.Language;
 import org.openbravo.service.db.DalConnectionProvider;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;

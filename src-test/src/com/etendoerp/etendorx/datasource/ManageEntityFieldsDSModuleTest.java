@@ -9,7 +9,7 @@ import org.mockito.MockedStatic;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.hibernate.Session;
 import org.hibernate.query.Query;
-import org.hibernate.criterion.Criterion;
+import org.openbravo.dal.service.Restriction;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
@@ -185,7 +185,7 @@ public class ManageEntityFieldsDSModuleTest {
         when(query.list()).thenReturn(List.of(module1));
 
         when(obDal.createCriteria(Module.class)).thenReturn(obCriteria);
-        when(obCriteria.add(any(Criterion.class))).thenReturn(obCriteria);
+        when(obCriteria.add(any(Restriction.class))).thenReturn(obCriteria);
         when(obCriteria.addOrderBy(anyString(), anyBoolean())).thenReturn(obCriteria);
         when(obCriteria.setMaxResults(1)).thenReturn(obCriteria);
         when(obCriteria.uniqueResult()).thenReturn(inDevModule);
@@ -205,7 +205,7 @@ public class ManageEntityFieldsDSModuleTest {
         assertEquals("dev-module", devModuleResult.get(TestUtils.ID));
         assertEquals("Dev Module", devModuleResult.get(TestUtils.NAME));
 
-        verify(obCriteria, times(3)).add(any(Criterion.class));
+        verify(obCriteria, times(3)).add(any(Restriction.class));
         verify(obCriteria).setMaxResults(1);
         verify(obCriteria).uniqueResult();
       }
@@ -233,7 +233,7 @@ public class ManageEntityFieldsDSModuleTest {
         when(query.list()).thenReturn(List.of());
 
         when(obDal.createCriteria(Module.class)).thenReturn(obCriteria);
-        when(obCriteria.add(any(Criterion.class))).thenReturn(obCriteria);
+        when(obCriteria.add(any(Restriction.class))).thenReturn(obCriteria);
         when(obCriteria.addOrderBy(anyString(), anyBoolean())).thenReturn(obCriteria);
         when(obCriteria.setMaxResults(1)).thenReturn(obCriteria);
         when(obCriteria.uniqueResult()).thenReturn(null);

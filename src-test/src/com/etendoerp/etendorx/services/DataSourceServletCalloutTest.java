@@ -4,16 +4,16 @@ import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.List;
 
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
 
 import org.apache.commons.lang3.StringUtils;
 import org.codehaus.jettison.json.JSONObject;
 import org.dom4j.Document;
 import org.dom4j.io.SAXReader;
 import org.jetbrains.annotations.NotNull;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
@@ -23,6 +23,7 @@ import org.openbravo.base.structure.BaseOBObject;
 import org.openbravo.base.weld.test.WeldBaseTest;
 import org.openbravo.client.kernel.RequestContext;
 import org.openbravo.dal.core.OBContext;
+import org.openbravo.dal.core.SessionHandler;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.model.common.order.Order;
 import org.openbravo.model.common.order.OrderLine;
@@ -59,20 +60,18 @@ public class DataSourceServletCalloutTest extends WeldBaseTest {
    * @throws Exception
    *     if an error occurs during setup
    */
-  @Before
+  @BeforeEach
   public void setUp() throws Exception {
     mocks = MockitoAnnotations.openMocks(this);
     super.setUp();
 
-    OBContext.setOBContext(TestConstants.Users.ADMIN, TestConstants.Roles.SYS_ADMIN, TestConstants.Clients.SYSTEM,
-        TestConstants.Orgs.MAIN);
+    OBContext.setOBContext(TestConstants.Users.ADMIN, TestConstants.Roles.FB_GRP_ADMIN, TestConstants.Clients.FB_GRP,
+        TestConstants.Orgs.ESP_NORTE);
     VariablesSecureApp vars = new VariablesSecureApp(OBContext.getOBContext().getUser().getId(),
         OBContext.getOBContext().getCurrentClient().getId(), OBContext.getOBContext().getCurrentOrganization().getId());
     RequestContext.get().setVariableSecureApp(vars);
 
     elementsToClean = new ArrayList<>();
-    elementsToClean = TestUtils.buildExampleHeadlessFlow();
-    OBDal.getInstance().flush();
 
     OBContext.setOBContext(TestConstants.Users.ADMIN, TestConstants.Roles.FB_GRP_ADMIN, TestConstants.Clients.FB_GRP,
         TestConstants.Orgs.ESP_NORTE);
@@ -91,6 +90,23 @@ public class DataSourceServletCalloutTest extends WeldBaseTest {
     )).thenAnswer(invocation -> null);
   }
 
+  private void createHeadlessFlowData() {
+    OBContext.setOBContext(TestConstants.Users.ADMIN, TestConstants.Roles.SYS_ADMIN, TestConstants.Clients.SYSTEM,
+        TestConstants.Orgs.MAIN);
+    elementsToClean = TestUtils.buildExampleHeadlessFlow();
+    OBDal.getInstance().flush();
+    setFbGroupContext();
+  }
+
+  private void setFbGroupContext() {
+    OBContext.setOBContext(TestConstants.Users.ADMIN, TestConstants.Roles.FB_GRP_ADMIN, TestConstants.Clients.FB_GRP,
+        TestConstants.Orgs.ESP_NORTE);
+    VariablesSecureApp vars = new VariablesSecureApp(OBContext.getOBContext().getUser().getId(),
+        OBContext.getOBContext().getCurrentClient().getId(), OBContext.getOBContext().getCurrentOrganization().getId());
+    vars.setSessionValue("#User_Client", OBContext.getOBContext().getCurrentClient().getId());
+    RequestContext.get().setVariableSecureApp(vars);
+  }
+
   /**
    * Tests the flowSalesOrder method.
    *
@@ -99,6 +115,8 @@ public class DataSourceServletCalloutTest extends WeldBaseTest {
    */
   @Test
   public void flowSalesOrder() throws Exception {
+    setFbGroupContext();
+    createHeadlessFlowData();
     //TEST CASE 1: Create a sales order
     // Given
     @NotNull MockedResponse responsePack = TestUtils.getResponseMocked();
@@ -177,11 +195,14 @@ public class DataSourceServletCalloutTest extends WeldBaseTest {
   //Another test
   @Test
   public void generateOpenAPISpec() throws Exception {
+    setFbGroupContext();
+    createHeadlessFlowData();
     // Given the flow created in setup
 
     // When
     String openAPISpec = new OpenAPIController().getOpenAPIJson("localhost", "TESTFLOW",
         "http://localhost:8080/etendo");
+    log.info("Generated OpenAPI spec: {}", openAPISpec);
     // Then
     assert StringUtils.isNotEmpty(openAPISpec);
     assert StringUtils.containsIgnoreCase(openAPISpec, "TestSalesOrderHeader");
@@ -191,7 +212,7 @@ public class DataSourceServletCalloutTest extends WeldBaseTest {
   /**
    * Cleans up the test environment after each test.
    */
-  @After
+  @AfterEach
   public void tearDown() {
     if (selectorHandlerMock != null) {
       selectorHandlerMock.close();

@@ -8,8 +8,7 @@ import java.util.Map;
 import java.util.Properties;
 
 import org.codehaus.jettison.json.JSONObject;
-import org.hibernate.Criteria;
-import org.hibernate.criterion.Restrictions;
+import org.openbravo.dal.service.Restrictions;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

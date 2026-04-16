@@ -15,7 +15,7 @@
  */
 package com.etendoerp.etendorx.events;
 
-import javax.enterprise.event.Observes;
+import jakarta.enterprise.event.Observes;
 
 import org.openbravo.base.model.Entity;
 import org.openbravo.base.model.ModelProvider;
