@@ -21,7 +21,7 @@ import org.openbravo.userinterface.selector.Selector;
 import org.openbravo.userinterface.selector.SelectorField;
 
 import javax.script.ScriptException;
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
 import java.util.Comparator;
@@ -98,8 +98,9 @@ public class SelectorHandlerUtil {
             HashMap<String, String> convertToHashMAp = convertToHashMAp(dataInpFormat);
             OBDal.getInstance().refresh(selectorDefined);
             convertToHashMAp.put("_entityName", selectorDefined.getTable().getJavaClassName());
-            String whereClauseAndFilters = selectorDefined.getHQLWhereClause() + headlessFilterClause + addFilterClause(selectorDefined,
-                    convertToHashMAp, request);
+            String whereClauseAndFilters = StringUtils.defaultString(selectorDefined.getHQLWhereClause())
+                    + headlessFilterClause
+                    + StringUtils.defaultString(addFilterClause(selectorDefined, convertToHashMAp, request));
             whereClauseAndFilters = fullfillSessionsVariables(whereClauseAndFilters, db2Input, dataInpFormat);
             convertToHashMAp.put("whereAndFilterClause", whereClauseAndFilters);
             convertToHashMAp.put("dataSourceName", selectorDefined.getTable().getJavaClassName());
