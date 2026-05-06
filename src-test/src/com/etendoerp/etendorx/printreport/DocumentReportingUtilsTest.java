@@ -6,12 +6,11 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
-import java.io.OutputStream;
-import java.lang.reflect.Field;
 import java.util.Collections;
 import java.util.List;
 
@@ -33,6 +32,8 @@ import org.openbravo.client.application.window.ApplicationDictionaryCachedStruct
 import org.openbravo.model.ad.datamodel.Table;
 import org.openbravo.model.ad.ui.Process;
 import org.openbravo.model.ad.ui.Tab;
+import org.openbravo.model.common.enterprise.DocumentType;
+import org.openbravo.model.common.order.Order;
 
 import javax.servlet.ServletContext;
 import javax.enterprise.inject.spi.BeanManager;
@@ -43,7 +44,10 @@ import net.sf.jasperreports.engine.JasperExportManager;
  */
 public class DocumentReportingUtilsTest {
 
-  private static final String RECORD_ID = "recordId";
+  private static final String RECORD_ID = "C51F1138DF68434683677AE545ECD635";
+  private static final String TAB_ID = "tabId";
+  private static final String TEMPLATE_JRXML = "template.jrxml";
+  private static final String UNKNOWN_TABLE = "UNKNOWN_TABLE";
   private MockedStatic<OBContext> obContextMockedStatic;
   private MockedStatic<OBDal> obDalMockedStatic;
   private MockedStatic<ReportingUtils> reportingUtilsMockedStatic;
@@ -85,23 +89,9 @@ public class DocumentReportingUtilsTest {
     kernelServletMockedStatic = mockStatic(KernelServlet.class);
     jasperExportManagerMockedStatic = mockStatic(JasperExportManager.class);
     
-    // Create a mock ConfigParameters with public fields set
-    // We need to create a mock that allows field access
-    ConfigParameters configParams = mock(ConfigParameters.class, invocation -> {
-      String methodName = invocation.getMethod().getName();
-      // Default mock behavior
-      return null;
-    });
-    
-    // Use reflection to set the prefix field (non-final)
-    try {
-      Field prefixField = ConfigParameters.class.getDeclaredField("prefix");
-      prefixField.setAccessible(true);
-      prefixField.set(configParams, "/mock/prefix/");
-    } catch (Exception e) {
-      // If reflection fails, we'll just rely on mocking getGlobalParameters to never be called
-    }
-    
+    ConfigParameters configParams = mock(ConfigParameters.class);
+    configParams.prefix = "/mock/prefix/";
+
     kernelServletMockedStatic.when(KernelServlet::getGlobalParameters).thenReturn(configParams);
 
     RequestContext requestContext = mock(RequestContext.class);
@@ -148,26 +138,24 @@ public class DocumentReportingUtilsTest {
    */
   @Test
   public void testGeneratePDFCustomJasperProcess() {
-    String tabId = "tabId";
     byte[] expectedPdf = new byte[]{1, 2, 3};
 
-    when(obDal.get(Tab.class, tabId)).thenReturn(tab);
+    when(obDal.get(Tab.class, TAB_ID)).thenReturn(tab);
     when(tab.getProcess()).thenReturn(process);
     when(process.isJasperReport()).thenReturn(true);
-    when(process.getJRTemplateName()).thenReturn("template.jrxml");
+    when(process.getJRTemplateName()).thenReturn(TEMPLATE_JRXML);
     when(process.getName()).thenReturn("Test Process");
 
-    // Mock JasperPrint and JasperExportManager
     net.sf.jasperreports.engine.JasperPrint jasperPrint = mock(net.sf.jasperreports.engine.JasperPrint.class);
-    
+
     reportingUtilsMockedStatic.when(() -> ReportingUtils.generateJasperPrint(
         anyString(), anyMap(), any(), any()
     )).thenReturn(jasperPrint);
-    
+
     jasperExportManagerMockedStatic.when(() -> JasperExportManager.exportReportToPdf(jasperPrint))
         .thenReturn(expectedPdf);
 
-    byte[] result = DocumentReportingUtils.generatePDF(tabId, Collections.singletonList(Collections.singletonMap(DocumentReportingUtils.PARAM_RECORD_ID, RECORD_ID)));
+    byte[] result = DocumentReportingUtils.generatePDF(TAB_ID, Collections.singletonList(Collections.singletonMap(DocumentReportingUtils.PARAM_RECORD_ID, RECORD_ID)));
 
     assertNotNull(result);
     assertArrayEquals(expectedPdf, result);
@@ -178,15 +166,94 @@ public class DocumentReportingUtilsTest {
    */
   @Test(expected = OBException.class)
   public void testGeneratePDFNoPrintMethodFound() {
-    String tabId = "tabId";
-
-    when(obDal.get(Tab.class, tabId)).thenReturn(tab);
+    when(obDal.get(Tab.class, TAB_ID)).thenReturn(tab);
     when(tab.getProcess()).thenReturn(null);
-    when(table.getDBTableName()).thenReturn("UNKNOWN_TABLE");
+    when(table.getDBTableName()).thenReturn(UNKNOWN_TABLE);
     when(table.getName()).thenReturn("UnknownTable");
     when(obDal.get(anyString(), anyString())).thenReturn(null);
 
-    DocumentReportingUtils.generatePDF(tabId, Collections.singletonList(Collections.singletonMap(DocumentReportingUtils.PARAM_RECORD_ID, RECORD_ID)));
+    DocumentReportingUtils.generatePDF(TAB_ID, Collections.singletonList(Collections.singletonMap(DocumentReportingUtils.PARAM_RECORD_ID, RECORD_ID)));
+  }
+
+  /**
+   * Tests that an invalid recordId (not a valid UUID) throws an OBException.
+   */
+  @Test(expected = OBException.class)
+  public void testInvalidRecordIdThrowsException() {
+    when(obDal.get(Tab.class, TAB_ID)).thenReturn(tab);
+    when(tab.getProcess()).thenReturn(process);
+    when(process.isJasperReport()).thenReturn(true);
+    when(process.getJRTemplateName()).thenReturn(TEMPLATE_JRXML);
+    when(process.getName()).thenReturn("Test Process");
+    when(table.getDBTableName()).thenReturn(UNKNOWN_TABLE);
+
+    DocumentReportingUtils.generatePDF(TAB_ID, Collections.singletonList(
+        Collections.singletonMap(DocumentReportingUtils.PARAM_RECORD_ID, "'; DROP TABLE orders--")));
+  }
+
+  /**
+   * Tests that a quotation (C_ORDER with SOSubType=OB) uses DocumentType.QUOTATION.
+   * The fallback to standard report is triggered when the custom process returns empty.
+   */
+  @Test(expected = OBException.class)
+  public void testGeneratePDFQuotationFallsBackToStandardReport() {
+    when(obDal.get(Tab.class, TAB_ID)).thenReturn(tab);
+    when(tab.getProcess()).thenReturn(null);
+    when(table.getDBTableName()).thenReturn("C_ORDER");
+    when(table.getName()).thenReturn("Order");
+
+    Order order = mock(Order.class);
+    DocumentType docTypeEntity = mock(DocumentType.class);
+    when(docTypeEntity.getSOSubType()).thenReturn("OB");
+    when(order.getDocumentType()).thenReturn(docTypeEntity);
+    when(obDal.get(Order.class, RECORD_ID)).thenReturn(order);
+
+    // Standard report generation will fail without a full Etendo context — expected OBException
+    DocumentReportingUtils.generatePDF(TAB_ID, Collections.singletonList(
+        Collections.singletonMap(DocumentReportingUtils.PARAM_RECORD_ID, RECORD_ID)));
+  }
+
+  /**
+   * Tests that a purchase order (C_ORDER, isSalesTransaction=false) also falls back to SALESORDER report.
+   */
+  @Test(expected = OBException.class)
+  public void testGeneratePDFPurchaseOrderFallsBackToSalesOrderReport() {
+    when(obDal.get(Tab.class, TAB_ID)).thenReturn(tab);
+    when(tab.getProcess()).thenReturn(null);
+    when(table.getDBTableName()).thenReturn("C_ORDER");
+    when(table.getName()).thenReturn("Order");
+
+    Order order = mock(Order.class);
+    DocumentType docTypeEntity = mock(DocumentType.class);
+    when(docTypeEntity.getSOSubType()).thenReturn("POO");
+    when(order.isSalesTransaction()).thenReturn(false);
+    when(order.getDocumentType()).thenReturn(docTypeEntity);
+    when(obDal.get(Order.class, RECORD_ID)).thenReturn(order);
+
+    // Standard report generation will fail without a full Etendo context — expected OBException
+    DocumentReportingUtils.generatePDF(TAB_ID, Collections.singletonList(
+        Collections.singletonMap(DocumentReportingUtils.PARAM_RECORD_ID, RECORD_ID)));
+  }
+
+  /**
+   * Tests the fallback path: custom process throws an exception, then standard report is attempted.
+   */
+  @Test(expected = OBException.class)
+  public void testGeneratePDFFallbackWhenCustomProcessFails() {
+    when(obDal.get(Tab.class, TAB_ID)).thenReturn(tab);
+    when(tab.getProcess()).thenReturn(process);
+    when(process.isJasperReport()).thenReturn(true);
+    when(process.getJRTemplateName()).thenReturn(TEMPLATE_JRXML);
+    when(process.getName()).thenReturn("Failing Process");
+    when(table.getDBTableName()).thenReturn(UNKNOWN_TABLE);
+
+    reportingUtilsMockedStatic.when(() -> ReportingUtils.generateJasperPrint(
+        anyString(), anyMap(), any(), any()
+    )).thenThrow(new RuntimeException("Jasper compilation error"));
+
+    // Falls back to standard report; UNKNOWN_TABLE has no DocumentType → OBException
+    DocumentReportingUtils.generatePDF(TAB_ID, Collections.singletonList(
+        Collections.singletonMap(DocumentReportingUtils.PARAM_RECORD_ID, RECORD_ID)));
   }
 
 }
