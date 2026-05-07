@@ -141,6 +141,13 @@ public abstract class SelectorHandlerUtilBaseTest extends WeldBaseTest {
         return (String) method.invoke(null, selector);
     }
 
+    String callNormalizeLeadingLogicalOperator(String clause) throws ReflectiveOperationException {
+        Method method = SelectorHandlerUtil.class.getDeclaredMethod("normalizeLeadingLogicalOperator",
+                String.class);
+        method.setAccessible(true);
+        return (String) method.invoke(null, clause);
+    }
+
     Column callGetValueColumn(org.openbravo.model.ad.domain.Selector selectorValidation,
             Selector selectorDefined) throws ReflectiveOperationException {
         Method method = SelectorHandlerUtil.class.getDeclaredMethod("getValueColumn",
