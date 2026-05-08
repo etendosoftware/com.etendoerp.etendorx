@@ -180,6 +180,7 @@ pipeline {
                                     """
 
                                     echo '-------------------------- Cloning of other modules --------------------------'
+                                    def extraModulesBranchUtils = load "${CLASSIC_DIR}/modules/${REPOSITORY_NAME}/pipelines/utils/extraModulesBranchUtils.groovy"
                                     env.EXTRA_MODULES = ''
                                     env.REPOS_INFO = ''
                                     def currentBranch = ''
@@ -188,13 +189,14 @@ pipeline {
 
                                         def extraModules = []
                                         if (env.EXTRA_MODULES != ''){
-                                            extraModules = env.EXTRA_MODULES.tokenize(',')
+                                            extraModules = extraModulesBranchUtils.parseExtraModuleEntries(env.EXTRA_MODULES)
                                             env.REPOS_INFO = "<em>🧲 Branches used in dependent modules:</em><br><ul>"
                                         }
-                                        def module_package = ''
 
-                                        for (String module in extraModules) {
-                                            module_package = sh(script: "echo '${module}' | sed -E 's#.*/##' | sed 's/.git\$//'", returnStdout: true).trim()
+                                        for (def moduleEntry in extraModules) {
+                                            def module = moduleEntry.repoUrl
+                                            def branchSpec = moduleEntry.branchSpec
+                                            def module_package = module.tokenize('/').last().replace('.git', '')
                                             echo "------------------------------- Clone ${module_package} Module --------------------------"
                                             sh """
                                             cd ${CLASSIC_DIR}/modules
@@ -202,24 +204,20 @@ pipeline {
                                             """
 
                                             echo "--------------- Checking out to Correct Branch in ${module_package} Module ---------------"
-                                            // Align with JenkinsfileforModuleGithub: use CORE_BRANCH directly
-                                            if (env.CORE_BRANCH != env.MAIN_BRANCH) {
-                                                sh """
-                                                cd ${CLASSIC_DIR}/modules/${module_package}
-                                                git checkout ${env.CORE_BRANCH}
-                                                """
-                                            }
-                                            if (isFeatureBranch && epicKey) {
-                                                sh """
-                                                cd ${CLASSIC_DIR}/modules/${module_package}
-                                                git checkout ${env.EPIC_BRANCH} || echo 'Epic branch ${env.EPIC_BRANCH} not found in ${module_package}'
-                                                """
-                                            }
-                                            sh """
-                                            cd ${CLASSIC_DIR}/modules/${module_package}
-                                            git checkout ${env.GIT_BRANCH} || echo 'Branch ${env.GIT_BRANCH} not found in ${module_package}'
-                                            """
-                                            currentBranch = sh(script: "cd ${CLASSIC_DIR}/modules/${module_package} && git rev-parse --abbrev-ref HEAD", returnStdout: true).trim()
+                                            currentBranch = extraModulesBranchUtils.checkoutBestBranch(
+                                                repoDir: "${CLASSIC_DIR}/modules/${module_package}",
+                                                moduleName: module_package,
+                                                branchSpec: branchSpec,
+                                                defaultCandidates: [env.GIT_BRANCH, env.EPIC_BRANCH, env.CORE_BRANCH],
+                                                tokenValues: [
+                                                    COMMIT_BRANCH: env.GIT_BRANCH,
+                                                    GIT_BRANCH   : env.GIT_BRANCH,
+                                                    EPIC_BRANCH  : env.EPIC_BRANCH,
+                                                    CORE_BRANCH  : env.CORE_BRANCH,
+                                                    MAIN_BRANCH  : env.MAIN_BRANCH
+                                                ],
+                                                sh: sh
+                                            )
                                             env.REPOS_INFO += "<li> Module ${module_package}: ${currentBranch}</li>"
                                         }
                                         if (env.REPOS_INFO != '') {
