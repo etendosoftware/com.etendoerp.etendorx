@@ -2,19 +2,19 @@
  * Utilities to parse jenkinsExtraModules files and resolve the best branch to checkout.
  */
 
-def branchExistsRemote(repoDir, branchName, shStep) {
+def branchExistsRemote(repoDir, branchName, scriptCtx) {
   if (!branchName?.trim()) {
     return false
   }
-  return shStep(
+  return scriptCtx.sh(
     script: "cd ${repoDir} && git ls-remote --exit-code --heads origin ${branchName}",
     returnStatus: true
   ) == 0
 }
 
-def checkoutRemoteBranch(repoDir, branchName, label, shStep) {
-  shStep "cd ${repoDir} && git checkout ${branchName}"
-  echo "${label}: ${branchName}"
+def checkoutRemoteBranch(repoDir, branchName, label, scriptCtx) {
+  scriptCtx.sh "cd ${repoDir} && git checkout ${branchName}"
+  scriptCtx.echo "${label}: ${branchName}"
 }
 
 def parseExtraModuleEntries(rawValue) {
@@ -62,18 +62,18 @@ def checkoutBestBranch(Map params) {
   def branchSpec = params.branchSpec
   def defaultCandidates = params.defaultCandidates ?: []
   def tokenValues = params.tokenValues ?: [:]
-  def shStep = params.sh
+  def scriptCtx = params.script ?: this
 
   def candidates = resolveBranchCandidates(branchSpec, defaultCandidates, tokenValues)
-  echo "Branch candidates for ${moduleName}: ${candidates.join(' > ')}"
+  scriptCtx.echo "Branch candidates for ${moduleName}: ${candidates.join(' > ')}"
   for (String candidate : candidates) {
-    if (branchExistsRemote(repoDir, candidate, shStep)) {
-      checkoutRemoteBranch(repoDir, candidate, "Using branch for ${moduleName}", shStep)
+    if (branchExistsRemote(repoDir, candidate, scriptCtx)) {
+      checkoutRemoteBranch(repoDir, candidate, "Using branch for ${moduleName}", scriptCtx)
       return candidate
     }
   }
-  echo "No candidate branch found for ${moduleName}. Keeping current branch."
-  return shStep(script: "cd ${repoDir} && git rev-parse --abbrev-ref HEAD", returnStdout: true).trim()
+  scriptCtx.echo "No candidate branch found for ${moduleName}. Keeping current branch."
+  return scriptCtx.sh(script: "cd ${repoDir} && git rev-parse --abbrev-ref HEAD", returnStdout: true).trim()
 }
 
 return this
