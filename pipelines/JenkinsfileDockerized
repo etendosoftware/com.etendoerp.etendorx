@@ -142,20 +142,62 @@ pipeline {
                 env.WORKDIR_MODULE = "${ETENDO_BASE}/modules/${MODULE_PACKAGE}"
                 def sshCmd = "ssh -i ${keyfile} -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no"
                 try {
-                  echo "---------------- Choice of etendo_base branch ----------------"
+                  echo "---------------- Choice of classic repository/branch ----------------"
                   env.FROM_BACKPORT = FALSE
                   env.FROM_PRERELEASE = FALSE
+                  env.EPIC_BRANCH = ''
+                  env.CLASSIC_REPO_URL = ETENDO_BASE_URL
+                  env.CLASSIC_DIR = ETENDO_BASE
                   def branchSelector = load 'pipelines/utils/branchSelector.groovy'
                   def coreBranch = branchSelector.determineBranch(false)
-                  env.BASE_BRANCH = coreBranch
+                  def isFutureReleaseBranch = branchSelector.isFutureYearBranch(env.GIT_BRANCH)
+                  env.USE_ETENDO_CORE = isFutureReleaseBranch ? TRUE : FALSE
+
+                  if (isFutureReleaseBranch) {
+                    echo "Future release branch detected (${env.GIT_BRANCH}) -> cloning etendo_core instead of etendo_base"
+                    env.CLASSIC_REPO_URL = 'https://github.com/etendosoftware/etendo_core'
+                    env.CLASSIC_DIR = 'etendo_core'
+
+                    def isFeatureBranch = env.GIT_BRANCH.startsWith("feature/")
+                    if (isFeatureBranch) {
+                      echo "-------------------------- Feature Branch Detected --------------------------"
+                      def taskName = env.GIT_BRANCH.replaceAll("feature/", "").replaceAll("-Y\\d+", "")
+                      def epicKey = sh(script: "bash pipelines/utils/jira/jira-utils.sh ${taskName} ${JIRA_BASE_URL} ${JIRA_ACCESS_TOKEN}", returnStdout: true).trim()
+                      if (epicKey) {
+                        echo "Epic Key: ${epicKey}"
+                        if (env.GIT_BRANCH.contains("-Y")) {
+                          env.EPIC_BRANCH = "epic/${epicKey}-Y${env.GIT_BRANCH.split('-Y')[1]}"
+                        } else {
+                          env.EPIC_BRANCH = "epic/${epicKey}"
+                        }
+                        echo "Epic Branch: ${env.EPIC_BRANCH}"
+                      }
+                    }
+
+                    env.BASE_BRANCH = branchSelector.resolveExistingRemoteBranch(
+                      env.CLASSIC_REPO_URL,
+                      [env.GIT_BRANCH, env.EPIC_BRANCH, env.PRERELEASE_BRANCH, env.DEVELOP_BRANCH, env.MAIN_BRANCH, 'master'],
+                      this
+                    )
+                  } else {
+                    env.BASE_BRANCH = branchSelector.resolveExistingRemoteBranch(
+                      env.CLASSIC_REPO_URL,
+                      [coreBranch, env.DEVELOP_BRANCH, env.MAIN_BRANCH, 'master'],
+                      this
+                    )
+                  }
+
+                  echo "Classic repository → ${env.CLASSIC_REPO_URL}"
                   echo "BASE_BRANCH → ${env.BASE_BRANCH}"
 
-                  echo '--------------- Building Etendo Base environment ----------------'
-                  sh "git clone --branch ${env.BASE_BRANCH} ${ETENDO_BASE_URL}"
+                  echo '--------------- Building Classic environment ----------------'
+                  sh "git clone --branch ${env.BASE_BRANCH} ${env.CLASSIC_REPO_URL}"
+                  env.WORKDIR_MODULE = "${env.CLASSIC_DIR}/modules/${MODULE_PACKAGE}"
+                  env.UTILS_PATH = "${env.WORKDIR_MODULE}/pipelines/utils/utils.groovy"
 
                   echo "---------------------- Clonning RX Module Repository ----------------------"
                   sh """
-                  cd ${ETENDO_BASE}
+                  cd ${env.CLASSIC_DIR}
                   mkdir -p modules
                   cd modules
                   GIT_SSH_COMMAND=\"${sshCmd}\" git clone ${RX_MODULE_SSH}
@@ -166,13 +208,17 @@ pipeline {
 
                   echo "-------------------------- Cloning of other modules --------------------------"
                   def extraModulesBranchUtils = load "${env.WORKDIR_MODULE}/pipelines/utils/extraModulesBranchUtils.groovy"
-                  def defaultFallbackBranch = env.MAIN_BRANCH
-                  if (!(env.GIT_BRANCH.contains("-Y")) && !(env.GIT_BRANCH.startsWith("release")) && !(env.GIT_BRANCH.startsWith("main")) && !(env.GIT_BRANCH.startsWith("master")) && !(env.GIT_BRANCH.startsWith("hotfix"))) {
-                    defaultFallbackBranch = env.DEVELOP_BRANCH
+                  def defaultBranchCandidates = [env.GIT_BRANCH, env.EPIC_BRANCH]
+                  if (env.USE_ETENDO_CORE == TRUE) {
+                    defaultBranchCandidates += [env.PRERELEASE_BRANCH, env.DEVELOP_BRANCH, env.MAIN_BRANCH, 'master']
+                  } else if (!(env.GIT_BRANCH.contains("-Y")) && !(env.GIT_BRANCH.startsWith("release")) && !(env.GIT_BRANCH.startsWith("main")) && !(env.GIT_BRANCH.startsWith("master")) && !(env.GIT_BRANCH.startsWith("hotfix"))) {
+                    defaultBranchCandidates << env.DEVELOP_BRANCH
                   } else if (env.FROM_BACKPORT == TRUE) {
-                    defaultFallbackBranch = env.BACKPORT_BRANCH
+                    defaultBranchCandidates << env.BACKPORT_BRANCH
                   } else if (env.FROM_PRERELEASE == TRUE) {
-                    defaultFallbackBranch = env.PRERELEASE_BRANCH
+                    defaultBranchCandidates << env.PRERELEASE_BRANCH
+                  } else {
+                    defaultBranchCandidates << env.MAIN_BRANCH
                   }
 
                   env.EXTRA_MODULES = ''
@@ -210,16 +256,16 @@ pipeline {
                       def module_package = module.tokenize('/').last().replace('.git', '')
                       echo "------------------------------- Clone ${module_package} Module --------------------------"
                       sh """
-                      cd ${ETENDO_BASE}/modules
+                      cd ${env.CLASSIC_DIR}/modules
                       GIT_SSH_COMMAND='${sshCmd}' git clone ${module}
                       """
 
                       echo "-------------------------- Checking out to ${module_package} Module Branch --------------------------"
                       currentBranch = extraModulesBranchUtils.checkoutBestBranch(
-                        repoDir: "${ETENDO_BASE}/modules/${module_package}",
+                        repoDir: "${env.CLASSIC_DIR}/modules/${module_package}",
                         moduleName: module_package,
                         branchSpec: branchSpec,
-                        defaultCandidates: [env.GIT_BRANCH, env.EPIC_BRANCH, defaultFallbackBranch],
+                        defaultCandidates: defaultBranchCandidates,
                         tokenValues: [
                           COMMIT_BRANCH     : env.GIT_BRANCH,
                           GIT_BRANCH        : env.GIT_BRANCH,
@@ -231,7 +277,8 @@ pipeline {
                           PRERELEASE_BRANCH : env.PRERELEASE_BRANCH,
                           MAIN_BRANCH       : env.MAIN_BRANCH
                         ],
-                        script: this
+                        script: this,
+                        sshCmd: sshCmd
                       )
                       env.REPOS_INFO += "<li> Module ${module_package}: ${currentBranch}</li>"
                     }
@@ -245,7 +292,7 @@ pipeline {
                     echo "${EXTRA_MODULES_FILE} not found for ${MODULE_PACKAGE}, skipping extra modules checkout."
                   }
 
-                  dir(ETENDO_BASE) {
+                  dir(env.CLASSIC_DIR) {
                     echo "---------------------- Setup Classic Repository ----------------------"
                     sh """
                     echo "\n
@@ -271,6 +318,10 @@ pipeline {
                     def buildGradleContent = """
                     dependencies {
                         implementation(\"com.etendoerp.platform:etendo-core:[25.1.0,${NEXT_CLASSIC_VERSION})\")
+                    }
+                    etendo {
+                        forceResolution = true
+                        ignoreCoreJarDependency = true
                     }
                     """
                     sh """
@@ -341,7 +392,7 @@ pipeline {
                   echo "Default RX Configuration Inserted: ${outSqlConfiguration}"
                 }
               }
-              dir(ETENDO_BASE) {
+              dir(env.CLASSIC_DIR) {
                 echo "---------------- Add dependencies ----------------"
                 sh """
                 echo "\n
@@ -523,7 +574,7 @@ pipeline {
             try {
               echo "-------------------- Stopping Rx Services --------------------"
               sh """
-              cd ${ETENDO_BASE}
+              cd ${env.CLASSIC_DIR}
               ./gradlew resources.stop -PignoreConsistency=true --info --stacktrace
               """
               sleep time: 30, unit: 'SECONDS'

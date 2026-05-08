@@ -2,12 +2,17 @@
  * Utilities to parse jenkinsExtraModules files and resolve the best branch to checkout.
  */
 
-def branchExistsRemote(repoDir, branchName, scriptCtx) {
+def buildGitSshPrefix(sshCmd) {
+  return sshCmd?.trim() ? "GIT_SSH_COMMAND='${sshCmd}' " : ''
+}
+
+def branchExistsRemote(repoDir, branchName, scriptCtx, sshCmd = null) {
   if (!branchName?.trim()) {
     return false
   }
+  def gitSshPrefix = buildGitSshPrefix(sshCmd)
   return scriptCtx.sh(
-    script: "cd ${repoDir} && git ls-remote --exit-code --heads origin ${branchName}",
+    script: "cd ${repoDir} && ${gitSshPrefix}git ls-remote --exit-code --heads origin ${branchName}",
     returnStatus: true
   ) == 0
 }
@@ -63,11 +68,12 @@ def checkoutBestBranch(Map params) {
   def defaultCandidates = params.defaultCandidates ?: []
   def tokenValues = params.tokenValues ?: [:]
   def scriptCtx = params.script ?: this
+  def sshCmd = params.sshCmd
 
   def candidates = resolveBranchCandidates(branchSpec, defaultCandidates, tokenValues)
   scriptCtx.echo "Branch candidates for ${moduleName}: ${candidates.join(' > ')}"
   for (String candidate : candidates) {
-    if (branchExistsRemote(repoDir, candidate, scriptCtx)) {
+    if (branchExistsRemote(repoDir, candidate, scriptCtx, sshCmd)) {
       checkoutRemoteBranch(repoDir, candidate, "Using branch for ${moduleName}", scriptCtx)
       return candidate
     }

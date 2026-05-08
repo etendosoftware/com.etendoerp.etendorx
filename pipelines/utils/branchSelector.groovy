@@ -11,6 +11,60 @@
  *   @param includeDevLogic (Boolean) → Whether to include develop/feature/epic logic (default true)
  */
 
+def branchExistsRemote(repoUrl, branchName, scriptCtx) {
+  if (!branchName?.trim()) {
+    return false
+  }
+  return scriptCtx.sh(
+    script: "git ls-remote --exit-code --heads ${repoUrl} ${branchName}",
+    returnStatus: true
+  ) == 0
+}
+
+def resolveRemoteHeadBranch(repoUrl, scriptCtx) {
+  return scriptCtx.sh(
+    script: "git ls-remote --symref ${repoUrl} HEAD | sed -n 's#^ref: refs/heads/\\([^[:space:]]*\\)[[:space:]]*HEAD#\\1#p'",
+    returnStdout: true
+  ).trim()
+}
+
+def resolveExistingRemoteBranch(repoUrl, candidates = [], scriptCtx = this) {
+  def uniqueCandidates = candidates.findAll { it?.trim() }.unique()
+  scriptCtx.echo "Evaluating remote branch candidates for ${repoUrl}: ${uniqueCandidates.join(' > ')}"
+
+  for (String candidate : uniqueCandidates) {
+    if (branchExistsRemote(repoUrl, candidate, scriptCtx)) {
+      scriptCtx.echo "Using remote branch ${candidate} for ${repoUrl}"
+      return candidate
+    }
+  }
+
+  def remoteHead = resolveRemoteHeadBranch(repoUrl, scriptCtx)
+  if (remoteHead) {
+    scriptCtx.echo "No candidate branch found for ${repoUrl}. Falling back to remote HEAD branch: ${remoteHead}"
+    return remoteHead
+  }
+
+  error("Could not resolve any branch for ${repoUrl}")
+}
+
+def extractBranchYearSuffix(branchName = env.GIT_BRANCH) {
+  def matcher = (branchName =~ /-Y(\d{2})/)
+  return matcher?.find() ? matcher[0][1].toInteger() : null
+}
+
+def currentTwoDigitYear() {
+  return Calendar.getInstance(TimeZone.getTimeZone('UTC')).get(Calendar.YEAR) % 100
+}
+
+def isFutureYearBranch(branchName = env.GIT_BRANCH) {
+  def branchYear = extractBranchYearSuffix(branchName)
+  if (branchYear == null) {
+    return false
+  }
+  return currentTwoDigitYear() < branchYear
+}
+
 def determineBranch(boolean includeDevLogic = true) {
   def yearBackportBranch = (env.BACKPORT_BRANCH =~ /release\/(\d{2})\./)?.find() ? (env.BACKPORT_BRANCH =~ /release\/(\d{2})\./)[0][1] : null
   def yearPrereleaseBranch = (env.PRERELEASE_BRANCH =~ /prerelease\/(\d{2})\./)?.find() ? (env.PRERELEASE_BRANCH =~ /prerelease\/(\d{2})\./)[0][1] : null

@@ -216,7 +216,8 @@ pipeline {
                                                     CORE_BRANCH  : env.CORE_BRANCH,
                                                     MAIN_BRANCH  : env.MAIN_BRANCH
                                                 ],
-                                                script: this
+                                                script: this,
+                                                sshCmd: sshCmd
                                             )
                                             env.REPOS_INFO += "<li> Module ${module_package}: ${currentBranch}</li>"
                                         }
