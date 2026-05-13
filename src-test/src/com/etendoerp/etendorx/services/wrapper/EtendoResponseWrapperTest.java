@@ -25,7 +25,7 @@ import static org.mockito.Mockito.mock;
 
 import java.io.PrintWriter;
 
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServletResponse;
 
 import org.codehaus.jettison.json.JSONObject;
 import org.junit.jupiter.api.Test;

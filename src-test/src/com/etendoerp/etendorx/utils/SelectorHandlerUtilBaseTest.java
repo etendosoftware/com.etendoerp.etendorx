@@ -23,8 +23,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpSession;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
 
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
@@ -139,6 +139,13 @@ public abstract class SelectorHandlerUtilBaseTest extends WeldBaseTest {
         Method method = SelectorHandlerUtil.class.getDeclaredMethod("getExtraProperties", Selector.class);
         method.setAccessible(true);
         return (String) method.invoke(null, selector);
+    }
+
+    String callNormalizeLeadingLogicalOperator(String clause) throws ReflectiveOperationException {
+        Method method = SelectorHandlerUtil.class.getDeclaredMethod("normalizeLeadingLogicalOperator",
+                String.class);
+        method.setAccessible(true);
+        return (String) method.invoke(null, clause);
     }
 
     Column callGetValueColumn(org.openbravo.model.ad.domain.Selector selectorValidation,

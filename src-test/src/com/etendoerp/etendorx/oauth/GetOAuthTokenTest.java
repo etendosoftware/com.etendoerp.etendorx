@@ -10,11 +10,10 @@ import static org.mockito.Mockito.when;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
-import org.hibernate.Criteria;
-import org.hibernate.criterion.Criterion;
+import org.openbravo.dal.service.Restriction;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -69,7 +68,7 @@ class GetOAuthTokenTest {
     
     OBCriteria<ETRXTokenInfo> criteria = mock(OBCriteria.class);
     when(obDal.createCriteria(ETRXTokenInfo.class)).thenReturn(criteria);
-    when(criteria.add(any(Criterion.class))).thenReturn(criteria);
+    when(criteria.add(any(Restriction.class))).thenReturn(criteria);
     when(criteria.setMaxResults(1)).thenReturn(criteria);
     
     ETRXTokenInfo token = mock(ETRXTokenInfo.class);
@@ -102,7 +101,7 @@ class GetOAuthTokenTest {
     
     OBCriteria<ETRXTokenInfo> criteria = mock(OBCriteria.class);
     when(obDal.createCriteria(ETRXTokenInfo.class)).thenReturn(criteria);
-    when(criteria.add(any(Criterion.class))).thenReturn(criteria);
+    when(criteria.add(any(Restriction.class))).thenReturn(criteria);
     when(criteria.setMaxResults(1)).thenReturn(criteria);
     when(criteria.uniqueResult()).thenReturn(null);
     

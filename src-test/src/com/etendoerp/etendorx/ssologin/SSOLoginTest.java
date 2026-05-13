@@ -19,7 +19,7 @@ import org.openbravo.model.ad.system.Language;
 import org.openbravo.erpCommon.utility.Utility;
 import org.openbravo.service.db.DalConnectionProvider;
 
-import javax.servlet.ServletException;
+import jakarta.servlet.ServletException;
 
 @ExtendWith(MockitoExtension.class)
 class SSOLoginTest {

@@ -147,6 +147,19 @@ public class SelectorHandlerUtilHQLTest extends SelectorHandlerUtilBaseTest {
         assertEquals("", result);
     }
 
+    // ========== normalizeLeadingLogicalOperator tests ==========
+
+    @Test
+    public void testNormalizeLeadingLogicalOperator_StripsOnlyLeadingOperator()
+            throws ReflectiveOperationException {
+        assertEquals("ad_isorgincluded(bp.organization.id, '0') <> -1",
+                callNormalizeLeadingLogicalOperator(" AND ad_isorgincluded(bp.organization.id, '0') <> -1"));
+        assertEquals("someCondition = true",
+                callNormalizeLeadingLogicalOperator("  or   someCondition = true"));
+        assertEquals("name = 'A' AND active = true",
+                callNormalizeLeadingLogicalOperator("name = 'A' AND active = true"));
+    }
+
     // ========== getValueColumn tests ==========
 
     @Test
@@ -474,5 +487,28 @@ public class SelectorHandlerUtilHQLTest extends SelectorHandlerUtilBaseTest {
 
         assertTrue("Standalone placeholder must be replaced", result.contains(SALES_PRICE_LIST_FILTER));
         assertFalse("Placeholder must be removed", result.contains("@additional_filters@"));
+    }
+
+    @Test
+    public void testBuildHQLQuery_CustomStylePlaceholder_NormalizesLeadingAnd()
+            throws ReflectiveOperationException, JSONException {
+        when(mockSelector.getHQL()).thenReturn(
+                "SELECT bp.id as id FROM BusinessPartner bp WHERE @additional_filters@");
+        when(mockSelector.getFilterExpression()).thenReturn(null);
+        when(mockField.getColumn()).thenReturn(mockColumn);
+        when(mockField.getEtrxFilterClause()).thenReturn(
+                "ad_isorgincluded(bp.organization.id, '0') <> -1");
+        when(mockTab.getADFieldList()).thenReturn(Collections.singletonList(mockField));
+
+        JSONObject dataInpFormat = new JSONObject();
+        dataInpFormat.put(INP_C_BPARTNER_ID, "A6750F0D15334FB890C254369AC750A8");
+
+        String result = callBuildHQLQuery(mockSelector, mockTab, mockColumn, INP_C_BPARTNER_ID,
+                dataInpFormat, new HashMap<>(), mockRequest);
+
+        assertTrue(result.contains("WHERE ad_isorgincluded(bp.organization.id, '0') <> -1"));
+        assertFalse(result.contains("WHERE  AND"));
+        assertFalse(result.toLowerCase().contains("where and"));
+        assertFalse(result.contains("@additional_filters@"));
     }
 }

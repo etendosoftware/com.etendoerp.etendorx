@@ -10,7 +10,7 @@ import org.openbravo.erpCommon.utility.SystemInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.servlet.ServletException;
+import jakarta.servlet.ServletException;
 import java.util.Map;
 import java.util.Properties;
 
@@ -30,7 +30,7 @@ public class GetSSOProperties extends BaseActionHandler {
    * </p>
    *
    * <p>
-   * In case of a {@link javax.servlet.ServletException}, the exception is wrapped
+   * In case of a {@link jakarta.servlet.ServletException}, the exception is wrapped
    * and rethrown as an {@link org.openbravo.base.exception.OBException}.
    * </p>
    *

@@ -6,7 +6,7 @@ import org.openbravo.model.ad.datamodel.Table;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.ad_callouts.SimpleCallout;
 
-import javax.servlet.ServletException;
+import jakarta.servlet.ServletException;
 
 public class EntityProjectionAdTableChange extends SimpleCallout {
   @Override

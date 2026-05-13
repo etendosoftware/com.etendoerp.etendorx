@@ -4,7 +4,7 @@ import com.etendoerp.etendorx.data.ETRXTokenInfo;
 import com.etendoerp.etendorx.utils.GoogleServiceUtil;
 import org.apache.commons.lang3.StringUtils;
 import org.codehaus.jettison.json.JSONObject;
-import org.hibernate.criterion.Restrictions;
+import org.openbravo.dal.service.Restrictions;
 import org.openbravo.base.HttpBaseServlet;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.dal.core.OBContext;
@@ -13,9 +13,9 @@ import org.openbravo.erpCommon.utility.SystemInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 
 /**
@@ -42,7 +42,7 @@ public class GetOAuthToken extends HttpBaseServlet {
    * </p>
    *
    * <p>
-   * In case of a {@link javax.servlet.ServletException}, the exception is wrapped
+   * In case of a {@link jakarta.servlet.ServletException}, the exception is wrapped
    * and rethrown as an {@link org.openbravo.base.exception.OBException}.
    * </p>
    *

@@ -17,7 +17,7 @@ import org.apache.logging.log4j.Logger;
 import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
-import org.hibernate.criterion.Restrictions;
+import org.openbravo.dal.service.Restrictions;
 import org.hibernate.query.Query;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.base.exception.OBSecurityException;
@@ -458,7 +458,7 @@ public class ManageEntityFieldsDS extends ReadOnlyDataSourceService {
     //@formatter:on
     try {
       id = (String) OBDal.getInstance()
-          .getSession().createSQLQuery(sql)
+          .getSession().createNativeQuery(sql, String.class)
           .setMaxResults(1).uniqueResult();
     } catch (final Exception e) {
       throw new OBException(e.getMessage(), e.getCause());

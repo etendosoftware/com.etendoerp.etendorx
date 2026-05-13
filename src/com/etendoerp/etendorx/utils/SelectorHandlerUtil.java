@@ -21,7 +21,7 @@ import org.openbravo.userinterface.selector.Selector;
 import org.openbravo.userinterface.selector.SelectorField;
 
 import javax.script.ScriptException;
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
 import java.util.Comparator;
@@ -94,12 +94,18 @@ public class SelectorHandlerUtil {
             String headlessFilterClause = getHeadlessFilterClause(tab, col, changedColumnInp, dataInpFormat);
             org.openbravo.model.ad.domain.Selector selectorValidation = reference.getADSelectorList().get(0);
             Selector selectorDefined = reference.getOBUISELSelectorList().get(0);
+            if (selectorDefined.isCustomQuery()) {
+                handleCustomDefinedSelector(request, tab, dataInpFormat, changedColumnInp, db2Input, col);
+                return;
+            }
             DefaultDataSourceService dataSourceService = new DefaultDataSourceService();
             HashMap<String, String> convertToHashMAp = convertToHashMAp(dataInpFormat);
             OBDal.getInstance().refresh(selectorDefined);
             convertToHashMAp.put("_entityName", selectorDefined.getTable().getJavaClassName());
-            String whereClauseAndFilters = selectorDefined.getHQLWhereClause() + headlessFilterClause + addFilterClause(selectorDefined,
-                    convertToHashMAp, request);
+            String whereClauseAndFilters = StringUtils.defaultString(selectorDefined.getHQLWhereClause())
+                    + headlessFilterClause
+                    + StringUtils.defaultString(addFilterClause(selectorDefined, convertToHashMAp, request));
+            whereClauseAndFilters = normalizeLeadingLogicalOperator(whereClauseAndFilters);
             whereClauseAndFilters = fullfillSessionsVariables(whereClauseAndFilters, db2Input, dataInpFormat);
             convertToHashMAp.put("whereAndFilterClause", whereClauseAndFilters);
             convertToHashMAp.put("dataSourceName", selectorDefined.getTable().getJavaClassName());
@@ -323,6 +329,18 @@ public class SelectorHandlerUtil {
     }
 
     /**
+     * Removes a leading logical operator from a generated filter fragment.
+     * This is needed when a selector contributes filters like "AND ..." but the
+     * consumer expects a raw condition body.
+     */
+    private static String normalizeLeadingLogicalOperator(String clause) {
+        if (StringUtils.isBlank(clause)) {
+            return clause;
+        }
+        return clause.replaceFirst("(?i)^\\s*(and|or)\\s+", "");
+    }
+
+    /**
      * Retrieves the value column for the given selector.
      * <p>
      * This method determines the value column based on the provided selector. If the selector is defined
@@ -456,13 +474,14 @@ public class SelectorHandlerUtil {
         HashMap<String, String> convertToHashMAp = convertToHashMAp(dataInpFormat);
         String additionalFilterClause = addFilterClause(selectorDefined, convertToHashMAp, request);
         String additionalFilters = headlessFilterClause + (additionalFilterClause != null ? additionalFilterClause : "");
+        String normalizedAdditionalFilters = normalizeLeadingLogicalOperator(additionalFilters);
 
         String result;
-        if (StringUtils.isEmpty(additionalFilters.trim())) {
+        if (StringUtils.isEmpty(normalizedAdditionalFilters.trim())) {
             result = hqlQuery.replace("and @additional_filters@", "").replace("@additional_filters@", "");
         } else {
-            result = hqlQuery.replace("and @additional_filters@", additionalFilters)
-                .replace("@additional_filters@", additionalFilters);
+            result = hqlQuery.replace("and @additional_filters@", "and " + normalizedAdditionalFilters)
+                .replace("@additional_filters@", normalizedAdditionalFilters);
         }
 
         return fullfillSessionsVariables(result, db2Input, dataInpFormat);

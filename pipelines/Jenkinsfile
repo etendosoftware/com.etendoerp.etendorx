@@ -122,7 +122,7 @@ pipeline {
                             sh "./pipelines/utils/build-update.sh ${REPOSITORY_NAME} ${COMMIT_INPROGRESS_STATUS} \"Build Environment Etendo Classic\" ${ACCESS_TOKEN} ${GIT_COMMIT} ${BUILD_URL} \"${CONTEXT_BUILD}\""
                             withCredentials([sshUserPrivateKey(credentialsId: 'my-credentials', keyFileVariable: 'keyfile')]) {
                                 withCredentials([usernamePassword(credentialsId: "koodu_credentials", passwordVariable: 'GIT_PASSWORD', usernameVariable: 'GIT_USERNAME')]) {
-                                    def sshCmd = "ssh -i ${keyfile} -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no"                                    
+                                    def sshCmd = "ssh -i ${keyfile} -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no"
 
                                     echo '-------------------------- Selecting the Classic Correct Branch for Repository Cloning --------------------------'
                                     def branchSelector = load 'pipelines/utils/branchSelector.groovy'
@@ -146,8 +146,41 @@ pipeline {
                                     git checkout ${GIT_COMMIT}
                                     cd ../..
                                     """
-                                    
+
+                                    // Resolve epic key now that jira-utils.sh is available in the cloned module
+                                    def isFeatureBranch = env.GIT_BRANCH.startsWith("feature/")
+                                    def epicKey = ''
+                                    if (isFeatureBranch) {
+                                        echo '-------------------------- Feature Branch Detected --------------------------'
+                                        def taskName = env.GIT_BRANCH.replaceAll("feature/", "").replaceAll("-Y\\d+", "")
+                                        epicKey = sh(script: "bash ${env.WORKDIR_MODULE}/pipelines/utils/jira/jira-utils.sh ${taskName} ${JIRA_BASE_URL} ${JIRA_ACCESS_TOKEN}", returnStdout: true).trim()
+                                        if (epicKey) {
+                                            echo "Epic Key: ${epicKey}"
+                                            if (env.GIT_BRANCH.contains("-Y")) {
+                                                env.EPIC_BRANCH = "epic/${epicKey}-Y${env.GIT_BRANCH.split('-Y')[1]}"
+                                            } else {
+                                                env.EPIC_BRANCH = "epic/${epicKey}"
+                                            }
+                                            echo "Epic Branch: ${env.EPIC_BRANCH}"
+                                        }
+                                    }
+
+                                    // Align with JenkinsfileforModuleGithub: after cloning core, try to checkout
+                                    // the epic/feature branch so the build uses the correct stack (e.g. Jakarta for Y27).
+                                    echo '-------------------------- Checking out Core Branch --------------------------'
+                                    if (isFeatureBranch && epicKey) {
+                                        sh """
+                                        cd ${CLASSIC_DIR}
+                                        git checkout ${env.EPIC_BRANCH} || echo 'Epic branch ${env.EPIC_BRANCH} not found in core, staying on ${CORE_BRANCH}'
+                                        """
+                                    }
+                                    sh """
+                                    cd ${CLASSIC_DIR}
+                                    git checkout ${env.GIT_BRANCH} || echo 'Branch ${env.GIT_BRANCH} not found in core, staying on ${CORE_BRANCH}'
+                                    """
+
                                     echo '-------------------------- Cloning of other modules --------------------------'
+                                    def extraModulesBranchUtils = load "${CLASSIC_DIR}/modules/${REPOSITORY_NAME}/pipelines/utils/extraModulesBranchUtils.groovy"
                                     env.EXTRA_MODULES = ''
                                     env.REPOS_INFO = ''
                                     def currentBranch = ''
@@ -156,80 +189,36 @@ pipeline {
 
                                         def extraModules = []
                                         if (env.EXTRA_MODULES != ''){
-                                            extraModules = env.EXTRA_MODULES.tokenize(',')
+                                            extraModules = extraModulesBranchUtils.parseExtraModuleEntries(env.EXTRA_MODULES)
                                             env.REPOS_INFO = "<em>🧲 Branches used in dependent modules:</em><br><ul>"
                                         }
-                                        def module_package = ''
 
-                                        def isFeatureBranch = env.GIT_BRANCH.startsWith("feature/")
-                                        def epicKey = ''
-                                        if (isFeatureBranch) {
-                                            echo '-------------------------- Feature Branch Detected --------------------------'
-                                            def taskName = env.GIT_BRANCH.replaceAll("feature/", "").replaceAll("-Y\\d+", "")
-                                            epicKey = sh(script: "bash ${env.WORKDIR_MODULE}/pipelines/utils/jira/jira-utils.sh ${taskName} ${JIRA_BASE_URL} ${JIRA_ACCESS_TOKEN}", returnStdout: true).trim()
-                                            if (epicKey) {
-                                            echo "Epic Key: ${epicKey}"
-                                            if (env.GIT_BRANCH.contains("-Y")) {
-                                                env.EPIC_BRANCH = "epic/${epicKey}-Y${env.GIT_BRANCH.split('-Y')[1]}"
-                                            } else {
-                                                env.EPIC_BRANCH = "epic/${epicKey}"
-                                            }
-                                            echo "Epic Branch: ${env.EPIC_BRANCH}"
-                                            }
-                                        }
-
-                                        for (String module in extraModules) {
-                                            module_package = sh(script: "echo '${module}' | sed -E 's#.*/##' | sed 's/.git\$//'", returnStdout: true).trim()
+                                        for (def moduleEntry in extraModules) {
+                                            def module = moduleEntry.repoUrl
+                                            def branchSpec = moduleEntry.branchSpec
+                                            def module_package = module.tokenize('/').last().replace('.git', '')
                                             echo "------------------------------- Clone ${module_package} Module --------------------------"
                                             sh """
                                             cd ${CLASSIC_DIR}/modules
                                             GIT_SSH_COMMAND='${sshCmd}' git clone ${module}
                                             """
 
-                                            if (!(env.GIT_BRANCH.contains("-Y")) &&  !(env.GIT_BRANCH.startsWith("prerelease")) && !(env.GIT_BRANCH.startsWith("release")) && !(env.GIT_BRANCH.startsWith("main" )) && !(env.GIT_BRANCH.startsWith("master")) && !(env.GIT_BRANCH.startsWith("hotfix"))) {
-                                                echo "-------------------------- Checking out to ${module_package} Module Branch --------------------------"
-                                                if (isFeatureBranch && epicKey) {
-                                                    sh """
-                                                    cd ${CLASSIC_DIR}/modules/${module_package}
-                                                    git checkout ${env.EPIC_BRANCH} || git checkout ${env.DEVELOP_BRANCH}
-                                                    """
-                                                } else {
-                                                    sh """
-                                                    cd ${CLASSIC_DIR}/modules/${module_package}
-                                                    git checkout ${env.DEVELOP_BRANCH}
-                                                    """
-                                                }
-                                            } else if (env.FROM_BACKPORT == TRUE) {
-                                                if (isFeatureBranch && epicKey) {
-                                                    sh """
-                                                    cd ${CLASSIC_DIR}/modules/${module_package}
-                                                    git checkout ${env.EPIC_BRANCH} || git checkout ${env.BACKPORT_BRANCH}
-                                                    """
-                                                } else {
-                                                    sh """
-                                                    cd ${CLASSIC_DIR}/modules/${module_package}
-                                                    git checkout ${env.BACKPORT_BRANCH}
-                                                    """
-                                                }
-                                            } else if (env.FROM_PRERELEASE == TRUE) {
-                                                if (isFeatureBranch && epicKey) {
-                                                    sh """
-                                                    cd ${CLASSIC_DIR}/modules/${module_package}
-                                                    git checkout ${env.EPIC_BRANCH} || git checkout ${env.PRERELEASE_BRANCH}
-                                                    """
-                                                } else {
-                                                    sh """
-                                                    cd ${CLASSIC_DIR}/modules/${module_package}
-                                                    git checkout ${env.PRERELEASE_BRANCH}
-                                                    """
-                                                }
-                                            }
-
-                                            sh """
-                                            cd ${CLASSIC_DIR}/modules/${module_package}
-                                            git checkout ${env.GIT_BRANCH} || echo 'Branch ${env.GIT_BRANCH} not found in ${module_package}'
-                                            """
-                                            currentBranch = sh(script: "cd ${CLASSIC_DIR}/modules/${module_package} && git rev-parse --abbrev-ref HEAD", returnStdout: true).trim()
+                                            echo "--------------- Checking out to Correct Branch in ${module_package} Module ---------------"
+                                            currentBranch = extraModulesBranchUtils.checkoutBestBranch(
+                                                repoDir: "${CLASSIC_DIR}/modules/${module_package}",
+                                                moduleName: module_package,
+                                                branchSpec: branchSpec,
+                                                defaultCandidates: [env.GIT_BRANCH, env.EPIC_BRANCH, env.CORE_BRANCH],
+                                                tokenValues: [
+                                                    COMMIT_BRANCH: env.GIT_BRANCH,
+                                                    GIT_BRANCH   : env.GIT_BRANCH,
+                                                    EPIC_BRANCH  : env.EPIC_BRANCH,
+                                                    CORE_BRANCH  : env.CORE_BRANCH,
+                                                    MAIN_BRANCH  : env.MAIN_BRANCH
+                                                ],
+                                                script: this,
+                                                sshCmd: sshCmd
+                                            )
                                             env.REPOS_INFO += "<li> Module ${module_package}: ${currentBranch}</li>"
                                         }
                                         if (env.REPOS_INFO != '') {
@@ -309,7 +298,7 @@ pipeline {
                                     env.CODE_SCHEMA_VERIFICATION = FAILED
                                 }
                             }
-                        
+
                             echo '-------------------------- Checking for duplicate constraints --------------------------'
                             def sqlDuplicateConstraints = "${pwd()}/pipelines/utils/sql/check_duplicate_constraints.sql"
                             def constraintDuplicates = sh(
@@ -509,7 +498,7 @@ pipeline {
                                     -Dsonar.scm.revision=${GIT_COMMIT} \
                                     ${jacocoReportPathAttribute}
                             """
-                            echo '---------------------- Getting SonarQube Report URL ----------------------'
+                            echo '-------------------------- Getting SonarQube Report URL --------------------------'
                             def branchName = URLEncoder.encode(GIT_BRANCH, 'UTF-8')
                             def projectUrl = "${SONAR_SERVER}/dashboard?id=${env.PROJECT_KEY}&branch=${branchName}"
                             env.PROJECT_URL = "${projectUrl}"
@@ -537,7 +526,7 @@ pipeline {
                     try {
                         sh "./pipelines/utils/build-update.sh ${REPOSITORY_NAME} ${COMMIT_INPROGRESS_STATUS} \"Comparing Coverage Results\" ${ACCESS_TOKEN} ${GIT_COMMIT} ${BUILD_URL} \"${CONTEXT_BUILD}\""
                         echo "SonarQube Project Key: ${env.PROJECT_KEY}"
-                        def branchCurrent = URLEncoder.encode(GIT_BRANCH, 'UTF-8') 
+                        def branchCurrent = URLEncoder.encode(GIT_BRANCH, 'UTF-8')
                         echo "Sonar Project URL: ${PROJECT_URL}"
                         def branchCompare = 'main'
                         env.COMPARE_COVERAGE_STATUS = SUCCESS

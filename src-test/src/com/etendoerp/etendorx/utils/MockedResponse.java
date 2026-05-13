@@ -3,7 +3,7 @@ package com.etendoerp.etendorx.utils;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServletResponse;
 
 /**
  * A utility class that encapsulates a mocked HttpServletResponse along with
