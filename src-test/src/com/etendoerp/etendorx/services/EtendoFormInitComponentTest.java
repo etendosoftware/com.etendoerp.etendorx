@@ -21,8 +21,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
@@ -30,55 +30,64 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import org.codehaus.jettison.json.JSONObject;
+import org.hibernate.Hibernate;
+import org.hibernate.LockOptions;
 import org.hibernate.Session;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.MockedStatic;
+import org.openbravo.base.weld.WeldUtils;
+import org.openbravo.client.application.window.ApplicationDictionaryCachedStructures;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.model.ad.datamodel.Column;
-import org.openbravo.model.ad.domain.Callout;
-import org.openbravo.model.ad.domain.Reference;
+import org.openbravo.model.ad.domain.Validation;
 import org.openbravo.model.ad.ui.Field;
-import org.openbravo.model.ad.ui.Tab;
-import org.openbravo.userinterface.selector.Selector;
-import org.openbravo.userinterface.selector.SelectorField;
 
 /**
- * Tests for EtendoFormInitComponent.
- * Uses JUnit 4 following the pattern of service-level tests in this project.
- * Uses spy to stub invokeSuperExecute() which depends on injected cachedStructures.
+ * Tests for {@link EtendoFormInitComponent}.
+ * <p>
+ * The component prepares the lazy metadata of the SAME cached {@code Field}/{@code Column}
+ * instances {@code FormInitializationComponent} reads (via {@code ApplicationDictionaryCachedStructures}),
+ * re-attaching detached columns to the current session and evicting them so the initialized
+ * proxies survive FIC's per-call {@code session.clear()} (issue #92 / ETP-4137).
  */
 public class EtendoFormInitComponentTest {
 
-  public static final String TEST_TAB_ID = "TEST_TAB_ID";
-  public static final String TAB_ID = "TAB_ID";
+  private static final String TAB_ID = "TAB_ID";
+  private static final String TEST_TAB_ID = "TEST_TAB_ID";
+
   private MockedStatic<OBContext> obContextMock;
   private MockedStatic<OBDal> obDalMock;
+  private MockedStatic<WeldUtils> weldMock;
+  private MockedStatic<Hibernate> hibernateMock;
+
   private OBContext mockContext;
   private OBDal mockDal;
+  private Session mockSession;
+  private ApplicationDictionaryCachedStructures mockCachedStructures;
   private EtendoFormInitComponent component;
   private JSONObject superResult;
 
   /**
-   * Sets up the test environment with mocked OBContext, OBDal and a spied EtendoFormInitComponent.
+   * Sets up static mocks for OBContext, OBDal, WeldUtils and Hibernate, and a spied component whose
+   * super.execute() is stubbed.
    *
-   * @throws Exception if the super result JSON cannot be parsed
+   * @throws Exception if the stubbed super result JSON cannot be parsed
    */
   @Before
   public void setUp() throws Exception {
     mockContext = mock(OBContext.class);
     mockDal = mock(OBDal.class);
-    Session mockSession = mock(Session.class);
+    mockSession = mock(Session.class);
+    mockCachedStructures = mock(ApplicationDictionaryCachedStructures.class);
 
     obContextMock = mockStatic(OBContext.class);
     obContextMock.when(OBContext::getOBContext).thenReturn(mockContext);
@@ -87,413 +96,171 @@ public class EtendoFormInitComponentTest {
     obDalMock.when(OBDal::getInstance).thenReturn(mockDal);
     when(mockDal.getSession()).thenReturn(mockSession);
 
+    weldMock = mockStatic(WeldUtils.class);
+    weldMock.when(() -> WeldUtils.getInstanceFromStaticBeanManager(ApplicationDictionaryCachedStructures.class))
+        .thenReturn(mockCachedStructures);
+
+    hibernateMock = mockStatic(Hibernate.class);
+
     superResult = new JSONObject("{\"status\":\"ok\"}");
 
-    // Spy on the component so we can stub invokeSuperExecute()
     component = spy(new EtendoFormInitComponent());
     doReturn(superResult).when(component).invokeSuperExecute(any(Map.class), anyString());
   }
 
   /**
-   * Closes the static mocks for OBContext and OBDal.
+   * Closes all static mocks (reverse creation order).
    */
   @After
   public void tearDown() {
-    obContextMock.close();
+    hibernateMock.close();
+    weldMock.close();
     obDalMock.close();
+    obContextMock.close();
+  }
+
+  private Map<String, Object> params(String tabId) {
+    Map<String, Object> parameters = new HashMap<>();
+    if (tabId != null) {
+      parameters.put(TAB_ID, tabId);
+    }
+    return parameters;
+  }
+
+  private Field fieldWithColumn(Column column) {
+    Field field = mock(Field.class);
+      doReturn(column).when(field).getColumn();
+    return field;
+  }
+
+  private Column columnWithValidation(Validation validation) {
+    Column column = mock(Column.class);
+    when(column.getValidation()).thenReturn(validation);
+    when(column.getCallout()).thenReturn(null);
+    when(column.getReference()).thenReturn(null);
+    when(column.getReferenceSearchKey()).thenReturn(null);
+    return column;
   }
 
   /**
-   * Verifies that execute completes and restores previous mode when TAB_ID parameter is absent.
+   * When no tab id is provided, metadata preparation is skipped entirely (the cache is never
+   * queried) and the previous OBContext mode is restored.
    */
   @Test
-  public void testExecuteWithNullTabId() {
+  public void testNullTabIdSkipsMetadataInitialization() {
     when(mockContext.isInAdministratorMode()).thenReturn(false);
 
-    Map<String, Object> parameters = new HashMap<>();
-
-    JSONObject result = component.execute(parameters, "{}");
+    JSONObject result = component.execute(params(null), "{}");
 
     assertEquals(superResult, result);
+    weldMock.verify(() -> WeldUtils.getInstanceFromStaticBeanManager(ApplicationDictionaryCachedStructures.class),
+        never());
     obContextMock.verify(OBContext::restorePreviousMode);
   }
 
   /**
-   * Verifies that execute skips the tab lookup when TAB_ID is the literal string "null".
+   * When already in administrator mode, the previous mode is NOT restored.
    */
   @Test
-  public void testExecuteWithNullStringTabId() {
-    when(mockContext.isInAdministratorMode()).thenReturn(false);
-
-    Map<String, Object> parameters = new HashMap<>();
-    parameters.put(TAB_ID, "null");
-
-    JSONObject result = component.execute(parameters, "{}");
-
-    assertNotNull(result);
-    // Verify that OBDal.get was NOT called for "null" tabId
-    verify(mockDal, never()).get(eq(Tab.class), eq("null"));
-    obContextMock.verify(OBContext::restorePreviousMode);
-  }
-
-  /**
-   * Verifies that execute retrieves the tab and processes its fields when a valid TAB_ID is provided.
-   */
-  @Test
-  public void testExecuteWithValidTabId() {
-    when(mockContext.isInAdministratorMode()).thenReturn(false);
-
-    Tab mockTab = mock(Tab.class);
-    when(mockDal.get(Tab.class, TEST_TAB_ID)).thenReturn(mockTab);
-    when(mockTab.getADFieldList()).thenReturn(Collections.emptyList());
-
-    Map<String, Object> parameters = new HashMap<>();
-    parameters.put(TAB_ID, TEST_TAB_ID);
-
-    JSONObject result = component.execute(parameters, "{}");
-
-    assertNotNull(result);
-    verify(mockDal).get(Tab.class, TEST_TAB_ID);
-    obContextMock.verify(OBContext::restorePreviousMode);
-  }
-
-  /**
-   * Verifies that execute handles gracefully a TAB_ID that does not match any existing tab.
-   */
-  @Test
-  public void testExecuteWithTabNotFound() {
-    when(mockContext.isInAdministratorMode()).thenReturn(false);
-    when(mockDal.get(Tab.class, "INVALID_ID")).thenReturn(null);
-
-    Map<String, Object> parameters = new HashMap<>();
-    parameters.put(TAB_ID, "INVALID_ID");
-
-    JSONObject result = component.execute(parameters, "{}");
-
-    assertNotNull(result);
-    obContextMock.verify(OBContext::restorePreviousMode);
-  }
-
-  /**
-   * Verifies that restorePreviousMode is not called when the context is already in administrator mode.
-   */
-  @Test
-  public void testExecuteAlreadyInAdminMode() {
+  public void testAlreadyInAdminModeDoesNotRestore() {
     when(mockContext.isInAdministratorMode()).thenReturn(true);
 
-    Map<String, Object> parameters = new HashMap<>();
-
-    JSONObject result = component.execute(parameters, "{}");
+    JSONObject result = component.execute(params(null), "{}");
 
     assertNotNull(result);
-    // restorePreviousMode should NOT be called since we were already in admin mode
     obContextMock.verify(OBContext::restorePreviousMode, never());
   }
 
   /**
-   * Verifies that execute processes field columns when the tab contains fields with associated columns.
+   * A detached column whose validation proxy is uninitialized is re-attached (lock + refresh) and
+   * its validation is force-initialized within the current session.
    */
   @Test
-  public void testExecuteWithFieldsHavingColumns() {
-    when(mockContext.isInAdministratorMode()).thenReturn(false);
+  public void testDetachedUninitializedValidationIsReattachedAndInitialized() {
+    when(mockContext.isInAdministratorMode()).thenReturn(true);
 
-    Column mockColumn = mock(Column.class);
-    when(mockColumn.getCallout()).thenReturn(null);
-    when(mockColumn.getReference()).thenReturn(null);
-    when(mockColumn.getReferenceSearchKey()).thenReturn(null);
+    Validation validation = mock(Validation.class);
+    Column column = columnWithValidation(validation);
+    Field field = fieldWithColumn(column);
+    when(mockCachedStructures.getFieldsOfTab(TEST_TAB_ID)).thenReturn(
+      Collections.singletonList(field));
+    hibernateMock.when(() -> Hibernate.isInitialized(validation)).thenReturn(false);
+    when(mockSession.contains(column)).thenReturn(false);
+    Session.LockRequest lockRequest = mock(Session.LockRequest.class);
+    when(mockSession.buildLockRequest(any(LockOptions.class))).thenReturn(lockRequest);
 
-    Field mockField = mock(Field.class);
-    when(mockField.getColumn()).thenReturn(mockColumn);
+    component.execute(params(TEST_TAB_ID), "{}");
 
-    Tab mockTab = mock(Tab.class);
-    when(mockDal.get(Tab.class, "TAB_WITH_FIELDS")).thenReturn(mockTab);
-    when(mockTab.getADFieldList()).thenReturn(Collections.singletonList(mockField));
-
-    Map<String, Object> parameters = new HashMap<>();
-    parameters.put(TAB_ID, "TAB_WITH_FIELDS");
-
-    JSONObject result = component.execute(parameters, "{}");
-
-    assertNotNull(result);
-    verify(mockField).getColumn();
-    obContextMock.verify(OBContext::restorePreviousMode);
+    verify(mockSession).buildLockRequest(any(LockOptions.class));
+    verify(lockRequest).lock(column);
+    verify(mockSession).refresh(column);
+    verify(validation).getValidationCode();
   }
 
   /**
-   * Verifies that execute eagerly initializes callout and its model implementation list.
+   * Already-initialized metadata is left untouched: no re-attach, no refresh, no re-initialization.
+   * This is the steady state that keeps concurrent requests lock-free.
    */
   @Test
-  public void testExecuteInitializesCalloutWithModelImplementations() {
+  public void testInitializedMetadataIsSkipped() {
     when(mockContext.isInAdministratorMode()).thenReturn(true);
 
-    Callout mockCallout = mock(Callout.class);
-    when(mockCallout.getId()).thenReturn("CALLOUT1");
-    doReturn(new ArrayList<>()).when(mockCallout).getADModelImplementationList();
+    Validation validation = mock(Validation.class);
+    Column column = columnWithValidation(validation);
+    Field field = fieldWithColumn(column);
+    when(mockCachedStructures.getFieldsOfTab(TEST_TAB_ID)).thenReturn(
+      Collections.singletonList(field));
+    hibernateMock.when(() -> Hibernate.isInitialized(validation)).thenReturn(true);
 
-    Column mockColumn = mock(Column.class);
-    when(mockColumn.getCallout()).thenReturn(mockCallout);
-    when(mockColumn.getReference()).thenReturn(null);
-    when(mockColumn.getReferenceSearchKey()).thenReturn(null);
+    component.execute(params(TEST_TAB_ID), "{}");
 
-    Field mockField = mock(Field.class);
-    when(mockField.getColumn()).thenReturn(mockColumn);
-
-    Tab mockTab = mock(Tab.class);
-    when(mockDal.get(Tab.class, TEST_TAB_ID)).thenReturn(mockTab);
-    when(mockTab.getADFieldList()).thenReturn(Collections.singletonList(mockField));
-
-    Map<String, Object> parameters = new HashMap<>();
-    parameters.put(TAB_ID, TEST_TAB_ID);
-
-    JSONObject result = component.execute(parameters, "{}");
-
-    assertNotNull(result);
-    verify(mockCallout).getId();
-    verify(mockCallout, org.mockito.Mockito.atLeastOnce()).getADModelImplementationList();
+    verify(mockSession, never()).buildLockRequest(any(LockOptions.class));
+    verify(validation, never()).getValidationCode();
   }
 
   /**
-   * Verifies that execute eagerly initializes callout but handles null model implementation list.
+   * Fields whose column is null are ignored without touching the session.
    */
   @Test
-  public void testExecuteInitializesCalloutWithNullModelImplList() {
+  public void testNullColumnFieldIsIgnored() {
     when(mockContext.isInAdministratorMode()).thenReturn(true);
+    Field field = fieldWithColumn(null);
+    when(mockCachedStructures.getFieldsOfTab(TEST_TAB_ID)).thenReturn(
+      Collections.singletonList(field));
 
-    Callout mockCallout = mock(Callout.class);
-    when(mockCallout.getId()).thenReturn("CALLOUT2");
-    doReturn(null).when(mockCallout).getADModelImplementationList();
-
-    Column mockColumn = mock(Column.class);
-    when(mockColumn.getCallout()).thenReturn(mockCallout);
-    when(mockColumn.getReference()).thenReturn(null);
-    when(mockColumn.getReferenceSearchKey()).thenReturn(null);
-
-    Field mockField = mock(Field.class);
-    when(mockField.getColumn()).thenReturn(mockColumn);
-
-    Tab mockTab = mock(Tab.class);
-    when(mockDal.get(Tab.class, TEST_TAB_ID)).thenReturn(mockTab);
-    when(mockTab.getADFieldList()).thenReturn(Collections.singletonList(mockField));
-
-    Map<String, Object> parameters = new HashMap<>();
-    parameters.put(TAB_ID, TEST_TAB_ID);
-
-    JSONObject result = component.execute(parameters, "{}");
+    JSONObject result = component.execute(params(TEST_TAB_ID), "{}");
 
     assertNotNull(result);
-    verify(mockCallout).getId();
+    verify(mockSession, never()).buildLockRequest(any(LockOptions.class));
   }
 
   /**
-   * Verifies that execute eagerly initializes reference with selector list and selector fields.
+   * A failure preparing one column must not abort the tab loop: later columns are still prepared,
+   * otherwise FIC would fail on them.
    */
   @Test
-  public void testExecuteInitializesReferenceWithSelectorFields() {
+  public void testOneColumnFailureDoesNotAbortRemainingColumns() {
     when(mockContext.isInAdministratorMode()).thenReturn(true);
 
-    SelectorField sf1 = mock(SelectorField.class);
-    when(sf1.getId()).thenReturn("SF1");
-    when(sf1.getProperty()).thenReturn("businessPartner");
+    Validation validation1 = mock(Validation.class);
+    Column column1 = columnWithValidation(validation1);
+    Field field1 = fieldWithColumn(column1);
+    Validation validation2 = mock(Validation.class);
+    Column column2 = columnWithValidation(validation2);
+    Field field2 = fieldWithColumn(column2);
 
-    SelectorField sf2 = mock(SelectorField.class);
-    when(sf2.getId()).thenReturn("SF2");
-    when(sf2.getProperty()).thenReturn(null);
+    when(mockCachedStructures.getFieldsOfTab(TEST_TAB_ID)).thenReturn(
+      Arrays.asList(field1, field2));
+    hibernateMock.when(() -> Hibernate.isInitialized(validation1)).thenReturn(false);
+    hibernateMock.when(() -> Hibernate.isInitialized(validation2)).thenReturn(false);
 
-    Selector selector = mock(Selector.class);
-    when(selector.getOBUISELSelectorFieldList()).thenReturn(Arrays.asList(sf1, sf2));
+    Session.LockRequest lockRequest = mock(Session.LockRequest.class);
+    when(mockSession.buildLockRequest(any(LockOptions.class))).thenReturn(lockRequest);
+    // First column blows up during re-attach; the second must still be processed.
+    doThrow(new RuntimeException("reattach boom")).when(lockRequest).lock(column1);
 
-    Reference reference = mock(Reference.class);
-    when(reference.getId()).thenReturn("REF1");
-    when(reference.getOBUISELSelectorList()).thenReturn(Collections.singletonList(selector));
+    component.execute(params(TEST_TAB_ID), "{}");
 
-    Column mockColumn = mock(Column.class);
-    when(mockColumn.getCallout()).thenReturn(null);
-    when(mockColumn.getReference()).thenReturn(reference);
-    when(mockColumn.getReferenceSearchKey()).thenReturn(null);
-
-    Field mockField = mock(Field.class);
-    when(mockField.getColumn()).thenReturn(mockColumn);
-
-    Tab mockTab = mock(Tab.class);
-    when(mockDal.get(Tab.class, TEST_TAB_ID)).thenReturn(mockTab);
-    when(mockTab.getADFieldList()).thenReturn(Collections.singletonList(mockField));
-
-    Map<String, Object> parameters = new HashMap<>();
-    parameters.put(TAB_ID, TEST_TAB_ID);
-
-    JSONObject result = component.execute(parameters, "{}");
-
-    assertNotNull(result);
-    verify(reference).getId();
-    verify(sf1).getId();
-    verify(sf2).getId();
-  }
-
-  /**
-   * Verifies that execute eagerly initializes reference with null selector list.
-   */
-  @Test
-  public void testExecuteInitializesReferenceWithNullSelectorList() {
-    when(mockContext.isInAdministratorMode()).thenReturn(true);
-
-    Reference reference = mock(Reference.class);
-    when(reference.getId()).thenReturn("REF2");
-    when(reference.getOBUISELSelectorList()).thenReturn(null);
-
-    Column mockColumn = mock(Column.class);
-    when(mockColumn.getCallout()).thenReturn(null);
-    when(mockColumn.getReference()).thenReturn(reference);
-    when(mockColumn.getReferenceSearchKey()).thenReturn(null);
-
-    Field mockField = mock(Field.class);
-    when(mockField.getColumn()).thenReturn(mockColumn);
-
-    Tab mockTab = mock(Tab.class);
-    when(mockDal.get(Tab.class, TEST_TAB_ID)).thenReturn(mockTab);
-    when(mockTab.getADFieldList()).thenReturn(Collections.singletonList(mockField));
-
-    Map<String, Object> parameters = new HashMap<>();
-    parameters.put(TAB_ID, TEST_TAB_ID);
-
-    JSONObject result = component.execute(parameters, "{}");
-
-    assertNotNull(result);
-    verify(reference).getId();
-    verify(reference).getOBUISELSelectorList();
-  }
-
-  /**
-   * Verifies that execute eagerly initializes referenceSearchKey with selector list.
-   */
-  @Test
-  public void testExecuteInitializesRefSearchKeyWithSelectorList() {
-    when(mockContext.isInAdministratorMode()).thenReturn(true);
-
-    Selector selector = mock(Selector.class);
-    when(selector.getOBUISELSelectorFieldList()).thenReturn(new ArrayList<>());
-
-    Reference refSearchKey = mock(Reference.class);
-    when(refSearchKey.getId()).thenReturn("RSK1");
-    when(refSearchKey.getOBUISELSelectorList()).thenReturn(Collections.singletonList(selector));
-
-    Column mockColumn = mock(Column.class);
-    when(mockColumn.getCallout()).thenReturn(null);
-    when(mockColumn.getReference()).thenReturn(null);
-    when(mockColumn.getReferenceSearchKey()).thenReturn(refSearchKey);
-
-    Field mockField = mock(Field.class);
-    when(mockField.getColumn()).thenReturn(mockColumn);
-
-    Tab mockTab = mock(Tab.class);
-    when(mockDal.get(Tab.class, TEST_TAB_ID)).thenReturn(mockTab);
-    when(mockTab.getADFieldList()).thenReturn(Collections.singletonList(mockField));
-
-    Map<String, Object> parameters = new HashMap<>();
-    parameters.put(TAB_ID, TEST_TAB_ID);
-
-    JSONObject result = component.execute(parameters, "{}");
-
-    assertNotNull(result);
-    verify(refSearchKey).getId();
-    verify(refSearchKey, org.mockito.Mockito.atLeastOnce()).getOBUISELSelectorList();
-  }
-
-  /**
-   * Verifies that execute eagerly initializes referenceSearchKey with null selector list.
-   */
-  @Test
-  public void testExecuteInitializesRefSearchKeyWithNullSelectorList() {
-    when(mockContext.isInAdministratorMode()).thenReturn(true);
-
-    Reference refSearchKey = mock(Reference.class);
-    when(refSearchKey.getId()).thenReturn("RSK2");
-    when(refSearchKey.getOBUISELSelectorList()).thenReturn(null);
-
-    Column mockColumn = mock(Column.class);
-    when(mockColumn.getCallout()).thenReturn(null);
-    when(mockColumn.getReference()).thenReturn(null);
-    when(mockColumn.getReferenceSearchKey()).thenReturn(refSearchKey);
-
-    Field mockField = mock(Field.class);
-    when(mockField.getColumn()).thenReturn(mockColumn);
-
-    Tab mockTab = mock(Tab.class);
-    when(mockDal.get(Tab.class, TEST_TAB_ID)).thenReturn(mockTab);
-    when(mockTab.getADFieldList()).thenReturn(Collections.singletonList(mockField));
-
-    Map<String, Object> parameters = new HashMap<>();
-    parameters.put(TAB_ID, TEST_TAB_ID);
-
-    JSONObject result = component.execute(parameters, "{}");
-
-    assertNotNull(result);
-    verify(refSearchKey).getId();
-    verify(refSearchKey).getOBUISELSelectorList();
-  }
-
-  /**
-   * Verifies that execute handles field with null column gracefully (skips initialization).
-   */
-  @Test
-  public void testExecuteWithFieldNullColumn() {
-    when(mockContext.isInAdministratorMode()).thenReturn(true);
-
-    Field fieldWithNull = mock(Field.class);
-    when(fieldWithNull.getColumn()).thenReturn(null);
-
-    Field fieldWithColumn = mock(Field.class);
-    Column col = mock(Column.class);
-    when(fieldWithColumn.getColumn()).thenReturn(col);
-    when(col.getCallout()).thenReturn(null);
-    when(col.getReference()).thenReturn(null);
-    when(col.getReferenceSearchKey()).thenReturn(null);
-
-    Tab mockTab = mock(Tab.class);
-    when(mockDal.get(Tab.class, TEST_TAB_ID)).thenReturn(mockTab);
-    when(mockTab.getADFieldList()).thenReturn(Arrays.asList(fieldWithNull, fieldWithColumn));
-
-    Map<String, Object> parameters = new HashMap<>();
-    parameters.put(TAB_ID, TEST_TAB_ID);
-
-    JSONObject result = component.execute(parameters, "{}");
-
-    assertNotNull(result);
-    verify(fieldWithNull).getColumn();
-    verify(fieldWithColumn).getColumn();
-  }
-
-  /**
-   * Verifies that execute handles selector with null selectorFieldList gracefully.
-   */
-  @Test
-  public void testExecuteInitializesSelectorWithNullFieldList() {
-    when(mockContext.isInAdministratorMode()).thenReturn(true);
-
-    Selector selector = mock(Selector.class);
-    when(selector.getOBUISELSelectorFieldList()).thenReturn(null);
-
-    Reference reference = mock(Reference.class);
-    when(reference.getId()).thenReturn("REF3");
-    when(reference.getOBUISELSelectorList()).thenReturn(Collections.singletonList(selector));
-
-    Column mockColumn = mock(Column.class);
-    when(mockColumn.getCallout()).thenReturn(null);
-    when(mockColumn.getReference()).thenReturn(reference);
-    when(mockColumn.getReferenceSearchKey()).thenReturn(null);
-
-    Field mockField = mock(Field.class);
-    when(mockField.getColumn()).thenReturn(mockColumn);
-
-    Tab mockTab = mock(Tab.class);
-    when(mockDal.get(Tab.class, TEST_TAB_ID)).thenReturn(mockTab);
-    when(mockTab.getADFieldList()).thenReturn(Collections.singletonList(mockField));
-
-    Map<String, Object> parameters = new HashMap<>();
-    parameters.put(TAB_ID, TEST_TAB_ID);
-
-    JSONObject result = component.execute(parameters, "{}");
-
-    assertNotNull(result);
-    verify(selector).getOBUISELSelectorFieldList();
+    verify(validation2).getValidationCode();
   }
 }
