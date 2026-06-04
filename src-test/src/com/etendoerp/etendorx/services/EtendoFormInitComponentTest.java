@@ -21,6 +21,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -48,8 +49,13 @@ import org.openbravo.client.application.window.ApplicationDictionaryCachedStruct
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.model.ad.datamodel.Column;
+import org.openbravo.model.ad.domain.Callout;
+import org.openbravo.model.ad.domain.Reference;
+import org.openbravo.model.ad.domain.ReferencedTable;
 import org.openbravo.model.ad.domain.Validation;
 import org.openbravo.model.ad.ui.Field;
+import org.openbravo.userinterface.selector.Selector;
+import org.openbravo.userinterface.selector.SelectorField;
 
 /**
  * Tests for {@link EtendoFormInitComponent}.
@@ -262,5 +268,171 @@ public class EtendoFormInitComponentTest {
     component.execute(params(TEST_TAB_ID), "{}");
 
     verify(validation2).getValidationCode();
+  }
+
+  /**
+   * Exercises the full metadata graph: callout (+ model implementations), reference (+ selector
+   * list, selector fields and referenced tables) and reference search key are all force-loaded.
+   */
+  @Test
+  public void testInitializesFullMetadataGraph() {
+    when(mockContext.isInAdministratorMode()).thenReturn(true);
+
+    Validation validation = mock(Validation.class);
+
+    Callout callout = mock(Callout.class);
+    when(callout.getId()).thenReturn("CALLOUT1");
+    doReturn(Collections.emptyList()).when(callout).getADModelImplementationList();
+
+    SelectorField selectorField = mock(SelectorField.class);
+    when(selectorField.getId()).thenReturn("SF1");
+    when(selectorField.getProperty()).thenReturn("businessPartner");
+    Selector selector = mock(Selector.class);
+    doReturn(Collections.singletonList(selectorField)).when(selector).getOBUISELSelectorFieldList();
+    ReferencedTable referencedTable = mock(ReferencedTable.class);
+    when(referencedTable.getSQLWhereClause()).thenReturn("1=1");
+
+    Reference reference = mock(Reference.class);
+    when(reference.getId()).thenReturn("REF1");
+    doReturn(Collections.singletonList(selector)).when(reference).getOBUISELSelectorList();
+    doReturn(Collections.singletonList(referencedTable)).when(reference).getADReferencedTableList();
+
+    Reference refSearchKey = mock(Reference.class);
+    when(refSearchKey.getId()).thenReturn("REFSK1");
+    doReturn(Collections.emptyList()).when(refSearchKey).getOBUISELSelectorList();
+    doReturn(Collections.emptyList()).when(refSearchKey).getADReferencedTableList();
+
+    Column column = mock(Column.class);
+    when(column.getValidation()).thenReturn(validation);
+    when(column.getCallout()).thenReturn(callout);
+    when(column.getReference()).thenReturn(reference);
+    when(column.getReferenceSearchKey()).thenReturn(refSearchKey);
+
+    when(mockCachedStructures.getFieldsOfTab(TEST_TAB_ID)).thenReturn(
+        Collections.singletonList(fieldWithColumn(column)));
+    hibernateMock.when(() -> Hibernate.isInitialized(validation)).thenReturn(false);
+    Session.LockRequest lockRequest = mock(Session.LockRequest.class);
+    when(mockSession.buildLockRequest(any(LockOptions.class))).thenReturn(lockRequest);
+
+    component.execute(params(TEST_TAB_ID), "{}");
+
+    verify(callout, atLeastOnce()).getId();
+    verify(callout, atLeastOnce()).getADModelImplementationList();
+    verify(reference, atLeastOnce()).getId();
+    verify(refSearchKey, atLeastOnce()).getId();
+    verify(selectorField, atLeastOnce()).getId();
+    verify(referencedTable, atLeastOnce()).getSQLWhereClause();
+  }
+
+  /**
+   * When the cached column is still attached to the session, re-attach is skipped; the initialized
+   * metadata is then evicted so it survives the next FIC session clear.
+   */
+  @Test
+  public void testReattachSkippedWhenAttachedAndMetadataEvicted() {
+    when(mockContext.isInAdministratorMode()).thenReturn(true);
+
+    Validation validation = mock(Validation.class);
+    Column column = columnWithValidation(validation);
+    when(mockCachedStructures.getFieldsOfTab(TEST_TAB_ID)).thenReturn(
+        Collections.singletonList(fieldWithColumn(column)));
+    // Gate opens (validation uninitialized) so the column is processed.
+    hibernateMock.when(() -> Hibernate.isInitialized(validation)).thenReturn(false);
+    // Column already attached + initialized -> re-attach skipped, eviction performed.
+    when(mockSession.contains(column)).thenReturn(true);
+    hibernateMock.when(() -> Hibernate.isInitialized(column)).thenReturn(true);
+
+    component.execute(params(TEST_TAB_ID), "{}");
+
+    verify(mockSession, never()).buildLockRequest(any(LockOptions.class));
+    verify(mockSession).evict(column);
+  }
+
+  /**
+   * A failure querying the metadata cache is swallowed: execution proceeds to super.execute (the
+   * original error, if any, will surface from FIC with better context).
+   */
+  @Test
+  public void testCacheLookupFailureIsSwallowed() {
+    when(mockContext.isInAdministratorMode()).thenReturn(true);
+    when(mockCachedStructures.getFieldsOfTab(TEST_TAB_ID)).thenThrow(new RuntimeException("cache boom"));
+
+    JSONObject result = component.execute(params(TEST_TAB_ID), "{}");
+
+    assertEquals(superResult, result);
+  }
+
+  /**
+   * Covers the null-collection branches of the metadata graph: a callout with no model
+   * implementations, a reference with no selector/referenced-table lists, a selector with a null
+   * field list, and a selector field with no property.
+   */
+  @Test
+  public void testInitializesMetadataInnerNullBranches() {
+    when(mockContext.isInAdministratorMode()).thenReturn(true);
+
+    // Column 1: callout with null model-impl list; reference with null selector & referenced lists.
+    Callout callout = mock(Callout.class);
+    when(callout.getId()).thenReturn("C1");
+    doReturn(null).when(callout).getADModelImplementationList();
+    Reference reference1 = mock(Reference.class);
+    when(reference1.getId()).thenReturn("R1");
+    doReturn(null).when(reference1).getOBUISELSelectorList();
+    doReturn(null).when(reference1).getADReferencedTableList();
+    Column column1 = mock(Column.class);
+    when(column1.getValidation()).thenReturn(mock(Validation.class));
+    when(column1.getCallout()).thenReturn(callout);
+    when(column1.getReference()).thenReturn(reference1);
+    when(column1.getReferenceSearchKey()).thenReturn(null);
+
+    // Column 2: reference with one selector that has a null field list and one with a field that
+    // has no property.
+    Selector selectorNullFields = mock(Selector.class);
+    doReturn(null).when(selectorNullFields).getOBUISELSelectorFieldList();
+    SelectorField fieldNoProperty = mock(SelectorField.class);
+    when(fieldNoProperty.getId()).thenReturn("SF");
+    when(fieldNoProperty.getProperty()).thenReturn(null);
+    Selector selectorWithField = mock(Selector.class);
+    doReturn(Collections.singletonList(fieldNoProperty)).when(selectorWithField).getOBUISELSelectorFieldList();
+    Reference reference2 = mock(Reference.class);
+    when(reference2.getId()).thenReturn("R2");
+    doReturn(Arrays.asList(selectorNullFields, selectorWithField)).when(reference2).getOBUISELSelectorList();
+    doReturn(null).when(reference2).getADReferencedTableList();
+    Column column2 = mock(Column.class);
+    when(column2.getValidation()).thenReturn(mock(Validation.class));
+    when(column2.getCallout()).thenReturn(null);
+    when(column2.getReference()).thenReturn(reference2);
+    when(column2.getReferenceSearchKey()).thenReturn(null);
+
+    when(mockCachedStructures.getFieldsOfTab(TEST_TAB_ID)).thenReturn(
+        Arrays.asList(fieldWithColumn(column1), fieldWithColumn(column2)));
+    Session.LockRequest lockRequest = mock(Session.LockRequest.class);
+    when(mockSession.buildLockRequest(any(LockOptions.class))).thenReturn(lockRequest);
+
+    component.execute(params(TEST_TAB_ID), "{}");
+
+    verify(callout, atLeastOnce()).getADModelImplementationList();
+    verify(reference1, atLeastOnce()).getOBUISELSelectorList();
+    verify(fieldNoProperty, atLeastOnce()).getId();
+  }
+
+  /**
+   * When super.execute() fails, the session is cleared and the exception is rethrown.
+   */
+  @Test
+  public void testSuperExecuteFailureClearsSessionAndRethrows() {
+    when(mockContext.isInAdministratorMode()).thenReturn(true);
+    when(mockCachedStructures.getFieldsOfTab(TEST_TAB_ID)).thenReturn(Collections.emptyList());
+    doThrow(new RuntimeException("super boom")).when(component).invokeSuperExecute(any(Map.class), anyString());
+
+    RuntimeException thrown = null;
+    try {
+      component.execute(params(TEST_TAB_ID), "{}");
+    } catch (RuntimeException e) {
+      thrown = e;
+    }
+
+    assertNotNull(thrown);
+    verify(mockSession).clear();
   }
 }
