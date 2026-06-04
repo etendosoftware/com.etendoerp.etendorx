@@ -20,12 +20,18 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.codehaus.jettison.json.JSONObject;
+import org.hibernate.Hibernate;
+import org.hibernate.LockMode;
+import org.hibernate.LockOptions;
+import org.hibernate.Session;
+import org.openbravo.base.weld.WeldUtils;
+import org.openbravo.client.application.window.ApplicationDictionaryCachedStructures;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.model.ad.datamodel.Column;
 import org.openbravo.model.ad.domain.Reference;
+import org.openbravo.model.ad.domain.Validation;
 import org.openbravo.model.ad.ui.Field;
-import org.openbravo.model.ad.ui.Tab;
 
 import java.util.Map;
 
@@ -51,7 +57,7 @@ public class EtendoFormInitComponent extends org.openbravo.client.application.wi
   public JSONObject execute(Map<String, Object> parameters, String content) {
     String tabId = (String) parameters.get(TAB_ID);
     log.debug("Starting form initialization for tab: {}", tabId);
-    
+
     try {
       // Ensure we're in admin mode for proper entity access
       boolean wasInAdminMode = OBContext.getOBContext().isInAdministratorMode();
@@ -92,54 +98,143 @@ public class EtendoFormInitComponent extends org.openbravo.client.application.wi
   }
 
   /**
-   * Eagerly initializes all lazy-loaded metadata for the tab's fields.
-   * This prevents LazyInitializationException when FormInitializationComponent
-   * accesses these properties after the session might have closed.
+    * Initializes the cached tab metadata that the parent component will traverse.
+    * It must work on the shared instances from {@link ApplicationDictionaryCachedStructures},
+    * because those are the objects later reused by the base implementation.
    *
-   * @param parameters The parameters map containing TAB_ID
+    * @param parameters parameters containing TAB_ID
    */
   private void initializeTabMetadata(Map<String, Object> parameters) {
+    String tabId = (String) parameters.get(TAB_ID);
+    if (tabId == null || StringUtils.equals(tabId, "null")) {
+      log.debug("No tab ID provided, skipping metadata initialization");
+      return;
+    }
     try {
-      String tabId = (String) parameters.get(TAB_ID);
-      if (tabId == null || StringUtils.equals(tabId, "null")) {
-        log.debug("No tab ID provided, skipping metadata initialization");
-        return;
+      ApplicationDictionaryCachedStructures cachedStructures = WeldUtils.getInstanceFromStaticBeanManager(
+          ApplicationDictionaryCachedStructures.class);
+      // IMPORTANT: iterate the SAME instances FormInitializationComponent reads
+      // (cachedStructures.getFieldsOfTab). Preparing a fresh OBDal.get(Tab) copy has no effect,
+      // because FIC dereferences these shared application-scoped singletons, not our copy.
+      for (Field field : cachedStructures.getFieldsOfTab(tabId)) {
+        prepareFieldMetadata(field);
       }
-      
-      Tab tab = OBDal.getInstance().get(Tab.class, tabId);
-      if (tab == null) {
-        log.warn("Tab not found for ID: {}", tabId);
-        return;
-      }
-      
-      // Eagerly load all field metadata
-      for (Field field : tab.getADFieldList()) {
-        initializeFieldMetadata(field);
-      }
-      
       log.debug("Metadata initialization complete for tab {}", tabId);
-          
     } catch (Exception e) {
-      // Log but don't fail - the original LazyInitializationException will still occur
-      // and provide better error context
-      log.warn("Failed to eagerly initialize tab metadata for tab: {}", parameters.get(TAB_ID), e);
+      // Log but don't fail - the original LazyInitializationException will still surface from
+      // FIC and provide better error context.
+      log.warn("Failed to eagerly initialize tab metadata for tab: {}", tabId, e);
     }
   }
 
   /**
-   * Initializes metadata for a single field.
+    * Prepares one field's column metadata so later access does not hit detached lazy proxies.
    *
-   * @param field The field to initialize
+    * @param field field whose column metadata must be ready
    */
-  private void initializeFieldMetadata(Field field) {
+  private void prepareFieldMetadata(Field field) {
     Column column = field.getColumn();
-    if (column == null) {
+    if (column == null || !metadataNeedsInitialization(column)) {
       return;
     }
-    
-    initializeCallout(column);
-    initializeReference(column.getReference());
-    initializeReferenceSearchKey(column.getReferenceSearchKey());
+    // Mutating a shared cached singleton: serialize on the column, mirroring the
+    // synchronized(obj) pattern ApplicationDictionaryCachedStructures itself uses.
+    synchronized (column) {
+      if (!metadataNeedsInitialization(column)) {
+        return;
+      }
+      try {
+        reattachToSession(column);
+        // Validation is the confirmed-critical proxy (FIC#getValidation); initialize it first so a
+        // failure in the rarer reference/callout graph cannot leave it uninitialized.
+        initializeValidation(column.getValidation());
+        initializeCallout(column);
+        initializeReference(column.getReference());
+        initializeReferenceSearchKey(column.getReferenceSearchKey());
+      } catch (RuntimeException e) {
+        // Isolate per column: one column's metadata hiccup must not abort the whole tab,
+        // otherwise later columns stay unprepared and FIC fails on them.
+        log.warn("Partial metadata initialization for column {}: {}", column.getId(), e.toString());
+      } finally {
+        // Evict whatever was initialized (even on partial failure) so it survives FIC's clear().
+        detachInitializedMetadata(column);
+      }
+    }
+  }
+
+  /**
+    * Returns whether any metadata proxy still needs initialization.
+   *
+    * @param column column to inspect
+    * @return true when at least one proxy is still lazy
+   */
+  private boolean metadataNeedsInitialization(Column column) {
+    return !isInitialized(column.getValidation()) || !isInitialized(column.getCallout())
+        || !isInitialized(column.getReference()) || !isInitialized(column.getReferenceSearchKey());
+  }
+
+  /**
+   * Null-safe wrapper over {@link Hibernate#isInitialized(Object)}; a null association counts as
+   * initialized (nothing to do).
+   */
+  private static boolean isInitialized(Object proxy) {
+    return proxy == null || Hibernate.isInitialized(proxy);
+  }
+
+  /**
+    * Re-attaches a detached cached column to the current session and refreshes it so nested lazy
+    * associations can also be initialized.
+   *
+    * @param column cached column, possibly detached by a previous session clear
+   */
+  private void reattachToSession(Column column) {
+    Session session = OBDal.getInstance().getSession();
+    if (session.contains(column)) {
+      return;
+    }
+    session.buildLockRequest(new LockOptions(LockMode.NONE)).lock(column);
+    session.refresh(column);
+  }
+
+  /**
+    * Evicts the initialized metadata from the session so later clears do not leave the cached
+    * graph lazy again.
+   *
+    * @param column column whose initialized metadata must be detached
+   */
+  private void detachInitializedMetadata(Column column) {
+    Session session = OBDal.getInstance().getSession();
+    evict(session, column.getValidation());
+    evict(session, column.getCallout());
+    evict(session, column.getReference());
+    evict(session, column.getReferenceSearchKey());
+    evict(session, column);
+  }
+
+  /**
+    * Evicts an entity from the session when it is managed and initialized.
+   *
+    * @param session current Hibernate session
+    * @param entity entity to evict, may be null
+   */
+  private static void evict(Session session, Object entity) {
+    if (entity != null && Hibernate.isInitialized(entity) && session.contains(entity)) {
+      session.evict(entity);
+    }
+  }
+
+  /**
+    * Initializes the column validation proxy.
+   *
+    * @param validation validation referenced by the column, may be null
+   */
+  private void initializeValidation(Validation validation) {
+    if (validation != null) {
+      validation.getId();
+      // Touch a non-ID property to force proxy initialization within the
+      // current Hibernate session.
+      validation.getValidationCode();
+    }
   }
 
   /**
@@ -171,6 +266,7 @@ public class EtendoFormInitComponent extends org.openbravo.client.application.wi
       if (reference.getOBUISELSelectorList() != null) {
         initializeSelectorList(reference);
       }
+      initializeReferencedTables(reference);
     }
   }
 
@@ -185,6 +281,18 @@ public class EtendoFormInitComponent extends org.openbravo.client.application.wi
       if (referenceSearchKey.getOBUISELSelectorList() != null) {
         initializeSelectorList(referenceSearchKey);
       }
+      initializeReferencedTables(referenceSearchKey);
+    }
+  }
+
+  /**
+    * Initializes referenced tables and the SQL where clause used during validation lookup.
+   *
+    * @param reference reference whose referenced tables must be loaded
+   */
+  private void initializeReferencedTables(Reference reference) {
+    if (reference.getADReferencedTableList() != null) {
+      reference.getADReferencedTableList().forEach(referencedTable -> referencedTable.getSQLWhereClause());
     }
   }
 
