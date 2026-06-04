@@ -308,8 +308,8 @@ public class EtendoFormInitComponentTest {
     when(column.getReference()).thenReturn(reference);
     when(column.getReferenceSearchKey()).thenReturn(refSearchKey);
 
-    when(mockCachedStructures.getFieldsOfTab(TEST_TAB_ID)).thenReturn(
-        Collections.singletonList(fieldWithColumn(column)));
+    Field field = fieldWithColumn(column);
+    when(mockCachedStructures.getFieldsOfTab(TEST_TAB_ID)).thenReturn(Collections.singletonList(field));
     hibernateMock.when(() -> Hibernate.isInitialized(validation)).thenReturn(false);
     Session.LockRequest lockRequest = mock(Session.LockRequest.class);
     when(mockSession.buildLockRequest(any(LockOptions.class))).thenReturn(lockRequest);
@@ -334,8 +334,8 @@ public class EtendoFormInitComponentTest {
 
     Validation validation = mock(Validation.class);
     Column column = columnWithValidation(validation);
-    when(mockCachedStructures.getFieldsOfTab(TEST_TAB_ID)).thenReturn(
-        Collections.singletonList(fieldWithColumn(column)));
+    Field field = fieldWithColumn(column);
+    when(mockCachedStructures.getFieldsOfTab(TEST_TAB_ID)).thenReturn(Collections.singletonList(field));
     // Gate opens (validation uninitialized) so the column is processed.
     hibernateMock.when(() -> Hibernate.isInitialized(validation)).thenReturn(false);
     // Column already attached + initialized -> re-attach skipped, eviction performed.
@@ -404,8 +404,9 @@ public class EtendoFormInitComponentTest {
     when(column2.getReference()).thenReturn(reference2);
     when(column2.getReferenceSearchKey()).thenReturn(null);
 
-    when(mockCachedStructures.getFieldsOfTab(TEST_TAB_ID)).thenReturn(
-        Arrays.asList(fieldWithColumn(column1), fieldWithColumn(column2)));
+    Field field1 = fieldWithColumn(column1);
+    Field field2 = fieldWithColumn(column2);
+    when(mockCachedStructures.getFieldsOfTab(TEST_TAB_ID)).thenReturn(Arrays.asList(field1, field2));
     Session.LockRequest lockRequest = mock(Session.LockRequest.class);
     when(mockSession.buildLockRequest(any(LockOptions.class))).thenReturn(lockRequest);
 
