@@ -1,6 +1,7 @@
 package com.etendoerp.etendorx;
 
 import org.apache.commons.lang3.StringUtils;
+import jakarta.enterprise.context.Dependent;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.openbravo.base.exception.OBException;
@@ -18,6 +19,7 @@ import java.util.Properties;
  * This class is responsible for retrieving SSO properties from the Openbravo properties file.
  * It extends the BaseActionHandler class and overrides the execute method to perform the action.
  */
+@Dependent
 public class GetSSOProperties extends BaseActionHandler {
   private static final Logger log = LoggerFactory.getLogger(GetSSOProperties.class);
 

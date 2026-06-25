@@ -1,5 +1,7 @@
 package com.etendoerp.etendorx.actionhandler;
 
+import jakarta.enterprise.context.Dependent;
+
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
@@ -27,6 +29,7 @@ import com.etendoerp.etendorx.utils.RXConfigUtils;
 /**
  * Action handler for initializing RX services.
  */
+@Dependent
 public class InitializeRXServices extends BaseActionHandler {
 
   private static final Logger log = LogManager.getLogger();

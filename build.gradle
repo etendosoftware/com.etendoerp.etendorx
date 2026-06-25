@@ -7,10 +7,10 @@
 */
 
 group          = "com.etendoerp"
-version        = "4.0.2"
+version        = "4.1.1-SNAPSHOT"
 description    = "Integration with Etendo RX"
 ext.artifact   = "etendorx"
-ext.repository = "https://maven.pkg.github.com/etendosoftware/com.etendoerp.platform.extensions"
+ext.repository = "https://repo.futit.cloud/repository/maven-snapshots"
 
 configurations {
     moduleDependencyContainer
@@ -27,7 +27,11 @@ publishing {
     }
     repositories {
         maven {
-            url "https://maven.pkg.github.com/etendosoftware/com.etendoerp.platform.extensions"
+            url "https://repo.futit.cloud/repository/maven-snapshots"
+            credentials {
+                username = project.findProperty("nexusUser") ?: System.getProperty("nexusUser") ?: System.getenv("NEXUS_USR") ?: ""
+                password = project.findProperty("nexusPassword") ?: System.getProperty("nexusPassword") ?: System.getenv("NEXUS_PSW") ?: ""
+            }
         }
     }
 }
@@ -35,7 +39,7 @@ publishing {
 repositories {
     mavenCentral()
     maven {
-        url "https://maven.pkg.github.com/etendosoftware/com.etendoerp.platform.extensions"
+        url "https://repo.futit.cloud/repository/maven-snapshots"
     }
     maven {
         url "https://repo.futit.cloud/repository/maven-public-releases"
