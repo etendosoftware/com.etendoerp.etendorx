@@ -29,9 +29,18 @@ import org.openbravo.client.application.window.ApplicationDictionaryCachedStruct
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.model.ad.datamodel.Column;
+import org.openbravo.model.ad.domain.Callout;
+import org.openbravo.model.ad.domain.ModelImplementation;
+import org.openbravo.model.ad.domain.ModelImplementationMapping;
 import org.openbravo.model.ad.domain.Reference;
+import org.openbravo.model.ad.domain.ReferencedTable;
+import org.openbravo.model.ad.domain.ReferencedTree;
 import org.openbravo.model.ad.domain.Validation;
 import org.openbravo.model.ad.ui.Field;
+import org.openbravo.model.ad.ui.Tab;
+import org.openbravo.model.ad.ui.Window;
+import org.openbravo.userinterface.selector.Selector;
+import org.openbravo.userinterface.selector.SelectorField;
 
 import java.util.Map;
 
@@ -116,10 +125,20 @@ public class EtendoFormInitComponent extends org.openbravo.client.application.wi
       // IMPORTANT: iterate the SAME instances FormInitializationComponent reads
       // (cachedStructures.getFieldsOfTab). Preparing a fresh OBDal.get(Tab) copy has no effect,
       // because FIC dereferences these shared application-scoped singletons, not our copy.
-      for (Field field : cachedStructures.getFieldsOfTab(tabId)) {
-        prepareFieldMetadata(field);
+      //
+      // We prepare EVERY tab of the window, not just this request's tab. Window render
+      // (StandardWindowComponent / OBViewTab / ViewComponent.verifyOldCalloutUse) reads metadata
+      // across ALL tabs of the window; preparing only the request tab leaves the others' columns
+      // detached-lazy and the render then throws LazyInitializationException. getTab() triggers
+      // core's full window deep-init, after which we top up anything still lazy. ESD-1841.
+      Tab requestTab = cachedStructures.getTab(tabId);
+      Window window = requestTab.getWindow();
+      for (Tab windowTab : window.getADTabList()) {
+        for (Field field : cachedStructures.getFieldsOfTab(windowTab.getId())) {
+          prepareFieldMetadata(field);
+        }
       }
-      log.debug("Metadata initialization complete for tab {}", tabId);
+      log.debug("Metadata initialization complete for window of tab {}", tabId);
     } catch (Exception e) {
       // Log but don't fail - the original LazyInitializationException will still surface from
       // FIC and provide better error context.
@@ -145,12 +164,16 @@ public class EtendoFormInitComponent extends org.openbravo.client.application.wi
       }
       try {
         reattachToSession(column);
-        // Validation is the confirmed-critical proxy (FIC#getValidation); initialize it first so a
-        // failure in the rarer reference/callout graph cannot leave it uninitialized.
+        // Mirror ApplicationDictionaryCachedStructures.initializeColumn COMPLETELY: after the
+        // refresh in reattachToSession resets every association to a lazy proxy, a partial re-init
+        // leaves render-path proxies detached and degrades the shared cache across requests. Init
+        // exactly what core initializes so a prepared column is never left partial.
         initializeValidation(column.getValidation());
         initializeCallout(column);
         initializeReference(column.getReference());
-        initializeReferenceSearchKey(column.getReferenceSearchKey());
+        initializeReference(column.getReferenceSearchKey());
+        initializeLegacyProcess(column.getProcess());
+        initializeWindowProcess(column.getOBUIAPPProcess());
       } catch (RuntimeException e) {
         // Isolate per column: one column's metadata hiccup must not abort the whole tab,
         // otherwise later columns stay unprepared and FIC fails on them.
@@ -170,7 +193,28 @@ public class EtendoFormInitComponent extends org.openbravo.client.application.wi
    */
   private boolean metadataNeedsInitialization(Column column) {
     return !isInitialized(column.getValidation()) || !isInitialized(column.getCallout())
-        || !isInitialized(column.getReference()) || !isInitialized(column.getReferenceSearchKey());
+        || !isInitialized(column.getReference()) || !isInitialized(column.getReferenceSearchKey())
+        || !isInitialized(column.getOBUIAPPProcess())
+        || legacyProcessNeedsInitialization(column.getProcess());
+  }
+
+  /**
+   * Returns whether a classic ({@code AD_Process}) button process still has lazy associations that
+   * {@code OBViewTab$ButtonField} would read out of session: the process proxy itself, its module
+   * (read by {@code Utility.isModalProcess}) or its model-implementation list.
+   *
+   * @param process classic process referenced by the column, may be null
+   * @return true when at least one render-path proxy is still lazy
+   */
+  private boolean legacyProcessNeedsInitialization(org.openbravo.model.ad.ui.Process process) {
+    if (process == null) {
+      return false;
+    }
+    if (!Hibernate.isInitialized(process)) {
+      return true;
+    }
+    return !Hibernate.isInitialized(process.getADModelImplementationList())
+        || !isInitialized(process.getModule());
   }
 
   /**
@@ -182,8 +226,16 @@ public class EtendoFormInitComponent extends org.openbravo.client.application.wi
   }
 
   /**
-    * Re-attaches a detached cached column to the current session and refreshes it so nested lazy
-    * associations can also be initialized.
+    * Re-attaches a detached cached column to the current session and refreshes it so its lazy
+    * associations are bound to the live session and can be initialized.
+    * <p>
+    * The {@code refresh} is required: a column detached by a previous request's session clear carries
+    * lazy proxies bound to that dead session, so without refresh any attempt to initialize them
+    * (e.g. {@code reference.getADReferencedTableList()}) throws {@code LazyInitializationException:
+    * no Session}. The flip side is that {@code refresh} resets every association back to an
+    * uninitialized proxy, so the caller MUST re-initialize everything the later render path reads —
+    * see {@link #initializeReferencedTables(Reference)} for the FK displayed column that
+    * {@code FKComboUIDefinition} dereferences.
    *
     * @param column cached column, possibly detached by a previous session clear
    */
@@ -208,6 +260,8 @@ public class EtendoFormInitComponent extends org.openbravo.client.application.wi
     evict(session, column.getCallout());
     evict(session, column.getReference());
     evict(session, column.getReferenceSearchKey());
+    evict(session, column.getProcess());
+    evict(session, column.getOBUIAPPProcess());
     evict(session, column);
   }
 
@@ -238,51 +292,113 @@ public class EtendoFormInitComponent extends org.openbravo.client.application.wi
   }
 
   /**
-   * Initializes callout and its model implementations.
+   * Initializes the callout, its model-implementation list and each implementation. The render path
+   * {@code ViewComponent.verifyOldCalloutUse} iterates {@code callout.getADModelImplementationList()}
+   * and reads {@code modelImplementation.getJavaClassName()} for every field of every tab in the
+   * window, so all of it must be initialized in-session.
    *
    * @param column The column containing the callout
    */
   private void initializeCallout(Column column) {
-    if (column.getCallout() != null) {
-      // Force initialization of callout proxy
-      column.getCallout().getId();
-      // Initialize model implementations
-      if (column.getCallout().getADModelImplementationList() != null) {
-        column.getCallout().getADModelImplementationList().size();
+    Callout callout = column.getCallout();
+    if (callout == null) {
+      return;
+    }
+    callout.getId();
+    if (callout.getADModelImplementationList() != null) {
+      for (ModelImplementation implementation : callout.getADModelImplementationList()) {
+        implementation.getId();
+        implementation.getJavaClassName();
       }
     }
   }
 
   /**
-   * Initializes reference and its selector lists.
+   * Initializes a reference COMPLETELY, mirroring
+   * {@code ApplicationDictionaryCachedStructures#initializeReference}: referenced tables (and the
+   * displayed column/table read by {@code FKComboUIDefinition}), selectors and their fields,
+   * referenced trees, list values (and translations), reference windows and client-kernel masks.
+   * Used for both {@code column.getReference()} and {@code column.getReferenceSearchKey()}.
    *
-   * @param reference The reference to initialize
+   * @param reference the reference to initialize, may be null
    */
   private void initializeReference(Reference reference) {
-    if (reference != null) {
-      // Force initialization of reference proxy
-      reference.getId();
-      // Initialize selector lists and their fields used by FKSelectorUIDefinition
-      if (reference.getOBUISELSelectorList() != null) {
-        initializeSelectorList(reference);
+    if (reference == null) {
+      return;
+    }
+    reference.getId();
+    initializeReferencedTables(reference);
+    initializeSelectors(reference);
+    initializeReferencedTrees(reference);
+    initializeReferenceList(reference);
+    init(reference.getOBUIAPPRefWindowList());
+    init(reference.getOBCLKERREFMASKList());
+  }
+
+  /**
+   * Initializes the list values and their translations of a list reference. {@code OBViewTab.Value}
+   * reads {@code valueList.getADListTrlList()} (via {@code OBViewUtil.getLabel}) and
+   * {@code OBViewTab$ButtonField} iterates {@code getReferenceSearchKey().getADListList()} when
+   * rendering list buttons.
+   *
+   * @param reference reference whose list values must be loaded, may hold a null list
+   */
+  private void initializeReferenceList(Reference reference) {
+    if (reference.getADListList() != null) {
+      for (org.openbravo.model.ad.domain.List valueList : reference.getADListList()) {
+        valueList.getId();
+        valueList.getSearchKey();
+        if (valueList.getADListTrlList() != null) {
+          valueList.getADListTrlList().size();
+        }
       }
-      initializeReferencedTables(reference);
     }
   }
 
   /**
-   * Initializes reference search key and its selector lists.
+   * Initializes a classic ({@code AD_Process}) button process and the associations
+   * {@code OBViewTab$ButtonField} reads: the module (consumed by {@code Utility.isModalProcess}) and
+   * the model implementations and their mappings.
    *
-   * @param referenceSearchKey The reference search key to initialize
+   * @param process classic process referenced by the column, may be null
    */
-  private void initializeReferenceSearchKey(Reference referenceSearchKey) {
-    if (referenceSearchKey != null) {
-      referenceSearchKey.getId();
-      if (referenceSearchKey.getOBUISELSelectorList() != null) {
-        initializeSelectorList(referenceSearchKey);
-      }
-      initializeReferencedTables(referenceSearchKey);
+  private void initializeLegacyProcess(org.openbravo.model.ad.ui.Process process) {
+    if (process == null) {
+      return;
     }
+    process.getId();
+    if (process.getModule() != null) {
+      process.getModule().getId();
+      process.getModule().getJavaPackage();
+    }
+    if (process.getADModelImplementationList() != null) {
+      for (ModelImplementation implementation : process.getADModelImplementationList()) {
+        implementation.isDefault();
+        implementation.getAction();
+        if (implementation.getADModelImplementationMappingList() != null) {
+          for (ModelImplementationMapping mapping : implementation.getADModelImplementationMappingList()) {
+            mapping.isDefault();
+            mapping.getMappingName();
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * Initializes an OBUIAPP (process definition) button process and the scalar fields
+   * {@code OBViewTab$ButtonField} reads when building the button.
+   *
+   * @param process process definition referenced by the column, may be null
+   */
+  private void initializeWindowProcess(org.openbravo.client.application.Process process) {
+    if (process == null) {
+      return;
+    }
+    process.getId();
+    process.getJavaClassName();
+    process.getUIPattern();
+    process.isMultiRecord();
   }
 
   /**
@@ -292,32 +408,96 @@ public class EtendoFormInitComponent extends org.openbravo.client.application.wi
    */
   private void initializeReferencedTables(Reference reference) {
     if (reference.getADReferencedTableList() != null) {
-      reference.getADReferencedTableList().forEach(referencedTable -> referencedTable.getSQLWhereClause());
+      for (ReferencedTable referencedTable : reference.getADReferencedTableList()) {
+        referencedTable.getSQLWhereClause();
+        // Render path: FKComboUIDefinition.getGridFieldProperties reads, for a table reference,
+        //   - referencedTable.getTable().getDBTableName()                       (line 70)
+        //   - getPropertyFromColumn(referencedTable.getDisplayedColumn())
+        //       -> displayedColumn.getTable().getName()                         (line 68)
+        // reattachToSession#refresh reset these to lazy proxies, so initialize them in-session here
+        // (mirroring ADCS.initializeReference) — otherwise the displayed column (e.g. C_DocType.Name)
+        // throws LazyInitializationException at window render after the session clear. ESD-1841.
+        if (referencedTable.getTable() != null) {
+          referencedTable.getTable().getName();
+          referencedTable.getTable().getDBTableName();
+        }
+        Column displayedColumn = referencedTable.getDisplayedColumn();
+        if (displayedColumn != null) {
+          displayedColumn.getId();
+          if (displayedColumn.getTable() != null) {
+            displayedColumn.getTable().getId();
+            displayedColumn.getTable().getName();
+          }
+        }
+      }
     }
   }
 
   /**
-   * Initializes selector list and all its selector fields.
+   * Initializes the reference's selectors, their selector fields (read by FKSelectorUIDefinition)
+   * and the display field.
    *
-   * @param reference The reference containing the selector list
+   * @param reference the reference whose selectors must be loaded
    */
-  private void initializeSelectorList(Reference reference) {
-    reference.getOBUISELSelectorList().forEach(selector -> {
+  private void initializeSelectors(Reference reference) {
+    if (reference.getOBUISELSelectorList() == null) {
+      return;
+    }
+    for (Selector selector : reference.getOBUISELSelectorList()) {
+      selector.getId();
       if (selector.getOBUISELSelectorFieldList() != null) {
         selector.getOBUISELSelectorFieldList().forEach(this::initializeSelectorField);
       }
-    });
+      initializeSelectorField(selector.getDisplayfield());
+    }
   }
 
   /**
    * Initializes a single selector field and its property.
    *
-   * @param selectorField The selector field to initialize
+   * @param selectorField The selector field to initialize, may be null
    */
-  private void initializeSelectorField(org.openbravo.userinterface.selector.SelectorField selectorField) {
+  private void initializeSelectorField(SelectorField selectorField) {
+    if (selectorField == null) {
+      return;
+    }
     selectorField.getId();
-    if (selectorField.getProperty() != null) {
-      selectorField.getProperty();
+    selectorField.getProperty();
+  }
+
+  /**
+   * Initializes the reference's referenced trees and the associations the render path reads: the
+   * display field, tree category, table and each referenced-tree field. Mirrors
+   * {@code ApplicationDictionaryCachedStructures#initializeReference}.
+   *
+   * @param reference the reference whose referenced trees must be loaded
+   */
+  private void initializeReferencedTrees(Reference reference) {
+    if (reference.getADReferencedTreeList() == null) {
+      return;
+    }
+    for (ReferencedTree tree : reference.getADReferencedTreeList()) {
+      tree.getId();
+      if (tree.getDisplayfield() != null) {
+        tree.getDisplayfield().getId();
+      }
+      init(tree.getTableTreeCategory());
+      init(tree.getTable());
+      if (tree.getADReferencedTreeFieldList() != null) {
+        tree.getADReferencedTreeFieldList().forEach(treeField -> treeField.getId());
+      }
+    }
+  }
+
+  /**
+   * Null-safe wrapper over {@link Hibernate#initialize(Object)} to force a proxy/collection to load
+   * within the current session, mirroring {@code ApplicationDictionaryCachedStructures}.
+   *
+   * @param proxy proxy or collection to initialize, may be null
+   */
+  private static void init(Object proxy) {
+    if (proxy != null) {
+      Hibernate.initialize(proxy);
     }
   }
 

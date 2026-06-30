@@ -49,11 +49,19 @@ import org.openbravo.client.application.window.ApplicationDictionaryCachedStruct
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.model.ad.datamodel.Column;
+import org.openbravo.model.ad.datamodel.Table;
 import org.openbravo.model.ad.domain.Callout;
+import org.openbravo.model.ad.domain.ModelImplementation;
+import org.openbravo.model.ad.domain.ModelImplementationMapping;
 import org.openbravo.model.ad.domain.Reference;
 import org.openbravo.model.ad.domain.ReferencedTable;
+import org.openbravo.model.ad.domain.ReferencedTree;
+import org.openbravo.model.ad.domain.ReferencedTreeField;
 import org.openbravo.model.ad.domain.Validation;
+import org.openbravo.model.ad.module.Module;
 import org.openbravo.model.ad.ui.Field;
+import org.openbravo.model.ad.ui.Tab;
+import org.openbravo.model.ad.ui.Window;
 import org.openbravo.userinterface.selector.Selector;
 import org.openbravo.userinterface.selector.SelectorField;
 
@@ -112,6 +120,25 @@ public class EtendoFormInitComponentTest {
 
     component = spy(new EtendoFormInitComponent());
     doReturn(superResult).when(component).invokeSuperExecute(any(Map.class), anyString());
+
+    // initializeTabMetadata resolves the request tab's window and prepares EVERY tab of it. Wire a
+    // single-tab window for TEST_TAB_ID so the per-test getFieldsOfTab(TEST_TAB_ID) stubs are reached.
+    wireWindow(TEST_TAB_ID);
+  }
+
+  /**
+   * Wires {@code getTab(tabId) -> window -> [tab(id=tabId)]} so the whole-window iteration in
+   * {@code initializeTabMetadata} reaches {@code getFieldsOfTab(tabId)}.
+   *
+   * @param tabId the tab id to wire as the (single) tab of its window
+   */
+  private void wireWindow(String tabId) {
+    Tab tab = mock(Tab.class);
+    when(tab.getId()).thenReturn(tabId);
+    Window window = mock(Window.class);
+    when(tab.getWindow()).thenReturn(window);
+    doReturn(Collections.singletonList(tab)).when(window).getADTabList();
+    when(mockCachedStructures.getTab(tabId)).thenReturn(tab);
   }
 
   /**
@@ -435,5 +462,189 @@ public class EtendoFormInitComponentTest {
 
     assertNotNull(thrown);
     verify(mockSession).clear();
+  }
+
+  /**
+   * The component prepares EVERY tab of the request tab's window, not just the request tab, because
+   * window render reads metadata across all tabs. A two-tab window must have both tabs' columns
+   * prepared.
+   */
+  @Test
+  public void testEveryTabOfWindowIsPrepared() {
+    when(mockContext.isInAdministratorMode()).thenReturn(true);
+
+    Validation validation1 = mock(Validation.class);
+    Field field1 = fieldWithColumn(columnWithValidation(validation1));
+    Validation validation2 = mock(Validation.class);
+    Field field2 = fieldWithColumn(columnWithValidation(validation2));
+
+    Tab tab1 = mock(Tab.class);
+    when(tab1.getId()).thenReturn(TEST_TAB_ID);
+    Tab tab2 = mock(Tab.class);
+    when(tab2.getId()).thenReturn("SECOND_TAB_ID");
+    Window window = mock(Window.class);
+    when(tab1.getWindow()).thenReturn(window);
+    doReturn(Arrays.asList(tab1, tab2)).when(window).getADTabList();
+    when(mockCachedStructures.getTab(TEST_TAB_ID)).thenReturn(tab1);
+    when(mockCachedStructures.getFieldsOfTab(TEST_TAB_ID)).thenReturn(Collections.singletonList(field1));
+    when(mockCachedStructures.getFieldsOfTab("SECOND_TAB_ID")).thenReturn(Collections.singletonList(field2));
+    hibernateMock.when(() -> Hibernate.isInitialized(validation1)).thenReturn(false);
+    hibernateMock.when(() -> Hibernate.isInitialized(validation2)).thenReturn(false);
+    Session.LockRequest lockRequest = mock(Session.LockRequest.class);
+    when(mockSession.buildLockRequest(any(LockOptions.class))).thenReturn(lockRequest);
+
+    component.execute(params(TEST_TAB_ID), "{}");
+
+    verify(validation1).getValidationCode();
+    verify(validation2).getValidationCode();
+  }
+
+  /**
+   * Each callout model implementation is initialized including its java class name, which
+   * {@code ViewComponent.verifyOldCalloutUse} reads at window render.
+   */
+  @Test
+  public void testCalloutModelImplementationsAreInitialized() {
+    when(mockContext.isInAdministratorMode()).thenReturn(true);
+
+    ModelImplementation implementation = mock(ModelImplementation.class);
+    when(implementation.getId()).thenReturn("MI1");
+    when(implementation.getJavaClassName()).thenReturn("org.example.MyCallout");
+    Callout callout = mock(Callout.class);
+    when(callout.getId()).thenReturn("CALLOUT1");
+    doReturn(Collections.singletonList(implementation)).when(callout).getADModelImplementationList();
+
+    Column column = mock(Column.class);
+    when(column.getValidation()).thenReturn(null);
+    when(column.getCallout()).thenReturn(callout);
+    when(column.getReference()).thenReturn(null);
+    when(column.getReferenceSearchKey()).thenReturn(null);
+    Field field = fieldWithColumn(column);
+    when(mockCachedStructures.getFieldsOfTab(TEST_TAB_ID)).thenReturn(Collections.singletonList(field));
+    hibernateMock.when(() -> Hibernate.isInitialized(callout)).thenReturn(false);
+    Session.LockRequest lockRequest = mock(Session.LockRequest.class);
+    when(mockSession.buildLockRequest(any(LockOptions.class))).thenReturn(lockRequest);
+
+    component.execute(params(TEST_TAB_ID), "{}");
+
+    verify(implementation).getId();
+    verify(implementation).getJavaClassName();
+  }
+
+  /**
+   * Exercises the full reference graph mirrored from core ADCS: referenced table (its table and
+   * displayed column/table read by FKComboUIDefinition), selectors (fields and display field),
+   * referenced trees (display field, category, table, tree fields), list values with translations,
+   * and the reference window / mask lists.
+   */
+  @Test
+  public void testReferenceGraphFullyInitialized() {
+    when(mockContext.isInAdministratorMode()).thenReturn(true);
+
+    Table referencedTableTable = mock(Table.class);
+    when(referencedTableTable.getName()).thenReturn("C_DocType");
+    when(referencedTableTable.getDBTableName()).thenReturn("C_DocType");
+    Column displayedColumn = mock(Column.class);
+    when(displayedColumn.getId()).thenReturn("DISPLAYED_COL");
+    when(displayedColumn.getTable()).thenReturn(referencedTableTable);
+    ReferencedTable referencedTable = mock(ReferencedTable.class);
+    when(referencedTable.getSQLWhereClause()).thenReturn("1=1");
+    when(referencedTable.getTable()).thenReturn(referencedTableTable);
+    when(referencedTable.getDisplayedColumn()).thenReturn(displayedColumn);
+
+    SelectorField selectorField = mock(SelectorField.class);
+    when(selectorField.getId()).thenReturn("SF1");
+    when(selectorField.getProperty()).thenReturn("name");
+    SelectorField displayField = mock(SelectorField.class);
+    when(displayField.getId()).thenReturn("DISPLAY_SF");
+    Selector selector = mock(Selector.class);
+    when(selector.getId()).thenReturn("SEL1");
+    doReturn(Collections.singletonList(selectorField)).when(selector).getOBUISELSelectorFieldList();
+    when(selector.getDisplayfield()).thenReturn(displayField);
+
+    org.openbravo.model.ad.domain.List listValue = mock(org.openbravo.model.ad.domain.List.class);
+    when(listValue.getId()).thenReturn("LIST1");
+    when(listValue.getSearchKey()).thenReturn("VALUE");
+    doReturn(Collections.emptyList()).when(listValue).getADListTrlList();
+
+    ReferencedTreeField treeField = mock(ReferencedTreeField.class);
+    when(treeField.getId()).thenReturn("TREE_FIELD");
+    ReferencedTreeField treeDisplayField = mock(ReferencedTreeField.class);
+    when(treeDisplayField.getId()).thenReturn("TREE_DISPLAY");
+    ReferencedTree referencedTree = mock(ReferencedTree.class);
+    when(referencedTree.getId()).thenReturn("TREE1");
+    when(referencedTree.getDisplayfield()).thenReturn(treeDisplayField);
+    doReturn(Collections.singletonList(treeField)).when(referencedTree).getADReferencedTreeFieldList();
+
+    Reference reference = mock(Reference.class);
+    when(reference.getId()).thenReturn("REF1");
+    doReturn(Collections.singletonList(referencedTable)).when(reference).getADReferencedTableList();
+    doReturn(Collections.singletonList(selector)).when(reference).getOBUISELSelectorList();
+    doReturn(Collections.singletonList(referencedTree)).when(reference).getADReferencedTreeList();
+    doReturn(Collections.singletonList(listValue)).when(reference).getADListList();
+    doReturn(Collections.emptyList()).when(reference).getOBUIAPPRefWindowList();
+    doReturn(Collections.emptyList()).when(reference).getOBCLKERREFMASKList();
+
+    Column column = mock(Column.class);
+    when(column.getValidation()).thenReturn(null);
+    when(column.getCallout()).thenReturn(null);
+    when(column.getReference()).thenReturn(reference);
+    when(column.getReferenceSearchKey()).thenReturn(null);
+    Field field = fieldWithColumn(column);
+    when(mockCachedStructures.getFieldsOfTab(TEST_TAB_ID)).thenReturn(Collections.singletonList(field));
+    hibernateMock.when(() -> Hibernate.isInitialized(reference)).thenReturn(false);
+    Session.LockRequest lockRequest = mock(Session.LockRequest.class);
+    when(mockSession.buildLockRequest(any(LockOptions.class))).thenReturn(lockRequest);
+
+    component.execute(params(TEST_TAB_ID), "{}");
+
+    verify(referencedTable, atLeastOnce()).getTable();
+    verify(displayedColumn, atLeastOnce()).getTable();
+    verify(displayField).getId();
+    verify(treeField).getId();
+    verify(listValue, atLeastOnce()).getADListTrlList();
+  }
+
+  /**
+   * A classic ({@code AD_Process}) button column initializes the module, model implementations and
+   * their mappings; an OBUIAPP process column initializes the scalar fields ButtonField reads.
+   */
+  @Test
+  public void testLegacyAndWindowProcessAreInitialized() {
+    when(mockContext.isInAdministratorMode()).thenReturn(true);
+
+    Module module = mock(Module.class);
+    when(module.getId()).thenReturn("MODULE1");
+    when(module.getJavaPackage()).thenReturn("org.example");
+    ModelImplementationMapping mapping = mock(ModelImplementationMapping.class);
+    when(mapping.getMappingName()).thenReturn("doSomething");
+    ModelImplementation implementation = mock(ModelImplementation.class);
+    when(implementation.isDefault()).thenReturn(true);
+    doReturn(Collections.singletonList(mapping)).when(implementation).getADModelImplementationMappingList();
+    org.openbravo.model.ad.ui.Process legacyProcess = mock(org.openbravo.model.ad.ui.Process.class);
+    when(legacyProcess.getModule()).thenReturn(module);
+    doReturn(Collections.singletonList(implementation)).when(legacyProcess).getADModelImplementationList();
+
+    org.openbravo.client.application.Process windowProcess = mock(org.openbravo.client.application.Process.class);
+    when(windowProcess.getId()).thenReturn("WINDOW_PROCESS1");
+    when(windowProcess.getJavaClassName()).thenReturn("org.example.Process");
+
+    Column column = mock(Column.class);
+    when(column.getValidation()).thenReturn(null);
+    when(column.getCallout()).thenReturn(null);
+    when(column.getReference()).thenReturn(null);
+    when(column.getReferenceSearchKey()).thenReturn(null);
+    when(column.getProcess()).thenReturn(legacyProcess);
+    when(column.getOBUIAPPProcess()).thenReturn(windowProcess);
+    Field field = fieldWithColumn(column);
+    when(mockCachedStructures.getFieldsOfTab(TEST_TAB_ID)).thenReturn(Collections.singletonList(field));
+    Session.LockRequest lockRequest = mock(Session.LockRequest.class);
+    when(mockSession.buildLockRequest(any(LockOptions.class))).thenReturn(lockRequest);
+
+    component.execute(params(TEST_TAB_ID), "{}");
+
+    verify(legacyProcess, atLeastOnce()).getModule();
+    verify(mapping).getMappingName();
+    verify(windowProcess).getJavaClassName();
   }
 }
