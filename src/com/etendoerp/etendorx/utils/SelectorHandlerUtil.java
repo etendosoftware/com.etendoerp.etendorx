@@ -40,6 +40,8 @@ public class SelectorHandlerUtil {
     public static final String START_ROW = "_startRow";
     public static final String END_ROW = "_endRow";
     public static final String RESPONSE = "response";
+    // A valid Etendo record id is a 32-character hex string (UUID without hyphens).
+    private static final String ETENDO_ID_PATTERN = "[0-9A-Fa-f]{32}";
 
     /*
      * Private constructor to prevent instantiation.
@@ -98,15 +100,6 @@ public class SelectorHandlerUtil {
             HashMap<String, String> convertToHashMAp = convertToHashMAp(dataInpFormat);
             OBDal.getInstance().refresh(selectorDefined);
             convertToHashMAp.put("_entityName", selectorDefined.getTable().getJavaClassName());
-            String whereClauseAndFilters = selectorDefined.getHQLWhereClause() + headlessFilterClause + addFilterClause(selectorDefined,
-                    convertToHashMAp, request);
-            whereClauseAndFilters = fullfillSessionsVariables(whereClauseAndFilters, db2Input, dataInpFormat);
-            convertToHashMAp.put("whereAndFilterClause", whereClauseAndFilters);
-            convertToHashMAp.put("dataSourceName", selectorDefined.getTable().getJavaClassName());
-            convertToHashMAp.put("_selectorDefinitionId", selectorDefined.getId());
-            convertToHashMAp.put("filterClass", "org.openbravo.userinterface.selector.SelectorDataSourceFilter");
-            convertToHashMAp.put("IsSelectorItem", "true");
-            convertToHashMAp.put("_extraProperties", getExtraProperties(selectorDefined));
             // we will search this record id
             String recordID = dataInpFormat.getString(changedColumnInp);
             //find the column of the table, that determines the "column" where the data is stored. For example, in the case of
@@ -114,6 +107,20 @@ public class SelectorHandlerUtil {
             Column valueColumn = getValueColumn(selectorValidation, selectorDefined);
             // ask for the name of the property where the record id is stored in the results
             String valueProperty = DataSourceUtils.getHQLColumnName(valueColumn)[0];
+            String whereClauseAndFilters = selectorDefined.getHQLWhereClause() + headlessFilterClause + addFilterClause(selectorDefined,
+                    convertToHashMAp, request);
+            whereClauseAndFilters = fullfillSessionsVariables(whereClauseAndFilters, db2Input, dataInpFormat);
+            // Restrict the query directly to the target record so pagination becomes irrelevant: the
+            // record always lands on page 0, regardless of how many rows the selector datasource returns
+            // (see ETP-4398 - the paginated scan froze totalRows at the lazy value and never reached
+            // records sorting beyond row ~200).
+            whereClauseAndFilters = appendRecordIdFilter(whereClauseAndFilters, valueProperty, recordID);
+            convertToHashMAp.put("whereAndFilterClause", whereClauseAndFilters);
+            convertToHashMAp.put("dataSourceName", selectorDefined.getTable().getJavaClassName());
+            convertToHashMAp.put("_selectorDefinitionId", selectorDefined.getId());
+            convertToHashMAp.put("filterClass", "org.openbravo.userinterface.selector.SelectorDataSourceFilter");
+            convertToHashMAp.put("IsSelectorItem", "true");
+            convertToHashMAp.put("_extraProperties", getExtraProperties(selectorDefined));
 
             JSONObject obj = searchForRecord(dataSourceService, convertToHashMAp, recordID, valueProperty);
             if (obj == null) {
@@ -342,6 +349,31 @@ public class SelectorHandlerUtil {
         } else {
             return selectorValidation.getColumn();
         }
+    }
+
+    /**
+     * Restricts the selector datasource query directly to the target record.
+     * <p>
+     * The record id comes from the request payload and is concatenated into the HQL where clause, so it
+     * is only appended when it is a valid Etendo id (32 hex chars, no hyphens); this prevents HQL
+     * injection. Values that do not match are left untouched and resolved through the normal search,
+     * which keeps the behaviour generic for selectors whose value field is not an id.
+     *
+     * @param whereClauseAndFilters
+     *     The where clause and filters built so far.
+     * @param valueProperty
+     *     The HQL property that stores the record id in the selector results (e.g. {@code product}).
+     * @param recordID
+     *     The id of the record being resolved.
+     * @return The where clause with the target-record filter appended, or unchanged if the id is not a
+     *     valid Etendo id.
+     */
+    private static String appendRecordIdFilter(String whereClauseAndFilters, String valueProperty,
+                                               String recordID) {
+        if (recordID != null && recordID.matches(ETENDO_ID_PATTERN)) {
+            return whereClauseAndFilters + " AND e." + valueProperty + " = '" + recordID + "'";
+        }
+        return whereClauseAndFilters;
     }
 
     /**
