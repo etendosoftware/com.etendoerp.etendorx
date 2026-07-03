@@ -223,7 +223,11 @@ public class SelectorHandlerUtil {
      */
     private static String getHeadlessFilterClause(Tab tab, Column col, String changedColumnInp, JSONObject dataInpFormat) throws JSONException {
         for (Field field : tab.getADFieldList()) {
-            if (field.getColumn() == col && !StringUtils.isEmpty(field.getEtrxFilterClause())) {
+            // Compare columns by dictionary id (AD_COLUMN_ID), not by Java reference: two Hibernate
+            // proxies can represent the same column without being the same instance, which left the
+            // headless filter unapplied and triggered a massive selector scan.
+            if (field.getColumn() != null && StringUtils.equals(field.getColumn().getId(), col.getId())
+                    && !StringUtils.isEmpty(field.getEtrxFilterClause())) {
                 return " AND " + field.getEtrxFilterClause()
                         .replaceAll("(?i)@id@", "'" + dataInpFormat.getString(changedColumnInp) + "'");
             }
