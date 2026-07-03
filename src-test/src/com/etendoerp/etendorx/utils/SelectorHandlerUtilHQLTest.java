@@ -114,11 +114,57 @@ public class SelectorHandlerUtilHQLTest extends SelectorHandlerUtilBaseTest {
     @Test
     public void testGetHeadlessFilterClause_NoMatchingColumn() throws ReflectiveOperationException, JSONException {
         Column otherColumn = mock(Column.class);
+        // Distinct AD_COLUMN_IDs: the field belongs to a different column than the one that changed,
+        // so its filter clause must not be applied.
+        when(otherColumn.getId()).thenReturn("COLUMN_A");
+        when(mockColumn.getId()).thenReturn("COLUMN_B");
         List<Field> fieldList = new ArrayList<>();
         fieldList.add(mockField);
         when(mockTab.getADFieldList()).thenReturn(fieldList);
         when(mockField.getColumn()).thenReturn(otherColumn);
         when(mockField.getEtrxFilterClause()).thenReturn("some filter");
+
+        JSONObject data = new JSONObject();
+        data.put(TEST_INPUT, TEST_VALUE);
+
+        String result = callGetHeadlessFilterClause(mockTab, mockColumn, TEST_INPUT, data);
+        assertEquals("", result);
+    }
+
+    @Test
+    public void testGetHeadlessFilterClause_MatchesByColumnIdNotReference()
+            throws ReflectiveOperationException, JSONException {
+        // ESD-1855 regression: the field's column and the changed column can be distinct Hibernate
+        // instances (proxies / different load contexts) that share the same AD_COLUMN_ID. The lookup
+        // must match by dictionary id, not by Java reference, otherwise the headless filter is
+        // silently dropped and the selector runs an unrestricted massive scan.
+        Column fieldColumnProxy = mock(Column.class);
+        when(fieldColumnProxy.getId()).thenReturn("SAME_COLUMN_ID");
+        when(mockColumn.getId()).thenReturn("SAME_COLUMN_ID");
+        List<Field> fieldList = new ArrayList<>();
+        fieldList.add(mockField);
+        when(mockTab.getADFieldList()).thenReturn(fieldList);
+        when(mockField.getColumn()).thenReturn(fieldColumnProxy);
+        when(mockField.getEtrxFilterClause()).thenReturn("e.id = @id@");
+
+        JSONObject data = new JSONObject();
+        data.put(TEST_INPUT, TEST_VALUE);
+
+        // mockColumn and fieldColumnProxy are different instances; a reference (==) comparison would
+        // have returned "" here.
+        String result = callGetHeadlessFilterClause(mockTab, mockColumn, TEST_INPUT, data);
+        assertEquals(" AND e.id = 'testValue'", result);
+    }
+
+    @Test
+    public void testGetHeadlessFilterClause_NullFieldColumn() throws ReflectiveOperationException, JSONException {
+        // A field with no column must be skipped without throwing (null guard added with ESD-1855).
+        when(mockColumn.getId()).thenReturn("SOME_COLUMN_ID");
+        List<Field> fieldList = new ArrayList<>();
+        fieldList.add(mockField);
+        when(mockTab.getADFieldList()).thenReturn(fieldList);
+        when(mockField.getColumn()).thenReturn(null);
+        when(mockField.getEtrxFilterClause()).thenReturn("e.id = @id@");
 
         JSONObject data = new JSONObject();
         data.put(TEST_INPUT, TEST_VALUE);
