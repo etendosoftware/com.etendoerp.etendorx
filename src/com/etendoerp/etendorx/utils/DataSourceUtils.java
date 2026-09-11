@@ -35,9 +35,11 @@ import org.openbravo.base.exception.OBException;
 import org.openbravo.base.model.Entity;
 import org.openbravo.base.model.ModelProvider;
 import org.openbravo.base.model.Property;
+import org.openbravo.base.secureApp.VariablesSecureApp;
 import org.openbravo.base.session.OBPropertiesProvider;
 import org.openbravo.client.application.ApplicationConstants;
 import org.openbravo.client.kernel.KernelUtils;
+import org.openbravo.client.kernel.RequestContext;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.data.Sqlc;
@@ -64,6 +66,12 @@ public class DataSourceUtils {
   public static final String REFERENCE_TABLEDIR = "19";
   public static final String REFERENCE_TABLE = "18";
   public static final String REFERENCE_ID = "13";
+  private static final String DECIMAL_POINT = ".";
+  /**
+   * Name of the {@code Format.xml} entry whose separators the classic UI uses to parse numeric
+   * inputs. It is the format read by {@code org.openbravo.base.VariablesBase#transformNumber}.
+   */
+  private static final String NUMERIC_INPUT_FORMAT = "qtyEdition";
 
   /*
    * Private constructor to prevent instantiation.
@@ -627,7 +635,7 @@ public class DataSourceUtils {
     }
     switch (type) {
       case "BigDecimal":
-        return o.toString();
+        return numberToInputFormat(o);
       case "Long":
         if (o instanceof Integer) {
           return Integer.toString((Integer) o);
@@ -642,6 +650,49 @@ public class DataSourceUtils {
         return getformatedDatetime(o.toString(), false);
       default:
         return o.toString();
+    }
+  }
+
+  /**
+   * Renders a numeric value as the text the classic UI expects in an input field.
+   * <p>
+   * The value is written without a grouping separator and with the decimal separator configured
+   * for the {@code qtyEdition} format in {@code Format.xml}, which is the one the classic UI uses
+   * to parse numeric inputs. A plain {@code toString()} would always emit a dot, and on instances
+   * following the Spanish/European convention (decimal {@code ","}, grouping {@code "."}) that dot
+   * is stripped as if it were a grouping separator, multiplying the value by a power of ten.
+   *
+   * @param o
+   *     The numeric value to be rendered.
+   * @return The value as text, using the configured decimal separator and no grouping separator.
+   */
+  private static String numberToInputFormat(Object o) {
+    String plainValue;
+    try {
+      plainValue = new BigDecimal(o.toString()).toPlainString();
+    } catch (NumberFormatException e) {
+      log.debug("Value {} is not a plain number, it is used as is", o);
+      return o.toString();
+    }
+    String decimalSeparator = getNumericInputDecimalSeparator();
+    return StringUtils.equals(decimalSeparator, DECIMAL_POINT) ? plainValue
+        : StringUtils.replace(plainValue, DECIMAL_POINT, decimalSeparator);
+  }
+
+  /**
+   * Retrieves the decimal separator the classic UI uses to parse numeric inputs.
+   *
+   * @return The decimal separator of the {@code qtyEdition} format, or {@code "."} when there is no
+   *     session to read it from.
+   */
+  private static String getNumericInputDecimalSeparator() {
+    try {
+      VariablesSecureApp vars = RequestContext.get().getVariablesSecureApp();
+      return StringUtils.defaultIfEmpty(
+          vars.getSessionValue("#DecimalSeparator|" + NUMERIC_INPUT_FORMAT), DECIMAL_POINT);
+    } catch (OBException e) {
+      log.debug("No session available to read the decimal separator, the decimal point is used");
+      return DECIMAL_POINT;
     }
   }
 
