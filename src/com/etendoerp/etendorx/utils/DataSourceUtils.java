@@ -19,6 +19,7 @@ package com.etendoerp.etendorx.utils;
 import java.math.BigDecimal;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -72,6 +73,9 @@ public class DataSourceUtils {
    * inputs. It is the format read by {@code org.openbravo.base.VariablesBase#transformNumber}.
    */
   private static final String NUMERIC_INPUT_FORMAT = "qtyEdition";
+  private static final String TYPE_DATETIME = "Datetime";
+  private static final String HQL_DATETIME_FORMAT = "yyyy-MM-dd'T'HH:mm:ss";
+  private static final String HQL_DATETIME_FORMAT_WITH_ZONE = "yyyy-MM-dd'T'HH:mm:ss.S'Z'";
 
   /*
    * Private constructor to prevent instantiation.
@@ -133,7 +137,11 @@ public class DataSourceUtils {
 
     var type = "String";
     if (prop.isPrimitive()) {
-      type = prop.getPrimitiveType().getSimpleName();
+      // Datetime and Absolute DateTime properties are primitives of type java.util.Date, the same
+      // as plain Date ones, so the primitive type alone cannot tell them apart. They need their own
+      // type name to keep the time component, which the Date conversion would drop.
+      type = prop.isDatetime() || prop.isAbsoluteDateTime() ? TYPE_DATETIME
+          : prop.getPrimitiveType().getSimpleName();
     }
     log.debug(String.format("HQL column name: %s, type: %s ", entAl, type));
     return new String[]{ entAl, type };
@@ -262,7 +270,7 @@ public class DataSourceUtils {
         return Boolean.parseBoolean(value) || StringUtils.equalsIgnoreCase(value, "Y");
       case "Date":
         return getformatedDate(value, true);
-      case "Datetime":
+      case TYPE_DATETIME:
         return getformatedDatetime(value, true);
       default:
         return value;
@@ -287,11 +295,57 @@ public class DataSourceUtils {
   private static String getformatedDatetime(String value, boolean inp2hql) throws ParseException {
     Properties props = OBPropertiesProvider.getInstance().getOpenbravoProperties();
     SimpleDateFormat sdfInp = new SimpleDateFormat(props.getProperty("dateTimeFormat.java"));
-    SimpleDateFormat sdfHql = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.S'Z'");
     if (inp2hql) {
-      return sdfHql.format(sdfInp.parse(value));
-    } else {
-      return sdfInp.format(sdfHql.parse(value));
+      return new SimpleDateFormat(HQL_DATETIME_FORMAT).format(
+          parseInputDatetime(value, sdfInp, props.getProperty("dateFormat.java")));
+    }
+    return sdfInp.format(parseHqlDatetime(value));
+  }
+
+  /**
+   * Parses a datetime written in the classic input format.
+   * <p>
+   * A value defaulted from a date-only session variable such as {@code @#Date@} may reach this
+   * point without a time component, so the plain date format is used as a fallback and the time is
+   * taken as the start of the day.
+   *
+   * @param value
+   *     The datetime string in input format.
+   * @param datetimeFormat
+   *     The configured input datetime format.
+   * @param dateFormat
+   *     The configured input date format, used when the value carries no time component.
+   * @return The parsed date.
+   * @throws ParseException
+   *     If the value matches neither of both formats.
+   */
+  private static Date parseInputDatetime(String value, SimpleDateFormat datetimeFormat, String dateFormat)
+      throws ParseException {
+    try {
+      return datetimeFormat.parse(value);
+    } catch (ParseException e) {
+      log.debug("Value {} has no time component, falling back to the date format", value);
+      return new SimpleDateFormat(dateFormat).parse(value);
+    }
+  }
+
+  /**
+   * Parses a datetime written in one of the two HQL representations the datasource works with:
+   * the one this class emits ({@code yyyy-MM-ddTHH:mm:ss}, which the core JSON converter is able to
+   * read) and the one the core emits when a datetime is read back ({@code yyyy-MM-ddTHH:mm:ss.SZ}).
+   *
+   * @param value
+   *     The datetime string in HQL format.
+   * @return The parsed date.
+   * @throws ParseException
+   *     If the value matches neither of both representations.
+   */
+  private static Date parseHqlDatetime(String value) throws ParseException {
+    try {
+      return new SimpleDateFormat(HQL_DATETIME_FORMAT_WITH_ZONE).parse(value);
+    } catch (ParseException e) {
+      log.debug("Value {} carries no milliseconds nor zone, parsing it as a plain datetime", value);
+      return new SimpleDateFormat(HQL_DATETIME_FORMAT).parse(value);
     }
   }
 
@@ -646,7 +700,7 @@ public class DataSourceUtils {
         return (Boolean) o ? "Y" : "N";
       case "Date":
         return getformatedDate(o.toString(), false);
-      case "Datetime":
+      case TYPE_DATETIME:
         return getformatedDatetime(o.toString(), false);
       default:
         return o.toString();
