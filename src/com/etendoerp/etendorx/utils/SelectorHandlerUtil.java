@@ -42,6 +42,11 @@ public class SelectorHandlerUtil {
     public static final String RESPONSE = "response";
     // A valid Etendo record id is a 32-character hex string (UUID without hyphens).
     private static final String ETENDO_ID_PATTERN = "[0-9A-Fa-f]{32}";
+    // Placeholder a custom selector HQL uses to receive the filters computed for the request.
+    private static final String ADDITIONAL_FILTERS_PLACEHOLDER = "@additional_filters@";
+    private static final String AND_ADDITIONAL_FILTERS_PLACEHOLDER = "and " + ADDITIONAL_FILTERS_PLACEHOLDER;
+    // An HQL identifier, checked before it is concatenated into a query.
+    private static final String HQL_ALIAS_PATTERN = "[A-Za-z_]\\w*";
 
     /*
      * Private constructor to prevent instantiation.
@@ -483,11 +488,100 @@ public class SelectorHandlerUtil {
     }
 
     /**
+     * Checks whether an expression is a dotted HQL path, such as {@code alias.property} or
+     * {@code alias.property.id}, with every segment a valid HQL identifier.
+     * <p>
+     * The segments are checked one by one rather than with a single regular expression: a pattern
+     * repeating a variable length group over an arbitrary input can exhaust the matcher stack.
+     *
+     * @param expression
+     *     The expression to check.
+     * @return {@code true} when the expression is a dotted path of valid HQL identifiers.
+     */
+    private static boolean isDottedHqlPath(String expression) {
+        String[] segments = StringUtils.split(expression, '.');
+        if (segments == null || segments.length < 2
+                || StringUtils.countMatches(expression, '.') != segments.length - 1) {
+            return false;
+        }
+        for (String segment : segments) {
+            if (!segment.matches(HQL_ALIAS_PATTERN)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Resolves the HQL expression that holds the record id in a custom query selector.
+     * <p>
+     * The value field's <em>Clause Left Part</em> takes precedence, because a hand written HQL may expose
+     * the id through an expression of its own; when it is absent, the selector entity alias is used. The
+     * display column alias is deliberately not used here: it names a projection of the select clause and
+     * is not valid inside a where clause.
+     *
+     * @param selectorDefined
+     *     The selector holding the custom HQL.
+     * @return The expression to compare against the record id, or {@code null} when the selector does not
+     *     provide one with a valid HQL format.
+     */
+    private static String resolveRecordIdExpression(Selector selectorDefined) {
+        SelectorField valueField = selectorDefined.getValuefield();
+        if (valueField != null && StringUtils.isNotBlank(valueField.getClauseLeftPart())) {
+            String clauseLeftPart = StringUtils.trim(valueField.getClauseLeftPart());
+            return isDottedHqlPath(clauseLeftPart) ? clauseLeftPart : null;
+        }
+        String entityAlias = StringUtils.trim(selectorDefined.getEntityAlias());
+        if (StringUtils.isBlank(entityAlias) || !entityAlias.matches(HQL_ALIAS_PATTERN)) {
+            return null;
+        }
+        return entityAlias + ".id";
+    }
+
+    /**
+     * Restricts a custom query selector HQL to the record being resolved.
+     * <p>
+     * Without this filter the query returns the whole selector result set and
+     * {@link #executeHQLAndFindRecord(String, String, Selector)} has to page through it 100 rows at a time
+     * until the record shows up, which takes minutes on large catalogs. The filter is injected into the
+     * {@code @additional_filters@} placeholder instead of being appended to the query, because a custom
+     * HQL is an arbitrary template and a trailing condition could land after an {@code order by} clause.
+     * <p>
+     * The query is returned unchanged whenever the filter cannot be built safely: a non custom query
+     * selector, a record id that is not a valid Etendo id, a template without the placeholder, or a
+     * selector with no usable alias. In those cases the existing paginated search still resolves the
+     * record.
+     *
+     * @param hqlQuery
+     *     The custom HQL defined for the selector.
+     * @param selectorDefined
+     *     The selector holding the custom HQL.
+     * @param recordID
+     *     The id of the record being resolved, as received in the request payload.
+     * @return The HQL restricted to the given record, or the original query when it cannot be restricted.
+     */
+    private static String addCustomQueryRecordIdFilter(String hqlQuery, Selector selectorDefined,
+                                                       String recordID) {
+        if (StringUtils.isBlank(hqlQuery) || !Boolean.TRUE.equals(selectorDefined.isCustomQuery())
+                || !StringUtils.contains(hqlQuery, ADDITIONAL_FILTERS_PLACEHOLDER)
+                || recordID == null || !recordID.matches(ETENDO_ID_PATTERN)) {
+            return hqlQuery;
+        }
+        String recordIdExpression = resolveRecordIdExpression(selectorDefined);
+        if (recordIdExpression == null) {
+            return hqlQuery;
+        }
+        return hqlQuery.replace(ADDITIONAL_FILTERS_PLACEHOLDER,
+                recordIdExpression + " = '" + recordID + "' " + AND_ADDITIONAL_FILTERS_PLACEHOLDER);
+    }
+
+    /**
      * Builds the complete HQL query with all filters applied.
      */
     private static String buildHQLQuery(Selector selectorDefined, Tab tab, Column col, String changedColumnInp,
                                         JSONObject dataInpFormat, Map<String, String> db2Input, HttpServletRequest request) throws JSONException, ScriptException {
-        String hqlQuery = selectorDefined.getHQL();
+        String hqlQuery = addCustomQueryRecordIdFilter(selectorDefined.getHQL(), selectorDefined,
+                dataInpFormat.optString(changedColumnInp));
         String headlessFilterClause = getHeadlessFilterClause(tab, col, changedColumnInp, dataInpFormat);
         HashMap<String, String> convertToHashMAp = convertToHashMAp(dataInpFormat);
         String additionalFilterClause = addFilterClause(selectorDefined, convertToHashMAp, request);
@@ -495,10 +589,11 @@ public class SelectorHandlerUtil {
 
         String result;
         if (StringUtils.isEmpty(additionalFilters.trim())) {
-            result = hqlQuery.replace("and @additional_filters@", "").replace("@additional_filters@", "");
+            result = hqlQuery.replace(AND_ADDITIONAL_FILTERS_PLACEHOLDER, "")
+                .replace(ADDITIONAL_FILTERS_PLACEHOLDER, "");
         } else {
-            result = hqlQuery.replace("and @additional_filters@", additionalFilters)
-                .replace("@additional_filters@", additionalFilters);
+            result = hqlQuery.replace(AND_ADDITIONAL_FILTERS_PLACEHOLDER, additionalFilters)
+                .replace(ADDITIONAL_FILTERS_PLACEHOLDER, additionalFilters);
         }
 
         return fullfillSessionsVariables(result, db2Input, dataInpFormat);
