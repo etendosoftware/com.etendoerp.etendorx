@@ -9,6 +9,7 @@ import org.hibernate.query.Query;
 import org.hibernate.transform.Transformers;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.client.application.ParameterUtils;
+import org.openbravo.dal.core.DalUtil;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
@@ -17,13 +18,20 @@ import org.openbravo.model.ad.domain.Reference;
 import org.openbravo.model.ad.ui.Field;
 import org.openbravo.model.ad.ui.Tab;
 import org.openbravo.service.datasource.DefaultDataSourceService;
+import org.openbravo.service.json.JsonConstants;
+import org.openbravo.service.json.JsonUtils;
+import org.openbravo.userinterface.selector.CustomQuerySelectorDatasource;
 import org.openbravo.userinterface.selector.Selector;
+import org.openbravo.userinterface.selector.SelectorConstants;
 import org.openbravo.userinterface.selector.SelectorField;
+
+import com.etendoerp.etendorx.services.SelectorResolutionException;
 
 import javax.script.ScriptException;
 import javax.servlet.http.HttpServletRequest;
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
@@ -86,6 +94,11 @@ public class SelectorHandlerUtil {
             if (col == null) {
                 throw new OBException(OBMessageUtils.messageBD("ETRX_ColumnNotFound"));
             }
+            // Clearing an optional selector does not require resolving a record.
+            if (dataInpFormat.isNull(changedColumnInp)
+                    || StringUtils.isBlank(dataInpFormat.optString(changedColumnInp))) {
+                return;
+            }
             if (StringUtils.equals(col.getReference().getId(), "95E2A8B50A254B2AAE6774B8C2F28120")) {
                 handleCustomDefinedSelector(request, tab, dataInpFormat, changedColumnInp, db2Input, col);
                 return;
@@ -98,9 +111,15 @@ public class SelectorHandlerUtil {
                 throw new OBException(OBMessageUtils.messageBD("ETRX_ReferenceNotFound"));
             }
 
+            Selector selectorDefined = reference.getOBUISELSelectorList().get(0);
+            if (Boolean.TRUE.equals(selectorDefined.isCustomQuery())) {
+                JSONObject record = resolveCustomSearchSelector(request, tab, dataInpFormat,
+                        changedColumnInp, db2Input, col, selectorDefined);
+                savePrefixFields(dataInpFormat, changedColumnInp, selectorDefined, record, true);
+                return;
+            }
             String headlessFilterClause = getHeadlessFilterClause(tab, col, changedColumnInp, dataInpFormat);
             org.openbravo.model.ad.domain.Selector selectorValidation = reference.getADSelectorList().get(0);
-            Selector selectorDefined = reference.getOBUISELSelectorList().get(0);
             DefaultDataSourceService dataSourceService = new DefaultDataSourceService();
             HashMap<String, String> convertToHashMAp = convertToHashMAp(dataInpFormat);
             OBDal.getInstance().refresh(selectorDefined);
@@ -138,8 +157,71 @@ public class SelectorHandlerUtil {
 
         } catch (Exception e) {
             log.error("Error in handleColumnSelector", e);
+            throw new SelectorResolutionException(e);
         } finally {
             OBContext.restorePreviousMode();
+        }
+    }
+
+    /**
+     * Resolves a Search reference using its custom HQL and the standard selector access filters.
+     * A transient copy holds the request-specific restrictions; the dictionary selector is never changed.
+     */
+    private static JSONObject resolveCustomSearchSelector(HttpServletRequest request, Tab tab,
+            JSONObject dataInpFormat, String changedColumnInp, Map<String, String> db2Input,
+            Column col, Selector selector) throws JSONException, ScriptException {
+        String recordID = dataInpFormat.getString(changedColumnInp);
+        if (StringUtils.isBlank(selector.getHQL())
+                || !selector.getHQL().contains(ADDITIONAL_FILTERS_PLACEHOLDER)
+                || selector.getValuefield() == null
+                || StringUtils.isBlank(selector.getValuefield().getDisplayColumnAlias())) {
+            throw new OBException(OBMessageUtils.messageBD("ETRX_ErrorInSelectorColumn"));
+        }
+
+        Selector querySelector = (Selector) DalUtil.copy(selector, false, false);
+        querySelector.setOBUISELSelectorFieldList(selector.getOBUISELSelectorFieldList());
+        HashMap<String, String> parameters = convertToHashMAp(dataInpFormat);
+        parameters.put(SelectorConstants.DS_REQUEST_SELECTOR_ID_PARAMETER, selector.getId());
+        parameters.put(SelectorConstants.PARAM_TARGET_PROPERTY_NAME, DataSourceUtils.getHQLColumnName(col)[0]);
+        if (StringUtils.isNotBlank(parameters.get("inpadOrgId"))) {
+            parameters.put(JsonConstants.ORG_PARAMETER, parameters.get("inpadOrgId"));
+        }
+        String hql = addCustomQueryRecordIdFilter(selector.getHQL(), selector, recordID);
+        String headlessFilter = getHeadlessFilterClause(tab, col, changedColumnInp, dataInpFormat)
+                + StringUtils.defaultString(addFilterClause(selector, parameters, request));
+        // Evaluate the expression here so script errors also abort the operation.
+        querySelector.setFilterExpression(null);
+        hql = hql.replace(ADDITIONAL_FILTERS_PLACEHOLDER,
+                "(" + ADDITIONAL_FILTERS_PLACEHOLDER + ")" + headlessFilter);
+        querySelector.setHQL(fullfillSessionsVariables(hql, db2Input, dataInpFormat));
+
+        List<Object> typedParameters = new ArrayList<>();
+        Map<String, Object> namedParameters = new HashMap<>();
+        String filteredHql = new CustomQuerySelectorDatasource().parseOptionalFilters(parameters,
+                querySelector, JsonUtils.createDateFormat(), typedParameters, namedParameters);
+        Query query = OBDal.getInstance().getSession().createQuery(filteredHql);
+        for (Map.Entry<String, Object> parameter : namedParameters.entrySet()) {
+            query.setParameterList(parameter.getKey(), (String[]) parameter.getValue());
+        }
+        for (int i = 0; i < typedParameters.size(); i++) {
+            query.setParameter(CustomQuerySelectorDatasource.ALIAS_PREFIX + i, typedParameters.get(i));
+        }
+        query.setResultTransformer(Transformers.ALIAS_TO_ENTITY_MAP);
+        int offset = 0;
+        while (true) {
+            query.setFirstResult(offset);
+            query.setMaxResults(100);
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> rows = query.list();
+            JSONObject record = findMatchingRecordInBatch(rows, recordID,
+                    selector.getValuefield().getDisplayColumnAlias());
+            if (record != null) {
+                return record;
+            }
+            if (rows.size() < 100) {
+                throw new OBException(String.format(OBMessageUtils.messageBD("ETRX_RecordNotFound"), recordID));
+            }
+            offset += rows.size();
         }
     }
 
