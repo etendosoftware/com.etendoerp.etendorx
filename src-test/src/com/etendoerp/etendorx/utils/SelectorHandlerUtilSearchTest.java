@@ -44,6 +44,9 @@ import com.etendoerp.etendorx.services.SelectorResolutionException;
 
 /** Regression tests for Search references backed by custom HQL, using Core's actual filter parser. */
 public class SelectorHandlerUtilSearchTest {
+    private static final String NAME_SUFFIX = "_NAME";
+    private static final String NAME_ALIAS = "bpname";
+    private static final String PARTNER_NAME = "Partner";
     private static final String RECORD_ID = "A6750F0D15334FB890C254369AC750A8";
     private static final String INPUT = "inpcBpartnerId";
     private final Tab tab = mock(Tab.class);
@@ -65,6 +68,7 @@ public class SelectorHandlerUtilSearchTest {
     private OBDal obDal;
     private JSONObject data;
 
+    /** Configures a custom HQL Business Partner selector and its request context. */
     @Before
     public void setUp() throws Exception {
         rxUtils = mockStatic(DataSourceUtils.class);
@@ -95,8 +99,8 @@ public class SelectorHandlerUtilSearchTest {
         when(selector.getValuefield()).thenReturn(value);
         SelectorField outfield = mock(SelectorField.class);
         when(outfield.isOutfield()).thenReturn(true);
-        when(outfield.getDisplayColumnAlias()).thenReturn("bpname");
-        when(outfield.getSuffix()).thenReturn("_NAME");
+        when(outfield.getDisplayColumnAlias()).thenReturn(NAME_ALIAS);
+        when(outfield.getSuffix()).thenReturn(NAME_SUFFIX);
         List<SelectorField> fields = List.of(value, outfield);
         when(selector.getOBUISELSelectorFieldList()).thenReturn(fields);
         dalUtil.when(() -> DalUtil.copy(selector, false, false)).thenReturn(querySelector);
@@ -121,11 +125,12 @@ public class SelectorHandlerUtilSearchTest {
         dal.when(OBDal::getInstance).thenReturn(obDal);
         when(obDal.getSession()).thenReturn(session);
         when(session.createQuery(anyString())).thenReturn(query);
-        when(query.list()).thenReturn(List.of(Map.of("bpid", RECORD_ID, "bpname", "Partner")));
+        when(query.list()).thenReturn(List.of(Map.of("bpid", RECORD_ID, NAME_ALIAS, PARTNER_NAME)));
         when(tab.getADFieldList()).thenReturn(Collections.emptyList());
         data = new JSONObject().put(INPUT, RECORD_ID).put("inpadOrgId", "ORG").put("inpTableId", "TABLE");
     }
 
+    /** Releases the static mocks after each selector test. */
     @After
     public void tearDown() {
         messages.close();
@@ -152,6 +157,7 @@ public class SelectorHandlerUtilSearchTest {
         throw new AssertionError("Expected selector resolution to fail");
     }
 
+    /** Resolves a custom Search selector with its own alias, access filters and output mapping. */
     @Test
     public void customSearchUsesOwnAliasAccessFiltersAndOutfields() throws Exception {
         resolve();
@@ -165,11 +171,12 @@ public class SelectorHandlerUtilSearchTest {
         assertFalse(actualHql.getValue().contains(" e."));
         verify(query).setParameterList(eq("clients"), aryEq(new String[]{"0", "CLIENT"}));
         verify(query).setParameterList(eq("orgs"), aryEq(new String[]{"ORG", "0"}));
-        assertEquals("Partner", data.getString(INPUT + "_NAME"));
+        assertEquals(PARTNER_NAME, data.getString(INPUT + NAME_SUFFIX));
         verify(selector, never()).setHQL(anyString());
         context.verify(OBContext::restorePreviousMode);
     }
 
+    /** Keeps the validated ID when the calculated value field has no destination column. */
     @Test
     public void calculatedValueOutfieldWithoutColumnPreservesValidatedId() throws Exception {
         SelectorField value = selector.getValuefield();
@@ -177,21 +184,23 @@ public class SelectorHandlerUtilSearchTest {
         // The native Business Partner HQL selector exposes bpid without a column or suffix.
         resolve();
         assertEquals(RECORD_ID, data.getString(INPUT));
-        assertEquals("Partner", data.getString(INPUT + "_NAME"));
+        assertEquals(PARTNER_NAME, data.getString(INPUT + NAME_SUFFIX));
         rxUtils.verify(() -> DataSourceUtils.getInpName((Column) null), never());
     }
 
+    /** Skips calculated output fields that have neither a suffix nor a destination column. */
     @Test
     public void calculatedOutfieldWithoutDestinationIsNotWritten() throws Exception {
         SelectorField outfield = selector.getOBUISELSelectorFieldList().get(1);
         when(outfield.getSuffix()).thenReturn(null);
         resolve();
         assertEquals(RECORD_ID, data.getString(INPUT));
-        assertFalse(data.has(INPUT + "_NAME"));
-        assertFalse(data.has("bpname"));
+        assertFalse(data.has(INPUT + NAME_SUFFIX));
+        assertFalse(data.has(NAME_ALIAS));
         rxUtils.verify(() -> DataSourceUtils.getInpName((Column) null), never());
     }
 
+    /** Maps an output field to its destination column when no suffix is configured. */
     @Test
     public void outfieldWithoutSuffixStillMapsItsColumn() throws Exception {
         SelectorField outfield = selector.getOBUISELSelectorFieldList().get(1);
@@ -200,9 +209,10 @@ public class SelectorHandlerUtilSearchTest {
         when(outfield.getColumn()).thenReturn(target);
         rxUtils.when(() -> DataSourceUtils.getInpName(target)).thenReturn("inpMappedName");
         resolve();
-        assertEquals("Partner", data.getString("inpMappedName"));
+        assertEquals(PARTNER_NAME, data.getString("inpMappedName"));
     }
 
+    /** Includes the headless field filter in the custom selector query. */
     @Test
     public void headlessFilterIsPreserved() {
         Field field = mock(Field.class);
@@ -213,6 +223,7 @@ public class SelectorHandlerUtilSearchTest {
         assertTrue(hql.get().contains("AND bp.id = '" + RECORD_ID + "'"));
     }
 
+    /** Preserves the entity datasource path for Search selectors without custom HQL. */
     @Test
     public void genericSearchKeepsUsingTheEntityDatasource() throws Exception {
         when(selector.isCustomQuery()).thenReturn(false);
@@ -236,38 +247,42 @@ public class SelectorHandlerUtilSearchTest {
         try (MockedConstruction<DefaultDataSourceService> services = mockConstruction(DefaultDataSourceService.class,
                 (service, ignored) -> when(service.fetch(anyMap())).thenReturn(response))) {
             resolve();
-            assertEquals("Generic Partner", data.getString(INPUT + "_NAME"));
+            assertEquals("Generic Partner", data.getString(INPUT + NAME_SUFFIX));
             verify(services.constructed().get(0)).fetch(argThat(parameters ->
                     parameters.get("whereAndFilterClause").contains("e.id = '" + RECORD_ID + "'")));
             verify(query, never()).list();
         }
     }
 
+    /** Preserves custom HQL resolution for the defined Selector reference. */
     @Test
     public void definedSelectorKeepsResolvingItsCustomQuery() throws Exception {
         when(referenceType.getId()).thenReturn("95E2A8B50A254B2AAE6774B8C2F28120");
         resolve();
-        assertEquals("Partner", data.getString(INPUT + "_NAME"));
+        assertEquals(PARTNER_NAME, data.getString(INPUT + NAME_SUFFIX));
         verify(query).list();
     }
 
+    /** Rejects records absent from the filtered results and restores the security context. */
     @Test
     public void inaccessibleOrMissingRecordAbortsResolution() {
         when(query.list()).thenReturn(Collections.emptyList());
         expectResolutionFailure();
-        assertFalse(data.has(INPUT + "_NAME"));
+        assertFalse(data.has(INPUT + NAME_SUFFIX));
         context.verify(OBContext::restorePreviousMode);
     }
 
+    /** Propagates an HQL failure with its original cause instead of ignoring it. */
     @Test
     public void hqlFailureIsPropagatedWithItsCause() {
         IllegalArgumentException failure = new IllegalArgumentException("Invalid HQL alias");
         when(query.list()).thenThrow(failure);
         SelectorResolutionException error = expectResolutionFailure();
         assertSame(failure, error.getCause());
-        assertFalse(data.has(INPUT + "_NAME"));
+        assertFalse(data.has(INPUT + NAME_SUFFIX));
     }
 
+    /** Rejects custom HQL that cannot receive the native access filters. */
     @Test
     public void selectorWithoutAccessFilterPlaceholderIsRejected() {
         when(selector.getHQL()).thenReturn("select bp.id as bpid from BusinessPartner bp");
@@ -275,6 +290,7 @@ public class SelectorHandlerUtilSearchTest {
         verify(query, never()).list();
     }
 
+    /** Propagates filter expression failures before running the selector query. */
     @Test
     public void filterExpressionFailureIsPropagated() throws Exception {
         when(selector.getFilterExpression()).thenReturn("broken expression");
@@ -288,6 +304,7 @@ public class SelectorHandlerUtilSearchTest {
         }
     }
 
+    /** Allows null or empty values to clear an optional selector without querying it. */
     @Test
     public void optionalSelectorCanBeCleared() throws Exception {
         data.put(INPUT, JSONObject.NULL);
@@ -297,6 +314,7 @@ public class SelectorHandlerUtilSearchTest {
         verify(query, never()).list();
     }
 
+    /** Leaves non-selector columns outside the selector resolution workflow. */
     @Test
     public void nonSelectorColumnsDoNotRunASelectorQuery() {
         when(referenceType.getId()).thenReturn("10");

@@ -48,6 +48,7 @@ public class SelectorHandlerUtil {
     public static final String START_ROW = "_startRow";
     public static final String END_ROW = "_endRow";
     public static final String RESPONSE = "response";
+    private static final String RECORD_NOT_FOUND_MESSAGE = "ETRX_RecordNotFound";
     // A valid Etendo record id is a 32-character hex string (UUID without hyphens).
     private static final String ETENDO_ID_PATTERN = "[0-9A-Fa-f]{32}";
     // Placeholder a custom selector HQL uses to receive the filters computed for the request.
@@ -113,9 +114,9 @@ public class SelectorHandlerUtil {
 
             Selector selectorDefined = reference.getOBUISELSelectorList().get(0);
             if (Boolean.TRUE.equals(selectorDefined.isCustomQuery())) {
-                JSONObject record = resolveCustomSearchSelector(request, tab, dataInpFormat,
+                JSONObject selectedRecord = resolveCustomSearchSelector(request, tab, dataInpFormat,
                         changedColumnInp, db2Input, col, selectorDefined);
-                savePrefixFields(dataInpFormat, changedColumnInp, selectorDefined, record, true);
+                savePrefixFields(dataInpFormat, changedColumnInp, selectorDefined, selectedRecord, true);
                 return;
             }
             String headlessFilterClause = getHeadlessFilterClause(tab, col, changedColumnInp, dataInpFormat);
@@ -150,7 +151,7 @@ public class SelectorHandlerUtil {
             if (obj == null) {
                 log.error("Record not found in selector");
                 throw new OBException(
-                        String.format(OBMessageUtils.messageBD("ETRX_RecordNotFound"), recordID));
+                        String.format(OBMessageUtils.messageBD(RECORD_NOT_FOUND_MESSAGE), recordID));
             }
 
             savePrefixFields(dataInpFormat, changedColumnInp, selectorDefined, obj, false);
@@ -213,13 +214,13 @@ public class SelectorHandlerUtil {
             query.setMaxResults(100);
             @SuppressWarnings("unchecked")
             List<Map<String, Object>> rows = query.list();
-            JSONObject record = findMatchingRecordInBatch(rows, recordID,
+            JSONObject selectedRecord = findMatchingRecordInBatch(rows, recordID,
                     selector.getValuefield().getDisplayColumnAlias());
-            if (record != null) {
-                return record;
+            if (selectedRecord != null) {
+                return selectedRecord;
             }
             if (rows.size() < 100) {
-                throw new OBException(String.format(OBMessageUtils.messageBD("ETRX_RecordNotFound"), recordID));
+                throw new OBException(String.format(OBMessageUtils.messageBD(RECORD_NOT_FOUND_MESSAGE), recordID));
             }
             offset += rows.size();
         }
@@ -275,7 +276,7 @@ public class SelectorHandlerUtil {
             if (matchedRecord == null) {
                 log.error("Record not found in selector");
                 throw new OBException(
-                        String.format(OBMessageUtils.messageBD("ETRX_RecordNotFound"), recordID));
+                        String.format(OBMessageUtils.messageBD(RECORD_NOT_FOUND_MESSAGE), recordID));
             }
 
             savePrefixFields(dataInpFormat, changedColumnInp, selectorDefined, matchedRecord, true);

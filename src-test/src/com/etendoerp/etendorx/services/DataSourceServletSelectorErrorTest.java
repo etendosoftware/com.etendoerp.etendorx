@@ -22,11 +22,15 @@ import com.etendoerp.etendorx.utils.DataSourceUtils;
 
 /** Verifies the HTTP and transaction contract when an upsert cannot resolve a selector. */
 public class DataSourceServletSelectorErrorTest {
+    private static final String SALES_ORDER_PATH = "/SalesOrder";
+
+    /** Returns HTTP 400 and marks the transaction for rollback when POST resolution fails. */
     @Test
     public void selectorFailureAbortsPostAndMarksRollback() throws Exception {
         assertSelectorFailure("POST");
     }
 
+    /** Returns HTTP 400 and marks the transaction for rollback when PUT resolution fails. */
     @Test
     public void selectorFailureAbortsPutAndMarksRollback() throws Exception {
         assertSelectorFailure("PUT");
@@ -52,13 +56,13 @@ public class DataSourceServletSelectorErrorTest {
             when(variables.getJavaDateFormat()).thenReturn("dd-MM-yyyy");
             when(variables.getSessionValue("#DecimalSeparator|generalQtyEdition")).thenReturn(".");
             // Inject a downstream failure through the shared upsert workflow.
-            utils.when(() -> DataSourceUtils.extractDataSourceAndID("/SalesOrder")).thenThrow(failure);
+            utils.when(() -> DataSourceUtils.extractDataSourceAndID(SALES_ORDER_PATH)).thenThrow(failure);
             sessions.when(SessionHandler::getInstance).thenReturn(session);
             DataSourceServlet servlet = new DataSourceServlet();
             if ("POST".equals(method)) {
-                servlet.doPost("/SalesOrder", request, response);
+                servlet.doPost(SALES_ORDER_PATH, request, response);
             } else {
-                servlet.doPut("/SalesOrder", request, response);
+                servlet.doPut(SALES_ORDER_PATH, request, response);
             }
             verify(response).setStatus(HttpServletResponse.SC_BAD_REQUEST);
             verify(session).setDoRollback(true);
