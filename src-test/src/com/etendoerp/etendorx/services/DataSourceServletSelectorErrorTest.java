@@ -24,13 +24,21 @@ import com.etendoerp.etendorx.utils.DataSourceUtils;
 public class DataSourceServletSelectorErrorTest {
     private static final String SALES_ORDER_PATH = "/SalesOrder";
 
-    /** Returns HTTP 400 and marks the transaction for rollback when POST resolution fails. */
+    /**
+     * Returns HTTP 400 and marks the transaction for rollback when POST resolution fails.
+     *
+     * @throws Exception if JSON handling or the request fixture fails
+     */
     @Test
     public void selectorFailureAbortsPostAndMarksRollback() throws Exception {
         assertSelectorFailure("POST");
     }
 
-    /** Returns HTTP 400 and marks the transaction for rollback when PUT resolution fails. */
+    /**
+     * Returns HTTP 400 and marks the transaction for rollback when PUT resolution fails.
+     *
+     * @throws Exception if JSON handling or the request fixture fails
+     */
     @Test
     public void selectorFailureAbortsPutAndMarksRollback() throws Exception {
         assertSelectorFailure("PUT");

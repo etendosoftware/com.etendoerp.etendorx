@@ -68,7 +68,11 @@ public class SelectorHandlerUtilSearchTest {
     private OBDal obDal;
     private JSONObject data;
 
-    /** Configures a custom HQL Business Partner selector and its request context. */
+    /**
+     * Configures a custom HQL Business Partner selector and its request context.
+     *
+     * @throws Exception if the selector fixture cannot be initialized
+     */
     @Before
     public void setUp() throws Exception {
         rxUtils = mockStatic(DataSourceUtils.class);
@@ -157,7 +161,11 @@ public class SelectorHandlerUtilSearchTest {
         throw new AssertionError("Expected selector resolution to fail");
     }
 
-    /** Resolves a custom Search selector with its own alias, access filters and output mapping. */
+    /**
+     * Resolves a custom Search selector with its own alias, access filters and output mapping.
+     *
+     * @throws Exception if JSON handling or the request fixture fails
+     */
     @Test
     public void customSearchUsesOwnAliasAccessFiltersAndOutfields() throws Exception {
         resolve();
@@ -176,7 +184,11 @@ public class SelectorHandlerUtilSearchTest {
         context.verify(OBContext::restorePreviousMode);
     }
 
-    /** Keeps the validated ID when the calculated value field has no destination column. */
+    /**
+     * Keeps the validated ID when the calculated value field has no destination column.
+     *
+     * @throws Exception if JSON handling or the request fixture fails
+     */
     @Test
     public void calculatedValueOutfieldWithoutColumnPreservesValidatedId() throws Exception {
         SelectorField value = selector.getValuefield();
@@ -188,7 +200,11 @@ public class SelectorHandlerUtilSearchTest {
         rxUtils.verify(() -> DataSourceUtils.getInpName((Column) null), never());
     }
 
-    /** Skips calculated output fields that have neither a suffix nor a destination column. */
+    /**
+     * Skips calculated output fields that have neither a suffix nor a destination column.
+     *
+     * @throws Exception if JSON handling or the request fixture fails
+     */
     @Test
     public void calculatedOutfieldWithoutDestinationIsNotWritten() throws Exception {
         SelectorField outfield = selector.getOBUISELSelectorFieldList().get(1);
@@ -200,7 +216,11 @@ public class SelectorHandlerUtilSearchTest {
         rxUtils.verify(() -> DataSourceUtils.getInpName((Column) null), never());
     }
 
-    /** Maps an output field to its destination column when no suffix is configured. */
+    /**
+     * Maps an output field to its destination column when no suffix is configured.
+     *
+     * @throws Exception if JSON handling or the request fixture fails
+     */
     @Test
     public void outfieldWithoutSuffixStillMapsItsColumn() throws Exception {
         SelectorField outfield = selector.getOBUISELSelectorFieldList().get(1);
@@ -223,7 +243,11 @@ public class SelectorHandlerUtilSearchTest {
         assertTrue(hql.get().contains("AND bp.id = '" + RECORD_ID + "'"));
     }
 
-    /** Preserves the entity datasource path for Search selectors without custom HQL. */
+    /**
+     * Preserves the entity datasource path for Search selectors without custom HQL.
+     *
+     * @throws Exception if JSON handling or the request fixture fails
+     */
     @Test
     public void genericSearchKeepsUsingTheEntityDatasource() throws Exception {
         when(selector.isCustomQuery()).thenReturn(false);
@@ -254,7 +278,11 @@ public class SelectorHandlerUtilSearchTest {
         }
     }
 
-    /** Preserves custom HQL resolution for the defined Selector reference. */
+    /**
+     * Preserves custom HQL resolution for the defined Selector reference.
+     *
+     * @throws Exception if JSON handling or the request fixture fails
+     */
     @Test
     public void definedSelectorKeepsResolvingItsCustomQuery() throws Exception {
         when(referenceType.getId()).thenReturn("95E2A8B50A254B2AAE6774B8C2F28120");
@@ -290,7 +318,11 @@ public class SelectorHandlerUtilSearchTest {
         verify(query, never()).list();
     }
 
-    /** Propagates filter expression failures before running the selector query. */
+    /**
+     * Propagates filter expression failures before running the selector query.
+     *
+     * @throws Exception if JSON handling or the request fixture fails
+     */
     @Test
     public void filterExpressionFailureIsPropagated() throws Exception {
         when(selector.getFilterExpression()).thenReturn("broken expression");
@@ -304,7 +336,11 @@ public class SelectorHandlerUtilSearchTest {
         }
     }
 
-    /** Allows null or empty values to clear an optional selector without querying it. */
+    /**
+     * Allows null or empty values to clear an optional selector without querying it.
+     *
+     * @throws Exception if JSON handling or the request fixture fails
+     */
     @Test
     public void optionalSelectorCanBeCleared() throws Exception {
         data.put(INPUT, JSONObject.NULL);
