@@ -171,6 +171,39 @@ public class SelectorHandlerUtilSearchTest {
     }
 
     @Test
+    public void calculatedValueOutfieldWithoutColumnPreservesValidatedId() throws Exception {
+        SelectorField value = selector.getValuefield();
+        when(value.isOutfield()).thenReturn(true);
+        // The native Business Partner HQL selector exposes bpid without a column or suffix.
+        resolve();
+        assertEquals(RECORD_ID, data.getString(INPUT));
+        assertEquals("Partner", data.getString(INPUT + "_NAME"));
+        rxUtils.verify(() -> DataSourceUtils.getInpName((Column) null), never());
+    }
+
+    @Test
+    public void calculatedOutfieldWithoutDestinationIsNotWritten() throws Exception {
+        SelectorField outfield = selector.getOBUISELSelectorFieldList().get(1);
+        when(outfield.getSuffix()).thenReturn(null);
+        resolve();
+        assertEquals(RECORD_ID, data.getString(INPUT));
+        assertFalse(data.has(INPUT + "_NAME"));
+        assertFalse(data.has("bpname"));
+        rxUtils.verify(() -> DataSourceUtils.getInpName((Column) null), never());
+    }
+
+    @Test
+    public void outfieldWithoutSuffixStillMapsItsColumn() throws Exception {
+        SelectorField outfield = selector.getOBUISELSelectorFieldList().get(1);
+        Column target = mock(Column.class);
+        when(outfield.getSuffix()).thenReturn(null);
+        when(outfield.getColumn()).thenReturn(target);
+        rxUtils.when(() -> DataSourceUtils.getInpName(target)).thenReturn("inpMappedName");
+        resolve();
+        assertEquals("Partner", data.getString("inpMappedName"));
+    }
+
+    @Test
     public void headlessFilterIsPreserved() {
         Field field = mock(Field.class);
         when(field.getColumn()).thenReturn(column);

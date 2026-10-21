@@ -528,7 +528,9 @@ public class SelectorHandlerUtil {
             
             if (obj.has(normalizedName)) {
                 String targetKey = getTargetKey(changedColumnInp, selectorField);
-                dataInpFormat.put(targetKey, obj.get(normalizedName));
+                if (StringUtils.isNotBlank(targetKey)) {
+                    dataInpFormat.put(targetKey, obj.get(normalizedName));
+                }
             }
         }
     }
@@ -559,13 +561,17 @@ public class SelectorHandlerUtil {
      *
      * @param changedColumnInp The input format name of the changed column
      * @param selectorField The selector field
-     * @return The target key for the data input format
+     * @return The target key, or null for a calculated HQL field without a destination column or suffix
      */
     private static String getTargetKey(String changedColumnInp, SelectorField selectorField) {
         if (!StringUtils.isEmpty(selectorField.getSuffix())) {
             return changedColumnInp + selectorField.getSuffix();
         } else {
-            return DataSourceUtils.getInpName(selectorField.getColumn());
+            // Custom HQL fields can be calculated expressions with no dictionary column.
+            // Without a suffix or column there is no input to populate; the selected ID
+            // has already been validated and remains in changedColumnInp.
+            return selectorField.getColumn() == null
+                    ? null : DataSourceUtils.getInpName(selectorField.getColumn());
         }
     }
 
