@@ -40,6 +40,7 @@ import org.openbravo.base.weld.WeldUtils;
 import org.openbravo.client.application.OBBindingsConstants;
 import org.openbravo.client.kernel.RequestContext;
 import org.openbravo.dal.core.OBContext;
+import org.openbravo.dal.core.SessionHandler;
 import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
@@ -351,6 +352,10 @@ public class DataSourceServlet implements WebService {
   private void upsertEntity(String method, String path, HttpServletRequest request, HttpServletResponse response) {
     try {
       executeUpsert(method, path, request, response);
+    } catch (SelectorResolutionException e) {
+      SessionHandler.getInstance().setDoRollback(true);
+      sendJsonError(response, HttpServletResponse.SC_BAD_REQUEST, "Selector Error",
+          e.getMessage() != null ? e.getMessage() : "The selector value could not be resolved.");
     } catch (CalloutExecutionException e) {
       sendJsonError(response, HttpServletResponse.SC_BAD_REQUEST, "Callout Error",
           e.getMessage() != null ? e.getMessage() : "An unexpected error occurred.");
